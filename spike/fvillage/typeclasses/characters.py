@@ -90,6 +90,19 @@ KEEPER_TALKS = [
     "Ask after the room, the drink, the games, or the talk. Those I can help with.",
 ]
 
+# Stew-provenance mystery hook: the keeper changes the subject when asked
+# what goes in the pot. Each line deflects to the bar's games or the door —
+# Bram is welcoming, directive, and plain-spoken, and his talk line already
+# promises "I never say what's in it — house rule."
+STEW_DEFLECTIONS = [
+    "Stew's stew, friend — roots, pepper, and whatever the pot provided. "
+    "House rule: I never say what's in it. Dice cup's on the bar, if your "
+    "hands need employment.",
+    "Ask the pot, friend. It's heard every question in this village and "
+    "answered none of them. Now — the cards are on the corner table, the "
+    "door's right there, and the evening's yours.",
+]
+
 
 class Character(DefaultCharacter):
     """Standard character (kept for Evennia's default typeclass path)."""
@@ -594,6 +607,8 @@ class TavernKeeper(SpikeCharacter):
             parts.append("Haven't heard the fiddle in a while.")
         elif "fortunes" in interests:
             parts.append("The cards have missed you.")
+        elif "stew" in interests:
+            parts.append("Still on about the stew, eh? House rule stands.")
         elif mem.get("visits", 0) >= 4:
             parts.append("The usual table's free.")
         if not parts:
@@ -649,6 +664,16 @@ class TavernKeeper(SpikeCharacter):
                     "it. Nobody's the wiser. That's the village for you."
                 )
             return "What note?"
+        # The stew's meat is uncertain on purpose (backlog #13: a thread for
+        # a future incident). Bram notes the interest and changes the
+        # subject — the meat question never gets an answer.
+        if has("stew", "supper", "dinner") or set(t.split()) & {
+            "meat",
+            "pot",
+            "bowl",
+        }:
+            self.note_interest(char, "stew")
+            return random.choice(STEW_DEFLECTIONS)
         if t == "m" or "innkeeper" in t or "innkeep" in t:
             return (
                 "M.? Best innkeeper in the village. Don't tell her I "
@@ -793,3 +818,111 @@ class LucianDeVille(SpikeCharacter):
                 "whole of my philosophy. People complicate it. I don't let them.",
             ])
         return None
+
+
+# --- tavern regulars -----------------------------------------------------------
+# Authored persons, not role-functions. Each has a seat, a past, opinions,
+# and relationships with the others. db.regular_key selects the voice.
+
+VASILE = {
+    "greet": [
+        "Sit. The corner's taken — by me — but the rest of the room's free.",
+        "Vasile. I don't dig anymore. The hands didn't get the word.",
+    ],
+    "talk": [
+        "Forty years I dug. Forty. You learn the ground the way Bram learns "
+        "faces. You learn it.",
+        "Where are they buried? Lad, everyone's buried somewhere. The "
+        "question is where they *aren't*. That's the interesting question.",
+        "The Manor? Don't dig there. I'm retired. That's the whole of my "
+        "advice: don't dig there.",
+        "János asks me if I ever dug one back up. Once. Never again. He "
+        "laughs. He'll learn.",
+    ],
+}
+
+MAGDA = {
+    "greet": [
+        "Oh, a face! Sit, sit — have you heard? No? Then you're behind, "
+        "love, and Magda hates to see anyone behind.",
+        "Magda. I do the washing. I know things. Everybody pays; I just "
+        "charge in gossip.",
+    ],
+    "talk": [
+        "You want to know something? Bring me something first. That's the "
+        "rule.",
+        "Bram's V? Oh, I know what it stands for. Knowing's my business. "
+        "Telling's extra.",
+        "The lamp-seller? Nice man. Too nice. Niceness like that is a coat "
+        "— warm, but what's under it?",
+        "The stew? I'm not saying don't eat it. I'm saying eat it on any "
+        "day but Thursday.",
+    ],
+}
+
+JANOS = {
+    "greet": [
+        "Hound. Between contracts. If you've got something that needs "
+        "hunting, I'm expensive. If you've got ale, I'm company.",
+        "János. Sit if you're buying. Stand if you're hiring.",
+    ],
+    "talk": [
+        "Theology? With Father Andrei? He says the world's fallen. I say "
+        "it's just poorly patrolled. We drink on it.",
+        "Vampires in the catacombs — old, patient, owed tribute. That's "
+        "not a secret, that's geography.",
+        "You want to know if the stories are true? All of them. None of "
+        "them. Buy me an ale and I'll decide which.",
+        "Vasile dug one back up, once. Ask him. Go on, ask him. He loves "
+        "that story.",
+    ],
+}
+
+REGULARS = {"vasile": VASILE, "magda": MAGDA, "janos": JANOS}
+
+
+class TavernRegular(SpikeCharacter):
+    """A tavern regular: an authored person with a seat and opinions.
+
+    db.regular_key selects the voice from REGULARS. The ambient life
+    ticker (world/tavern_life.py) moves them through beats — gossip,
+    toasts, eating and drinking through the same consumable pipeline
+    players use. The surprise table can hit them too.
+    """
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.db.seen_greet = []
+        self.db.seen_talk = []
+
+    def _voice(self):
+        return REGULARS.get(self.db.regular_key or "", {"greet": [], "talk": []})
+
+    def _next_line(self, kind):
+        lines = self._voice().get(kind) or ["Hm."]
+        attr = "seen_greet" if kind == "greet" else "seen_talk"
+        seen = list(self.attributes.get(attr) or [])
+        remaining = [line for line in lines if line not in seen]
+        if not remaining:
+            seen = []
+            remaining = list(lines)
+        import random
+        line = random.choice(remaining)
+        seen.append(line)
+        self.attributes.add(attr, seen)
+        return line
+
+    def greet(self, char):
+        line = self._next_line("greet")
+        self.location.msg_contents(
+            f'{self.key} nods at {char.key}. "{line}"',
+            exclude=[],
+        )
+
+    def talk_to(self, char):
+        line = self._next_line("talk")
+        char.msg(f'{self.key} says: "{line}"')
+        self.location.msg_contents(
+            f"{self.key} turns to {char.key}.",
+            exclude=[char],
+        )

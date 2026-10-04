@@ -652,3 +652,23 @@ class CatLife(SpikeScript):
                 "hearth, lays it precisely before the empty chair, and "
                 "stares at it."
             )
+
+
+class TavernLife(SpikeScript):
+    """Ambient life for the Blood of the Vine.
+
+    Every interval, one beat: gossip, toasts, brooding, cross-talk, a
+    regular eating or drinking through the real consumable pipeline, or
+    Bram polishing. The room is mid-conversation when players arrive —
+    the NPC pub doesn't need an audience.
+    """
+
+    def at_script_creation(self):
+        self.key = "tavern_life"
+        self.desc = "Ambient life in the Blood of the Vine."
+        self.interval = 150
+        self.persistent = True
+
+    def at_repeat(self):
+        from world.tavern_life import run_beat
+        run_beat()

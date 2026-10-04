@@ -548,6 +548,48 @@ _curio(
     "script: 'Price on application.'",
 )
 
+# --- the regulars: the room's memory ------------------------------------------
+# Authored persons with seats, pasts, and opinions about each other. The
+# TavernLife ticker moves them through beats; they eat and drink through
+# the same pipeline players use.
+
+
+def _regular(key, aliases, regular_key, desc):
+    found = [o for o in tavern.contents if o.key == key]
+    if found:
+        obj = found[0]
+    else:
+        obj = create.create_object(
+            "typeclasses.characters.TavernRegular",
+            key=key, location=tavern, aliases=list(aliases),
+        )
+        print(f"regular created: {key}")
+    obj.db.regular_key = regular_key
+    obj.db.desc = desc
+    return obj
+
+
+_regular(
+    "Old Vasile", ["vasile", "old vasile"], "vasile",
+    "Old Vasile, folded into the corner like a coat left behind. His hands "
+    "are gravedigger's hands — he doesn't dig anymore, but the hands didn't "
+    "get the word. He drinks ale, always the same corner, and knows where "
+    "the bodies are buried. More importantly, he knows where they aren't.",
+)
+_regular(
+    "Magda", ["magda"], "magda",
+    "Magda, sleeves rolled, arms that could wring a confession out of a "
+    "sheet. She does the washing for half the town and knows whose linen "
+    "tells stories. She trades rumor for rumor, and always collects.",
+)
+_regular(
+    "János", ["janos", "jános"], "janos",
+    "János, broad as a door and quiet as one, when he chooses. A Hound — a "
+    "monster hunter — between contracts. His kit bag sits by his feet, "
+    "packed. It's always packed. He drinks like the world's ending, because "
+    "for some villages, it is.",
+)
+
 # The common room's description claimed the front door "stands to the
 # south", but the door is only reachable via the hallway (east). Fix the
 # description to match the layout.
@@ -770,6 +812,7 @@ for _skey, _sclass in (
     ("village_time", "typeclasses.scripts.VillageTime"),
     ("village_weather", "typeclasses.scripts.VillageWeather"),
     ("warmth_watch", "typeclasses.scripts.WarmthWatch"),
+    ("tavern_life", "typeclasses.scripts.TavernLife"),
 ):
     if ScriptDB.objects.filter(db_key=_skey).exists():
         print(f"{_skey} script exists.")
