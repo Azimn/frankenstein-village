@@ -38,6 +38,23 @@ JANOS_BROOD = [
     "about catacombs, probably.",
 ]
 
+ANDREI_JANOS_DEBATES = [
+    "Andrei: \"The world is full of men, which is worse.\" János: \"Men I can see coming.\"",
+    "János: \"Your rite. Does it work?\" Andrei: \"I perform it either way. That's the job.\"",
+    "Andrei: \"Lazarus walked. Four days dead.\" János: \"And?\" Andrei: \"And nobody asked what he saw.\"",
+    "János: \"Bless my kit.\" Andrei: \"I bless the graves. The kit's your business.\"",
+]
+
+
+def _beat_debate(regulars, bram, say):
+    """Andrei and János's nightly theology argument — only when both are here."""
+    keys = {o.db.regular_key for o in regulars}
+    if not {"andrei", "janos"} <= keys:
+        return "debate-skipped"
+    say(random.choice(ANDREI_JANOS_DEBATES))
+    return "debate"
+
+
 CROSS_TALK = [
     "Magda nudges Vasile. \"Tell the one about the Manor.\" Vasile: \"No.\"",
     "Vasile squints at J\u00e1nos's kit bag. \"Packed. Always packed. You Hounds.\"",
@@ -59,9 +76,10 @@ def _tavern():
 
 
 def _regulars(tavern):
+    # Not exact: FatherAndrei subclasses TavernRegular and should join beats.
     return [
         o for o in tavern.contents
-        if o.is_typeclass("typeclasses.characters.TavernRegular", exact=True)
+        if o.is_typeclass("typeclasses.characters.TavernRegular", exact=False)
     ]
 
 
@@ -127,6 +145,7 @@ BEATS = [
     (3, _beat_cross),
     (2, _beat_consume),
     (1, _beat_bram),
+    (2, _beat_debate),
 ]
 
 

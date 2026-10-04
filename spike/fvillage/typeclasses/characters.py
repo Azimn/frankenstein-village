@@ -926,3 +926,120 @@ class TavernRegular(SpikeCharacter):
             f"{self.key} turns to {char.key}.",
             exclude=[char],
         )
+
+
+ANDREI = {
+    "greet": [
+        "Peace be with you. Mind the step — the stone sweats in the cold.",
+        "Ah. Come in. The candles don't care what you believe, and on most days neither do I.",
+    ],
+    "talk": [
+        "I keep the calendar because the village needs the calendar. Whether He keeps it is above my pay grade.",
+        "János thinks the world is full of monsters. I think it's full of men, which is worse, and I tell him so every night at nine.",
+        "Lazarus got up and walked. Nobody asks what he saw in the four days. I think about that more than is healthy.",
+        "Forty years I've buried this village. The ground here is... reluctant. Vasile knows. Ask Vasile, then ask me again.",
+        "The box is in the corner. What's said there stays there — that's the whole of the sacrament and the whole of the burden.",
+    ],
+}
+
+REGULARS["andrei"] = ANDREI
+
+
+class FatherAndrei(TavernRegular):
+    """The priest of St. Lazarus. Keeps the calendar; doubts the rope.
+
+    A TavernRegular by machinery (schedule, greet/talk rotation) though
+    his seat is the church — he's in the tavern 19-22 most nights, arguing
+    with János. ask_about carries his theology; the confess command
+    carries his sacrament.
+    """
+
+    def greet(self, char):
+        # The box remembers. Trust, observably.
+        if char.db.confessed:
+            self.location.msg_contents(
+                f'Father Andrei nods at {char.key}. "Ah. The box heard you. '
+                'Walk lighter."',
+                exclude=[],
+            )
+            return
+        super().greet(char)
+
+    def ask_about(self, char, topic):
+        t = topic.lower().strip()
+        if t.startswith("the "):
+            t = t[4:]
+
+        def has(*keys):
+            return any(k == t or k in t or t in k for k in keys)
+
+        import random
+        if has("faith", "god", "believe", "belief", "doubt"):
+            return random.choice([
+                "I believe the way a man holds a rope in the dark. Tight. "
+                "Without knowing what's on the other end.",
+                "Doubt is the only honest part of my job. The rest is "
+                "calendar and candles, and I do those whether I feel them "
+                "or not.",
+            ])
+        if has("church", "lazarus", "saint", "patron"):
+            return (
+                "St. Lazarus. The patron got up and walked out of his own "
+                "grave. In this village that's not a metaphor — it's a "
+                "zoning dispute."
+            )
+        if has("confession", "confess", "sin", "absolution", "forgive"):
+            return (
+                "The box is in the corner. What's said there stays there — "
+                "that's the whole of the sacrament and the whole of the "
+                "burden. Say the word and I'll hear you."
+            )
+        if has("janos", "hound", "hunter"):
+            return (
+                "János hunts monsters. I bury what they leave. Between us "
+                "we've got the village covered — though we argue nightly "
+                "about which of us has the harder job."
+            )
+        if has("monster", "vampire", "vampires", "catacombs", "dead walk",
+               "undead", "creature"):
+            return random.choice([
+                "I've buried men with two wounds in the neck and no blood "
+                "in them. Believe what you like. I bless the graves anyway.",
+                "The Church has a rite for it. Whether the rite works is "
+                "between God and the thing in the catacombs. I perform it "
+                "either way.",
+            ])
+        if has("all souls", "all saints", "november", "feast", "calendar",
+               "easter", "christmas", "lent"):
+            from world import liturgical
+            from evennia.scripts.models import ScriptDB
+            try:
+                day = ScriptDB.objects.get(db_key="village_time").db.day or 1
+            except Exception:
+                day = 1
+            ahead, info = liturgical.next_feast(day)
+            if info:
+                when = "today" if ahead == 0 else f"in {ahead} days"
+                return (
+                    f"{info['name']} — {when}. {info['note']}"
+                )
+            return "The calendar turns. It always turns."
+        if has("vasile", "gravedigger", "graves"):
+            return (
+                "Vasile dug for forty years and never once asked me to "
+                "explain the ground to him. He knows things about this "
+                "churchyard that aren't in any book I own."
+            )
+        if has("bram", "keeper", "tavern", "blood of the vine"):
+            return (
+                "Bram's business is Bram's. The Church has no opinion on "
+                "bartenders. Unofficially, his small beer is the only "
+                "theology János and I fully agree on."
+            )
+        if has("pretorius", "antiquarian", "new shop"):
+            char.msg("Andrei's expression doesn't change, which is itself an answer.")
+            return (
+                "A new shop. The village will decide what it thinks of that "
+                "long before I do."
+            )
+        return None

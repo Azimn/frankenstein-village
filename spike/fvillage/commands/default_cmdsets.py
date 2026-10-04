@@ -34,7 +34,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         #
         # any commands you add below will overload the default ones.
         #
-        from commands.village_cmds import CmdReport, CmdRumors, CmdTalk, CmdAsk, CmdRead, CmdTime, CmdListen, CmdSmell, CmdDiary, CmdPet, CmdThrow, CmdRoll, CmdDraw, CmdSit, CmdStand, CmdPlay, CmdPractice, CmdDuet, CmdScore, CmdEat, CmdDrink, CmdOOCOverride, CmdICOverride
+        from commands.village_cmds import CmdReport, CmdRumors, CmdTalk, CmdAsk, CmdRead, CmdTime, CmdListen, CmdSmell, CmdDiary, CmdPet, CmdThrow, CmdRoll, CmdDraw, CmdSit, CmdStand, CmdPlay, CmdPractice, CmdDuet, CmdScore, CmdEat, CmdDrink, CmdConfess, CmdOOCOverride, CmdICOverride
 
         self.add(CmdReport())
         self.add(CmdRumors())
@@ -57,6 +57,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdStand())
         self.add(CmdEat())
         self.add(CmdDrink())
+        self.add(CmdConfess())
         # The front door is the only IC/OOC threshold: block Evennia's
         # default ooc/ic commands everywhere so they can't bypass it.
         self.add(CmdOOCOverride())

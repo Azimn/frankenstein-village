@@ -2176,3 +2176,69 @@ class CmdDrink(Command):
             )
             return
         _consume(self.caller, item, "drink", "drink", "drinks")
+
+
+class CmdConfess(Command):
+    """
+    Confess.
+
+    Usage:
+        confess <words>
+
+    Kneel in the confessional box at St. Lazarus and say it. What's said
+    in there stays in there — the ledger records that a confession
+    happened, never what was said. The village will notice you were a
+    long time in the box, though. Father Andrei hears you if he's here;
+    the box hears you regardless.
+    """
+
+    key = "confess"
+    help_category = "Village"
+
+    def func(self):
+        words = (self.args or "").strip()
+        if not words:
+            self.caller.msg("Confess what? (Try: confess <words>.)")
+            return
+        loc = self.caller.location
+        if not loc or loc.key != "St. Lazarus Church":
+            self.caller.msg(
+                "The box is in the church. Confession happens there."
+            )
+            return
+        # The seal: the ledger records the event, never the content.
+        try:
+            from world.events import publish_world_event
+
+            publish_world_event(
+                "confession",
+                actor=self.caller,
+                payload={"sealed": True},
+                rumor="Someone was a long time in the box today.",
+            )
+        except Exception:
+            pass
+        andrei = next(
+            (o for o in loc.contents if o.key == "Father Andrei"), None
+        )
+        if andrei:
+            self.caller.msg(
+                'Through the grille, Andrei\'s voice, low: "Ego te absolvo. '
+                "Go — and walk lighter than you came in.\""
+            )
+            loc.msg_contents(
+                f"{self.caller.key} kneels in the confessional a long time.",
+                exclude=[self.caller],
+            )
+        else:
+            self.caller.msg(
+                "The box is empty of priests, but the curtain is drawn and "
+                "the kneeler is worn. You say it anyway. The candles don't "
+                "flicker. Somehow that's an answer."
+            )
+            loc.msg_contents(
+                f"{self.caller.key} kneels in the confessional a long time.",
+                exclude=[self.caller],
+            )
+        # Andrei remembers who came to the box. Trust, observably.
+        self.caller.db.confessed = True

@@ -103,6 +103,20 @@ get_or_create_room(
     place="offstage",
 )
 
+church = get_or_create_room(
+    "St. Lazarus Church", ROOM,
+    "St. Lazarus Church, stone and candlewax. The nave is narrow and cold; "
+    "rows of worn pews face a plain altar with a brass crucifix gone green "
+    "at the edges. Behind the altar, a painted wooden panel shows the "
+    "raising of Lazarus — the patron, four days dead, sitting up. The "
+    "saint's face is turned away. No one remembers voting for that detail. "
+    "A confessional box stands in the corner, its curtain drawn. The bell "
+    "rope hangs by the door, worn smooth by generations of hands. The "
+    "village square lies east.",
+    side="ic",
+    place="church",
+)
+
 # --- exits ------------------------------------------------------------------
 # OOC side
 get_or_create_exit("east", common, hallway, "evennia.objects.objects.DefaultExit", aliases=["e"])
@@ -117,6 +131,8 @@ get_or_create_exit("east", square, tavern, "evennia.objects.objects.DefaultExit"
 get_or_create_exit("west", tavern, square, "evennia.objects.objects.DefaultExit", aliases=["w"])
 get_or_create_exit("south", square, lamp_shop, "evennia.objects.objects.DefaultExit", aliases=["s"])
 get_or_create_exit("north", lamp_shop, square, "evennia.objects.objects.DefaultExit", aliases=["n"])
+get_or_create_exit("west", square, church, "evennia.objects.objects.DefaultExit", aliases=["w"])
+get_or_create_exit("east", church, square, "evennia.objects.objects.DefaultExit", aliases=["e"])
 
 # --- account-owned private rooms --------------------------------------------
 from evennia.accounts.models import AccountDB
@@ -567,7 +583,9 @@ _curio(
 
 
 def _regular(key, aliases, regular_key, desc):
-    found = [o for o in tavern.contents if o.key == key]
+    # Search GLOBALLY: the routine ticker moves regulars, so a tavern-only
+    # check creates duplicates on rebuild. (2026-10-04: doubled the cast.)
+    found = [o for o in search.search_object(key) if o.key == key]
     if found:
         obj = found[0]
     else:
@@ -601,6 +619,72 @@ _regular(
     "packed. It's always packed. He drinks like the world's ending, because "
     "for some villages, it is.",
 )
+
+# --- the confessional ---------------------------------------------------------
+# A fixture, not furniture: the box hears. The confess command does the work.
+
+
+def _fixture(key, aliases, location, desc):
+    found = [o for o in location.contents if o.key == key]
+    if found:
+        obj = found[0]
+    else:
+        obj = create.create_object(
+            "evennia.objects.objects.DefaultObject",
+            key=key, location=location, aliases=list(aliases),
+        )
+        print(f"fixture created: {key}")
+    obj.db.desc = desc
+    return obj
+
+
+_church = [o for o in search.search_object("St. Lazarus Church")
+           if o.key == "St. Lazarus Church"][0]
+_fixture(
+    "a confessional box", ["confessional", "box"],
+    _church,
+    "A wooden confessional box in the corner, curtain drawn. The kneeler "
+    "is worn down the middle by generations of knees. What's said in there "
+    "stays in there — that's the whole of the sacrament and the whole of "
+    "the burden. (Try: confess <words>.)",
+)
+
+# --- Father Andrei --------------------------------------------------------------
+# The priest of St. Lazarus. A TavernRegular by machinery — schedule,
+# greet/talk rotation, tavern beats — though his seat is the church.
+
+
+def _andrei():
+    found = [o for o in _church.contents if o.key == "Father Andrei"]
+    if found:
+        obj = found[0]
+    else:
+        # He may have been created in the tavern by an earlier build; find
+        # him anywhere before making a second one.
+        elsewhere = [
+            o for o in search.search_object("Father Andrei")
+            if o.key == "Father Andrei"
+        ]
+        if elsewhere:
+            obj = elsewhere[0]
+        else:
+            obj = create.create_object(
+                "typeclasses.characters.FatherAndrei",
+                key="Father Andrei", location=_church,
+                aliases=["andrei", "father", "priest"],
+            )
+            print("regular created: Father Andrei")
+    obj.db.regular_key = "andrei"
+    obj.db.desc = (
+        "Father Andrei, priest of St. Lazarus. Late forties, going grey at "
+        "the temples, hands that have buried half the village. He keeps the "
+        "calendar because the village needs the calendar; whether he still "
+        "believes the rope he's holding is anybody's guess, including his."
+    )
+    return obj
+
+
+_andrei()
 
 # The common room's description claimed the front door "stands to the
 # south", but the door is only reachable via the hallway (east). Fix the

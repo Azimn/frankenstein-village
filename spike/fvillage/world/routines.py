@@ -45,6 +45,16 @@ SCHEDULES = {
         (18, 24, "The Blood of the Vine", "drinks like the world's ending"),
         (0, 6, OFFSTAGE, "sleeps"),
     ],
+    "andrei": [
+        (5, 7, "St. Lazarus Church", "says matins alone"),
+        (7, 11, "Village Square", "does his parish rounds"),
+        (11, 14, "St. Lazarus Church", "keeps the office, hears confessions"),
+        (14, 17, OFFSTAGE, "visits the outlying farms"),
+        (17, 19, "St. Lazarus Church", "says vespers"),
+        (19, 22, "The Blood of the Vine", "argues theology with János over small beer"),
+        (22, 24, OFFSTAGE, "sleeps"),
+        (0, 5, OFFSTAGE, "sleeps"),
+    ],
 }
 
 # (regular_key, room_key) -> line shown in the room on arrival/departure.
@@ -70,6 +80,17 @@ ARRIVE = {
     ("janos", "Village Square"): (
         "János crosses the square at a patrol's pace, eyes on the tree line."
     ),
+    ("andrei", "The Blood of the Vine"): (
+        "Father Andrei comes in, cassock brushed, and takes the stool "
+        "across from János. \"The usual argument, then.\""
+    ),
+    ("andrei", "Village Square"): (
+        "Father Andrei crosses the square at an unhurried pace, stopping "
+        "for every third person."
+    ),
+    ("andrei", "St. Lazarus Church"): (
+        "Father Andrei slips into the church, candles taking his silhouette."
+    ),
 }
 DEPART = {
     ("vasile", "The Blood of the Vine"): (
@@ -91,6 +112,16 @@ DEPART = {
     ),
     ("janos", "Village Square"): (
         "János finishes his patrol circuit and heads for the tree line."
+    ),
+    ("andrei", "The Blood of the Vine"): (
+        "Father Andrei drains his small beer. \"Same time tomorrow, "
+        "János. Bring better arguments.\""
+    ),
+    ("andrei", "Village Square"): (
+        "Father Andrei finishes his rounds and turns toward the church."
+    ),
+    ("andrei", "St. Lazarus Church"): (
+        "Father Andrei steps out, pulling the church door to behind him."
     ),
 }
 
@@ -131,7 +162,10 @@ def _all_regulars():
 
     return list(
         ObjectDB.objects.filter(
-            db_typeclass_path="typeclasses.characters.TavernRegular"
+            db_typeclass_path__in=[
+                "typeclasses.characters.TavernRegular",
+                "typeclasses.characters.FatherAndrei",
+            ]
         )
     )
 
@@ -162,12 +196,13 @@ def _weather():
         return "fog"
 
 
-def set_deviation(regular, room_key, until_hour, reason):
+def set_deviation(regular, room_key, until_hour, reason, day=None):
     """Park a regular somewhere else until an hour, with a reason.
 
     `regular` is the object or its regular_key. The override is honored
     by advance() and cleared when it expires. Events and player verbs
-    call this — the reason keeps the deviation attributable.
+    call this — the reason keeps the deviation attributable. `day`
+    (game-day count) pins a deviation to a single day, for feasts.
     """
     if isinstance(regular, str):
         matches = [
@@ -180,28 +215,40 @@ def set_deviation(regular, room_key, until_hour, reason):
         "room": room_key,
         "until": until_hour,
         "reason": reason,
+        "day": day,
     }
     return True
 
 
-def _target_room(reg, hour):
+def _target_room(reg, hour, day=None):
     """Where this regular should be: deviation beats schedule."""
     override = reg.db.routine_override
-    if override and hour < override.get("until", -1):
-        return override["room"], "deviation"
     if override:
-        reg.db.routine_override = None  # expired
+        if override.get("day") is not None and override["day"] != day:
+            override = None  # a feast day's deviation, expired overnight
+            reg.db.routine_override = None
+        elif hour < override.get("until", -1):
+            return override["room"], "deviation"
+        else:
+            reg.db.routine_override = None  # expired
     return where_should_be(reg.db.regular_key, hour), "schedule"
 
 
-def advance(hour=None, weather=None):
+def advance(hour=None, weather=None, day=None):
     """Move every regular to where they should be. Returns move count."""
     hour = _hour() if hour is None else hour
     weather = _weather() if weather is None else weather
+    if day is None:
+        try:
+            from evennia.scripts.models import ScriptDB
+
+            day = ScriptDB.objects.get(db_key="village_time").db.day or 1
+        except ScriptDB.DoesNotExist:
+            day = 1
     moves = 0
     for reg in _all_regulars():
         key = reg.db.regular_key
-        target_key, source = _target_room(reg, hour)
+        target_key, source = _target_room(reg, hour, day)
 
         # Vasile's knees call rain before the sky does.
         if (
@@ -286,13 +333,14 @@ def monthly_shift(day):
 
 
 def tick():
-    """One routine pass: move the village, then check the month."""
+    """One routine pass: move the village, apply feast observances, check month."""
     from evennia.scripts.models import ScriptDB
 
     moves = advance()
     try:
         clock = ScriptDB.objects.get(db_key="village_time")
-        day = clock.db.day or 0
+        day = clock.db.day or 1
+        _apply_feast(day)
         routine = ScriptDB.objects.get(db_key="village_routine")
         if day and day % 30 == 0 and routine.db.last_monthly_day != day:
             routine.db.last_monthly_day = day
@@ -300,3 +348,38 @@ def tick():
     except ScriptDB.DoesNotExist:
         pass
     return moves
+
+
+def _apply_feast(day):
+    """Feast-day observances: deviations with liturgical reasons."""
+    from world import liturgical
+
+    month, daynum = liturgical.game_date(day)
+    info = liturgical.feast_on(month, daynum)
+    if not info or not info.get("observance"):
+        return
+    try:
+        from evennia.scripts.models import ScriptDB
+        routine = ScriptDB.objects.get(db_key="village_routine")
+        if routine.db.last_feast_day == day:
+            return  # already applied today
+        routine.db.last_feast_day = day
+    except ScriptDB.DoesNotExist:
+        return
+    for regular_key, room_key, reason in liturgical.observance_deviations(
+        info["observance"]
+    ):
+        # Feast deviations last the whole day (until hour 24), pinned to
+        # this game day so they expire overnight.
+        set_deviation(regular_key, room_key, 24,
+                      f"{info['name']}: {reason}", day=day)
+    try:
+        from world.events import publish_world_event
+
+        publish_world_event(
+            "feast",
+            payload={"feast": info["name"], "date": f"{month}/{daynum}"},
+            rumor=f"Today is {info['name']}. {info['note']}",
+        )
+    except Exception:
+        pass
