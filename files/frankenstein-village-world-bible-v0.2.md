@@ -92,6 +92,7 @@ Influences — inspiration, not source. The design keeps the *thesis* of its inf
 - **The living mist**: Stoker's mist creeps under doors and carries intention — the boundary and arrival fiction is his, not any campaign setting's. The mechanism is re-grounded end to end: the novels' great powers, each tormented by its own curse; the novels' own travelers in place of stock fortune-tellers.
 - **Van Helsing (2004)**: the hunter as a profession; the monster-mashup valley.
 - **League of Extraordinary Gentlemen**: the extraordinary as a social class — but our crossovers use public-domain characters directly, so no filing is needed.
+- **Italian giallo** (Jay, 2026-10-04): lurid, stylish, mystery-over-explanation. The Blood of the Vine's sign deliberately mixes Romanian (*Hanul*) and Italian (*Sangue della Vite*) — it felt more horror movie. The village's dread has giallo in its blood, not just Hammer.
 - **The Victorian shelf** (the actual well — see Appendix A): Dickens for social fabric, Collins for secrets, Conan Doyle for the detective, Stoker/Shelley/Stevenson/Le Fanu/Wilde for the myths, Wells and Machen for the strange.
 
 Rule: if it can come from a novel, it comes from a novel. The novels are deeper than any adaptation.
