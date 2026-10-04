@@ -1,0 +1,3222 @@
+======================================================================
+adventures-sherlock-holmes: 2337 dialogue segments, 105730 words total, dialogue mean sentence 10.2 words
+  [address] sir(63), doctor(29), wife(27), my dear(25), husband(15), madam(10), my friend(9), master(5)
+  [oath] good heavens(5), my god(5), devil(4), by jove(2), good god(2), dear me(2), great heavens(1), god knows(1)
+  [thanks] thank you(18), thanks(2), i thank you(1)
+  [farewell] good-bye(5), farewell(1), take care(1)
+  [deference] pray(41), pray tell(4), if you please(3), with your permission(2), allow me(1), if i may(1), if i might(1)
+  [money] will(207), fortune(6), pounds(5), salary(4), pound(2), pence(2), sovereign(2), guineas(2)
+  [weather] cold(9), wind(5), rain(2), fog(1), storm(1), snow(1)
+  [menace_polite] i warn you(1), you had better(1)
+  [grief] poor(17), i have lost(3), grief(2), alas(1), taken from(1)
+  [refusal] i cannot(28), impossible(5), i will not(3), no use(3), no good(2)
+  candidates: 803
+  -- sample --
+  | I think, Watson, that you have put
+on seven and a half pounds since I saw you.
+  | I think that I had better go, Holmes.
+  | Oh, dear! That is very bad! Your Majesty has indeed committed an
+indiscretion.
+  | Certainly. You will find me at the Langham under the name of the Count
+Von Kramm.
+  | Then, good-night, your Majesty, and I trust that we shall soon have
+some good news for you. And good-night, Watson,
+  | This is a very unexpected turn of affairs,
+  | Pshaw! They did not know how to look.
+  | She showed me, as I told you she would.
+  | Do you mean that she has left England?
+  | I am glad to hear your Majesty say so.
+  | A proposition which I took the liberty of doubting.
+  | It is a little off the beaten track, isn't it?
+  | 'Why, I wonder at that, for you are eligible yourself for one of the
+vacancies.'
+  | THE RED-HEADED LEAGUE IS DISSOLVED. October 9, 1890.
+  | Have you ever observed that his ears are pierced for
+earrings?
+  | Sarasate plays at the St. James's Hall this afternoon,
+  | I shall be at Baker Street at ten.
+  | Still, I confess that I miss my rubber. It is the first
+Saturday night for seven-and-twenty years that I have not had my
+rubber.
+  | Have you the chisel and the bags?
+Great Scott! Jump, Archie, jump, and I'll swing for it!
+  | I beg that you will not touch me with your filthy hands,
+  | And you are a benefactor of the race,
+  | And have you any on hand just now?
+  | Yes, my stepfather. I call him father, though it sounds funny, too,
+for he is only five years and two months older than myself.
+  | Were you engaged to the gentleman at this time?
+  | It seems to me that you have been very shamefully treated,
+  | Then you don't think I'll see him again?
+  | You appeared to read a good deal upon her which was quite invisible to
+me,
+  | I have every reason to believe
+that I will succeed in discovering Mr. Hosmer Angel.
+  | The man married a woman very much older than himself for her money,
+  | I should be ungrateful if I were not, seeing what I gained through one
+of them,
+  | that the facts are so obvious that you will
+find little credit to be gained out of this case.
+  | The Coroner: What did you understand by that?
+  | 'Do you mean that it disappeared before you went for help?'
+  | It is
+entirely a question of barometric pressure.
+  | No, he was averse to it also. No one but Mr. McCarthy was in favour of
+it.
+  | I think that I see my way to clearing James McCarthy,
+  | It is said
+that Mr. Turner, of the Hall, is so ill that his life is despaired of.
+  | That McCarthy senior met his death from McCarthy junior and that all
+theories to the contrary are the merest moonshine.
+  | I am afraid that I am still a sceptic,
+  | You know my method. It is founded upon the observation of trifles.
+  | It is
+so. I know all about McCarthy.
+  | that was surely the bell.
+Who could come to-night? Some friend of yours, perhaps?
+  | I have been beaten four times—three times by men, and once by a
+woman.
+  | My heart had turned to lead. 'It is K. K. K.,' said I.
+  | You must act, man, or you are lost.
+Nothing but energy can save you. This is no time for despair.
+  | No, your secret lies in London. It is there that I shall seek it.
+  | The first was from Pondicherry, the second from Dundee, and the third
+from London.
+  | No, I shall commence with the City. Just ring the bell and the maid
+will bring up your coffee.
+  | Not a bite. I had no time to think of it.
+  | it is Kate Whitney. How you
+startled me, Kate! I had not an idea who you were when you came in.
+  | Walk past me, and then look back at me.
+  | Near Lee, in Kent. We have a seven-mile drive before us.
+  | Thank God for that. But come in. You must be weary, for you have had a
+long day.
+  | Surely this is not your husband's
+writing, madam.
+  | And on Monday he made no remarks before leaving you?
+  | Quite so. Your husband, as far as you could see, had his ordinary
+clothes on?
+  | I wish to
+have a quiet word with you, Bradstreet.
+  | I should like to see him very much.
+  | to Mr. Neville St. Clair, of Lee,
+in the county of Kent.
+  | You would have done better to have trusted your wife.
+  | I have no doubt of
+it. But have you never been prosecuted for begging?
+  | that of the last six cases which I have
+added to my notes, three have been entirely free of any legal crime.
+  | Then, pray tell me what it is that you can infer from this hat?
+  | But his wife—you said that she had ceased to love him.
+  | A diamond, sir? A precious stone. It cuts into glass as though it were
+putty.
+  | We have retained these things for some days,
+  | There is your hat, then, and there your bird,
+  | Well, I got the two dozen from a salesman in Covent Garden.
+  | what are you driving at? Let's have it straight, now.
+  | Quite so. Now turn that up in the ledger.
+  | Ha! this may save us a visit to Brixton Road,
+  | I can
+hardly explain to you how interested I am in this matter.
+  | It was Catherine Cusack who told me of it,
+  | 'Oh, just as you like,' said she, a little huffed. 'Which is it you
+want, then?'
+  | It is fear, Mr. Holmes. It is terror.
+  | Was it your custom always to lock yourselves in
+at night?
+  | Were there gipsies in the plantation at the time?
+  | And you may expect us early in the afternoon. I have myself some small
+business matters to attend to. Will you not wait and breakfast?
+  | I am Dr. Grimesby Roylott, of Stoke Moran.
+  | See that you keep yourself out of my grip,
+  | All has turned out splendidly.
+Dr. Roylott has gone to town, and it is unlikely that he will be back
+before evening.
+  | Yes, but very small ones. Too narrow for anyone to pass through.
+  | Only once, some years ago. I remember that it was full of papers.
+  | I assure you that I am in your hands.
+  | I believe, Mr. Holmes, that you have already made up your mind,
+  | No, but I fancy that I may have deduced a little more. I imagine that
+you saw all that I did.
+  | I seem to see dimly what you are hinting at. We are
+only just in time to prevent some subtle and horrible crime.
+  | Mr. Victor Hatherley, hydraulic
+engineer, 16A, Victoria Street (3rd floor).
+  | this is a terrible injury. It must have bled
+considerably.
+  | It is easy to see that your experience has been no common one, Mr.
+Hatherley,
+  | 'But, madam,' said I, 'I have not yet done what I came for. I cannot
+possibly leave until I have seen the machine.'
+  | I hardly think that likely. I never saw a more inexorable face in my
+life.
+  | Oh, yes, you can. This is my point.
+  | There is the
+gravel-drive, and there are the rose-bushes where I lay. That second
+window is the one that I jumped from.
+  | I have very little difficulty in finding what I want,
+  | Oh, really! I had no idea. And which king?
+  | In mining. He had nothing a few years ago. Then he struck gold,
+invested it, and came up by leaps and bounds.
+  | I really have made no inquiries on the subject.
+  | Pray let us have it, for all that.
+  | How long did she speak to this Alice?
+  | I did not say a probable one. But you do not yourself look upon this
+as likely?
+  | Quite so. Then I do not think that I need to detain you longer. I
+shall communicate with you.
+  | And I feel dissatisfied. It is this infernal St. Simon marriage case.
+I can make neither head nor tail of the business.
+  | Well, I have only just heard the facts, but my mind is made up.
+  | In the dress is a pocket. In the pocket is a card-case. In the
+card-case is a note. And here is the very note.
+  | 'Oct.
+4th, rooms 8_s_., breakfast 2_s_. 6_d_., cocktail 1_s_., lunch 2_s_.
+6_d_., glass sherry, 8_d_.' I see nothing in that.
+  | Yes, and I confess that the contents startled me beyond measure. Have
+you good authority for what you say?
+  | I will make no allowance. I am very angry indeed, and I have been
+shamefully used.
+  | Oh, certainly, if it would give you any pleasure.
+  | here is a madman coming along. It seems rather sad that
+his relatives should allow him to come out alone.
+  | and let me have a clear
+account of who you are and what it is that has befallen you.
+  | Now, Mr. Holmes, you know the people who live under my roof, and I
+shall continue with my miserable story.
+  | 'Then, good-night.' I kissed her and went up to my bedroom again,
+where I was soon asleep.
+  | She is of a quiet nature. Besides, she is not so very young. She is
+four-and-twenty.
+  | Do you not think, then, that he might have been trying to straighten
+it?
+  | It is our task to find that out,
+  | No, his friend. He wished us to leave him alone. He is round in the
+stable lane now.
+  | Yes, and she was the girl who waited in the drawing-room, and who may
+have heard uncle's remarks about the coronet.
+  | And he is a man with a wooden leg?
+  | But perhaps it may grow lighter as we go. What do you think, Miss
+Holder?
+======================================================================
+bleak-house: 7180 dialogue segments, 357908 words total, dialogue mean sentence 9.0 words
+  [address] sir(633), my dear(395), my lady(93), ma'am(48), wife(44), captain(39), my friend(32), master(28)
+  [oath] dear me(25), devil(15), good gracious(6), by heaven(5), my god(4), upon my word(4), upon my soul(4), god knows(4)
+  [thanks] thank you(68), i thank you(13), much obliged(11), thanks(10), grateful(5)
+  [farewell] good night(21), take care(15), good day(13), good-bye(9), adieu(2), farewell(1), until we meet(1)
+  [deference] pray(57), if you please(45), beg your pardon(21), allow me(19), if i may(6), pardon me(5), your servant(5), pray tell(5)
+  [money] will(531), pounds(25), pound(19), fortune(14), shillings(10), debt(9), guineas(5), penny(4)
+  [weather] wind(20), cold(9), rain(6), storm(4), fog(2), dreary(2), snow(1), thunder(1)
+  [menace_polite] you had better(11), mark my words(1), beware(1), for your own good(1), think twice(1)
+  [grief] poor(108), alas(1), i have lost(1), mourn(1)
+  [refusal] impossible(19), i cannot(12), i will not(11), no use(5), out of the question(2), no good(2)
+  candidates: 2274
+  -- sample --
+  | My nature is subdued
+   To what it works in, like the dyer's hand:
+   Pity me, then, and wish I were renewed!
+  | only that; but it is like
+the faintness of death. Don't speak to me. Ring, and take me to my
+room!
+  | merely through his
+solicitors, Messrs. Kenge and Carboy, of London. A very superior
+gentleman, Mr. Kenge. Truly eloquent indeed. Some of his periods
+quite majestic!
+  | I was a ward myself. I was not mad at that time,
+  | and yet so
+cheerful! And you do so much, so unpretendingly! You would make a
+home out of even this house.
+  | Why, you appear to trouble yourself a good deal about
+the causes before your noble and learned brother, the other
+Chancellor!
+  | that perhaps she was a little
+unmindful of her home.
+  | I am
+a child, you know! You are designing people compared with me
+  | It didn't affect your appetite? Didn't make you at all uneasy?
+  | Like him, also, my dear—but most like your poor uncle George! And
+your dear father.
+  | You'll excuse my asking again if it has anything to do with a
+picture, ma'am,
+  | said Mr. Jarndyce, comfortably putting his
+hands into his pockets and stretching out his legs.
+  | that it would be greatly
+advanced even by the legal process of shaking the bench and the whole
+bar.
+  | But would you allow me the favour of a minute's private
+conversation?
+  | You will find that the place is rough, sir,
+  | and it has come to this, has it! Bless
+my soul!
+  | You have an unusual amount of correspondence this morning?
+  | An extremely dangerous person in any community. A man of a
+very low character of mind.
+  | an old
+portmanteau, but—No, there were no papers.
+  | I would take
+leave to correct him and say three distinguished men.
+  | We want to speak to him before Richard goes,
+  | And if the suit SHOULD make us rich, Esther—which it may, you
+know!
+  | If it wasn't that we had been intimate when you stopped at our
+house,
+  | He wouldn't let his son have any name if he could take it from him,
+  | I know little enough, I am sure, thanks to Ma!
+  | When my noble and learned brother gives his judgment, they're to be
+let go free,
+  | Come! We will walk that way, my dears. Why not that way as soon as
+another!
+  | When it comes on dark, the lamps are lighted down in the court, and
+they show up here quite bright—almost quite bright. Don't they,
+Tom?
+  | My lords and gentlemen, I have the honour to present to
+you another Dedlock certified to have arrived per the family gout.
+  | There must have been great intellectual friction
+going on there under the auspices of such a man!
+  | Cousin John, I hope you don't
+think the worse of Richard?
+  | Ha ha ha! Sir
+Arrogant is here, and I am glad to say, has been laid by the heels
+here. My Lady,
+  | To which Harold Skimpole would reply, you know,
+  | She'd as soon
+walk through that as anything else, I think, when her own's up!
+  | My
+instructions are that this boy is to move on.
+  | How long should I have to hold out?
+  | Still, Tony, you were on the wrong side of the post then,
+  | But there are chords in the human mind—
+  | Would you allow me to
+get it filled for you?
+  | You ha'n't seen
+him before. He is in the law and not much at home.
+  | I think he might—I am afraid he would. I have known him do it,
+  | But I'll lime you, you dog, I'll
+lime you!
+  | Two drunken men, eh? And
+two women? The men are sound enough,
+  | I am a-looking as hard as ever I can look,
+  | I have taken a great
+liberty in coming here, but you know how to excuse it, being so
+amiable, mademoiselle.
+  | So we talked a good deal about it, and
+so I said to Prince, 'Prince, as Miss Summerson—'
+  | Not if it's Africa, Ma, I have not.
+  | I have known nothing of it. It was Mr. Jarndyce, Charley.
+  | we are only
+cousins again, Richard—for the time perhaps—and I pray for a
+blessing on my dear cousin, wherever he goes!
+  | Why, the man was so badgered and worried and tortured by being
+knocked about from post to pillar, and from pillar to post,
+  | It's quite correct, sir. Will you please
+to walk in.
+  | How did you know it was the country?
+  | cries Phil, who has
+started from his chair and unaccountably begun to sidle away.
+  | She keeps at my side to attend to me, sir,
+  | Aye! I'll come in a moment. I promise nothing, you know.
+  | First, whether I have any of Captain Hawdon's writing, sir,
+  | George, I never see you but I wish you was a hundred mile away!
+  | Have you changed your mind? Or are you in the same mind?
+  | Will it be more comprehensible, Sir Leicester, if I say,
+  | By no means, my Lady. Since he has your orders to come, I will not
+interrupt you.
+  | Oh, I assure your ladyship it's a very queer start indeed,
+  | and then she shakes her head and says 'Oh, Caddy,
+Caddy, what a tease you are!' and goes on with the Borrioboola
+letters.
+  | You are very welcome, sir. Pray
+don't mention it!
+  | I
+ain't a-going there, so I tell you!
+  | Thrown on the wide world, doomed to wander and roam,
+    Bereft of his parents, bereft of a home.
+  | By George! I find it gives me the horrors,
+  | but I feel strongly
+when I use it.
+  | May be not, still I don't like it. Live here by yourself and see how
+YOU like it.
+  | Dear, dear, dear! What
+a fate there seems in all this! And my lit—
+  | I have never lived
+there and couldn't get a lodging there now, whereas you have got
+one.
+  | Shake me up, somebody, if you'll be so good,
+  | Paying the money, I suppose? I wish I could.
+  | is Matthew Bagnet, who has obliged me in that matter of ours,
+you know.
+  | Very well! Then the other man—this man, if this is he—must pay it
+for you.
+  | But, guardian, may we not hope that a little experience will teach
+him what a false and wretched thing it is?
+  | Esther, my dear, I think you are
+quite sensible enough to sit down now and write a note of thanks to
+your host.
+  | who can possibly want me at the
+public-house?
+  | Ada, my love, I have
+brought a gentleman to visit you.
+  | I—I don't like to represent myself in this litigious, contentious,
+doubting character to a confiding girl like Ada.
+  | That is only for their steps, of course?
+  | Miss Summerson, upon my honour and soul, you may depend upon me!
+  | says
+Mr. Vholes with the severity of a determined man,
+  | A virtue in which few Englishmen are deficient,
+  | It did not prevent him from being very
+active in this election, though.
+  | I am
+not sure that I understand you. You want—
+  | it is
+relating—not to put too fine a point upon it—to the foreigner,
+sir!
+  | You come here to make a remarkably modest demand, which you have
+just stated, and it not being conceded, you will come again.
+  | Is it
+possible to be worldly with this baby?
+  | mentioned to the housekeeper, who, as he may
+have observed, is an old and attached retainer of the family—
+  | Then we may dismiss him for the present.
+Who is the other?
+  | Can I come
+in, Richard? It's only Dame Durden.
+  | That he cannot be at peace in mind, we have too much reason to
+know,
+  | Yes, I see you once afore at the inkwhich,
+  | Where can I lodge him hereabouts for the present? Now, you have a
+fund of knowledge and good sense and can advise me.
+  | I think I know that much of him. I mean to deal with. Generally,
+what kind of man?
+  | do you know, Rosa, that I am different to you from
+what I am to any one?
+  | I can give no such assurance, Lady Dedlock. Nothing of the kind.
+  | This is the
+notice I was to receive? I wish not to misapprehend you.
+  | I am so
+out of sorts that I bungle at an easy job like this!
+  | Really, though! Do you mean it? Ain't it a pity? It looks so.
+  | Ada, why should you not speak to
+us!
+  | to doubt it for a moment is to do him a great
+wrong. And as to me!
+  | can we do anything for your personal
+comfort, George?
+  | Taking a pace or two over the stone floor, he came back to the table
+and finished what he had to say.
+  | With a second-hand wiolinceller. And said he played the fife. When a
+boy,
+  | You are a swell about town, and you know me, and I
+know you.
+  | I suppose you ain't in the habit of walking yourself?
+  | Sir Leicester Dedlock, Baronet, it becomes my duty to tell you that
+the deceased Mr. Tulkinghorn long entertained mistrusts and
+suspicions of Lady Dedlock.
+  | Now, don't open
+your mouth too wide, because you don't look handsome when you do it.
+  | Ah, my God, you are an unhappy idiot!
+  | forgive me
+first of all, for I know my need of it.
+  | I know of nothing I can do. I know of nothing I reserve that can
+affect your son. I have never accused him.
+  | but so that it ends well, never
+mind, miss.
+  | A person of the name of Michael Jackson, with a blue welveteen
+waistcoat with a double row of mother of pearl buttons,
+  | Off she goes, then. And get on, my lads!
+  | I am very sorry both to hear it and to see it, Sir Leicester.
+  | I will accept him as a trust, and it shall
+be a sacred one!
+  | But pray tell me how you got it.
+  | Some other prospect has opened to him, perhaps?
+  | That he may not live to see his child.
+======================================================================
+carmilla: 347 dialogue segments, 28277 words total, dialogue mean sentence 13.2 words
+  [address] doctor(13), my dear(8), sir(5), wife(2), my lady(1)
+  [oath] by god(2), bless me(1)
+  [thanks] thank you(4), i thank you(2)
+  [farewell] good night(2), take care(1)
+  [deference] pray(4), permit me(1)
+  [money] will(36)
+  [weather] cold(1)
+  [menace_polite] beware(1)
+  [grief] poor(11)
+  [refusal] i cannot(5), i dare not(1)
+  candidates: 133
+  -- sample --
+  | involving, not
+improbably, some of the profoundest arcana of our dual existence, and
+its intermediates.
+  | Lay your hand
+along that hollow in the bed; someone _did_ lie there, so sure as you
+did not; the place is still warm.
+  | Lord hear all good prayers for us, for Jesus' sake.
+  | General Spielsdorf cannot come to us so soon as I had hoped,
+  | Not till autumn. Not for two months, I dare say,
+  | And I
+am very glad now, dear, that you never knew Mademoiselle Rheinfeldt.
+  | I quite forgot I
+had not told you, but you were not in the room when I received the
+General's letter this evening.
+  | I am afraid
+he is in great affliction; the letter appears to me to have been
+written very nearly in distraction.
+  | I have got into one of my moping moods tonight,
+  | 'In truth I know not why I am so sad.
+It wearies me: you say it wearies you;
+But how I got it—came by it.'
+  | Who was ever being so born to calamity?
+  | Oh! papa, pray ask her to let her stay with us—it would be so
+delightful. Do, pray.
+  | I cannot do that, sir, it would be to task your kindness and chivalry
+too cruelly,
+  | I don't see
+the carriage; and Matska, where is she?
+  | Don't approach, one at a time is as much as she can at present
+converse with; a very little excitement would possibly overpower her
+now.
+  | she is, I almost think, the
+prettiest creature I ever saw; about your age, and so gentle and nice.
+  | Did you remark a woman in the carriage, after it was set up again, who
+did not get out,
+  | Did you remark what an ill-looking pack of men the servants were?
+  | I dare say they are worn out with too long traveling,
+  | Twelve years ago, I saw your face in a
+dream, and it has haunted me ever since.
+  | Twelve years ago, in
+vision or reality, I certainly saw you. I could not forget your face.
+It has remained before my eyes ever since.
+  | I don't know which should be most afraid of the other,
+  | Good night, darling, it is very hard to part with you, but good
+night; tomorrow, but not early, I shall see you again.
+  | You are mine, you
+_shall_ be mine, you and I are one for ever.
+  | I think it very sweet, on the contrary,
+  | My father has gone on with the clergyman to the churchyard. I thought
+you knew she was to be buried today.
+  | She? I don't trouble my head about peasants. I don't know who she is,
+  | She is the poor girl who fancied she saw a ghost a fortnight ago, and
+has been dying ever since, till yesterday, when she expired.
+  | Tell me nothing about ghosts. I shan't sleep tonight if you do.
+  | I hope there is no plague or fever coming; all this looks very like
+it,
+  | There! That comes
+of strangling people with hymns!
+  | Hold me, hold me
+still. It is passing away.
+  | Will your ladyships be pleased to buy an amulet against the oupire,
+which is going like the wolf, I hear, through these woods,
+  | I
+profess, among other things less useful, the art of dentistry. Plague
+take the dog!
+  | I am so afraid of fancying I see such things; I think it would be as
+bad as reality.
+  | The doctor said he would come here today,
+  | I want to know what he thinks about it, and what he thinks we
+had better do.
+  | I dare say, let us talk no more of it. You would not wound a friend?
+  | Why does your papa like to frighten us?
+  | He doesn't, dear Carmilla, it is the very furthest thing from his
+mind.
+  | I should be very much if I fancied there was any real danger of my
+being attacked as those poor people were.
+  | Well, I do wonder at a wise man like you. What do you say to
+hippogriffs and dragons?
+  | Nevertheless life and death are mysterious states, and we know little
+of the resources of either.
+  | There is a picture that I have not seen yet,
+  | Will you let me hang this picture in my room, papa?
+  | I'm very glad you think it so
+like.
+
+It must be prettier even than I thought it, if it is.
+  | so am I, I think, a very long descent,
+very ancient. Are there any Karnsteins living now?
+  | Suppose you take a little ramble round the court, and look down
+at the road and river.
+  | It is so like the night you came to us,
+  | And so you were thinking of the night I came here?
+  | And you asked for the picture you think like me, to hang in your
+room,
+  | Whenever you tell me your story, it will be
+made up chiefly of some one great romance.
+  | I am sure, Carmilla, you have been in love; that there is, at this
+moment, an affair of the heart going on.
+  | I have been in love with no one, and never shall,
+  | I live in you; and you would die for me, I love you so.
+  | Is there a chill in the air, dear?
+  | I almost
+shiver; have I been dreaming? Let us come in. Come; come; come in.
+  | You look ill, Carmilla; a little faint. You certainly must take some
+wine,
+  | Yes. I will. I'm better now. I shall be quite well in a few minutes.
+Yes, do give me a little wine,
+  | Let us look again for a moment; it is the last time, perhaps, I shall
+see the moonlight with you.
+  | How do you feel now, dear Carmilla? Are you really better?
+  | But you must not dream of any such thing,
+  | Thank you, sir, a thousand times for your hospitality,
+  | that you will ever confide fully in
+me?
+  | You can't answer pleasantly; I ought
+not to have asked you.
+  | Now, Carmilla, you are going to talk your wild nonsense again,
+  | No; how you do run on. What is it like? How charming it must be.
+  | You are not so old. Your first ball can hardly be forgotten yet.
+  | the long lime tree walk,
+behind Carmilla's bedroom window, is haunted!
+  | So he well might, as long as there are cows to milk in the river
+fields,
+  | I daresay; but Martin chooses to be frightened, and never did I see
+fool more frightened.
+  | You must not say a word about it to Carmilla, because she can see down
+that walk from her room window,
+  | and she is, if
+possible, a greater coward than I.
+  | And what do you think the charm is?
+  | It has been fumigated or immersed in some drug, and is an antidote
+against the malaria,
+  | Your mother warns you to beware of the assassin.
+  | Dear Carmilla, what has become of you all this time? We have been in
+agonies of anxiety about you,
+  | Where have you been? How
+did you come back?
+  | Last night has been a night of wonders,
+  | Will you forgive me, my dear, if I risk a conjecture, and ask a
+question?
+  | Now, my question is this. Have you ever been suspected of walking in
+your sleep?
+  | But you did walk in your sleep when you were young?
+  | Yes; I know I did. I have been told so often by my old nurse.
+  | And how, papa, do you account for her finding herself on the sofa in
+the dressing room, which we had searched so carefully?
+  | I wish my poor Laura was looking more like herself
+  | I dare say, doctor, you are going to tell me that I am an old fool for
+having brought you here; I hope I am.
+  | Laura, dear, come here for a moment. Madame, we shan't trouble you,
+the doctor says, at present.
+  | It certainly is very odd; I don't understand it quite. Laura, come
+here, dear; now attend to Doctor Spielsberg, and recollect yourself.
+  | Can you indicate with your finger about the point at which you think
+this occurred?
+  | You see it now with your own eyes,
+  | Nothing, my dear young lady, but a small blue spot, about the size of
+the tip of your little finger; and now,
+  | the question is what is best to be done?
+  | It may have been; I think it was.
+  | We may rely upon your kindness, Madame, I know,
+  | And you, dear Laura, I know you will observe the doctor's direction.
+  | I shall be with you, then, at about
+seven this evening.
+  | I wish our good friend, the
+General, had chosen any other time; that is, I wish you had been
+perfectly well to receive him.
+  | what does he think is the matter
+with me?
+  | Nothing; you must not plague me with questions,
+  | you believe in nothing but what
+consists with your own prejudices and illusions. I remember when I was
+like you, but I have learned better.
+  | You are going to the Ruins of Karnstein?
+  | I hope you are
+thinking of claiming the title and estates?
+  | You saw my dear
+ward—my child, I may call her. No creature could have been more
+beautiful, and only three months ago none more blooming.
+  | Yes, poor thing! when I saw her last she certainly was quite lovely,
+  | I was grieved and shocked more than I can tell you, my
+dear friend; I knew what a blow it was to you.
+  | You said, just now, that you intended relating everything as it
+occurred,
+  | Pray do; I assure you that it is not mere
+curiosity that prompts me.
+  | Pray let us hear the story
+you were so good as to promise.
+  | Here
+he made me a gallant but melancholy bow.
+  | Yes; and very splendid, I believe, they were,
+  | In the meantime, availing myself of the license of a masquerade, I put
+not a few questions to the elder lady.
+  | 'As philosophers tell us,' she said; 'and how do you know that a sight
+of my face would help you?'
+  | 'And mine to yours, to let it stay where it is,' she replied.
+  | 'I don't think I shall tell you that, General; you intend a surprise,
+and are meditating the particular point of attack.'
+  | 'Will Madame la Comtesse permit me to say a very few words which may
+interest her?'
+  | 'I shall return and inform Madame la Comtesse when her carriage is at
+the door.'
+  | In the midst of my perplexities, an anxiety of a far more urgent kind
+presented itself.
+  | And this was once the palatial residence of the Karnsteins!
+  | It was a bad
+family, and here its bloodstained annals were written,
+  | And I hear the axe
+of a woodman,
+======================================================================
+dorian-gray: 1420 dialogue segments, 79783 words total, dialogue mean sentence 8.3 words
+  [address] my dear(48), sir(38), wife(8), husband(8), young man(4), my good(1), master(1), lad(1)
+  [oath] my god(6), good heavens(4), devil(4), good god(2), upon my word(2), i swear(2), dear me(1), hell(1)
+  [thanks] thanks(5), thank you(4), much obliged(2), i thank you(1)
+  [farewell] good-bye(18), good night(3), take care(2)
+  [deference] pray(4), your servant(2), beg your pardon(1), allow me(1)
+  [money] will(133), pounds(2), sovereign(1), fortune(1)
+  [weather] cold(3), fog(2), mist(1), wind(1), snow(1)
+  [menace_polite] you had better(8), beware(1)
+  [grief] poor(10), we have lost(1), grief(1)
+  [refusal] i cannot(7), impossible(6), i will not(3), no use(3), no good(2), i refuse(2), it is useless(1)
+  candidates: 510
+  -- sample --
+  | It is your best work, Basil, the best thing you have ever done,
+  | Yes, that is his name. I didn't intend to tell it to you.
+  | and before I go, I insist on your
+answering a question I put to you some time ago.
+  | I am quite sure I shall understand it,
+  | And how did Lady Brandon describe this wonderful young man?
+  | I should think it was, Harry. But according to your category I must be
+merely an acquaintance.
+  | I don't agree with a single word that you have said, and, what is
+more, Harry, I feel sure you don't either.
+  | Basil, this is extraordinary! I must see Dorian Gray.
+  | Mr. Dorian Gray is in the studio, sir,
+  | Oh, I am tired of sitting, and I don't want a life-sized portrait of
+myself,
+  | I am in Lady Agatha's black books at present,
+  | If Dorian wishes it, of course you must stay.
+Dorian's whims are laws to everybody, except himself.
+  | There is no such thing as a good influence, Mr. Gray. All influence is
+immoral—immoral from the scientific point of view.
+  | Nothing can cure the soul but the senses, just as nothing can cure the
+senses but the soul.
+  | Do come in. The light is quite perfect, and
+you can bring your drinks.
+  | My dear fellow, I congratulate you most warmly,
+  | It would be rather hard lines on your work.
+  | I am glad you appreciate my work at last, Dorian,
+  | If you let any one have it but me, Basil, I shall never forgive you!
+  | I should have objected very strongly this morning, Lord Henry.
+  | the costume of the nineteenth
+century is detestable. It is so sombre, so depressing. Sin is the only
+real colour-element left in modern life.
+  | Then you shall come; and you will come, too, Basil, won't you?
+  | Because I have promised Lord Henry Wotton to go with him.
+  | what brings you out so early? I
+thought you dandies never got up till two, and were not visible till
+five.
+  | I hope he will fall into proper hands,
+  | American girls are as clever at concealing
+their parents, as English women are at concealing their past,
+  | It is. That is the reason why, like Eve, they are so excessively
+anxious to get out of it,
+  | Do you think he will
+really marry this fascinating young person?
+  | I wish to goodness it never had been
+discovered at all!
+  | Oh! but I have seen specimens of the inhabitants,
+  | But must we really see Chicago in order to be educated?
+  | It is the problem of slavery, and
+we try to solve it by amusing the slaves.
+  | To get back one's
+youth, one has merely to repeat one's follies.
+  | And now I must bid good-bye to your excellent aunt. I am due at
+the Athenaeum. It is the hour when we sleep there.
+  | All I want now is to look at life. You may come and look at it with
+me, if you care to.
+  | Never marry a woman with straw-coloured hair, Dorian,
+  | Never mind that. How long have you known her?
+  | Don't run down dyed hair and painted faces. There is an extraordinary
+charm in them, sometimes,
+  | Well, he seemed to think they were beyond his means,
+  | You were quite right. There is always something infinitely mean about
+other people's tragedies.
+  | Let me see. To-day is Tuesday. Let us fix to-morrow. She plays Juliet
+to-morrow.
+  | what does
+money matter? Love is more than money.
+  | You might keep some of your kisses for me, Sibyl, I think,
+  | I hear a gentleman comes every night to the theatre and goes behind to
+talk to her. Is that right? What about that?
+  | Oh! that you will be a good boy and not forget us,
+  | Who is he? I
+have a right to know.
+  | I wish I had, for as sure as there is a God in heaven, if he ever does
+you any wrong, I shall kill him.
+  | I am sorry if I have pained you by asking about my father,
+  | Marriage is hardly a thing that one can do now and then, Harry.
+  | You can't approve of it, possibly.
+It is some silly infatuation.
+  | And I don't forgive you for being late for dinner,
+  | much more
+practical than we are. In situations of that kind we often forget to
+say anything about marriage, and they always remind us.
+  | To be good is to be in harmony with one's self,
+  | I should have said that whatever they ask for they had first given to
+us,
+  | What a place to find one's divinity in!
+  | My dear Dorian, I should think Miss Vane was ill,
+  | Dorian, you should have understood. But
+you understand now, don't you?
+  | The girl grew white, and trembled. She clenched her hands together, and
+her voice seemed to catch in her throat.
+  | My dear boy, I must see you. Let me in at once. I can't
+bear your shutting yourself up like this.
+  | A very charming artistic basis for ethics, Dorian! I congratulate you
+on it. But how are you going to begin?
+  | why is it that I cannot feel this tragedy as much as I want to? I
+don't think I am heartless. Do you?
+  | he murmured with something of a sigh of relief.
+  | We are only at the beginning of our friendship, Dorian,
+  | I owe a great
+deal to Harry, Basil,
+  | I want the Dorian Gray I used to paint,
+  | he said at length, with a sad smile,
+  | Too strong! Surely not, my dear fellow? It is an admirable place for
+it. Let me see it.
+  | To exhibit it! You want to exhibit it?
+  | You must not ask me that, Basil. I could not
+possibly let you stand in front of that picture.
+  | I don't want it put straight, Leaf. I only want the key.
+  | No trouble at all, Mr. Gray. I am delighted to be of any service to
+you. Which is the work of art, sir?
+  | Always glad to have a rest, Mr. Gray,
+  | Not at all, not at all, Mr. Gray. Ever ready to do anything for you,
+sir.
+  | with
+collars of real emeralds growing on their backs.
+  | all the chaste ladies of the world,
+inchased out of silver, looking through fair mirrours of chrysolites,
+carbuncles, sapphires, and greene emeraults.
+  | I shall be charmed. But won't you miss your train?
+  | Stop, Basil. You are talking about things of which you know nothing,
+  | Don't touch me. Finish what you have to say.
+  | You won't? Then I must do it myself,
+  | Hush! Don't say that. You have done enough evil in your life. My God!
+Don't you see that accursed thing leering at us?
+  | Mr. Hallward, sir. He stayed here till eleven, and then he went away
+to catch his train.
+  | Take this round to 152, Hertford Street, Francis, and if Mr. Campbell
+is out of town, get his address.
+  | I had intended never to enter your house again, Gray. But you said it
+was a matter of life and death.
+  | Do you still refuse to do this for me?
+  | You must. You have no choice. Don't delay.
+  | No trouble, sir. At what time shall I be back?
+  | I have done what you asked me to do,
+  | I think it
+is most unkind of her, my dear,
+  | I have not been in
+love for a whole week—not, in fact, since Madame de Ferrol left town.
+  | But her
+third husband, Lord Henry! You don't mean to say Ferrol is the fourth?
+  | The husbands of very beautiful women belong to the criminal classes,
+  | the way people go about nowadays saying
+things against one behind one's back that are absolutely and entirely
+true.
+  | I like men who have a future and women who have a past,
+  | Moderation is a fatal
+thing. Enough is as bad as a meal. More than enough is as good as a
+feast.
+  | You seemed rather out of
+sorts at dinner.
+  | Oh, the Willoughbys, Lord Rugby and his wife, our hostess, Geoffrey
+Clouston, the usual set. I have asked Lord Grotrian.
+  | You shall have another if
+you drive fast.
+  | None of the chaps
+will speak to me now.
+  | That mad-cat is sure to be there. They won't have her in this place
+now.
+  | I don't care to go back. What
+does it matter? I am quite happy here.
+  | I
+never heard of her. You are mad.
+  | Eighteen years! Set me under the lamp and look at my face!
+  | You had better go home and put that pistol away, or you may get into
+trouble,
+  | I hope Dorian has told you about
+my plan for rechristening everything, Gladys. It is a delightful idea.
+  | You wish me to defend my throne, then?
+  | What becomes of your simile about the orchid?
+  | You need not be afraid. Our countrymen never recognize a description.
+  | You bewilder me. Let us talk of some one else.
+  | Oh! my maid does that already, Mr. Gray, when she is annoyed with me.
+  | It seems to me that we never do anything else,
+  | What do you say to that, Mr. Gray?
+  | If he were not, there would be no battle.
+  | Courage has passed from men to women. It is a new experience for us.
+  | Ah! you must suit your frock to his flowers, Gladys.
+  | I would
+rather come down. I must not be alone.
+  | I wish it were stopped for ever, Harry,
+  | It is a bad omen, Harry. I feel as if something
+horrible were going to happen to some of us. To myself, perhaps,
+  | And the duchess loves you very much, but she likes you less, so you
+are excellently matched.
+  | The world goes to the altar of its own accord,
+  | Isn't it, Mr. Gray?
+Harry, Mr. Gray is ill again. He is going to faint.
+======================================================================
+dracula: 1262 dialogue segments, 162364 words total, dialogue mean sentence 10.8 words
+  [address] madam(34), sir(31), my friend(24), my dear(21), husband(19), doctor(15), master(9), wife(8)
+  [oath] my god(8), i swear(6), devil(4), good god(3), hell(3), god knows(3), by god(2), bless me(1)
+  [thanks] thank you(8), grateful(4), i thank you(2)
+  [farewell] take care(7), good-bye(2)
+  [deference] pray(7), pardon me(5), if i may(5), if i might(1)
+  [money] will(192), sovereign(2), pounds(1)
+  [weather] cold(3), snow(3), wind(2), storm(1)
+  [menace_polite] you had better(4), beware(1)
+  [grief] poor(46), alas(7), grief(2), departed(1), mourn(1)
+  [refusal] i cannot(7), impossible(1), no good(1), i dare not(1)
+  candidates: 397
+  -- sample --
+  | Must you go? Oh! young Herr, must you go?
+  | and you may have enough of such matters
+before you go to sleep.
+  | Nay, sir, you are my guest. It is late, and my people are not
+available. Let me see to your comfort myself.
+  | I have to be absent for a while. Do not wait for me.--D.
+  | I said I was sure of
+this, and then he went on:--
+  | tell me of London and of the house which you
+have procured for me.
+  | And this is the wretched thing that has done the
+mischief. It is a foul bauble of man's vanity. Away with it!
+  | Have you written since your first letter to our friend Mr. Peter
+Hawkins, or to any other?
+  | Go on! You are first, and we shall follow; yours is the right to
+begin.
+  | The Szgany has given me these, of which, though I know not whence they
+come, I shall, of course, take care. See!
+  | Because, dear sir, my coachman and horses are away on a mission.
+  | Shut the door; I shall wait till morning!
+  | Count me in every time. I bear messages which will make both your ears
+tingle.
+  | And my gog! how could they be otherwise? Look at
+that one, the aftest abaft the bier-bank: read it!
+  | Well, what else be they tombstones for? Answer me that, miss!
+  | I did not know what to say, but Lucy turned the conversation as she
+said, rising up:--
+  | that he has eaten his birds, and that he just took
+and ate them raw!
+  | she must fetch up somewhere,
+if it was only in hell.
+  | Pray do not take us as exceeding the bounds of business courtesy in
+pressing you in all ways to use the utmost expedition.
+
+_
+  | Bother them all! I don't care a pin about them.
+  | P. P. S.--We are to be married on 28 September.
+  | I don't take any stock in cats. I have more to think of now,
+and I can wait; I can wait.
+  | All over! all over! He has deserted me. No hope for me now unless I do
+it for myself!
+  | Are you not going to keep flies any more?
+  | _Dr. Seward's Diary._
+
+_7 September._--The first thing Van Helsing said to me when we met at
+Liverpool Street was:--
+  | I am younger and stronger, Professor. It must be me.
+  | Tell me, and I shall do it. My
+life is hers, and I would give the last drop of blood in my body for
+her.
+  | If you only knew how gladly I would die for her you would
+understand----
+  | He is so young and strong and of blood so pure that we need not
+defibrinate it.
+  | What do you make of that mark on her throat?
+  | Afraid to go to sleep! Why so? It is the boon we all crave for.
+  | But, my dear girl, you may sleep to-night. I am here watching you, and
+I can promise that nothing will happen.
+  | Well, when I left her, or rather when she left me,
+  | Yes, my dear, but not for you to play with. These are medicines.
+  | Then seeing poor Lucy scared, as she might
+well be, he went on more gently:
+  | Aha! I thought I had diagnosed the case. My treatment is working,
+  | To-day you must operate. I shall provide.
+You are weakened already.
+  | Now, Mr. Bilder, can you account in any way for the escape of the
+wolf?
+  | I was handing him the half-sovereign, when something came bobbing up
+against the window, and Mr. Bilder's face doubled its natural length
+with surprise.
+  | Then it was you, and just arrived. How is she? Are we too late? Did you
+not get my telegram?
+  | It is not yet too late! Quick! quick! Bring the brandy!
+  | I think I came just in the nick of time. You know you have only to tell
+me what to do.
+  | When you come back, Jack, may I have two words with you all to
+ourselves?
+  | You and the Dutchman will tell me
+what to do, and I'll do it.
+  | _Letter, Mina Harker to Lucy Westenra_.
+
+(Unopened by her.)
+  | not
+yet! Hold her hand; it will comfort her more.
+  | Come, my child, take her hand in yours, and kiss her on the
+forehead, and only once.
+  | Not so; alas! not so. It is only the beginning!
+  | To-morrow I want you to bring me, before night, a set of post-mortem
+knives.
+  | You know that Mrs. Westenra left you all her property?
+  | The old Professor stood up as he said solemnly:--
+  | Yes, and it was a sweet and comforting idea for him.
+  | _25 September._--Come to-day by quarter-past ten train if you can catch
+it. Can see you any time you call.
+  | I can tell you, I think, Dr. Van Helsing, all about it.
+  | Oh, Madam Mina, I will be grateful; you will do me much favour.
+  | But, doctor, you praise me too much, and--and you do not know me.
+  | He thought he saw some one who recalled something terrible, something
+which led to his brain fever.
+  | I shall in the morning,
+so soon as I can, come to see you and your husband, if I may.
+  | does what you have to do concern the Count?
+  | Love to Madam Mina; I shall
+write so soon as ever I can.
+  | Of nervous prostration following on great loss or waste of blood.
+  | In God's name, Professor Van Helsing, what do you mean?
+  | To open the coffin. You shall yet be convinced.
+  | Some of the undertaker's people
+may have stolen it.
+  | there may be duplicates; and anyhow it is not difficult to pick a lock
+of that kind.
+  | the little children can be bitten. Are you of belief now, friend
+John?
+  | And yet she has been dead one week. Most peoples in that time would not
+look so.
+  | there is a grave duty to be done
+there. You were doubtless surprised at my letter?
+  | that is only fair. And now that the
+_pourparlers_ are over, may I ask what it is we are to do?
+  | I am willing to be
+patient in all things that are reasonable; but in this--this desecration
+of the grave--of one who----
+  | And then you will at least know the limit of my purpose. Shall I go
+on?
+  | Un-Dead! Not alive! What do you mean? Is this all a nightmare, or what
+is it?
+  | --here he shut the dark slide of his lantern--
+  | The Host. I brought it from Amsterdam. I have an Indulgence.
+  | Is this really Lucy's body, or only a demon in her shape?
+  | And now, Arthur my friend, dear lad, am I not forgiven?
+  | he laid his hand heavily and gravely on the packet of
+papers as he spoke,
+  | but I stayed at the door
+as I heard you talking, and thought there was some one with you.
+  | Tell you of her death? Not for the wide world!
+  | Then, Dr. Seward, you had better let me copy it out for you on my
+typewriter.
+  | No one need ever know, shall ever know,
+  | She is going through the house, and wants to see every one in it,
+  | You're not the girl the doctor wanted to marry, are you? You can't be,
+you know, for she's dead.
+  | I don't see that at all, Mr. Renfield,
+  | I don't know; I fancy not, for it flew away into the wood.
+  | Is it possible that I have erred in my supposition?
+  | Lord Godalming had slipped
+away for a few minutes, but now he returned. He held up a little silver
+whistle, as he remarked:--
+  | This was a portion of Sacred
+Wafer, which he put in an envelope and handed to me. Each of the others
+was similarly equipped.
+  | I agree with you with all my heart,
+  | How did you get into the houses if they were both empty?
+  | And you can't remember the number of the house?
+  | The affairs of their clients are
+absolutely safe in the hands of Mitchell, Sons, & Candy.
+  | Oh, it is a soul you are after now, is it?
+  | So you don't care about life and you don't want souls. Why not?
+  | how are we to get the life without getting the soul
+also?
+  | But I don't want their souls buzzing round me, all the same.
+  | You want big things that you can make your teeth meet
+in? How would you like to breakfast on elephant?
+  | Dr. Seward, you have been very considerate towards me. Believe me that
+I am very, very grateful to you!
+  | Send the attendant away. We must be alone with him when he becomes
+conscious, after the operation.
+  | If I were not sure already, I would know from them.
+  | Here we all moved,
+but no one said a word; he went on:--
+  | If the door be locked, I shall
+break it in.
+  | What has happened?
+Tell me all about it!
+  | Thank God there is the
+other copy in the safe!
+  | Her husband groaned
+again. She clasped his hand harder, and looked at him pityingly, as if
+he were the injured one, and went on:--
+  | Because if I find in myself--and I shall watch keenly for it--a sign of
+harm to any that I love, I shall die!
+  | And your police; where will they be, and what will they say?
+  | And your police, they would interfere, would they not?
+  | that last night he
+banqueted heavily, and will sleep late?
+  | There was a pause, broken by Jonathan Harker's voice:--
+  | It is all right. We found both places; six boxes in each and we
+destroyed them all!
+  | Go, call the Professor. I want to see him at once.
+  | Do it before the dawn, for I
+feel that then I can speak, and speak freely. Be quick, for the time is
+short!
+  | I can see nothing; it is all dark.
+  | Then there is not a moment to lose: it may not be yet too late!
+  | he can live for centuries, and you are
+but mortal woman. Time is now to be dreaded--since once he put that mark
+upon your throat.
+  | you must remain to take
+care of your so sweet wife!
+  | it will not be necessary. You can tell
+them just as well. I must go with you on your journey.
+  | She looked
+appealingly to us all in turn, beginning and ending with her husband.
+  | I swear the same, my dear Madam Mina!
+======================================================================
+frankenstein: 333 dialogue segments, 75275 words total, dialogue mean sentence 15.0 words
+  [address] my dear(20), sir(6), my friend(3), young man(3), captain(2), master(1), wife(1)
+  [oath] good god(3), devil(3), i swear(2), by heaven(1), hell(1), god knows(1), god forbid(1)
+  [thanks] thank you(2), i thank you(2), grateful(1), thanks(1)
+  [farewell] farewell(2), good night(1), adieu(1), take care(1)
+  [deference] allow me(3), pardon me(2), if you please(1)
+  [money] will(93), fortune(1)
+  [weather] cold(5), rain(1), mist(1), wind(1), snow(1)
+  [menace_polite] 
+  [grief] poor(18), alas(7), grief(3), departed(2), mourn(2), taken from(1), i have lost(1), we have lost(1)
+  [refusal] i cannot(8), i will not(3), impossible(3), i dare not(2)
+  candidates: 67
+  -- sample --
+  | Here is our captain, and he will not allow you to perish
+on the open sea.
+  | will you have the kindness to inform me whither you are bound?
+  | And did the man whom you pursued travel in the same fashion?
+  | I have,
+doubtless, excited your curiosity, as well as that of these good
+people; but you are too considerate to make inquiries.
+  | Certainly; it would indeed be very impertinent and inhuman in me to
+trouble you with any inquisitiveness of mine.
+  | And yet you rescued me from a strange and perilous situation; you have
+benevolently restored me to life.
+  | continued he,
+perceiving that I wished to interrupt him;
+  | I have a pretty present for my
+Victor—tomorrow he shall have it.
+  | Ah! Cornelius Agrippa! My dear Victor, do not waste
+your time upon this; it is sad trash.
+  | really spent your time in studying such nonsense?
+  | how glad I am to see you! How fortunate that you should be here at
+the very moment of my alighting!
+  | It gives me the greatest delight to see you; but tell me how you left
+my father, brothers, and Elizabeth.
+  | I did not before remark how very ill
+you appear; so thin and pale; you look as if you had been watching for
+several nights.
+  | what, for God's sake,
+is the matter? Do not laugh in that manner. How ill you are! What is the
+cause of all this?
+  | _he_ can
+tell. Oh, save me! Save me!
+  | I will write instantly and relieve them from the anxiety
+they must feel.
+  | William is dead!—that sweet child, whose smiles delighted and warmed
+my heart, who was so gentle, yet so gay! Victor, he is murdered!
+  | exclaimed Henry, when he perceived me
+weep with bitterness,
+  | To go instantly to Geneva: come with me, Henry, to order the horses.
+  | William, dear angel! this is thy
+funeral, this thy dirge!
+  | Justine Moritz! Poor, poor girl, is she the accused? But it is
+wrongfully; every one knows that; no one believes it, surely, Ernest?
+  | You are all mistaken; I know the murderer. Justine, poor,
+good Justine, is innocent.
+  | Good God, papa! Victor says that he knows who was the murderer of
+poor William.
+  | for indeed I had
+rather have been for ever ignorant than have discovered so much
+depravity and ungratitude in one I valued so highly.
+  | My dear father, you are mistaken; Justine is innocent.
+  | and that shall
+be proved; fear nothing, but let your spirits be cheered by the assurance
+of her acquittal.
+  | I will go, although she is guilty; and you, Victor, shall accompany
+me; I cannot go alone.
+  | Dear sir, you are very
+kind to visit me; you, I hope, do not believe that I am guilty?
+  | he is more
+convinced of your innocence than I was, for even when he heard that you
+had confessed, he did not credit it.
+  | that I were to die with you; I
+cannot live in this world of misery.
+  | that I do not suffer
+also? No one could love a child more than I loved your
+brother
+  | The family, after having been thus occupied for a short time,
+extinguished their lights and retired, as I conjectured, to rest.
+  | I knocked. 'Who is there?' said the old man. 'Come in.'
+  | 'That is indeed unfortunate; but if you are really blameless, cannot
+you undeceive them?'
+  | 'May I know the names and residence of those friends?'
+  | 'Great God!' exclaimed the old man. 'Who are you?'
+  | 'Boy, you will never see your father again; you must come with me.'
+  | 'Frankenstein! you belong then to my enemy—to him towards whom I have
+sworn eternal revenge; you shall be my first victim.'
+  | now I enjoy existence! But you, my dear Frankenstein, wherefore are
+you desponding and sorrowful!
+  | and among
+these mountains I should scarcely regret Switzerland and the Rhine.
+  | Begone! I do break my promise; never will I create another like
+yourself, equal in deformity and wickedness.
+  | It is well. I go; but remember, I shall be with you on your
+wedding-night.
+  | Villain! Before you sign my
+death-warrant, be sure that you are yourself safe.
+  | _I will be with you on
+your wedding-night._
+  | will you be so kind as to tell me the name of
+this town and inform me where I am?
+  | Surely it is not the custom of Englishmen to
+receive strangers so inhospitably.
+  | what the custom of the
+English may be, but it is the custom of the Irish to hate villains.
+  | Come, sir, you must
+follow me to Mr. Kirwin's to give an account of yourself.
+  | Who is Mr. Kirwin? Why am I to give an account of myself? Is not
+this a free country?
+  | I fear that this place is very shocking to you; can I do anything to
+make you more comfortable?
+  | and someone, a friend, is come to visit you.
+  | Oh! Take him away! I cannot see him; for God's sake, do not
+let him enter!
+  | I should have thought, young man, that the presence of your father
+would have been welcome instead of inspiring such violent repugnance.
+  | Is my father indeed come? How kind, how
+very kind! But where is he, why does he not hasten to me?
+  | What a place is this that you inhabit, my son!
+  | You travelled to seek happiness, but a fatality seems
+to pursue you. And poor Clerval—
+  | My dearest Victor, what infatuation is this? My dear son, I entreat
+you never to make such an assertion again.
+  | _I will be with you on your
+wedding-night!_
+  | _I shall be with
+you on your wedding-night_,
+  | What is it that agitates you, my dear Victor?
+What is it you fear?
+  | this night, and
+all will be safe; but this night is dreadful, very dreadful.
+  | no pains or exertions on my part shall
+be spared to discover the villain.
+  | how ignorant art thou in thy pride of
+wisdom! Cease; you know not what it is you say.
+  | I am satisfied, miserable wretch! You have
+determined to live, and I am satisfied.
+  | I would not that a mutilated one should go down to
+posterity.
+  | Alas! Yes; I cannot withstand their demands. I cannot lead them
+unwillingly to danger, and I must return.
+  | Do you think that I was then
+dead to agony and remorse? He,
+======================================================================
+great-expectations: 3522 dialogue segments, 186800 words total, dialogue mean sentence 8.4 words
+  [address] sir(119), my dear(45), master(22), wife(15), ma'am(15), my friend(9), young man(8), husband(8)
+  [oath] dear me(6), devil(3), god knows(3), good lord(2), i swear(2), good god(1), merciful(1), good gracious(1)
+  [thanks] thank you(21), grateful(10), i thank you(6), much obliged(5), thanks(3)
+  [farewell] good-bye(15), good night(6), good day(4), take care(2)
+  [deference] if you please(9), pray(9), beg your pardon(2), begging your pardon(1), your servant(1), pray tell(1), allow me(1), if i may(1)
+  [money] will(132), pound(18), fortune(15), pounds(8), shilling(5), pence(5), debt(4), shillings(2)
+  [weather] cold(12), wind(4), rain(2), mist(2)
+  [menace_polite] you had better(5), i warn you(1)
+  [grief] poor(37), i have lost(1)
+  [refusal] i cannot(6), i will not(5), impossible(4), no use(4)
+  candidates: 1121
+  -- sample --
+  | Keep still, you
+little devil, or I'll cut your throat!
+  | I
+wish I was a frog. Or a eel!
+  | If you can cough any trifle on it up, Pip, I'd recommend you to do
+it,
+  | I couldn't help it, sir! It wasn't
+for myself I took it!
+  | Him? Yes,
+yes! _He_ don't want no wittles.
+  | I ain't a-going to have no
+formal cramming and busting and washing up now, with what I've got
+before me, I promise you!
+  | think what
+you've got to be grateful for. If you'd been born a Squeaker—
+  | And pray what might you want with _him_?
+  | Convicts! Runaways! Guard! This way for the runaway convicts!
+  | they know you are coming.
+Don't straggle, my man. Close up here.
+  | Yah! Was there
+ever such a boy as this!
+  | rendering unto all their doo, and maintaining
+equal justice betwixt man and man, my father were that good in his
+hart, don't you see?
+  | And she an't over partial to having scholars on the premises,
+  | mentioned that
+she wanted him to go and play there.
+  | Don't be ridiculous, boy; I am not going in.
+  | And what coarse hands he has! And what
+thick boots!
+  | No! Don't lose your temper. Leave this lad
+to me, ma'am; leave this lad to me.
+  | Did you ever see her in it, uncle?
+  | But not all of it? Why sure you don't mean to say, Pip, that there was
+no black welwet co—eh?
+  | What'll you drink, Mr.—? You didn't mention your name, by the bye.
+  | none but a runaway convict now and then. And we don't
+find _them_, easy. Eh, Mr. Wopsle?
+  | if a man is not his own
+neighbour, who is?
+  | Why don't you cry again, you little wretch?
+  | that to think of any person is to make a great claim upon that
+person, my dear.
+  | I ought to give you a reason for fighting, too. There it
+is!
+  | when we
+had done with our fine ladies
+  | and here it is. There are
+five-and-twenty guineas in this bag. Give it to your master, Pip.
+  | pretty well. Not too much,
+but pretty well.
+  | Don't you think I might say that I did not, Joe?
+  | Now, master! Sure you're not a-going to favour only one of us. If
+Young Pip has a half-holiday, do as much for Old Orlick.
+  | I'd hold you, if
+you was my wife. I'd hold you under the pump, and choke it out of you.
+  | We'd be puzzled how to
+bring down a jail-bird on the wing, to-night.
+  | you were my
+first teacher, and that at a time when we little thought of ever being
+together like this, in this kitchen.
+  | If I could only get myself to fall in love with you,—you don't mind my
+speaking so openly to such an old acquaintance?
+  | you have settled it all to your own satisfaction, I have no doubt?
+  | I have reason to believe there is a blacksmith
+among you, by name Joseph—or Joe—Gargery. Which is the man?
+  | Once more, I stammered with difficulty that I had no objection.
+  | I said (glancing at Joe, who stood looking on, motionless), that I
+supposed I could come directly.
+  | Have you
+thought about when you'll show yourself to Mr. Gargery, and your sister
+and me? You will show yourself to us; won't you?
+  | If you have the heart to think so,
+  | don't hurt me by mentioning that. May I venture to congratulate
+you? Would you do me the favour of stepping into the shop?
+  | if you will allow me to
+call you so—
+  | and want to say good-bye
+to Miss Havisham.
+  | A shilling—unless you wish to make it more.
+  | Very well; then you may go. Now, I won't have it!
+  | Soft Head! Need you say it face to face?
+  | You will find your
+credit good, Mr. Pip,
+  | except at last. Very
+glad, I'm sure, to make your acquaintance. Good day!
+  | Would you mind Handel for a familiar name? There's a charming piece of
+music by Handel, called the Harmonious Blacksmith.
+  | They fell into deeper shame and degradation—if there can be deeper—and
+ruin.
+  | that you look about you.
+_That's_ the grand thing. You are in a counting-house, you know, and
+you look about you.
+  | Here! Give me your fork, Mum, and take the baby,
+  | I hope I know my
+poor grandpapa's position. Jane, indeed!
+  | If I could buy the furniture now hired for me,
+  | Take Mr. Pip's
+written order, and pay him twenty pounds.
+  | Did you think of walking down to Walworth?
+  | the gun
+fires. There he is, you see! And when you hear him go, I think you'll
+say he's a Stinger.
+  | the one with the delicate face is
+Startop.
+  | Rather mean to borrow under those circumstances, I should say.
+  | if no offence, as I would 'and you that.
+  | having cleaned myself, I go and I see Miss A.
+  | He had 'em stowed away
+somehows. Giv him by friends, I expect.
+  | that I don't know
+without casting it up. However, I come here some time since you left.
+  | She was proud and insulting, and you wanted to go away
+from her. Don't you remember?
+  | if we are to be thrown
+much together, you had better believe it at once. No!
+  | I love her, I love her, I love her!
+  | Oh! She is thousands of miles away, from
+me,
+  | But you _can't_ marry, you know, while you're
+looking about you.
+  | But I'll tell you one thing, Mr. Waldengarver,
+  | Notice the man I shall shake hands with.
+  | they shall be taken care of.
+Good-afternoon, Colonel. Good-bye!
+  | You speak of yourself as if
+you were some one else.
+  | No, no you may be sure of that,
+  | You have been accustomed to see him often, I suppose?
+  | Look the thing in the face. Look into your affairs. Stare
+them out of countenance.
+  | I suppose it will be difficult for you to remain here now, Biddy
+dear?
+  | I saw him there, on the night she died.
+  | Good-bye, dear Joe!—No, don't wipe it off—for God's sake, give me your
+blackened hand!—I shall be down soon and often.
+  | Is that confidence to be imparted to me soon?
+  | Do you suppose it will still be years hence, Mr. Jaggers?
+  | Hah! I have heerd that my son is a wonderful hand
+at his business, sir?
+  | for he isn't capable of many pleasures—are
+you, Aged P.?
+  | to anything that
+you excluded? Be just to me.
+  | do look at that fellow in the corner yonder, who is
+looking over here at us.
+  | because I cannot bear that people should say,
+'she throws away her graces and attractions on a mere boor, the lowest
+in the crowd.'
+  | Why do you, a stranger coming into my rooms at this time of the night,
+ask that question?
+  | Never set eyes upon him. I warn't likely to it.
+  | The
+person stopped, when he stopped to make inquiry of me, and the person
+took this way when he took this way.
+  | First knowed Mr. Jaggers that way. Jaggers was for me.
+  | but you were very serious last
+night, when you swore it was Death.
+  | that he has received a letter, under date Portsmouth, from
+a colonist of the name of Purvis, or—
+  | But get him where I will, could I prevent his coming back?
+  | I says, 'I hope it may be so. There's room.'
+  | And I don't dine, because I'm going to dine at the lady's.
+  | It is not your secret, but another's.
+Well?
+  | that Bentley Drummle is in town here, and
+pursuing you?
+  | You will get me out of your thoughts in a week.
+  | You have heard of a man of bad character, whose true name is
+Compeyson?
+  | but I
+have never seen him. Don't you smell rum? He is always at it.
+  | Yes, of course I saw you. But who
+else was there?
+  | I don't mind admitting also that I am not engaged.
+  | I know that
+what is said between you and me goes no further.
+  | Do you remember the sex of the child?
+  | If I give you the money for this purpose, will you keep my secret as
+you have kept your own?
+  | What have I done! What have I done!
+  | Take the pencil and write
+under my name, 'I forgive her.'
+  | It is impossible to be gentler, Herbert. Yes? What else?
+  | I know I am quite myself. And the man we have in hiding down the
+river, is Estella's Father.
+  | Perhaps I know more of Estella's history than even you do,
+  | I ask Wemmick to put it to _him_self very carefully.
+  | No doubt he would be, if he could,
+  | Because I mean to do it all myself. One keeps a secret better than
+two. O you enemy, you enemy!
+  | I tell you it was your doing,—I tell you it was done through you,
+  | Now it has come, and I am turning delirious!
+  | Why, what do you make out that they done with their buttons then,
+Jack?
+  | No, for I have been afraid to think of any future.
+  | Why, I suppose you have not done such a thing these twelve months.
+  | I thought you was late.
+But I knowed you couldn't be that.
+  | O Lord, be merciful to him
+a sinner!
+  | It is so delightful to hear you, Joe! But I interrupt you in what you
+said to Biddy.
+======================================================================
+great-god-pan: 245 dialogue segments, 21834 words total, dialogue mean sentence 10.0 words
+  [address] wife(5), doctor(5), sir(1), my dear(1)
+  [oath] good god(2), devil(2), my god(1), dear me(1), hell(1)
+  [thanks] thanks(4)
+  [farewell] good-bye(1)
+  [deference] if you please(1), beg your pardon(1), if i may(1)
+  [money] will(15), legacy(1)
+  [weather] mist(1), cold(1)
+  [menace_polite] 
+  [grief] poor(8), i have lost(1)
+  [refusal] i cannot(3), impossible(2), i will not(1)
+  candidates: 86
+  -- sample --
+  | I am glad you came, Clarke; very glad indeed. I was not sure you could
+spare the time.
+  | Safe? Of course it is. In itself the operation is a perfectly simple
+one; any surgeon could do it.
+  | And there is no danger at any other stage?
+  | I should like to believe it is all true.
+  | Are you perfectly sure, Raymond,
+that your theory is not a phantasmagoria—a splendid vision, certainly,
+but a mere vision after all?
+  | Clarke shivered; the white mist gathering over the river was chilly.
+  | But you remember what you wrote to me? I thought it would be requisite
+that she—
+  | Not at all, not at all. That is nonsense. I assure you. Indeed, it is
+better as it is; I am quite certain of that.
+  | Consider the matter well, Raymond. It's a great responsibility.
+Something might go wrong; you would be a miserable man for the rest of
+your days.
+  | We may as well place it in
+position.
+  | Now, Clarke, make yourself quite comfortable. I have a couple hours'
+work before me; I was obliged to leave certain matters to the last.
+  | I hope the smell doesn't annoy you, Clarke; there's nothing
+unwholesome about it. It may make you a bit sleepy, that's all.
+  | the journey must have tired you out.
+It is done now. I am going to fetch Mary; I shall be back in ten
+minutes.
+  | the time has come. You are quite free. Are you
+willing to trust yourself to me entirely?
+  | Yes, dear, quite ready. Give me a kiss before you begin.
+  | There is nothing more to be done; we can only wait.
+  | Memoirs to
+prove the Existence of the Devil,
+  | Ah, mother, mother, why did you let me go to the forest
+with Helen?
+  | Yes, my name's Herbert. I think I know your face, too, but I don't
+remember your name. My memory is very queer.
+  | So it is, so it is. I beg your pardon, Villiers, I didn't think I was
+begging of an old college friend. Good-night.
+  | It's a long story, Villiers, and a strange one too, but you can hear
+it if you like.
+  | Come on, then. Take my arm, you don't seem very strong.
+  | London has been called the city of encounters; it is more than that,
+it is the city of Resurrections,
+  | But your property, Herbert? You had land in Dorset.
+  | I sold it all; the fields and woods, the dear old house—everything.
+  | what
+was your wife's name? You said Helen, I think? Helen what?
+  | Do you happen to know anything of a man named Herbert—Charles
+Herbert?
+  | he was an old college friend of mine.
+  | You don't say so? Have you ever seen his wife?
+  | No, I haven't. I have lost sight of Herbert for many years.
+  | Memoirs to prove the Existence of the
+Devil.
+  | Well, Villiers, I shall be happy to give you my advice, to the best of
+my ability. What is the nature of the case?
+  | I propose to look for the woman; the woman whom he married. _She_ is
+the mystery.
+  | the most vivid presentment of
+evil I have ever seen.
+  | Good God! Clarke, what is the matter? You are as white as death.
+  | That's how I identified it as being a
+portrait of Herbert's wife, or I should say his widow. How do you feel
+now?
+  | This word—'Helen'—was written on the back. Didn't I tell you her name
+was Helen? Yes; Helen Vaughan.
+  | that in the story I
+have told you to-night, and in the part this woman plays in it, there
+are some very strange points?
+  | He would not tell me; he would only say that she had destroyed him,
+body and soul. The man is dead now.
+  | Come and see me by all means; but we will talk on more cheerful
+    topics than this.
+  | Ah! I forgot to tell you I have been to Paul Street and have made a
+discovery.
+  | How very curious that you should experience such an unpleasant
+sensation in that room!
+  | I hardly gather that it
+was a mere matter of the imagination; a feeling of repulsion, in
+short.
+  | Yes, I did. He became very faint, but he assured me that it was a mere
+passing attack to which he was subject.
+  | Thanks, I think I will. I haven't seen the curiosity-shop for a
+while.
+  | I was forgetting, I have got something to show you.
+  | Did you know Arthur Meyrick the painter, Villiers?
+  | You don't say so! Quite young, wasn't he?
+  | I have been thinking of doing so. You would advise me to write to the
+doctor?
+  | It was sealed up when I got it. I don't think the doctor had seen it.
+  | It is something very rare? Meyrick was a collector, perhaps?
+  | No, I think not, hardly a collector. Now, what do you think of these
+Ainu jugs?
+  | They are peculiar, but I like them. But aren't you going to show me
+poor Meyrick's legacy?
+  | No. It is a collection of drawings in black and white by my poor
+friend Meyrick.
+  | Know who it is? No, of course not.
+  | I am perfectly sure of it. Poor Meyrick! He is one more chapter in her
+history.
+  | But what do you think of the designs?
+  | you know Argentine
+was a friend of mine. If I remember rightly, we were speaking of him
+that day you came to my rooms.
+  | Yes; it was in connection with that house in Ashley Street, Mrs.
+Beaumont's house. You said something about Argentine's dining there.
+  | Quite so. Of course you know it was there Argentine dined the night
+before—before his death.
+  | You must have seen her in the Row.
+  | Have you written to the doctor about poor Meyrick?
+  | Yes, and it's very possible that the woman may have more than one
+name.
+  | So you might; that never occurred to me. We might send it now. Hark!
+what are those boys calling?
+  | The West End Horrors; Another Awful Suicide; Full Details!
+  | Austin put down the paper in mute horror.
+  | Yes, I think so. I will look again. Yes, you are quite right.
+  | Quite so. Well, I am in a position to contradict that statement at all
+events. Crashaw was seen after that; considerably later indeed.
+  | Because I happened to see Crashaw myself at about two o'clock this
+morning.
+  | Yes, I saw him quite distinctly; indeed, there were but a few feet
+between us.
+  | Where, in Heaven's name, did you see him?
+  | Not far from here. I saw him in Ashley Street. He was just leaving a
+house.
+  | No; I was wide awake enough. Even if I had been dreaming as you say,
+what I saw would have roused me effectually.
+  | What you saw? What did you see? Was there anything strange about
+Crashaw? But I can't believe it; it is impossible.
+  | Who is she? In what way do you mean?
+  | I mean that you and I know her better under another name.
+  | Yes, the best of proof; I have seen Mrs. Beaumont, or shall we say
+Mrs. Herbert?
+  | You must have been in strange places, Villiers.
+  | Because I am sure that Clarke is in possession of facts about this
+woman, facts of which I know nothing.
+  | My idea was that Clarke and I should call on Mrs. Beaumont.
+  | You would never go into such a house as that? No, no, Villiers, you
+cannot do it. Besides, consider; what result...
+  | Yes, Austin, I shall go out alive—I, and Clarke with me.
+  | What do you mean? You cannot, you would not dare...
+  | Austin set his teeth hard, and stared at Villiers, growing whiter as he
+looked.
+  | I must go now. I cannot stay here any longer; I cannot bear this.
+Good-night.
+  | And does he say what carried him off in the prime of life? It was not
+fever?
+======================================================================
+hound-baskervilles: 926 dialogue segments, 59659 words total, dialogue mean sentence 10.5 words
+  [address] sir(134), wife(14), my friend(11), my dear(10), master(4), madam(3), my good(2), lad(2)
+  [oath] my god(4), dear me(3), good heavens(2), devil(2), by heavens(1), hell(1)
+  [thanks] thank you(2)
+  [farewell] good-bye(2), good day(1)
+  [deference] with your permission(2), beg your pardon(1), pray(1), permit me(1)
+  [money] will(74), pounds(2), sovereign(2), guineas(2), debt(1)
+  [weather] thunder(4), cold(3), fog(2), wind(2), dreary(1)
+  [menace_polite] 
+  [grief] poor(12), departed(1)
+  [refusal] i cannot(6), i will not(3), no good(2), impossible(1), it is useless(1)
+  candidates: 323
+  -- sample --
+  | To James Mortimer, M.R.C.S., from his friends of the
+      C.C.H.,
+  | How did you know what I was doing? I believe you have eyes in
+      the back of your head.
+  | that Dr. Mortimer is a successful, elderly medical
+      man, well-esteemed since those who know him give him this mark of
+      their appreciation.
+  | There are certainly one or two
+      indications upon the stick. It gives us the basis for several
+      deductions.
+  | Well, then, supposing that 'C.C.H.' does stand for 'Charing
+      Cross Hospital,' what further inferences may we draw?
+  | I can only think of the obvious conclusion that the man has
+      practised in town before going to the country.
+  | I was not
+      sure whether I had left it here or in the Shipping Office. I
+      would not lose that stick for the world.
+  | Only that you have disarranged our little deductions. Your
+      marriage, you say?
+  | You are
+      an enthusiast in your line of thought, I perceive, sir, as I am
+      in mine,
+  | Indeed, sir! May I inquire who has the honour to be the first?
+  | I observed it as you entered the room,
+  | It appears to be a statement of some sort.
+  | But I understand that it is something more modern and practical
+      upon which you wish to consult me?
+  | Dr. Mortimer refolded his paper and replaced it in his pocket.
+  | said Dr. Mortimer, who had begun to show signs of
+      some strong emotion,
+  | Sherlock Holmes struck his hand against his knee with an
+      impatient gesture.
+  | Holmes returned to his seat with that quiet look of inward
+      satisfaction which meant that he had a congenial task before him.
+  | Open the window, then! You have been at your club all day, I
+      perceive.
+  | On the contrary, I have been to Devonshire.
+  | Pray take a seat, Sir Henry. Do I understand you to say that you
+      have yourself had some remarkable experience since you arrived in
+      London?
+  | No one could have known. We only decided after I met Dr.
+      Mortimer.
+  | No, I had been staying with a friend,
+  | Hum! Someone seems to be very deeply interested in your
+      movements.
+  | No, sir, but it might very well come from someone who was
+      convinced that the business is supernatural.
+  | You shall share our knowledge before you leave this room, Sir
+      Henry. I promise you that,
+  | cried Holmes in high glee,
+      rubbing his hands together with satisfaction.
+  | said Dr. Mortimer, gazing at my friend in amazement.
+  | said he when the long narrative was finished.
+  | We had been sauntering slowly down Regent Street during this
+      conversation, and Dr. Mortimer, with his companion, had long
+      vanished in front of us.
+  | he
+      continued in a low voice as we went upstairs together.
+  | The proposition took me completely by surprise, but before I had
+      time to answer, Baskerville seized me by the hand and wrung it
+      heartily.
+  | I got a message from the head office that a gent at this address
+      had been inquiring for No. 2704,
+  | On the contrary, I have half a sovereign for you if you
+      will give me a clear answer to my questions.
+  | What was it you wanted to ask, sir?
+  | John Clayton, 3 Turpey Street, the Borough. My cab is out of
+      Shipley's Yard, near Waterloo Station.
+  | The truth is that the gentleman told me
+      that he was a detective and that I was to say nothing about him
+      to anyone.
+  | Excellent! Tell me where you picked him up and all that
+      occurred.
+  | And how would you describe Mr. Sherlock Holmes?
+  | Snap goes our third thread, and we end where we began,
+  | I wish you simply to report facts in the
+      fullest possible manner to me, and you can leave me to do the
+      theorizing.
+  | said Dr. Mortimer in answer to
+      my friend's questions.
+  | he added as
+      the train began to glide down the platform.
+  | but I have never seen a place to compare with
+      it.
+  | It depends upon the breed of men quite as much as on the
+      county,
+  | Well, I understand that they get five pounds if they can give
+      information.
+  | It's no wonder my uncle felt as if trouble were coming on him in
+      such a place as this,
+  | Surely you will stay and have some dinner?
+  | Do you mean that your wife and you wish to leave?
+  | My word, it isn't a very cheerful place,
+  | And yet it was not entirely a question of imagination,
+  | I heard it distinctly, and I am sure that it was really the sob
+      of a woman.
+  | I had the telegram delivered to Mr.
+      Barrymore exactly as directed.
+  | No, sir; I tell you he was in the loft.
+  | Well, surely his own wife ought to know where he is,
+  | You will, I am sure, excuse my presumption, Dr. Watson,
+  | for I
+      knew that Mr. Stapleton was a naturalist. But how did you know
+      me?
+  | Of course you know the legend of the fiend dog which haunts the
+      family?
+  | You think, then, that some dog pursued Sir Charles, and that he
+      died of fright in consequence?
+  | I am afraid that I cannot answer that question.
+  | He cannot leave town at present. He has other cases which engage
+      his attention.
+  | A moderate walk along this moor-path brings us to Merripit
+      House,
+  | You never tire of the
+      moor. You cannot think the wonderful secrets which it contains.
+      It is so vast, and so barren, and so mysterious.
+  | You would naturally think so and the thought has cost several
+      their lives before now. You notice those bright green spots
+      scattered thickly over it?
+  | Yes, there are one or two paths which a very active man can
+      take. I have found them out.
+  | For God's sake put such
+      an idea out of your mind,
+  | What do you think is the cause of so strange a
+      sound?
+  | Well, perhaps it was. Did you ever hear a bittern booming?
+  | Yes, it's rather an uncanny place altogether. Look at the
+      hillside yonder. What do you make of those?
+  | But for God's sake do what I ask
+      you. Go back and never set foot upon the moor again.
+  | I imagine that it must be Sir Henry Baskerville.
+  | Why, you had not very much time for talk,
+  | And yet we manage to make ourselves fairly happy, do we
+      not, Beryl?
+  | A woman's whim, Dr. Watson. When you know me better you will
+      understand that I cannot always give reasons for what I say or
+      do.
+  | I cannot say anything definite, for I do not know anything
+      definite.
+  | I was in the box-room at the time, and my wife
+      brought it up to me.
+  | I could not quite understand the object of your questions this
+      morning, Sir Henry,
+  | I knew that Barrymore walked about nights, and I had a mind to
+      speak to him about it,
+  | Perhaps then he pays a visit every night to that particular
+      window,
+  | He would follow Barrymore and see what he did.
+  | You
+      don't mean to say that you came after me in spite of all?
+  | Quite in the back row, eh? But her brother was well up to the
+      front. Did you see him come out on us?
+  | I don't say now that he isn't a crazy man,
+  | It was the window, sir. I go round at night to see that
+      they are fastened.
+  | And why were you holding a candle to the window?
+  | Let us see
+      if there is any answer.
+  | It is my business, and not
+      yours. I will not tell.
+  | We have to go, Eliza. This is the end of it. You can pack our
+      things,
+  | what would Holmes say to
+      this? How about that hour of darkness in which the power of evil
+      is exalted?
+  | Oh, they are ignorant people. Why should you mind what they call
+      it?
+  | They say it is the cry of the Hound of the Baskervilles.
+  | It was hard to say whence it came.
+  | Stapleton was with me when I heard it last. He said that it
+      might be the calling of a strange bird.
+  | Wait here. He must be near his light. Let us see if we can get a
+      glimpse of him.
+  | If you had told us of your own free will it would have been a
+      different thing,
+  | I didn't think you would have taken advantage of it, Sir
+      Henry—indeed I didn't.
+  | The baronet and I were both upon our feet.
+  | I suppose there are few people living within driving distance of
+      this whom you do not know?
+  | There is Laura Lyons—her initials are L. L.—but she
+      lives in Coombe Tracey.
+  | No, sir, but the food was gone when next I went that way.
+  | You know that there is another man then?
+  | Can you tell me anything
+      about him? What did Selden say? Did he find out where he hid, or
+      what he was doing?
+  | Among the old houses on the hillside—the stone huts where the
+      old folk used to live.
+  | There is nothing in common between my father and me,
+  | I certainly wrote to him once or twice to acknowledge his
+      delicacy and his generosity.
+  | Did you ever write to Sir Charles asking him to meet you?
+  | I am sorry, madam, but I must repeat it.
+  | I thought that she had fainted, but she recovered herself by a
+      supreme effort.
+  | Again and again I cross-questioned her, but I could never get
+      past that point.
+  | you
+      must really give your horses a rest and come in to have a glass
+      of wine and to congratulate me.
+  | I asked.
+
+      The old man put on a very knowing expression.
+  | said he, pointing out over the wide-stretching
+      moor.
+  | It was several miles off, but I could distinctly see a small dark
+      dot against the dull green and grey.
+  | I really think that you will be more comfortable outside
+      than in.
+  | I did not know who you were, but I was determined to find out.
+  | No, your boy had been observed, and that gave me a guide where
+      to look.
+  | Ha, I see that Cartwright has
+      brought up some supplies. What's this paper? So you have been to
+      Coombe Tracey, have you?
+  | Then you use me, and yet do not trust me!
+  | said he, seeing the shadow rise from my face.
+  | The darkness was rising, but much was still hidden by the
+      shadows.
+  | Oh Holmes,
+      I shall never forgive myself for having left him to his fate.
+======================================================================
+invisible-man: 1053 dialogue segments, 49241 words total, dialogue mean sentence 7.0 words
+  [address] sir(36), doctor(4), my good(2), mister(2), my dear(1)
+  [oath] devil(11), by heaven(3), good heavens(2), great heavens(1), good god(1), my god(1), bless me(1), good lord(1)
+  [thanks] thank you(3)
+  [farewell] 
+  [deference] if i might(2), pardon me(1), your servant(1), if i may(1)
+  [money] will(31), shilling(3), sovereign(1), guinea(1), fortune(1)
+  [weather] snow(4), cold(3), rain(2), fog(2), mist(1), wind(1)
+  [menace_polite] 
+  [grief] poor(3)
+  [refusal] no good(3), i cannot(2), impossible(2), i will not(1)
+  candidates: 255
+  -- sample --
+  | in the name of human
+charity! A room and a fire!
+  | and give them a good dry in the kitchen?
+  | There! I
+clean forgot it. It's her being so long!
+  | I'll have them nicely dried, sir, at once,
+  | What a turn them bandages did give me, to be sure!
+  | And holding that handkerchief over his mouth all the time.
+Talkin' through it! ... Perhaps his mouth was hurt too—maybe.
+  | He was afraid, one time, that he'd have to have an op'ration—he was
+that bad, sir.
+  | Would you mind, sir, this man a-coming to look at the clock, sir?
+  | certainly—but, as a rule, I like to be
+alone and undisturbed.
+  | he said.
+
+She was certain, with a marked coldness.
+  | was ... a desire for solitude. I do not wish
+to be disturbed in my work. In addition to my work, an accident—
+  | All you've got to do is to fix the
+hour-hand on its axle. You're simply humbugging—
+  | Seemingly not. If the police was wanting you you
+couldn't be more wropped and bandaged.
+  | Looks a bit like a disguise, don't it? I'd like to see a man's
+face if I had him stopping in _my_ place,
+  | We'd better be a-takin' of his luggage in.
+  | The sooner you get those things in the better I'll be pleased.
+  | I wish you wouldn't come in without knocking,
+  | Certainly, sir. You can turn the lock if you're like that, you know.
+Any time.
+  | Don't. If the straw makes trouble put it down in the bill.
+  | A shilling—put down a shilling. Surely a shilling's enough?
+  | It's a rummy case altogether. Why, his nose
+is as pink as paint!
+  | Something—exactly like a finger and thumb it felt—nipped my nose.
+  | 'tas the truth what Henfrey sez. 'E's not in
+uz room, 'e en't. And the front door's onbolted.
+  | I know 'tas sperits. I've read in
+papers of en. Tables and chairs leaping and dancing...
+  | Him and his
+'go to the devil' indeed!
+  | I told you three days ago I was awaiting a remittance—
+  | You told me three days ago that you hadn't anything but a sovereign's
+worth of silver upon you.
+  | Run at en with a knife, I
+believe.
+  | I got to 'rest en, and 'rest en I
+_will_.
+  | Darn it! Can't use 'em as I can
+see.
+  | It's strange, perhaps, but it's not a crime. Why am I assaulted by a
+policeman in this fashion?
+  | Hold him! Shut the door! Don't let him loose! I got something! Here he
+is!
+  | Have I had visions? Was I talking to
+myself? What the—
+  | Where _are_ yer? Lemme get my mark on yer...
+  | said Mr. Thomas Marvel, shuffling his coat on
+to his shoulders again.
+  | It's no good. It's
+fretting about them blarsted boots. I'm off my blessed blooming chump.
+Or it's spirits.
+  | I shall throw the flint at your head.
+  | Where you've hid—how you do it—I _don't_ know. I'm beat.
+  | I'm invisible. That's the great point. And what I want you to
+understand is this—
+  | Yes, I am—thin air. You're looking through me.
+  | I am just a human being—solid, needing food and drink, needing
+covering too—But I'm invisible. You see? Invisible. Simple idea.
+Invisible.
+  | how you made me
+jump!—gripping me like that!
+  | Of course, all this isn't half so wonderful as you think.
+  | Howjer manage it! How the dooce is it done?
+  | —then stopped. 'Here,' I said, 'is an outcast like myself. This is the
+man for me.' So I turned back and came to you—you. And—
+  | I want you to help me get clothes—and shelter—and then, with other
+things. I've left them long enough. If you won't—well! But you
+_will—must_.
+  | if you fail to do as I direct you—
+  | H'm—no name on the fly-leaf.
+Bother!—cypher. And figures.
+  | A general impression first, Cuss, and _then_, you know, we can
+go looking for clues.
+  | My nerves are all loose to-day. It quite
+made me jump—the door opening like that.
+  | We've thrashed that out, Bunting.
+And just now there's these books—Ah! here's some of what I take to be
+Greek! Greek letters certainly.
+  | Since when did you learn to invade the private rooms of a man in
+misfortune?
+  | He's got my trousers! And every stitch of the Vicar's
+clothes!
+  | if you attempt to
+give me the slip again—
+  | I didn't try to give you the slip,
+  | It's all about. It will be in the papers! Everybody will be looking
+for me; everyone on their guard—
+  | I'm the worst possible tool you could have,
+  | I haven't the nerve and strength for the sort of thing you want.
+  | you must admit.... It seems to me I've a
+perfect right—
+  | I tell you, sir, I'm not the man for it. Respectfully—but it _is_ so—
+  | I shall keep
+my hand on your shoulder,
+  | Just seasonable weather for the time of year,
+  | there's a story about an Invisible Man, for
+instance.
+  | I ain't seen a paper these four days,
+  | He didn't have any pals—it don't say he had any pals, does it?
+  | No, thank
+Heaven, as one might say, he didn't.
+  | But you
+was just a-going to tell me about this here Invisible Man!
+  | But how 'bout this paper? D'you mean to say—?
+  | I'll show you, you silly ass—hoaxing
+_me_! It's here—on the paper!
+  | but he doesn't seem to be getting on. If his
+pockets were full of lead, he couldn't run heavier.
+  | He's coming. The
+'Visible Man! After me! For Gawd's sake! 'Elp! 'Elp! 'Elp!
+  | He'll kill me—he's got a knife or something. For Gawd's sake—!
+  | I guess it's about time we saw him.
+  | Don't you be in too much hurry about that door,
+  | Not with that blinking thing going off behind me,
+  | He's going round—prowling
+round. He's as artful as the devil.
+  | There's the yard door and the
+private door. The yard door—
+  | Who's letting off revolvers in Burdock? What are the asses
+at now?
+  | By Heaven! you'll madden me in a
+minute!
+  | I'll stop where I am. And let me sit quiet
+for a minute.
+  | My brain is rioting. What has this to do
+with Griffin?
+  | It's no devilry. It's a process, sane and intelligible enough—
+  | and the night is chilly to a man without clothes.
+  | I always like to get something about me before I eat,
+  | There was a real fool of a man—a sort of confederate of mine—curse
+him!—who tried to steal my money. _Has_ done so.
+  | I'll see what there is to eat downstairs,
+  | He was afraid of me, I could see that he was afraid of me,
+  | I've had no sleep for near three
+days, except a couple of dozes of an hour or so. I must sleep soon.
+  | Nothing—scratch and blood. Oh, God! How I want sleep!
+  | It's—incredible. Three things
+happening like this, overturning all my preconceptions—would make me
+insane. But it's real! Is there anything more that I can get you?
+  | Am I dreaming?
+Has the world gone mad—or have I?
+  | If a man was made of glass he would still be visible.
+  | But when
+does the Tramp come in? Why the deuce was he chasing a tramp?
+  | For instance, would it be a breach of faith if—? No.
+  | all that happened in Iping, and down the hill.
+The world has become aware of its invisible citizen. But no one knows
+you are here.
+  | I must understand a
+little more about this invisibility of yours.
+  | As though knowing could be any satisfaction to a man!
+  | You know the red colouring matter of blood; it can be made
+white—colourless—and remain with all the functions it has now!
+  | He placed himself between Griffin and the nearest window.
+
+For a space Griffin sat silent, and then he resumed abruptly:
+  | In two particulars. These were the claws and the pigment stuff, what
+is it?—at the back of the eye in a cat. You know?
+  | I awoke vastly invigorated and rather irritable. You know?
+  | Only one thing could I see clearly before me—the cold exposure and
+misery of the snowstorm and the night.
+  | the thing had to be done. You were in a fix. But still—
+  | He became silent and went to the window and stared out.
+  | said Kemp, anxious to keep his guest
+busy talking.
+  | I did. Rather. Did I kill that fool of a constable?
+  | I don't know about that tramp of mine,
+  | What were you planning to do when you were heading for Port Burdock?
+_Had_ you any plan?
+  | He's in the town police station, locked up, by his own request, in the
+strongest cell in the place.
+  | We must get those books; those books are vital.
+  | You have told no one I am here?
+  | I'm listening to your plan,
+Griffin, but I'm not agreeing, mind. _Why_ killing?
+  | No one would know he was a confederate,
+  | One of you go
+on down and get a cab to come up and meet us—quickly. And now, Kemp,
+what else?
+  | It's not generally known, but the prison officials
+over at Halstead know a man with bloodhounds. Dogs. What else?
+  | It's unsportsmanlike.
+I don't know. But I'll have powdered glass got ready. If he goes too
+far....
+  | He went up to the belvedere, carefully shutting every door after him.
+  | Had that note of yours taken away from her. He's close about here. Let
+me in.
+  | I might have known. It's not an hour's
+walk from Hintondean. Already?
+  | Oblige me by going back to the house,
+======================================================================
+jekyll-hyde: 395 dialogue segments, 25888 words total, dialogue mean sentence 9.2 words
+  [address] sir(47), master(15), doctor(6), my dear(3), my good(3), young man(2)
+  [oath] good god(2), bless me(2), i swear(2), devil(1), god knows(1)
+  [thanks] thank you(6), i thank you(2)
+  [farewell] 
+  [deference] if you please(1), beg your pardon(1)
+  [money] will(31)
+  [weather] cold(2)
+  [menace_polite] mark my words(1), you had better(1)
+  [grief] poor(9), i have lost(1)
+  [refusal] i cannot(6), impossible(2), i dare not(1)
+  candidates: 115
+  -- sample --
+  | I let my brother go to the
+devil in his own way.
+  | And
+you don't know if the drawer of the cheque lives there?
+  | But I happen to have
+noticed his address; he lives in some square or other.
+  | And you never asked about the—place with the door?
+  | But I have studied the place for myself,
+  | there's one point I want to
+ask: I want to ask the name of that man who walked over the child.
+  | I can't see what harm it would do. It was a
+man of the name of Hyde.
+  | What sort of a man is he to see?
+  | I
+am ashamed of my long tongue. Let us make a bargain never to refer to
+this again.
+  | disappearance or unexplained absence for any
+period exceeding three calendar months,
+  | and now I begin to fear it is disgrace.
+  | If any one knows, it will be Lanyon,
+  | you and I must be the two oldest friends
+that Henry Jekyll has?
+  | But I suppose
+we are. And what of that? I see little of him now.
+  | I thought you had a bond of common interest.
+  | They have only differed on some point of science,
+  | Did you ever come across a protege of
+his—one Hyde?
+  | No. Never heard of him. Since my time.
+  | That is my name. What do you want?
+  | You will not find Dr. Jekyll; he is from home,
+  | it is as well we have, met; and _à propos_,
+you should have my address.
+  | can he, too, have been thinking of
+the will?
+  | I did not
+think you would have lied.
+  | Will you wait here by the
+fire, sir? or shall I give you a light in the dining room?
+  | I saw Mr. Hyde go in by the old dissecting-room door, Poole,
+  | Is that right, when Dr. Jekyll is from home?
+  | Your master seems to repose a great deal of trust in that young man,
+Poole,
+  | I do not think I ever met Mr. Hyde?
+  | O, dear no, sir. He never _dines_ here,
+  | Indeed
+we see very little of him on this side of the house; he mostly comes
+and goes by the laboratory.
+  | I have been wanting to speak to you, Jekyll,
+  | I have been
+learning something of young Hyde.
+  | This is a matter I thought we had agreed to drop.
+  | It can make no change. You do not understand my position,
+  | I have no doubt you are perfectly right,
+  | Well, but since we have touched upon this business, and for the last
+time I hope,
+  | I can't pretend that I shall ever like him,
+  | I only ask for justice; I only ask you to help him for my sake,
+when I am no longer here.
+  | I shall say nothing till I have seen
+the body,
+  | this may be very serious. Have the kindness to
+wait while I dress.
+  | I recognise him. I am sorry to say that this is Sir
+Danvers Carew.
+  | And perhaps you can help us to the man.
+  | Is this Mr. Hyde a person of small stature?
+  | Particularly small and particularly wicked-looking, is what the maid
+calls him,
+  | If you will come
+with me in my cab,
+  | I think I can take you to his house.
+  | Very well, then, we wish to see his rooms,
+  | I had better tell you
+who this person is,
+  | he is in trouble! What has he done?
+  | And now, my good woman, just
+let me and this gentleman have a look about us.
+  | and for your sake, I
+hope you may be right. If it came to a trial, your name might appear.
+  | You fear, I suppose, that it might lead to his detection?
+  | before I thought what I was about. But
+it bore no postmark. The note was handed in.
+  | Shall I keep this and sleep upon it?
+  | I wish you to judge for me entirely,
+  | And now one word more:
+it was Hyde who dictated the terms in your will about that
+disappearance?
+  | He meant to murder you. You have had a
+fine escape.
+  | I have had what is far more to the purpose,
+  | I have had a lesson—O God, Utterson, what a lesson I have
+had!
+  | there was a letter handed in to-day: what was
+the messenger like?
+  | Special edition.
+Shocking murder of an M. P.
+  | This is a sad business about Sir Danvers,
+  | Yes, sir, indeed. It has elicited a great deal of public feeling,
+  | I should like to hear your views on that,
+  | not mad; but it is an odd hand.
+  | And by all accounts a very odd writer,
+  | I thought I knew
+the writing. Anything private, Mr. Utterson?
+  | Only an invitation to dinner. Why? Do you want to see it?
+  | there's a rather singular
+resemblance; the two hands are in many points identical: only
+differently sloped.
+  | I wouldn't speak of this note, you know,
+  | he
+is a doctor, he must know his own state and that his days are counted;
+and the knowledge is more than he can bear.
+  | I wish to
+see or hear no more of Dr. Jekyll,
+  | I am quite done with that person; and I beg that you will spare me any
+allusion to one whom I regard as dead.
+  | We are three very old friends,
+Lanyon; we shall not live to make others.
+  | PRIVATE: for the hands of G. J. Utterson ALONE and
+in case of his predecease _to be destroyed unread_,
+  | not to be opened till
+the death or disappearance of Dr. Henry Jekyll.
+  | that story's at an end at least. We shall never
+see more of Mr. Hyde.
+  | Did I ever tell you that I once saw him,
+and shared your feeling of repulsion?
+  | It was impossible to do the one without the other,
+  | very low. It
+will not last long, thank God.
+  | the best thing we can do
+is to stay down here and speak with you from where we are.
+  | That is just what I was about to venture to propose,
+  | Take a seat, and here is a glass of wine for you,
+  | Now, take your time, and tell me plainly what you want.
+  | I see you have some good reason, Poole; I see
+there is something seriously amiss. Try to tell me what it is.
+  | What foul play? What does the
+man mean?
+  | but will you come along with me
+and see for yourself?
+  | here we are, and God grant there be nothing
+wrong.
+  | Very
+irregular, very unseemly; your master would be far from pleased.
+  | reach me a
+candle, and we'll get this through hands at once.
+  | This is a very strange tale, Poole; this is rather a wild tale, my
+man,
+  | Well, Mr. Utterson, you are a hard man to satisfy, but I'll do it
+yet,
+  | How do
+you come to have it open?
+  | The man at Maw's was main angry, sir, and he threw it back to me like
+so much dirt,
+  | This is unquestionably the doctor's hand, do you know?
+  | that
+thing was not my master, and there's the truth. My master
+  | is a tall, fine build of a man,
+and this was more of a dwarf.
+  | and whatever comes of
+it, I shall make it my business to see you are no loser.
+  | and you might take
+the kitchen poker for yourself.
+  | that you and I
+are about to place ourselves in a position of some peril?
+  | It is well, then, that we should be frank,
+  | We both
+think more than we have said; let us make a clean breast. This masked
+figure that you saw, did you recognise it?
+  | Well, sir, it went so quick, and the creature was so doubled up, that
+I could hardly swear to that,
+  | I own I felt something of what you describe,
+  | And now, Poole, let
+us get to ours,
+  | Weeping like a woman or a lost soul,
+  | I came away
+with that upon my heart, that I could have wept too.
+  | I give you fair warning, our
+suspicions are aroused, and I must and shall see you,
+  | if
+not by fair means, then by foul! if not of your consent, then by brute
+force!
+  | whether to save or punish.
+Hyde is gone to his account; and it only remains for us to find the
+body of your master.
+  | Do you not see, sir, it is broken? much as if a
+man had stamped on it.
+  | That is the same drug that I was always bringing him,
+  | This glass have seen some strange things, sir,
+  | God grant I have no
+cause for it!
+  | You forget that I have not yet the
+pleasure of your acquaintance. Be seated, if you please.
+======================================================================
+moreau: 559 dialogue segments, 44241 words total, dialogue mean sentence 7.0 words
+  [address] master(17), captain(9), mister(7), doctor(1)
+  [oath] devil(9), good god(2), my god(1), hell(1)
+  [thanks] thanks(3)
+  [farewell] take care(1)
+  [deference] pray(1), if i may(1)
+  [money] will(28)
+  [weather] wind(1)
+  [menace_polite] i warn you(1)
+  [grief] poor(3)
+  [refusal] i will not(1), no use(1)
+  candidates: 139
+  -- sample --
+  | seen by the
+captain to jump into the gig,
+  | to get picked up by a ship with a medical
+man aboard.
+  | you know I'm dying to hear
+of how you came to be alone in that boat. _Damn that howling_!
+  | Is Caplatzi still flourishing? What a
+shop that was!
+  | It's an island, where I live. So far as I know, it hasn't got a name.
+  | Why the devil don't you get out of
+the way?
+  | What are these beasts for? Merchandise, curios? Does the captain think
+he is going to sell them somewhere in the South Seas?
+  | I'd advise you to keep your
+hands off him.
+  | Do what I like on my own ship,
+  | that man of mine is not to be
+ill-treated. He has been hazed ever since he came aboard.
+  | He's always drunk.
+Do you think that excuses his assaulting his passengers?
+  | was a clean ship. Look at it now!
+  | Your sailors began to haze the poor devil as soon as he came aboard.
+  | I prefer to make my thanks to the accessible agent.
+  | There's something in
+this starlight that loosens one's tongue. I'm an ass, and yet somehow I
+would like to tell you.
+  | Whatever you tell me, you may rely upon my keeping to myself—if that's
+it.
+  | Overboard with 'em! We'll
+have a clean ship soon of the whole bilin' of 'em.
+  | I must
+apologise for that. Now you are our guest, we must make you
+comfortable,—though you are uninvited, you know.
+  | Montgomery says you are an educated man, Mr. Prendick; says
+you know something of science. May I ask what that signifies?
+  | That alters the case a little, Mr. Prendick,
+  | As it happens, we are biologists here.
+This is a biological station—of a sort.
+  | for my own part. That captain was a silly ass.
+He'd have made things lively for you.
+  | That depends. You'll find this island an infernally rum place, I
+promise you. I'd watch my goings carefully, if I were you. _He_—
+  | I
+wish you'd help me with these rabbits,
+  | Replenish the
+island. Hitherto we've had a certain lack of meat here.
+  | And now comes the problem of this uninvited guest. What are we to do
+with him?
+  | I'm itching to get to work again—with this new stuff,
+  | I should be a fool to take offence at any want of
+confidence.
+  | What an ass I was to mention it to you! I
+might have thought. Anyhow, it will give you an inkling of
+our—mysteries. Whiskey?
+  | and a fine black fur at the edges?
+  | I was
+under the impression—that his hair covered his ears.
+  | that there _was_ something the matter with
+his ears, from the way he covered them. What were they like?
+  | rather small and furry,—distinctly furry. But the
+whole man is one of the strangest beings I ever set eyes on.
+  | The crew of the schooner must have felt it the
+same. Made a dead set at the poor devil. You saw the captain?
+  | We have both been so busy that we
+forgot you until about half an hour ago.
+  | We did not think you would start to explore this island of ours
+without telling us,
+  | You've been meeting some of our curiosities, eh?
+  | But I think you have had
+about enough for one day.
+  | if this
+place is not as bad as Gower Street, with its cats.
+  | what was that thing that came after me? Was it a
+beast or was it a man?
+  | What was that thing that came after me?
+  | I came in the boat. From the ship.
+  | How long have you been on this island?
+  | a man, a man, a five-man, like
+me.
+  | It is a man. He must learn the Law.
+  | Not to go on all-fours; that is the Law,
+  | Not to go on all-fours; that is the Law. Are we not Men?
+  | Not to eat Fish or Flesh; that is the Law. Are we not Men?
+  | Not to chase other Men; _that_ is the Law. Are we not Men?
+  | said the Ape-man.
+
+I held out my hands. The grey creature in the corner leant forward.
+  | said this grisly creature in his hairy beard.
+  | He threw my hand down, and instinctively I gripped my stick.
+  | Evil are the punishments of those who break the Law. None escape.
+  | For every one the want that is bad,
+  | Some
+want to go tearing with teeth and hands into the roots of things,
+snuffing into the earth. It is bad.
+  | Punishment is sharp and sure. Therefore learn the Law. Say the words.
+  | What am I doing? I am going to drown myself,
+  | Because that is better than being tortured by you.
+  | What makes you think I shall torture you?
+  | They were men: what are they now? I at least
+will not be like them.
+  | They were men, men like
+yourselves, whom you have infected with some bestial taint,—men whom
+you have enslaved, and whom you still fear.
+  | I cried, pointing now to Moreau and shouting past him
+to the Beast Men,—
+  | They talk, build houses. They
+were men. It's likely I'll come ashore.
+  | The water just beyond where you stand is deep—and full of sharks.
+  | Not I! You have a third between you.
+  | Why did you set—your people onto me when I was in the hut?
+  | We felt sure of catching you, and bringing you out of danger.
+Afterwards we drew away from the scent, for your good.
+  | you're a silly ass! Come out
+of the water and take these revolvers, and talk. We can't do anything
+more than we could do now.
+  | As it is, you have
+wasted the best part of my day with your confounded imagination.
+  | You admit that the vivisected human being, as you called it, is, after
+all, only the puma?
+  | still alive, but so cut and mutilated as I
+pray I may never see living flesh again. Of all vile—
+  | You forget all that a skilled vivisector can do with living things,
+  | These years! How they have slipped by! And here
+I have wasted a day saving your life, and am now wasting an hour
+explaining myself!
+  | But, you see, I am differently constituted. We
+are on different platforms. You are a materialist.
+  | To this day I have never troubled about the ethics of the matter,
+  | The fact is, after I had made a number of human creatures I made a
+Thing—
+  | He became silent. I sat in silence watching his face.
+  | what do you think? Are you
+in fear of me still?
+  | I
+should advise some sleep. I'm glad it's all clear. Good-night.
+  | Not to claw
+bark of trees, _that_ is the Law,
+  | The Third with the Whip, he that
+walks weeping into the sea, has a thin white face.
+  | You never bleed nor
+weep. The Master does not bleed or weep.
+  | you'll bleed and weep if you
+don't look out!
+  | He has five fingers, he is a five-man like me,
+  | Yesterday he asked me of things to eat,
+  | Some carnivore of yours has remembered its old habits,
+  | 'Not to suck your drink; that is the Law.' Much the brutes care for
+the Law, eh? when Moreau's not about!
+  | it's just the way with carnivores. After
+a kill, they drink. It's the taste of blood, you know.—What was the
+brute like?
+  | I think I should know the brute again,
+  | I stunned him. He
+ought to have a handsome bruise on the forehead of him.
+  | But then we have to _prove_ that he killed the rabbit,
+  | I wish I'd never brought the things here.
+  | they are all supposed to have a fixed idea against eating
+anything that runs on land. If some brute has by any accident tasted
+blood—
+  | We must put a stop to this. I must tell Moreau.
+  | But the thing's done now; and
+you said I might have them, you know.
+  | We must see to the thing at once,
+  | I suppose if anything
+should turn up, M'ling can take care of himself?
+  | You will see a gathering of the Beast People,
+  | His is the Hand that wounds;
+His is the Hand that heals,
+  | Not to eat Flesh or Fish, that is the Law,
+  | goes back to the
+House of Pain, O Master!
+  | Back to the House of Pain,—back to the House of Pain,
+  | Back to the House of Pain, the House of Pain, the House of Pain!
+  | that
+brute's loose! Tore the fetter out of the wall! Have you seen them?
+  | I can neither see nor hear anything of him,
+  | I've been
+thinking he may want my help.
+  | It simply wrenched its
+fetter out of the wall.
+  | There's another
+revolver I can leave with you. To tell you the truth, I feel anxious
+somehow.
+  | They're mad. They're all rushing about mad. What can
+have happened? I don't know. I'll tell you, when my breath comes.
+Where's some brandy?
+  | He is not dead; he is not dead,
+  | Is it still to be this and
+that? Is he dead indeed?
+  | Is there a Law, thou
+Other with the Whip?
+  | He has changed his shape; he has
+changed his body,
+  | For a time you will not see him. He
+is—there,
+  | where he can watch you. You cannot see
+him, but he can see you. Fear the Law!
+  | The Thing that bled, and ran screaming and sobbing,—that is dead too,
+  | not dead at
+all. No more dead than I am.
+  | It is this way, Man who walked in the Sea,
+  | is the Law not alive? This
+came of breaking the Law.
+  | The thing we have to think of
+now,
+======================================================================
+study-in-scarlet: 797 dialogue segments, 43841 words total, dialogue mean sentence 9.9 words
+  [address] sir(16), doctor(11), my dear(3), my friend(3), young man(3), lad(3), wife(1), husband(1)
+  [oath] devil(3), by jove(2), good god(1)
+  [thanks] thank you(2), much obliged(1)
+  [farewell] good-bye(5)
+  [deference] beg your pardon(1), with your permission(1)
+  [money] will(79), sovereign(2), pounds(1), wages(1)
+  [weather] rain(1), cold(1), dreary(1)
+  [menace_polite] you had better(2), think twice(1)
+  [grief] poor(3)
+  [refusal] i cannot(4), impossible(4), no use(2)
+  candidates: 271
+  -- sample --
+  | Whatever have you been doing with yourself, Watson?
+  | Trying to solve the problem as to
+whether it is possible to get comfortable rooms at a reasonable price.
+  | perhaps you would not care
+for him as a constant companion.
+  | No; he is not a man that it is easy to draw out, though he can be
+communicative enough when the fancy seizes him.
+  | You mustn't blame me if you don't get on with him,
+  | It is not easy to express the inexpressible,
+  | And yet you say he is not a medical student?
+  | I have found a re-agent which is precipitated
+by hæmoglobin, and by nothing else.
+  | It seems to be a very delicate test,
+  | You might start a paper on those lines. Call it the 'Police
+News of the Past.'
+  | for
+I dabble with poisons a good deal.
+  | which would
+suit us down to the ground. You don't mind the smell of strong tobacco,
+I hope?
+  | Do you include violin-playing in your category of rows?
+  | I think we may
+consider the thing as settled—that is, if the rooms are agreeable to
+you.
+  | how the deuce did he know that I had come from Afghanistan?
+  | This is very
+piquant. I am much obliged to you for bringing us together. 'The proper
+study of mankind is man,' you know.
+  | Now that I do know it I shall do my best to forget it.
+  | I may as well give up the attempt at once.
+  | I never read such rubbish in my life.
+  | that without leaving your room you
+can unravel some knot which other men can make nothing of, although
+they have seen every detail for themselves?
+  | You remind
+me of Edgar Allen Poe's Dupin. I had no idea that such individuals did
+exist outside of stories.
+  | Does Lecoq come up to your
+idea of a detective?
+  | I wonder what that fellow is looking for?
+  | A sergeant, sir, Royal Marine Light Infantry, sir. No answer? Right,
+sir.
+  | Why, that he was a retired sergeant of Marines.
+  | It does seem to be a little out of the common,
+  | Gregson is the smartest of the Scotland Yarders,
+  | shall I go and order you a cab?
+  | Yes, if you have nothing better to do.
+  | It is a capital mistake to theorize before
+you have all the evidence. It biases the judgment.
+  | It is indeed kind of you to
+come,
+  | My colleague, Mr. Lestrade, is here. I had relied upon him
+to look after this.
+  | I think we have done
+all that can be done,
+  | You did not come here in a cab?
+  | It beats anything I
+have seen, and I am no chicken.
+  | Read it up—you really should. There is nothing new under the sun. It
+has all been done before.
+  | You can take him to the mortuary now,
+  | Have you made any inquiries as to this man, Stangerson?
+  | You did not ask for particulars on any point which appeared to you to
+be crucial?
+  | I have said all I have to say,
+  | They say that genius is an infinite capacity for taking pains,
+  | It would be robbing you of the credit of the case if I was to presume
+to help you,
+  | If you will let me know how your
+investigations go,
+  | we shall go and look him up. I'll tell
+you one thing which may help you in the case,
+  | 'Rache,' is the
+German for 'revenge'; so don't lose your time looking for Miss Rachel.
+  | You sum up the difficulties of the situation succinctly and well,
+  | he said, pointing to a narrow slit in
+the line of dead-coloured brick.
+  | the constable
+answered with his eyes upon the little golden disk.
+  | You stopped, and then walked back to the garden gate,
+  | It seems to
+me that you knows a deal more than you should.
+  | Well, it was, as far as anybody that could be of any good goes.
+  | He
+was an uncommon drunk sort o' man,
+  | We'd enough to do without lookin' after him,
+  | You didn't
+happen to see or hear a cab after that?
+  | One's ideas must be as broad as Nature if they are to interpret
+Nature,
+  | I ought to be more case-hardened
+after my Afghan experiences. I saw my own comrades hacked to pieces at
+Maiwand without losing my nerve.
+  | If I used my own some of these
+dunderheads would recognize it, and want to meddle in the affair.
+  | This will do very well.
+It is almost a facsimile.
+  | Why, the man in the brown coat—our florid friend with the square toes.
+If he does not come himself he will send an accomplice.
+  | Oh, you can leave me to deal with him then. Have you any arms?
+  | I have just had an answer
+to my American telegram. My view of the case is the correct one.
+  | It's this as has brought me, good gentlemen,
+  | 13, Duncan Street, Houndsditch. A weary way from here.
+  | Sally lives in lodgings at 3, Mayfield Place, Peckham.
+  | she must
+be an accomplice, and will lead me to him. Wait up for me.
+  | I wouldn't have the Scotland Yarders know it for the world,
+  | It's the Baker Street division of the detective police force,
+  | I hardly expected you would. You must keep on until you do. Here are
+your wages.
+  | There's more work to be got out of one of those little beggars than
+out of a dozen of the force,
+  | congratulate me! I have made the whole thing as clear as day.
+  | The right track! Why, sir, we have the man under lock and key.
+  | We are anxious to
+know how you managed it. Will you have some whiskey and water?
+  | by John Underwood and Sons, 129, Camberwell Road.
+  | you should never neglect a
+chance, however small it may seem.
+  | 'And was that the last which you saw of him?'
+  | 'God forgive you!' cried Madame Charpentier, throwing up her hands and
+sinking back in her chair. 'You have murdered your brother.'
+  | I don't think that fine fellow will trouble us
+again,
+  | 'So your son was gone at least two hours?'
+  | Really, Gregson, you
+are getting along. We shall make something of you yet.
+  | I
+thought you would come to that conclusion. Have you managed to find the
+Secretary, Mr. Joseph Stangerson?
+  | I seem to have dropped into a sort of council of war.
+  | I was the first to
+discover what had occurred.
+  | Would you mind letting us know what you have seen and done?
+  | 'I will go up and see him at once,' I said.
+  | From their lightness
+and transparency, I should imagine that they are soluble in water,
+  | I cannot see, however,
+what it has to do with the death of Mr. Joseph Stangerson.
+  | I cannot help feeling that Gregson is right, sir,
+  | Why don't you introduce this pattern
+at Scotland Yard?
+  | if we can only
+find the man to put them on.
+  | Just give me a help with this buckle, cabman,
+  | It will serve to take him to
+Scotland Yard. And now, gentlemen,
+  | That's what mother used to do. Where's
+mother?
+  | When we goes back to home
+I'll give them to brother Bob.
+  | Do you mean that we are going to die too?
+  | You gave
+me such a fright. Why, of course, now as long as we die we'll be with
+mother again.
+  | I guess somebody else made the country in these
+parts. It's not nearly so well done. They forgot the water and the
+trees.
+  | Then you'll need to kneel down, and me too,
+  | The wells are to the right, my brothers,
+  | He who could draw it from the
+rocks will not now abandon His own chosen people.
+  | We have passed the Pawnees, and there are
+no other tribes until we cross the great mountains.
+  | Leave your horses below and we will await you here,
+  | she's mine 'cause I
+saved her. No man will take her from me. She's Lucy Ferrier from this
+day on. Who are you, though?
+  | we are the
+persecuted children of God—the chosen of the Angel Merona.
+  | Do not jest at that which is sacred,
+  | whoever would have thought that Poncho
+would have been so scared by a lot of cows?
+  | we've been in the
+mountains for two months, and are not over and above in visiting
+condition. He must take us as he finds us.
+  | he's awful fond of me. If those cows had jumped on me he'd have never
+got over it.
+  | I won't ask you to come with me now, but
+will you be ready to come when I am here again?
+  | He has given his consent, provided we get these mines working all
+right. I have no fear on that head.
+  | Have I not given to the common fund? Have I not
+attended at the Temple? Have I not——?
+  | It is true that I have not married,
+  | She has grown to be the flower of Utah, and has found
+favour in the eyes of many who are high in the land.
+  | At the end of that time she shall give her answer.
+  | We'll fix it up somehow or another. You don't find your fancy kind o'
+lessening for this chap, do you?
+  | It will be for the maiden to decide,
+  | when my daughter
+summons you, you can come, but until then I don't want to see your
+faces again.
+  | there is the
+door, and there is the window. Which do you care to use?
+  | You
+have defied the Prophet and the Council of Four. You shall rue it to
+the end of your days.
+  | I would sooner see you in your grave, my girl, than the
+wife of either of them.
+  | Twenty-nine days are given you for amendment, and then——
+======================================================================
+time-machine: 192 dialogue segments, 32791 words total, dialogue mean sentence 11.4 words
+  [address] sir(2), my dear(1)
+  [oath] 
+  [thanks] thanks(1)
+  [farewell] 
+  [deference] 
+  [money] will(11), shilling(1)
+  [weather] cold(3)
+  [menace_polite] 
+  [grief] poor(1), grief(1)
+  [refusal] 
+  candidates: 52
+  -- sample --
+  | Is not that rather a large thing to expect us to begin upon?
+  | Nor, having only length, breadth, and thickness, can a cube have a
+real existence.
+  | Of course a solid body may exist. All
+real things—
+  | So most people think. But wait a moment. Can an _instantaneous_ cube
+exist?
+  | Can a cube that does not last for any time at all, have a real
+existence?
+  | Now, it is very remarkable that this is so extensively overlooked,
+  | But before the balloons, save for spasmodic jumping and the
+inequalities of the surface, man had no freedom of vertical movement.
+  | Still they could move a little up and down,
+  | And you cannot move at all in Time, you cannot get away from the
+present moment.
+  | You
+_can_ move about in all directions of Space, but you cannot move about
+in Time.
+  | You can show black is white by argument,
+  | That shall travel indifferently in any direction of Space and Time, as
+the driver determines.
+  | It would be remarkably convenient for the historian,
+  | One might travel back and verify the accepted account of
+the Battle of Hastings, for instance!
+  | Our ancestors had no great tolerance for anachronisms.
+  | One might get one's Greek from the very lips of Homer and Plato,
+  | In which case they would certainly plough you for the Little-go. The
+German scholars have improved Greek so much.
+  | Just think! One
+might invest all one's money, leave it to accumulate at interest, and
+hurry on ahead!
+  | Yes, so it seemed to me, and so I never talked of it until—
+  | Also, here is one
+little white lever, and here is another.
+  | are you in
+earnest about this? Do you seriously believe that that machine has
+travelled into time?
+  | What is more, I have
+a big machine nearly finished in there
+  | and when that is put together I mean to have a journey on
+my own account.
+  | You mean to say that that machine has travelled into the future?
+  | Into the future or the past—I don't, for certain, know which.
+  | It must have
+gone into the past if it has gone anywhere,
+  | You
+think. _You_ can explain that. It's presentation below the threshold,
+you know, diluted presentation.
+  | but wait
+until tomorrow. Wait for the common sense of the morning.
+  | Would you like to see the Time Machine itself?
+  | are you perfectly serious? Or is
+this a trick—like that ghost you showed us last Christmas?
+  | I intend to explore time. Is that plain? I was never more serious in
+my life.
+  | It seems a pity to let the dinner spoil,
+  | What on earth have you been up to, man?
+  | Has he been doing the Amateur
+Cadger? I don't follow.
+  | Does our
+friend eke out his modest income with a crossing? or has he his
+Nebuchadnezzar phases?
+  | I feel assured it's this business
+of the Time Machine,
+  | What _was_ this time travelling? A man
+couldn't cover himself with dust by rolling in a paradox, could he?
+  | Our Special
+Correspondent in the Day after Tomorrow reports,
+  | What
+a treat it is to stick a fork into meat again!
+  | I want something to eat. I
+won't say a word until I get some peptone into my arteries. Thanks. And
+the salt.
+  | I'd give a shilling a line for a verbatim note,
+  | I was simply starving. I've had a most amazing
+time.
+  | But come
+into the smoking-room. It's too long a story to tell over greasy
+plates.
+  | You have told Blank, and Dash, and Chose about the machine?
+  | I can't argue tonight. I don't mind telling you the story, but I can't
+argue. I will,
+  | What a pity it is you're not a writer
+of stories!
+  | To tell you the truth... I
+hardly believe it myself..... And yet...
+  | I'm hanged if it isn't a quarter to one,
+  | but I certainly don't
+know the natural order of these flowers. May I have them?
+  | They were put into my
+pocket by Weena, when I travelled into Time.
+  | The story I
+told you was true. I'm sorry to have brought you out here in the cold.
+  | No, sir. No one has come out this way. I was expecting to find him
+here.
+======================================================================
+varney-vampire: 17447 dialogue segments, 663630 words total, dialogue mean sentence 12.6 words
+  [address] sir(1306), my dear(242), doctor(139), master(82), ma'am(81), wife(70), captain(58), madam(51)
+  [oath] devil(76), good god(51), dear me(27), upon my word(20), god knows(17), by heaven(14), bless me(12), good heavens(10)
+  [thanks] thank you(102), i thank you(25), much obliged(24), thanks(24), grateful(16)
+  [farewell] take care(35), farewell(31), good day(22), good night(17), adieu(9), good-bye(2)
+  [deference] pray(104), if you please(49), allow me(43), permit me(36), beg your pardon(18), pardon me(7), at your service(4), if i may(3)
+  [money] will(3149), pounds(67), fortune(67), shillings(19), guineas(12), debt(10), penny(8), guinea(7)
+  [weather] cold(73), wind(57), storm(36), rain(19), thunder(7), snow(4), dreary(3), fog(2)
+  [menace_polite] you had better(32), beware(9), i warn you(1), i would advise(1), think twice(1), you will regret(1)
+  [grief] poor(133), alas(29), grief(21), taken from(6), dead and gone(3), i have lost(3), departed(3), we have lost(1)
+  [refusal] i cannot(289), i will not(88), impossible(40), no use(35), no good(19), i dare not(13), out of the question(8), it is useless(4)
+  candidates: 5402
+  -- sample --
+  | Art thou a spirit of health or goblin damned?
+  | You seem, Flora, to have hurt your neck—there is a wound.
+  | Well, then, do not suppose that you are the only one in this house to
+whom so dreadful a superstition has occurred.
+  | Draw up the blind of the window, Mr. Henry,
+  | But why did you not let me know?
+  | I will think of it. About such a proposition I would not decide
+hastily. Give me leave to think of it until to-morrow.
+  | Yes, and so it turns out, really. It is unquestionably your most
+direct route to the church.
+  | Then you are one who would doubt a miracle, if you saw it with your
+own eyes.
+  | Do not, oh, do not make his
+lonely thoughts terrible with more than that. Tell him I am mad.
+  | Heaven knows we have mysteries enough in our family,
+  | for the love of truth tell me! Is—is your name
+really Varney!
+  | Jack, you rascal, give us your fin. Come here, you d—d villain. You'll
+leave me, will you?
+  | And she might herself actually, when after death she became a vampyre,
+come and feed on her own children.
+  | It looks strange, the whole affair. But, Flora, be assured of one
+thing, and that is, of your own safety.
+  | Then I say we believe, as far as human judgment has a right to go,
+that a vampyre has been here.
+  | I—I—do not know; but I am so foolish now, and so weak-spirited, that
+the slightest noise is enough to alarm me.
+  | That is enough—there are dungeons, I know, in this castle, and he can
+be kept there safe enough.
+  | Heaven knows that this place is becoming daily more hateful to us
+all,
+  | I tried to seize him, and
+I fell beneath his arm as if I had been struck by the hammer of a
+Cyclops.
+  | It would take much more to convince me. I was coming over here when I
+met Mr. George Bannerworth coming to my house.
+  | Then why do you talk of cutting off a better man than yourself? D—n
+it, what would you say to him cutting you off?
+  | why
+you, with such apparent readiness, agreed to this duel taking place.
+  | In the ocean, do you mean, that you see those sights, uncle?
+  | He stands salt water well; and I must say that I couldn't lay a top of
+those water casks in that style very well.
+  | Well, Marchdale, what think you of this new and extraordinary episode
+in our affairs?
+  | By some inquiry as to whether Sir Francis Varney was from home at
+midnight last night.
+  | I would not advise you to stray far from the house, Miss Bannerworth,
+  | I would that it would seem to
+indicate the return of Henry to his home.
+  | Charles! Charles! and do you love me still? No—no; you have not
+forsaken me. Save me, save me from the vampyre!
+  | Mr. Marchdale may be right, sir, or he may be wrong, it's a matter of
+opinion.
+  | Mr. Chillingworth, I have rather a serious favour to ask you, and one
+which you may hesitate in granting.
+  | the
+admiral will credit all, and you can pay off old scores when his turn
+comes in the field.
+  | It were; but blowed if ever I was called mister before.
+  | D——e—you—you—oh! I wish I had you on board ship, I'd make your
+lubberly carcass like a union jack, full of red and blue stripes.
+  | Shiver me, if I see an opportunity, if I don't let some of those
+rascals know what's what.
+  | Good; and what, now, Miss Flora, do you suppose it is?
+  | I was not aware, admiral, that that was your plan.
+  | Ay, ay, we have, and all the lead too,
+  | Nothing further, sir, unless it is that I heard some of them say that
+Sir Francis Varney has perished in the flames.
+  | You have our promises, admiral; and they shall be religiously kept, I
+can assure you.
+  | Is it? By Heaven, there's a d—d strange-looking shadow creeping over
+it.
+  | Make what terms you please; I care not what they are. Only say you
+will fight, and that's sufficient.
+  | Be it so—be it so. For one week, you say?
+  | Ah! I like to hear a clock sound in the night,
+  | I think he
+turned his head as I fired.
+  | But he was there; he said he would be there.
+  | Certainly not; they would lay the trophies at the foot of the
+beauty worshipped by the knights at the tournament.
+  | Ah, don't bother yourself with calculations that have neither
+beginning nor end, and which haven't one point to go. Come, Jacobs,
+have you finished yet?
+  | Confound him! Now can
+I read, as if in a book, most clearly, the game that he is playing!
+  | am likewise a
+respectable and useful member of society, and a great friend of Mr.
+Chillingworth.
+  | I've never doubted, Charles, Heaven or you. To doubt one would have
+been to doubt both.
+  | Let him be, do not move for any
+consideration, for the first time let him do just what he likes.
+  | I will go among them and make the effort.
+  | Then why did you not say so, admiral?
+  | I will freely answer, Varney, any question you may put to me.
+  | I do, I do, Jack; tip us your fin, old fellow. You've saved my life
+more than once.
+  | Oh, of course I will; and mind you do it likewise.
+  | the sound, I suppose, serves to express
+their feelings, and to encourage each other.
+  | that he has fallen a victim to the blind
+fury of the populace.
+  | I will tell you: he has been _hanged_.
+  | I know the spot;
+besides, there is a particular mark. Now, then, are you all ready?
+  | No—no, not so bad but what they might have been worse a great deal;
+only I cannot go to sea any more, that's quite certain.
+  | the smugglers won't
+show a head while the revenue cutter is on the look out.
+  | No; where it was, and where it is not now.
+  | I mean that I have placed such a dinner before him as will please him;
+I told him to ask for just whatever he likes.
+  | Yes, sir, he is; I told him about it, and he has kindly come forward
+to give all the evidence in his power concerning it.
+  | I thought as much, Mrs. Williams. Have you heard of the Kershaws
+lately?
+  | Then, I must say, I would rather not be married to-day.
+  | And that inch may do the business for us all,
+  | Oh, that's quite another thing. I floated about for eight weeks upon
+an empty tar barrel.
+  | I'm a rear-admiral of the green, and
+what I come to ask you, is, if there is going to be a marriage in your
+family?
+  | A letter to Helen! This is news, indeed. And who was he?
+  | Give him a cheer—he may meet with a score of accidents before he
+reaches shore, any one of which will be sufficient to destroy him.
+  | I
+didn't make so much noise, either. But never mind; I'll take more care
+another time.
+  | Come, come—cheer up, man. I guess, now, you have been looking after
+that sweetheart of yours, who is no better than she should be.
+  | I hope there will be nothing of the one, at all events,
+  | Good gracious! Who is it?—and why do you come to me about it?
+  | Quick—quick! he has gone up stairs. Quick—after him!
+  | Dear me! who ever heard of such nonsense?
+  | Yes, I must, but that needn't be often,
+  | Oh, it's impossible; he's been an invalid a long while now.
+  | And if that don't satisfy her I have her interest at heart, why,
+nothing will.
+  | Why, he insists that I shall name an early day.
+  | I am quite satisfied; but what
+has happened to you?
+  | Then we'll settle it at that point, ma', and you had better
+superintend the invitations and the other affair—the breakfast, I mean.
+  | That will do if we can reach it; that is my only difficulty.
+  | If you had said he didn't belong to this world,
+  | My breath—I feel it going. I have money enough about me; you will find
+in my pocket-book and purse, a certain sum.
+  | No
+further mischief can happen now, beyond inconvenience.
+  | I don't know anything. I don't know
+myself. I don't even know where I am, or what's the matter.
+  | decidedly the latter,
+be the form of the creature what it may.
+  | I honour
+him, upon my soul; and you are going to learn something of him—if he be
+dead or alive?
+  | for I am almost tired of riding every
+day. I begin to want rest; I want to stop for a time in one place.
+  | what, is there another
+door to be found? I suppose some of these keys will fit this as well.
+  | Nay, you must battle against them, Sir Francis.
+  | I have kept you all.
+Perhaps the ladies are gone out?
+  | It will be fortunate, if he should have been the murderer, because
+they can identify him.
+  | I really cannot do so, unless you travel northward with me.
+  | I see its eyes are glaring wildly—aye, no wonder! no wonder! he met
+with a sudden, painful, and violent death.
+  | Be it even as you will, sister; it does not beseem me that I should
+contend for matters like these—be it so; I will retire.
+  | Why purchase the motive to a good action?
+  | What, the lightning! why, I suppose it struck you, then?
+  | but if you
+will grant me the accommodation you speak of, it will be welcome.
+  | Who was desirous you should? Shall we not be at hand?
+  | I came here almost a
+refugee, and quite a stranger myself.
+  | And may congratulate yourself, count; but then, with regard to
+Isabella, she will meet me as usual here on the day of the ceremonial.
+  | Hilloa, Jem! you are sharp to-night. How is it you are not asleep?
+  | so I went to the object, and
+found it was a man rolled up in a cloak in the middle of the road,
+dead.
+  | you remember, Francis,
+that my brother told you, you were to wait upon us just the same as
+upon himself, with the carriage.
+  | But howsomdever, as you seem a
+proper sort of fellow, we don't mind telling you what we think of the
+matter.
+  | I should like now to know who he is.
+  | Then sir, will you give me a note for £2000, payable on demand.
+  | How deep now should you say the sea was here?
+  | Peace caitiff, and know that I hold thy life in my hands for your
+attempted robbery of me.
+  | I have ordered a bed to be prepared for you close to your patient's,
+  | likewise; last night was a
+disturbed as well as a melancholy one for all in this house.
+  | I-I don't know, sir; of course, sir, if you say its a dream—why—why—
+  | Now, I pray you all to consider this matter more calmly,
+  | can you give me information of an outrage
+that has been committed hereabouts.
+  | These to the Rev. Mr. Bevan, and strictly private.
+======================================================================
+woman-in-white: 2899 dialogue segments, 248509 words total, dialogue mean sentence 9.8 words
+  [address] sir(297), wife(55), husband(36), my dear(22), master(16), my friend(15), my lady(11), my good(11)
+  [oath] devil(6), dear me(3), upon my soul(3), good god(2), damn(2), my god(1), bless me(1), upon my word(1)
+  [thanks] thank you(17), grateful(4), much obliged(3), thanks(3), i thank you(2)
+  [farewell] good-bye(13), take care(13)
+  [deference] pray(32), if you please(15), allow me(8), beg your pardon(6), pardon me(5), at your service(2), permit me(2), your servant(1)
+  [money] will(278), pounds(11), fortune(4), shillings(3), farthing(2), wages(2), legacy(2), shilling(1)
+  [weather] rain(4), cold(4), dreary(2), wind(2), snow(1)
+  [menace_polite] think twice(3), you had better(2), i warn you(1)
+  [grief] poor(30)
+  [refusal] i cannot(5), i will not(5), impossible(3), i refuse(2), no good(1), it is useless(1), i dare not(1)
+  candidates: 1087
+  -- sample --
+  | I don't know what would have happened, Walter,
+  | Oh, Walter, your father never had such a chance as this!
+  | You don't think the worse of me because
+I have met with an accident?
+  | Far from it. I am only a drawing-master.
+  | My horse
+is dead beat, and I can't get him no further than the stable.
+  | Mentioned my mother's name! You interest me indescribably. Pray go on.
+  | I made some entries in
+my tablettes this morning. Find my tablettes. A thousand pardons, Mr.
+Hartright, I'm afraid I bore you.
+  | all the cardinal virtues, and counting for nothing.
+  | I want you to listen while I read the concluding passages in this
+letter,
+  | The
+winter is coming—ah, my love, the winter is coming soon!
+  | What I have to say to you I can say here.
+  | I beg your pardon, Miss Halcombe. I feel the strongest possible
+concern and interest in anything that affects Miss Fairlie's happiness
+or yours.
+  | Accurately—even in stating his age to be forty-five——
+  | except Jacob.
+Jacob must stop where he is; and the ghost may bring him his dinner, if
+the ghost pleases.
+  | I mean to know all about
+this. You naughty boy, when did you see the ghost?
+  | The schoolmaster unconsciously told you. When he spoke of the figure
+that the boy saw in the churchyard he called it 'a woman in white.'
+  | You are looking at me, and you are thinking of something,
+  | Once again, I am glad you escaped—I am glad you prospered well after
+you left me,
+  | It is strange I should
+not have heard of you, though you have only been here two days.
+  | Don't
+look at me like that. Speak to me—tell me what you want.
+  | Not to be thought of for a moment,
+  | It
+may be as well for you to speak to the girl, Miss Halcombe, as soon as
+we get back.
+  | Yes, miss—I told them Sir Percival Glyde was coming. I hope there was
+no harm in it—I hope I didn't do wrong.
+  | And you left the statement I wrote for you at the police station?
+  | My departure must be a very early one,
+  | He walked to the writing-table as he spoke, drew a chair to it, and
+opened the paper case.
+  | no doubt. I am very glad your mind is satisfied.
+  | But if we are enemies
+who suspect him——
+  | You used often to sit on my knee when you were a child, my dear,
+  | Marian has been mother and sister both to me,
+  | She is very weak and nervous—I am glad she has you
+to take care of her.
+  | now pray
+tell me—what does your side say?
+  | I had no right to ask about her marriage,
+  | Please don't bully me. I'm not strong
+enough.
+  | and to let him release me, if he will, not because I ask him, but
+because he knows all.
+  | The uneasy beating of his foot suddenly stopped, and he leaned forward
+eagerly across the table.
+  | to make it the dearest
+object of my life to KEEP the engagement.
+  | I must part from everything that reminds me of him,
+  | It will only involve us in more trouble and more confusion,
+  | I begin to be seriously afraid that we
+have lost her. Do you happen to know,
+  | No, Miss Halcombe, she came here to ask for news.
+  | She stopped again, crossed my hands on my lap, and laid
+her face on them.
+  | Some person who has heavy claims on Sir Percival,
+  | We were all thinking of going to the lake this morning,
+  | The ladies, my good Percival, shall tell me about virtue,
+  | Did you try to save the poor thing?
+  | Of course the housekeeper is the
+first person to question. Excessively stupid of me not to see it
+myself.
+  | I ought surely to know what I am signing, Sir Percival, before I write
+my name?
+  | The right and the truth are with you—sign nothing,
+unless you have read it first.
+  | But that consideration, as you may have noticed, has no influence with
+Lady Glyde.
+  | I am ashamed to look at you, Marian,
+  | You are beginning to dislike him as much as I do, Marian.
+  | I was obliged to turn my face from her.
+  | Wait, Marian! I'm frightened—I don't see the path. Suppose the figure
+should follow us?
+  | Have you and Lady Glyde been out this evening?
+  | No, miss, not exactly, but the next thing to it. She's been asleep all
+the evening on the sofa in her own room.
+  | I recommend her not to
+forget her appointment in the library this afternoon. I shall expect to
+see her in half an hour.
+  | Another step on the journey. Wait and look. The
+Sea which drowns the rest will spare me.
+  | On the left side, where the ground sinks and the wood is thickest.
+  | Was that all she said about Mrs. Clements?
+  | My lady came in a little while ago with Sir Percival,
+  | Favour me with your attention for one moment,
+  | Oh, Laura! Laura! We shall both rue the day
+when you called the Count a Spy!
+  | What did you
+do with it when you found it in the sand?
+  | I will think so—I do think so. Don't altogether forget poor Fanny in
+thinking of me. She wants help and comfort too.
+  | I am afraid we must expect more rain.
+  | Yes. I kept still and listened, and just heard it.
+  | Do
+you mean to join us at dinner?
+  | Prayer of Israelites, at the
+passage of the Red Sea. Aha! Aha! Is that sacred? is that sublime?
+  | I want to see the light out of that window,
+  | How should I know? You talked nineteen to the dozen, I suppose, just
+as usual.
+  | What have you actually got with your wife at the present moment?
+  | Why the devil do you look at me in that way?
+  | Well, suppose it has. If it doesn't concern you, you needn't be
+curious about it, need you?
+  | Say as little as possible, Percival, in my presence, of the Secret.
+Does she know it from you?
+  | Yes, so like. What are you laughing about?
+  | Count Fosco said he had come here, sir, because Miss Halcombe was
+unable to leave Blackwater Park.
+  | That is part of my bad news, Mr. Fairlie. Yes. Somebody is ill.
+  | You still persist in your lowering treatment of this case of fever?
+  | Has Lady Glyde been in the room since?
+  | The servant you have mentioned is the most unintelligent servant in
+the house, Sir Percival.
+  | Tell me plainly, Mrs.
+Michelson, did you think she looked fit to travel?
+  | If my sister is fit to travel I am fit to travel
+  | Where can you stay more properly
+in London than at the place your uncle himself chooses for you—at your
+aunt's house? Ask Mrs. Michelson.
+  | You have been very kind to me and to my sister,
+  | Quite right. I don't blame you—I only asked the question.
+  | I recommend you to write to
+Lady Glyde's friends directly.
+  | Ah, dear me! we all come to it, sooner or later, don't we,
+sir?
+  | I will bring the letter with me, ready written and signed,
+  | I shall, in all probability, be back in a few hours,
+  | Do you believe that I have spoken the truth, Mr. Kyrle?
+  | With your opinion of the conduct of those two gentlemen,
+  | Because to-morrow I mean to act for myself.
+  | the young
+woman who lived on the second floor
+  | Did he make his appearance in the village before Anne was born?
+  | She was not at all like him, sir.
+  | Catherick never did, sir, that I can remember—nor any one else either,
+that I know of.
+  | I am afraid there is no doubt of the truth,
+  | I am sure your warning is kindly meant, Mrs. Clements. But I am
+determined to see the woman, whatever comes of it.
+  | because
+he will not be helped in resisting you by the impenetrable wickedness
+of the Count.
+  | Have you felt any apprehension that the misfortune of her loss might
+be followed by the misfortune of her death?
+  | Certainly. I got your address from Mrs. Clements.
+  | Events that occurred at Old Welmingham when your husband was
+parish-clerk at that place, and before the time when your daughter was
+born.
+  | I know some
+things about him, and I suspect many more.
+  | Nobody at home to keep house for me,
+  | Old Mr. Wansborough lived
+at Knowlesbury, and young Mr. Wansborough lives there too.
+  | and let us both go to the vestry
+together. Quick! quick!
+  | And a hatchet, and a saw, and a bit of rope?
+  | Where is the gentleman who tried to save him?
+  | Not a stranger, Walter. As soon as I could draw my breath again, I
+recognised him. He was the owner of the Lunatic Asylum.
+  | the late Sir Percival Glyde, of Blackwater Park,
+  | No. I have thought about it too, and thought in vain.
+  | The big fat man is a stranger to me. Is he
+famous? Why do you point him out?
+  | on the few occasions when any reference to the subject
+will be needed in this place.
+  | Quite right, Marian. I want the cab—I am going out again.
+  | In what degree? Do you know where I am going to?
+  | whether I shall add to the
+disorder in this room by scattering your brains about the fireplace.
+  | Time enough for you to come to my terms,
+  | but it has one grave defect—it is always cautious in the
+wrong place.
+  | Perhaps you remember the gentleman himself? Can you call to mind
+driving a foreigner last summer—a tall gentleman and remarkably fat?

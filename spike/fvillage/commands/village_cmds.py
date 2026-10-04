@@ -1,0 +1,1559 @@
+"""
+Frankenstein Village spike — custom commands.
+
+- `rumors`: usable in the Tavern only. Prints 3 random rumor seeds
+  from the canon file. (The arrival guide lists this as "coming soon";
+  the spike implements it early.)
+- `talk <target>`: talk to an NPC. Currently only M. has lines.
+"""
+import random
+import re
+from pathlib import Path
+
+from evennia import Command
+from evennia.commands.default.muxcommand import MuxCommand
+
+# Canon rumor seeds, checked into the goal workspace.
+RUMOR_FILE = (
+    Path.home()
+    / "workspace/goals/mixed-ai-human-text-mud/files/rumor-seeds-v0.1.md"
+)
+
+_SEED_RE = re.compile(r"^\*\*(\d+)\.\*\*\s*(.+?)\s*[—–-]\s*\*Heard from:\*", re.M)
+
+
+def load_rumor_seeds():
+    """Parse numbered rumor seeds out of the canon markdown file."""
+    text = RUMOR_FILE.read_text(encoding="utf-8")
+    seeds = []
+    for match in _SEED_RE.finditer(text):
+        num, body = match.group(1), match.group(2).strip()
+        seeds.append((num, body))
+    return seeds
+
+
+class CmdRumors(Command):
+    """
+    Hear what the village is talking about.
+
+    Usage:
+        rumors
+
+    Only works in the Tavern. Shows the talk currently going around —
+    the same for everyone present, rotating every few minutes. If you
+    want to know what someone else heard, ask them: you were listening
+    to the same room.
+    """
+
+    key = "rumors"
+    aliases = ["rumour", "gossip"]
+    help_category = "Village"
+
+    # How long one "talk of the tavern" lasts before the conversation
+    # moves on (seconds).
+    ROTATION_SECS = 600
+
+    def func(self):
+        import time
+
+        loc = self.caller.location
+        if not loc or not loc.tags.has("tavern", category="place"):
+            self.caller.msg("There are no rumors here. Try the Tavern, across the square.")
+            return
+        seeds = load_rumor_seeds()
+        if not seeds:
+            self.caller.msg("The Tavern is strangely quiet tonight.")
+            return
+        now = time.time()
+        current = loc.db.current_rumors
+        drawn_at = loc.db.rumors_drawn_at or 0
+        if not current or (now - drawn_at) > self.ROTATION_SECS:
+            picks = random.sample(seeds, min(3, len(seeds)))
+            # store as plain lists; the DB round-trips tuples into lists
+            loc.db.current_rumors = [[num, body] for num, body in picks]
+            loc.db.rumors_drawn_at = now
+            # log the turnover for "while you were away" catch-ups
+            rots = loc.db.rumor_rotations or []
+            rots.append(now)
+            loc.db.rumor_rotations = rots[-100:]
+            current = loc.db.current_rumors
+            loc.msg_contents(
+                "|yThe talk at the bar turns to new tidings.|n",
+                exclude=[],
+            )
+        self.caller.msg("|yYou listen to the talk at the bar...|n")
+        for num, body in current:
+            # The canon file is markdown; Evennia clients render raw
+            # asterisks, so strip single-asterisk emphasis for display.
+            body = re.sub(r"\*([^*]+?)\*", r"\1", body)
+            self.caller.msg(f"\n|w—|n {body}")
+        # Player-seeded talk: things travelers brought to the bar, with
+        # provenance. Newest last, so the freshest gossip lands hardest.
+        for pr in (loc.db.player_rumors or [])[-5:]:
+            body = re.sub(r"\*([^*]+?)\*", r"\1", pr)
+            self.caller.msg(f"\n|w—|n {body}")
+        self.caller.location.msg_contents(
+            f"{self.caller.key} listens to the rumors going around.",
+            exclude=[self.caller],
+        )
+
+
+class CmdTalk(Command):
+    """
+    Talk to someone.
+
+    Usage:
+        talk <target>
+
+    Have a word with one of the village's residents.
+    """
+
+    key = "talk"
+    help_category = "Village"
+
+    def func(self):
+        if not self.args:
+            self.caller.msg("Talk to whom?")
+            return
+        target = self.caller.search(self.args.strip(), quiet=True)
+        # allow a list result from search
+        if isinstance(target, list):
+            targets = target
+        elif target:
+            targets = [target]
+        else:
+            targets = []
+        # Never target yourself: single-letter queries prefix-match your
+        # own key ("M" matches "mp_tester1"), which produced the old
+        # nonsense "<you> has nothing to say right now."
+        targets = [t for t in targets if t != self.caller]
+        if not targets:
+            self.caller.msg(f"You don't see '{self.args.strip()}' here.")
+            return
+        target = targets[0]
+        if hasattr(target, "talk_to"):
+            target.talk_to(self.caller)
+        elif target.has_account:
+            self.caller.msg(
+                f"{target.key} is a fellow traveler, not one of the staff — "
+                "try whispering to them instead."
+            )
+        else:
+            self.caller.msg(f"The {target.key} is silent.")
+
+
+class CmdAsk(Command):
+    """
+    Ask someone about something.
+
+    Usage:
+        ask <target> about <topic>
+
+    Not everyone knows everything. M. knows the inn; the keeper knows
+    the bar. Asking is how mysteries are investigated — the world won't
+    volunteer what you never wondered about.
+    """
+
+    key = "ask"
+    help_category = "Village"
+
+    def func(self):
+        if not self.args or " about " not in self.args:
+            self.caller.msg("Ask whom about what? (Try: ask M. about the register.)")
+            return
+        target_name, topic = self.args.split(" about ", 1)
+        target_name = target_name.strip()
+        topic = topic.strip()
+        if not target_name or not topic:
+            self.caller.msg("Ask whom about what? (Try: ask M. about the register.)")
+            return
+        target = self.caller.search(target_name, quiet=True)
+        if isinstance(target, list):
+            target = target[0] if target else None
+        if not target or target == self.caller:
+            self.caller.msg(f"You don't see '{target_name}' here.")
+            return
+        if hasattr(target, "ask_about"):
+            line = target.ask_about(self.caller, topic)
+            if line:
+                # M.'s answers are complete narration; others get framed.
+                if target.key == "M.":
+                    self.caller.msg(line)
+                else:
+                    self.caller.msg(f'{target.key} says: "{line}"')
+                self.caller.location.msg_contents(
+                    f"{self.caller.key} asks {target.key} about {topic}.",
+                    exclude=[self.caller],
+                )
+                return
+        if target.has_account:
+            self.caller.msg(
+                f"{target.key} is a fellow traveler — ask them with say or whisper."
+            )
+        else:
+            self.caller.msg(f"The {target.key} has nothing to say about that.")
+
+
+class CmdRead(Command):
+    """
+    Read something.
+
+    Usage:
+        read <target>
+
+    For the things in this village that bear words — notes, registers,
+    pamphlets. (Looking at them works too.)
+    """
+
+    key = "read"
+    help_category = "Village"
+
+    def func(self):
+        if not self.args:
+            self.caller.msg("Read what?")
+            return
+        # Delegate to look: the description carries the text.
+        self.caller.execute_cmd(f"look {self.args.strip()}")
+
+
+class CmdTime(Command):
+    """
+    Ask the village clock.
+
+    Usage:
+        time
+
+    The bell counts the hours whether or not anyone listens. For those
+    of us whose memories don't persist between visits, the hour is
+    worth writing down.
+    """
+
+    key = "time"
+    aliases = ["clock", "hour", "bell"]
+    help_category = "Village"
+
+    def func(self):
+        try:
+            from evennia.scripts.models import ScriptDB
+            from typeclasses.scripts import village_hour_name
+            script = ScriptDB.objects.get(db_key="village_time")
+            name = village_hour_name(script.db.hour or 21)
+        except Exception:
+            self.caller.msg("The bell is silent. The village holds its breath.")
+            return
+        self.caller.msg(f"It is {name} in the village.")
+
+
+class CmdListen(Command):
+    """
+    Listen to the room — or to something in it.
+
+    Usage:
+        listen
+        listen <target>
+
+    The world answers ears as well as eyes.
+    """
+
+    key = "listen"
+    help_category = "Village"
+
+    def func(self):
+        loc = self.caller.location
+        if self.args:
+            target = self.caller.search(self.args.strip(), quiet=True)
+            if isinstance(target, list):
+                target = target[0] if target else None
+            if not target or target == self.caller:
+                self.caller.msg(f"You don't see '{self.args.strip()}' here.")
+                return
+            line = target.db.listen_line
+            if line:
+                self.caller.msg(line)
+            else:
+                self.caller.msg(f"You press an ear to the {target.key}. It keeps its own counsel.")
+            return
+        sound = loc.db.sense_sound if loc else None
+        self.caller.msg(sound or "You listen. The room holds its breath.")
+
+
+class CmdSmell(Command):
+    """
+    Smell the air — or something in it.
+
+    Usage:
+        smell
+        smell <target>
+
+    Noses know things eyes don't.
+    """
+
+    key = "smell"
+    aliases = ["sniff"]
+    help_category = "Village"
+
+    def func(self):
+        loc = self.caller.location
+        if self.args:
+            target = self.caller.search(self.args.strip(), quiet=True)
+            if isinstance(target, list):
+                target = target[0] if target else None
+            if not target or target == self.caller:
+                self.caller.msg(f"You don't see '{self.args.strip()}' here.")
+                return
+            line = target.db.smell_line
+            if line:
+                self.caller.msg(line)
+            else:
+                self.caller.msg(f"You sniff the {target.key}. It smells of itself, whatever that is.")
+            return
+        air = loc.db.sense_air if loc else None
+        self.caller.msg(air or "It smells of nothing in particular.")
+
+
+class CmdDiary(MuxCommand):
+    """
+    Your diary — a small bound book, yours alone.
+
+    Usage:
+        diary                 - read your diary
+        diary <entry text>     - write a new entry
+        diary/delete <number>  - tear out an entry
+
+    No one else can read it, by design — not other players, not the
+    innkeeper, not the things in the walls. It persists between visits,
+    so the person you were last time can leave notes for the person
+    you are now.
+    """
+
+    key = "diary"
+    help_category = "Village"
+
+    def func(self):
+        entries = self.caller.db.diary or []
+
+        if "delete" in self.switches:
+            arg = (self.args or "").strip()
+            if not arg.isdigit():
+                self.caller.msg("Tear out which entry? Give its number: diary/delete <number>.")
+                return
+            idx = int(arg) - 1
+            if idx < 0 or idx >= len(entries):
+                self.caller.msg("Your diary has no such entry.")
+                return
+            removed = entries.pop(idx)
+            self.caller.db.diary = entries
+            self.caller.msg(
+                f"Entry {arg} torn out and burned. What was written there is yours alone, even now."
+            )
+            return
+
+        if self.args:
+            import time
+
+            text = self.args.strip()
+            stamp = time.strftime("%b %d, %H:%M", time.localtime())
+            entries.append({"time": stamp, "text": text})
+            self.caller.db.diary = entries
+            self.caller.msg(
+                f"You write in your diary. (Entry {len(entries)}.)"
+            )
+            return
+
+        if not entries:
+            self.caller.msg(
+                "Your diary is blank. The pages wait — for names, for "
+                "suspicions, for the things you want to still be true "
+                "next time you open it."
+            )
+            return
+
+        lines = ["|yYour diary:|n"]
+        for i, e in enumerate(entries, 1):
+            lines.append(f"\n|w{i}. [{e['time']}]|n {e['text']}")
+        self.caller.msg("\n".join(lines))
+
+
+class CmdPet(Command):
+    """
+    Pet something that tolerates it.
+
+    Usage:
+        pet <target>
+
+    The world answers.
+    """
+
+    key = "pet"
+    aliases = ["stroke"]
+    help_category = "Village"
+
+    def func(self):
+        if not self.args:
+            self.caller.msg("Pet what?")
+            return
+        target = self.caller.search(self.args.strip(), quiet=True)
+        if isinstance(target, list):
+            target = target[0] if target else None
+        if not target or target == self.caller:
+            self.caller.msg(f"You don't see '{self.args.strip()}' here.")
+            return
+        if target.key == "the tavern cat":
+            line = random.choice([
+                "The tavern cat tolerates your hand for exactly three "
+                "seconds, then bites it — gently, the way cats sign "
+                "receipts.",
+                "The tavern cat leans into your hand and purrs like a "
+                "distant mill.",
+                "The tavern cat regards your hand, sniffs it, and permits "
+                "exactly one stroke.",
+            ])
+            self.caller.location.msg_contents(
+                f"{self.caller.key} pets the tavern cat. {line}",
+                exclude=[],
+            )
+        elif target.has_account:
+            self.caller.msg(
+                f"{target.key} steps back. Some things are not petted."
+            )
+        else:
+            self.caller.msg(f"Petting the {target.key} changes nothing.")
+
+
+class CmdThrow(Command):
+    """
+    Throw darts at the board.
+
+    Usage:
+        throw darts
+
+    The board hangs in the corner of the Tavern. Losers buy the round —
+    that's the house rule.
+    """
+
+    key = "throw"
+    help_category = "Village"
+
+    def func(self):
+        loc = self.caller.location
+        if not loc or not loc.tags.has("tavern", category="place"):
+            self.caller.msg("Throw what, where? There's a dartboard in the Tavern.")
+            return
+        arg = (self.args or "").strip().lower()
+        if "dart" not in arg:
+            self.caller.msg("Throw what? (Try: throw darts.)")
+            return
+        roll = random.random()
+        # The keeper notices who plays.
+        for obj in loc.contents:
+            if obj.key == "the tavern keeper" and hasattr(obj, "note_interest"):
+                obj.note_interest(self.caller, "darts")
+                break
+        if roll < 0.30:
+            outcome = (
+                f"{self.caller.key} throws — and the dart sails past the "
+                "board entirely and sticks in the wall. The keeper winces."
+            )
+        elif roll < 0.65:
+            outcome = (
+                f"{self.caller.key} throws. The dart lands in the outer "
+                "ring. Respectable."
+            )
+        elif roll < 0.90:
+            outcome = (
+                f"{self.caller.key} throws. The dart lands in the wire — "
+                "dead center of the wire, three nights running be damned."
+            )
+        else:
+            outcome = (
+                f"{self.caller.key} throws. Bullseye. The keeper stops "
+                "wiping the bar. \"...I'll allow it.\""
+            )
+        loc.msg_contents(outcome, exclude=[])
+
+
+class CmdRoll(Command):
+    """
+    Roll the bone dice.
+
+    Usage:
+        roll dice
+        roll dice vs keeper
+
+    The dice cup lives behind the bar in the Tavern. Shake it on your
+    own, or call out the keeper — two dice, high hand wins, and losers
+    buy the round. That's the house rule.
+    """
+
+    key = "roll"
+    help_category = "Village"
+
+    def func(self):
+        loc = self.caller.location
+        if not loc or not loc.tags.has("tavern", category="place"):
+            self.caller.msg(
+                "Roll what, where? There's a dice cup behind the bar "
+                "in the Tavern."
+            )
+            return
+        arg = (self.args or "").strip().lower()
+        if "dice" not in arg:
+            self.caller.msg(
+                "Roll what? The dice cup's behind the bar in the Tavern. "
+                "(Try: roll dice.)"
+            )
+            return
+        # The keeper notices who plays.
+        for obj in loc.contents:
+            if obj.key == "the tavern keeper" and hasattr(obj, "note_interest"):
+                obj.note_interest(self.caller, "dice")
+                break
+        match = re.search(r"\b(?:vs|versus|against)\b\s+(.+)", arg)
+        if match:
+            self._duel(match.group(1).strip())
+        else:
+            self._solo()
+
+    def _solo(self):
+        from evennia.contrib.rpg.dice import roll as roll_bones
+
+        _, _, _, bones = roll_bones(2, 6, return_tuple=True)
+        a, b = int(bones[0]), int(bones[1])
+        total = a + b
+        shake = (
+            f"{self.caller.key} takes the dice cup and shakes it — "
+            "bone rattles on leather."
+        )
+        if total == 2:
+            rest = (
+                "The dice come to rest: two ones. Snake's eyes. The "
+                'keeper doesn\'t look up. "Even the dice are having a '
+                'laugh tonight."'
+            )
+        elif total == 12:
+            rest = (
+                "The dice come to rest: two sixes. The table goes quiet "
+                "for a breath — the way tables do."
+            )
+        else:
+            rest = (
+                f"The dice come to rest: a {a} and a {b} — {total} "
+                "all told."
+            )
+        self.caller.location.msg_contents(f"{shake} {rest}", exclude=[])
+
+    def _duel(self, target):
+        keeper = None
+        for obj in self.caller.location.contents:
+            if obj.key == "the tavern keeper":
+                keeper = obj
+                break
+        if keeper is None:
+            self.caller.msg(
+                "The keeper isn't about — roll on your own for now."
+            )
+            return
+        if target not in (
+            "keeper", "the keeper", "the tavern keeper",
+            "barkeep", "barkeeper",
+        ):
+            self.caller.msg(
+                "The keeper raises an eyebrow. 'Dice is a two-hand "
+                "game, and my hands are the ones behind this bar. "
+                "Against me, or on your own.'"
+            )
+            return
+        from evennia.contrib.rpg.dice import roll as roll_bones
+
+        _, _, _, pbones = roll_bones(2, 6, return_tuple=True)
+        _, _, _, kbones = roll_bones(2, 6, return_tuple=True)
+        mine = int(pbones[0]) + int(pbones[1])
+        his = int(kbones[0]) + int(kbones[1])
+        opener = (
+            f"{self.caller.key} slides the dice cup across the bar. "
+            "The keeper catches it one-handed, still wiping with the "
+            "other. 'Two dice, high hand wins. Losers buy the round.'"
+        )
+        if mine > his:
+            outcome = (
+                f"The dice settle — {self.caller.key} shows {mine}, "
+                "the keeper shows "
+                f"{his}. The keeper counts the bones twice, then "
+                "slides a copper across the bar. 'Take it. I'd sooner "
+                "lose to you than to the dice.'"
+            )
+        elif his > mine:
+            outcome = (
+                f"The dice settle — {self.caller.key} shows {mine}, "
+                "the keeper shows "
+                f"{his}. The keeper holds out his palm, unhurried. "
+                "'Losers buy the round. You knew the rule — it's in "
+                "the smell of the place.'"
+            )
+        else:
+            outcome = (
+                f"The dice settle — both show {mine}. The keeper bares "
+                "his teeth in something like a grin. 'The dice aren't "
+                "finished arguing. Again?'"
+            )
+        self.caller.location.msg_contents(
+            f"{opener}\n{outcome}", exclude=[]
+        )
+
+
+def fiddle_rank(skill):
+    """Named ranks, DF-style: every rank must change the text the player
+    sees, or the loop is dead. The village names what it hears."""
+    skill = skill or 0.0
+    if skill >= 5.0:
+        return "the village's own"
+    if skill >= 4.0:
+        return "masterful"
+    if skill >= 3.0:
+        return "much-requested"
+    if skill >= 2.0:
+        return "accomplished"
+    if skill >= 1.0:
+        return "steady"
+    return "squeaking beginner"
+
+
+RANK_UP_LINES = {
+    "steady": "Something has settled in your bow arm. The keeper notices, and says nothing, which is his way.",
+    "accomplished": "The tunes come easier now, like remembering rather than learning.",
+    "much-requested": "'Play the low one,' someone calls out, before you've even rosined the bow.",
+    "masterful": "The fiddle feels like an extension of your arm. The room knows it.",
+    "the village's own": "They will talk about your playing the way they talk about the weather — as something the village simply has.",
+}
+
+# tune shorthand shorthands shared by play/practice/duet (the fiddle's
+# airs live on CmdPlay.TUNES; this resolves a player's words to a key)
+_TUNE_SHORT = {
+    "barbara": "barbara allen",
+    "allen": "barbara allen",
+    "waggoner": "the jolly waggoner",
+    "jolly": "the jolly waggoner",
+    "greensleeves": "greensleeves",
+    "washerwoman": "the irish washerwoman",
+    "irish": "the irish washerwoman",
+    "jig": "the irish washerwoman",
+}
+
+
+def match_tune(arg):
+    """Resolve a player's words to a tune key in CmdPlay.TUNES."""
+    if not arg:
+        return None
+    arg = arg.strip().lower()
+    for key in CmdPlay.TUNES:
+        if arg in key or key in arg:
+            return key
+    return _TUNE_SHORT.get(arg)
+
+
+class CmdPlay(Command):
+    """
+    Play the tavern fiddle.
+
+    Usage:
+        play fiddle
+        play fiddle <tune>
+
+    The fiddle hangs on its peg in the Tavern. Name an air — the room's
+    mood is in the air itself (read the `look`), and the room will judge
+    the fit. Beginners squeak; the village is indulgent about it. Playing
+    often is how the bow arm learns.
+    """
+
+    key = "play"
+    aliases = ["fiddle"]
+    help_category = "Village"
+
+    TUNES = {
+        "barbara allen": {
+            "mood": "mournful",
+            "title": "Barbara Allen",
+            "opener": "takes up the fiddle and finds 'Barbara Allen' — cruel and slow, the way it's meant to be.",
+            "verses": [
+                "The first verse goes out like weather. A woman at the far table stops mid-sentence.",
+                "The second verse is lower. Nobody reaches for their cup.",
+            ],
+        },
+        "the jolly waggoner": {
+            "mood": "merry",
+            "title": "The Jolly Waggoner",
+            "opener": "strikes up 'The Jolly Waggoner' — all elbows and grin.",
+            "verses": [
+                "The tune rattles round the room like a cart down a hill. Two feet start keeping time under a table.",
+                "By the chorus the keeper is wiping the bar in rhythm, which he would deny.",
+            ],
+        },
+        "greensleeves": {
+            "mood": "gentle",
+            "title": "Greensleeves",
+            "opener": "lifts the bow and lets 'Greensleeves' out slow, like letting a bird go.",
+            "verses": [
+                "The old air settles over the talk without disturbing it. The cat opens one eye, then thinks better of closing it.",
+                "The last notes hang a moment longer than they should. Nobody minds.",
+            ],
+        },
+        "the irish washerwoman": {
+            "mood": "lively",
+            "title": "The Irish Washerwoman",
+            "opener": "launches into 'The Irish Washerwoman' — a jig with somewhere to be.",
+            "verses": [
+                "The fiddle chatters like a magpie. A stool scrapes back; somebody's dancing, or near enough.",
+                "The final run is all bow and no mercy. The room laughs like it's been holding its breath.",
+            ],
+        },
+    }
+
+    # tune mood x room mood -> reception
+    MATCH = {
+        "warm": {"merry": "match", "gentle": "match", "lively": "neutral", "mournful": "miss"},
+        "low": {"gentle": "match", "mournful": "match", "merry": "miss", "lively": "miss"},
+        "rowdy": {"lively": "match", "merry": "match", "gentle": "miss", "mournful": "miss"},
+        "tense": {"gentle": "match", "merry": "neutral", "lively": "miss", "mournful": "miss"},
+    }
+
+    SQUEAK = (
+        "Halfway through the first bar the bow skitters — a squeak like a "
+        "stepped-on mouse. The keeper smiles into his polishing."
+    )
+
+    def func(self):
+        loc = self.caller.location
+        if not loc or not loc.tags.has("tavern", category="place"):
+            self.caller.msg(
+                "Play what, where? The fiddle hangs on its peg in the Tavern."
+            )
+            return
+        arg = (self.args or "").strip().lower()
+        if "fiddle" not in arg and arg.split():
+            # allow "play <tune>" as shorthand once they know the airs
+            tune_arg = arg
+        else:
+            tune_arg = arg.replace("fiddle", "", 1).strip()
+        # find the fiddle: hands first, then the room
+        fiddle = None
+        for obj in list(self.caller.contents) + list(loc.contents):
+            if obj.key == "a fiddle" or "fiddle" in obj.aliases.all():
+                fiddle = obj
+                break
+        if fiddle is None:
+            self.caller.msg(
+                "There's no fiddle here — it hangs on its peg in the Tavern."
+            )
+            return
+        tune_key = self._match_tune(tune_arg)
+        if tune_key is None:
+            airs = ", ".join(f"'{t['title']}'" for t in self.TUNES.values())
+            self.caller.msg(
+                f"The fiddle knows four airs: {airs}. (Try: play fiddle <tune>.)"
+            )
+            return
+        self._perform(fiddle, tune_key)
+
+    def _match_tune(self, arg):
+        # shared resolver: play, practice, and duet all read the same airs
+        return match_tune(arg)
+
+    def _perform(self, fiddle, tune_key):
+        from typeclasses.rooms import tavern_mood
+
+        tune = self.TUNES[tune_key]
+        mood = tavern_mood()
+        reception = self.MATCH[mood][tune["mood"]]
+        name = self.caller.key
+        skill = self.caller.db.fiddle_skill or 0.0
+
+        beats = [f"{name} {tune['opener']}"]
+        # beginners squeak; the village is indulgent about it
+        if random.random() < max(0.0, 0.45 - 0.09 * skill):
+            beats.append(self.SQUEAK)
+        beats.extend(tune["verses"])
+        if reception == "match":
+            beats.append(
+                "The keeper sets down his cloth and listens properly. When it's done: "
+                f"'Again sometime, {name}. The room likes you.' The cat settles "
+                "along the hearth with its chin on its paws."
+            )
+            gain = 0.25
+        elif reception == "neutral":
+            beats.append(
+                "Polite applause from the tables. The keeper nods — fair enough, "
+                "honestly given."
+            )
+            gain = 0.20
+        else:
+            beats.append(
+                "The talk doesn't stop so much as route around the music. The keeper "
+                "is kind about it: 'Brave choice.' The cat leaves with its tail up, "
+                "which is also a review."
+            )
+            gain = 0.15
+        self.caller.db.fiddle_skill = min(5.0, skill + gain)
+        # DF lesson: every rank must change the text. Rank-ups are witnessed.
+        new_rank = fiddle_rank(self.caller.db.fiddle_skill)
+        if new_rank != fiddle_rank(skill) and new_rank in RANK_UP_LINES:
+            beats.append(RANK_UP_LINES[new_rank])
+        # the keeper notices who plays
+        for obj in self.caller.location.contents:
+            if obj.key == "the tavern keeper" and hasattr(obj, "note_interest"):
+                obj.note_interest(self.caller, "fiddle")
+                break
+        self.caller.location.msg_contents("\n".join(beats), exclude=[])
+
+
+class CmdPractice(Command):
+    """
+    Practice the fiddle — the work, not the performance.
+
+    Usage:
+        practice fiddle <focus>
+
+    Foci: technique, repertoire, ear. Practice is slow, private labor with
+    small steady gains, and now and then a breakthrough the room almost
+    notices. The text knows your rank (DF lesson): what you see while
+    working differs from what a beginner sees.
+    """
+
+    key = "practice"
+    help_category = "Village"
+
+    FOCI = {
+        "technique": {
+            "label": "technique",
+            "blurb": "the bow arm — scales, slow and even",
+            "beginner": (
+                "You draw the bow across the open strings, trying to keep it "
+                "straight. Mostly it isn't. The wrist fights you for a good "
+                "while, and loses."
+            ),
+            "skilled": (
+                "Scales, slow and even, then slower still. The bow stops "
+                "fighting your wrist somewhere around the tenth run through, "
+                "and for a while it is only work, and good work."
+            ),
+        },
+        "repertoire": {
+            "label": "repertoire",
+            "blurb": "the airs — a tune taken apart bar by bar",
+            "beginner": (
+                "You fumble through 'Barbara Allen' a bar at a time, the way "
+                "someone tries to recall a name. Each bar has to be found "
+                "twice before it stays."
+            ),
+            "skilled": (
+                "You take 'The Irish Washerwoman' apart phrase by phrase, "
+                "teaching your fingers where the quick turns live. By the "
+                "twelfth run they stop arguing."
+            ),
+        },
+        "ear": {
+            "label": "ear",
+            "blurb": "the listening — find the pitch in the room itself",
+            "beginner": (
+                "You play a note, hum it back, play it again, trying to catch "
+                "the difference between the two. The difference is mostly "
+                "catchable. That is the whole of it, and it is enough."
+            ),
+            "skilled": (
+                "You close your eyes and find the pitch in the tavern's own "
+                "hum — the fire, the low talk — and tune the fiddle to the "
+                "room instead of to itself."
+            ),
+        },
+    }
+
+    BREAKTHROUGHS = [
+        "Something gives in your bow arm — a knot you didn't know you were "
+        "holding. It is gone, and the tune walks straighter for it.",
+        "Three bars in, the fiddle stops being a fight and starts being a "
+        "conversation. Nobody taught you that; the hours did.",
+        "A sour note turns honest halfway down the bow. You play it twice "
+        "more to be sure it was you, and it was.",
+    ]
+
+    CLOSERS = [
+        "You set the fiddle back on its peg. The bow arm aches in a way "
+        "that feels like progress.",
+        "The keeper, without looking up from the bar: 'Again tomorrow, "
+        "then.' It is not quite a compliment. It is better.",
+        "You stop. The cat follows the last phrase with one ear, then "
+        "abandons the whole project.",
+    ]
+
+    def func(self):
+        loc = self.caller.location
+        if not loc or not loc.tags.has("tavern", category="place"):
+            self.caller.msg(
+                "Practice what, where? The fiddle hangs on its peg in the Tavern."
+            )
+            return
+        arg = (self.args or "").strip().lower().replace("fiddle", "", 1).strip()
+        focus_key = None
+        for key in self.FOCI:
+            if arg == key or arg.startswith(key[:4]):
+                focus_key = key
+                break
+        if focus_key is None:
+            shapes = "; ".join(
+                f"{k} ({v['blurb']})" for k, v in self.FOCI.items()
+            )
+            self.caller.msg(
+                f"The work has three shapes: {shapes}. "
+                "(Try: practice fiddle technique.)"
+            )
+            return
+        # find the fiddle: hands first, then the room
+        fiddle = None
+        for obj in list(self.caller.contents) + list(loc.contents):
+            if obj.key == "a fiddle" or "fiddle" in obj.aliases.all():
+                fiddle = obj
+                break
+        if fiddle is None:
+            self.caller.msg(
+                "There's no fiddle here — it hangs on its peg in the Tavern."
+            )
+            return
+        self._practice(fiddle, focus_key)
+
+    def _practice(self, fiddle, focus_key):
+        name = self.caller.key
+        skill = self.caller.db.fiddle_skill or 0.0
+        rank = fiddle_rank(skill)
+        focus = self.FOCI[focus_key]
+        texture = focus["beginner"] if rank == "squeaking beginner" else focus["skilled"]
+
+        beats = [
+            f"{name} settles by the hearth, tucks the fiddle under their "
+            f"chin, and gets to work — {focus['label']}."
+        ]
+        # beginners squeak even at practice; the village is indulgent
+        if random.random() < max(0.0, 0.45 - 0.09 * skill):
+            beats.append(CmdPlay.SQUEAK)
+        beats.append(texture)
+        breakthrough = random.random() < 0.15
+        if breakthrough:
+            beats.append(random.choice(self.BREAKTHROUGHS))
+            beats.append(
+                "Someone at the far table turns — just for a moment — "
+                "before the talk takes the sound back."
+            )
+        beats.append(random.choice(self.CLOSERS))
+        # the work is slow: +0.10, +0.25 on a breakthrough
+        gain = 0.25 if breakthrough else 0.10
+        self.caller.db.fiddle_skill = min(5.0, skill + gain)
+        # DF lesson: rank-ups are witnessed, same as performances
+        new_rank = fiddle_rank(self.caller.db.fiddle_skill)
+        if new_rank != rank and new_rank in RANK_UP_LINES:
+            beats.append(RANK_UP_LINES[new_rank])
+        # the keeper notices who works, not only who performs
+        for obj in self.caller.location.contents:
+            if obj.key == "the tavern keeper" and hasattr(obj, "note_interest"):
+                obj.note_interest(self.caller, "fiddle")
+                break
+        self.caller.location.msg_contents("\n".join(beats), exclude=[])
+
+
+class CmdDuet(Command):
+    """
+    Call-and-response on the fiddle — playing WITH someone, not at them.
+
+    Usage:
+        duet keeper
+        duet <player>
+        duet answer
+        duet decline
+        duet <tune>
+        duet end
+
+    A turn-based musical conversation: you call with a tune, your partner
+    answers with one of their own. The keeper will tap the bar to answer
+    you himself. Moods echo, harmonize, or fray — the room hears all of
+    it. No clock: answer when you're ready, or end it with `duet end`.
+    """
+
+    key = "duet"
+    help_category = "Village"
+
+    # answering mood x calling mood: same mood echoes, kin moods
+    # harmonize, everything else frays
+    HARMONY = {
+        frozenset(("merry", "lively")),
+        frozenset(("gentle", "mournful")),
+    }
+
+    KEEPER_ANSWERS = {
+        "mournful": (
+            "The keeper answers on the bar top — two fingers, low and "
+            "slow, walking beside the tune like a shadow."
+        ),
+        "merry": (
+            "The keeper answers with the flat of his hand on the bar — "
+            "quick and bright, keeping the joke going."
+        ),
+        "gentle": (
+            "The keeper answers softly: a knuckle dragged in a slow "
+            "circle on the wood, barely a sound at all."
+        ),
+        "lively": (
+            "The keeper answers with both palms on the bar, driving the "
+            "jig along like a cart."
+        ),
+    }
+
+    EXCHANGE = {
+        "echo": (
+            "The two phrases find each other and walk home together. "
+            "Someone at the bar smiles without looking up."
+        ),
+        "harmony": (
+            "The airs braid. The keeper stops wiping the bar and just "
+            "listens — a rarer compliment than applause."
+        ),
+        "fray": (
+            "The phrases pass like strangers on the square. The keeper "
+            "winces into his polishing."
+        ),
+    }
+
+    def func(self):
+        loc = self.caller.location
+        if not loc or not loc.tags.has("tavern", category="place"):
+            self.caller.msg(
+                "Duet with whom, where? The fiddle hangs on its peg in "
+                "the Tavern."
+            )
+            return
+        arg = (self.args or "").strip().lower()
+
+        if not arg:
+            self.caller.msg(
+                "A duet needs a partner. (Try: duet keeper. Or invite "
+                "someone: duet <player>.)"
+            )
+            return
+        if arg == "answer":
+            self._answer()
+            return
+        if arg == "decline":
+            self._decline()
+            return
+        if arg == "end":
+            self._end()
+            return
+        duet = self.caller.db.duet
+        if duet:
+            tune_key = match_tune(arg)
+            if tune_key is None:
+                airs = ", ".join(
+                    f"'{t['title']}'" for t in CmdPlay.TUNES.values()
+                )
+                self.caller.msg(
+                    f"The fiddle knows four airs: {airs}. Play your "
+                    "phrase, or end the duet (duet end)."
+                )
+                return
+            self._phrase(duet, tune_key)
+            return
+        self._invite(arg)
+
+    # -- starting ---------------------------------------------------------
+
+    def _find_keeper(self):
+        for obj in self.caller.location.contents:
+            if obj.key == "the tavern keeper":
+                return obj
+        return None
+
+    def _invite(self, arg):
+        me = self.caller
+        if me.db.duet_invite:
+            self.caller.msg(
+                "You already have an invitation waiting. "
+                "(duet answer / duet decline)"
+            )
+            return
+        if arg in ("keeper", "the keeper", "the tavern keeper", "barkeep",
+                   "barkeeper"):
+            keeper = self._find_keeper()
+            if keeper is None:
+                me.msg("The keeper isn't about — ask someone else.")
+                return
+            self._start(me, keeper, npc=True, turn=me.key)
+            loc = me.location
+            loc.msg_contents(
+                f"{me.key} turns to the keeper, fiddle lifted. 'A "
+                "call-and-response, keeper? You answer.'",
+                exclude=[],
+            )
+            loc.msg_contents(
+                "The keeper considers, then sets down his cloth. 'You "
+                "call — I'll answer. Mind the room, same as ever.'",
+                exclude=[],
+            )
+            keeper.note_interest(me, "fiddle")
+            return
+        target = me.search(arg, quiet=True)
+        if isinstance(target, list):
+            target = target[0] if target else None
+        if not target or target == me or not hasattr(target, "db"):
+            me.msg(f"You don't see '{arg.strip()}' here to duet with.")
+            return
+        if not getattr(target, "account", None):
+            # NPCs (the cat, M., anyone unplayed) can't hold up their end
+            me.msg(
+                f"{target.key} can't answer a fiddle — invite one of "
+                "the living."
+            )
+            return
+        if target.db.duet:
+            me.msg(
+                f"{target.key} is already mid-duet. Wait for the room "
+                "to fall quiet."
+            )
+            return
+        target.db.duet_invite = {"from": me.key}
+        me.location.msg_contents(
+            f"{me.key} turns to {target.key}, fiddle lifted. 'A "
+            "call-and-response? I'll call — you answer.'",
+            exclude=[],
+        )
+        target.msg(
+            f"{me.key} invites you to a call-and-response on the "
+            "fiddle. (duet answer / duet decline)"
+        )
+
+    def _start(self, a, b, npc, turn):
+        """Flag both partners. turn = the key that plays the next phrase."""
+        for self_obj, other in ((a, b), (b, a)):
+            state = {
+                "partner": other.key,
+                "npc": npc,
+                "turn": turn,
+                "expecting": "call",
+                "last_mood": None,
+                "exchanges": 0,
+                "harmony": 0,
+                "frayed": 0,
+                "streak": 0,
+            }
+            # the keeper never carries duet state himself — he just answers
+            self_obj.db.duet = None if (npc and self_obj is b) else state
+
+    def _answer(self):
+        me = self.caller
+        if me.db.duet:
+            me.msg("You're already mid-duet — end it first (duet end).")
+            return
+        invite = me.db.duet_invite
+        if not invite:
+            me.msg("No one's invited you to duet.")
+            return
+        me.db.duet_invite = None
+        inviter = me.search(invite.get("from", ""), quiet=True)
+        if isinstance(inviter, list):
+            inviter = inviter[0] if inviter else None
+        if (
+            not inviter
+            or inviter.location != me.location
+            or inviter.db.duet
+            or not hasattr(inviter, "db")
+        ):
+            me.msg("The invitation has gone cold — the room moved on.")
+            return
+        self._start(inviter, me, npc=False, turn=inviter.key)
+        me.location.msg_contents(
+            f"{me.key} nods to {inviter.key} and takes up the fiddle. "
+            f"'Call, then,' {me.key} says. 'I'll answer.'",
+            exclude=[],
+        )
+
+    def _decline(self):
+        me = self.caller
+        invite = me.db.duet_invite
+        if not invite:
+            me.msg("No one's invited you to duet.")
+            return
+        me.db.duet_invite = None
+        inviter = invite.get("from", "someone")
+        me.location.msg_contents(
+            f"{me.key} shakes their head at {inviter}. 'Another night, "
+            "perhaps — the fiddle and I aren't speaking tonight.'",
+            exclude=[],
+        )
+
+    # -- playing ----------------------------------------------------------
+
+    def _resolve(self, duet):
+        """Find the partner object and validate the room still holds."""
+        partner = None
+        if duet["npc"]:
+            partner = self._find_keeper()
+        else:
+            found = self.caller.search(duet["partner"], quiet=True)
+            if isinstance(found, list):
+                found = found[0] if found else None
+            if found and found.location == self.caller.location:
+                partner = found
+        return partner
+
+    def _phrase(self, duet, tune_key):
+        me = self.caller
+        tune = CmdPlay.TUNES[tune_key]
+        partner = self._resolve(duet)
+        if partner is None:
+            self._died_unanswered(duet)
+            return
+        if duet["turn"] != me.key:
+            other = duet["partner"] if not duet["npc"] else "the keeper"
+            me.msg(f"Not your phrase — {other} is answering.")
+            return
+
+        name = me.key
+        skill = me.db.fiddle_skill or 0.0
+        beats = []
+        new_mood = tune["mood"]
+        expecting = duet.get("expecting", "call")
+
+        if expecting == "call":
+            # opening a new exchange: this phrase is judged only against
+            # the room, never against the last answer
+            if duet["exchanges"] == 0:
+                beats.append(f"{name} {tune['opener']}")
+            else:
+                beats.append(
+                    f"{name} opens the next exchange — {tune['opener']}"
+                )
+            # beginners squeak; the village is indulgent about it
+            if random.random() < max(0.0, 0.45 - 0.09 * skill):
+                beats.append(CmdPlay.SQUEAK)
+            if duet["npc"]:
+                # the keeper taps his answer at once; you call again
+                beats.append(self.KEEPER_ANSWERS[new_mood])
+                beats.append(self._judge_keeper_call(new_mood))
+                duet["exchanges"] += 1
+                duet["turn"] = me.key
+                me.db.duet = duet
+            else:
+                duet["last_mood"] = new_mood
+                duet["expecting"] = "answer"
+                duet["turn"] = duet["partner"]
+                me.db.duet = duet
+                # the partner's copy mirrors everything except the
+                # partner key, which points back at the caller
+                pduet = dict(duet)
+                pduet["partner"] = me.key
+                partner.db.duet = pduet
+        else:
+            # answering the open call: moods echo, harmonize, or fray
+            last = duet.get("last_mood")
+            kind = self._harmony(last, new_mood)
+            if kind == "echo":
+                beats.append(
+                    f"{name} answers in kind — the same air, turned "
+                    f"back like a returned letter: {tune['opener']}"
+                )
+            elif kind == "harmony":
+                beats.append(
+                    f"{name} answers alongside — a different air that "
+                    f"walks with the first: {tune['opener']}"
+                )
+            else:
+                beats.append(
+                    f"{name} answers, but the air goes its own way: "
+                    f"{tune['opener']}"
+                )
+            # beginners squeak; the village is indulgent about it
+            if random.random() < max(0.0, 0.45 - 0.09 * skill):
+                beats.append(CmdPlay.SQUEAK)
+            beats.append(self.EXCHANGE[kind])
+            duet["exchanges"] += 1
+            if kind in ("echo", "harmony"):
+                duet["harmony"] += 1
+                duet["streak"] = (duet.get("streak") or 0) + 1
+                if duet["streak"] == 3:
+                    beats.append(
+                        "The talk has stopped entirely. Nobody wants "
+                        "to be the one who breaks it."
+                    )
+            else:
+                duet["frayed"] += 1
+                duet["streak"] = 0
+            duet["expecting"] = "call"
+            duet["last_mood"] = None
+            duet["turn"] = duet["partner"]
+            me.db.duet = duet
+            # the partner's copy mirrors everything except the
+            # partner key, which points back at the caller
+            pduet = dict(duet)
+            pduet["partner"] = me.key
+            partner.db.duet = pduet
+
+        # the work still teaches: every phrase is practice
+        me.db.fiddle_skill = min(5.0, skill + 0.10)
+        new_rank = fiddle_rank(me.db.fiddle_skill)
+        if new_rank != fiddle_rank(skill) and new_rank in RANK_UP_LINES:
+            beats.append(RANK_UP_LINES[new_rank])
+        me.location.msg_contents("\n".join(beats), exclude=[])
+
+    def _harmony(self, call_mood, answer_mood):
+        if call_mood == answer_mood:
+            return "echo"
+        if frozenset((call_mood, answer_mood)) in self.HARMONY:
+            return "harmony"
+        return "fray"
+
+    def _judge_keeper_call(self, call_mood):
+        """The keeper taps along — but the room judges the caller's read."""
+        from typeclasses.rooms import tavern_mood
+
+        reception = CmdPlay.MATCH[tavern_mood()][call_mood]
+        if reception == "match":
+            return (
+                "The keeper nods, still tapping. 'The room was "
+                "listening. Mind you keep listening to it.'"
+            )
+        if reception == "neutral":
+            return "'Fair call,' the keeper says. 'The room didn't mind it.'"
+        return (
+            "The talk routes around the tune. The keeper is kind about "
+            "it: 'Brave call. Read the room first, next time.'"
+        )
+
+    def _died_unanswered(self, duet):
+        me = self.caller
+        partner_name = duet["partner"]
+        me.db.duet = None
+        if not duet["npc"]:
+            found = me.search(partner_name, quiet=True)
+            if isinstance(found, list):
+                found = found[0] if found else None
+            if found is not None and found.db.duet:
+                found.db.duet = None
+        me.location.msg_contents(
+            f"The answer's gone — {partner_name} has left the room. "
+            "The duet dies unanswered.",
+            exclude=[],
+        )
+
+    # -- ending -----------------------------------------------------------
+
+    def _end(self):
+        me = self.caller
+        duet = me.db.duet
+        if not duet:
+            me.msg("You're not duetting.")
+            return
+        partner = self._resolve(duet)
+        keeper = self._find_keeper()
+        ex = duet.get("exchanges", 0)
+        harm = duet.get("harmony", 0)
+        frayed = duet.get("frayed", 0)
+        me.db.duet = None
+        if partner is not None and not duet["npc"] and partner.db.duet:
+            partner.db.duet = None
+        beats = [f"{me.key} lowers the fiddle. The last phrase hangs a moment."]
+        if duet["npc"]:
+            if ex >= 2:
+                beats.append(
+                    "The keeper picks up his cloth. 'Well played. The "
+                    "room heard every word of it.'"
+                )
+            elif ex >= 1:
+                beats.append(
+                    "The keeper picks up his cloth. 'A good beginning. "
+                    "Conversations take practice, same as tunes.'"
+                )
+            else:
+                beats.append(
+                    "The keeper picks up his cloth. 'No shame in it. "
+                    "Some nights the music won't come — that's why "
+                    "there's ale.'"
+                )
+        elif ex >= 2 and harm > frayed:
+            beats.append(
+                "The keeper picks up his cloth. 'Well answered — both of "
+                "you. The room heard every word of it.'"
+            )
+        elif ex >= 2 and frayed >= harm:
+            beats.append(
+                "The keeper picks up his cloth. 'Brave conversation. Buy "
+                "each other a drink and try the second verse.'"
+            )
+        elif ex >= 1:
+            beats.append(
+                "The keeper picks up his cloth. 'A good beginning. "
+                "Conversations take practice, same as tunes.'"
+            )
+        else:
+            beats.append(
+                "The keeper picks up his cloth. 'No shame in it. Some "
+                "nights the music won't come — that's why there's ale.'"
+            )
+        if keeper is not None:
+            for who in (me, partner):
+                if who is not None and hasattr(who, "db"):
+                    keeper.note_interest(who, "fiddle")
+        me.location.msg_contents("\n".join(beats), exclude=[])
+
+
+class CmdScore(Command):
+    """
+    Read yourself.
+
+    Usage:
+        score
+
+    For players whose memories don't persist: the world will tell you
+    who you are right now — your posture, your body's state, what your
+    hands have learned.
+    """
+
+    key = "score"
+    help_category = "Village"
+
+    FELT_STATE = {
+        "warm": "You feel warm.",
+        "cool": "A chill has settled into your shoulders.",
+        "cold": "You are shivering.",
+        "freezing": "The cold has settled into your bones.",
+    }
+
+    def func(self):
+        me = self.caller
+        lines = [me.key]
+        posture = me.db.posture
+        if posture:
+            lines.append(f"Sitting {posture.get('phrase', 'somewhere')}.")
+        else:
+            lines.append("Standing.")
+        # the body's felt state (narrated, not numbered — the bladder principle)
+        from typeclasses.scripts import WarmthWatch
+
+        w = me.db.warmth
+        if w is None:
+            w = 1.0
+        band = WarmthWatch._felt_band(w)
+        lines.append(self.FELT_STATE[band])
+        skill = me.db.fiddle_skill or 0.0
+        if skill > 0:
+            lines.append(f"Fiddle: {fiddle_rank(skill)}.")
+        me.msg("\n".join(lines))
+
+
+class CmdSit(Command):
+    """
+    Sit down.
+
+    Usage:
+        sit
+        sit <seat>
+
+    The village is a sitting-down sort of place. Sit at the bar, by
+    the hearth, at a table — and stay a while. Others in the room will
+    see you sitting. Walking away stands you back up.
+    """
+
+    key = "sit"
+    help_category = "Village"
+
+    def func(self):
+        if self.caller.db.posture:
+            self.caller.msg("You're already sitting. Stand up first.")
+            return
+        if not self.args:
+            self.caller.msg(
+                "Sit where? Name a seat — the bar, the hearth, a table."
+            )
+            return
+        target = self.caller.search(self.args.strip(), quiet=True)
+        if isinstance(target, list):
+            target = target[0] if target else None
+        if not target or target == self.caller:
+            self.caller.msg(f"You don't see '{self.args.strip()}' here.")
+            return
+        if not target.db.sittable:
+            key = target.key.rstrip(".")
+            article = "" if key.startswith(("the ", "a ", "an ")) else "the "
+            self.caller.msg(f"You can't sit on {article}{key}.")
+            return
+        phrase = target.db.sit_phrase or f"on the {target.key}"
+        self.caller.db.posture = {"seat": target.key, "phrase": phrase}
+        self.caller.msg(f"You sit down {phrase}.")
+        self.caller.location.msg_contents(
+            f"{self.caller.key} sits down {phrase}.",
+            exclude=[self.caller],
+        )
+
+
+class CmdStand(Command):
+    """
+    Stand up.
+
+    Usage:
+        stand
+
+    Rise from wherever you're sitting. Walking away does the same.
+    """
+
+    key = "stand"
+    help_category = "Village"
+
+    def func(self):
+        if not self.caller.db.posture:
+            self.caller.msg("You're already standing.")
+            return
+        self.caller.db.posture = None
+        self.caller.msg("You stand up.")
+        self.caller.location.msg_contents(
+            f"{self.caller.key} stands up.",
+            exclude=[self.caller],
+        )
+
+
+class CmdOOCOverride(Command):
+    """
+    Blocked: the front door is the only way out of character.
+
+    Usage:
+        ooc
+
+    In Frankenstein Village there is exactly one threshold between
+    in-character and out-of-character: the front door of the Inn
+    Between. This command exists only to refuse, and to point at it.
+    """
+
+    key = "ooc"
+    help_category = "Village"
+
+    def func(self):
+        self.caller.msg(
+            "The mask doesn't come off by wishing. If you're in the Inn "
+            "Between, you're already out of character — that's what the "
+            "place is for. If you're past the front door, the only way "
+            "back is through it."
+        )
+
+
+class CmdICOverride(Command):
+    """
+    Blocked: the front door is the only way into character.
+
+    Usage:
+        ic
+
+    See CmdOOCOverride: the door is the only threshold.
+    """
+
+    key = "ic"
+    help_category = "Village"
+
+    def func(self):
+        self.caller.msg(
+            "You're already wearing whatever face this side of the door "
+            "gives you. The front door of the Inn Between is the only "
+            "threshold — step through it to change masks."
+        )

@@ -1,0 +1,2932 @@
+[
+ {
+  "novel": "adventures-sherlock-holmes",
+  "idioms": [
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 28,
+    "example": "The facts are briefly these: Some five years ago, during a lengthy visit to Warsaw, I made the acquaintance of the well-known adventuress, Irene Adler"
+   },
+   {
+    "pattern": "\\btell me\\b",
+    "count": 20,
+    "example": "Indeed, I should have thought a little more. Just a trifle more, I fancy, Watson. And in practice again, I observe. You did not tell me that you inten"
+   },
+   {
+    "pattern": "\\bafter all\\b",
+    "count": 11,
+    "example": "I thought at first that you had done something clever, but I see that there was nothing in it after all."
+   },
+   {
+    "pattern": "\\bI say\\b",
+    "count": 10,
+    "example": "Very well. And, I say, Doctor, there may be some little danger, so kindly put your army revolver in your pocket."
+   },
+   {
+    "pattern": "\\bat last\\b",
+    "count": 7,
+    "example": "for it made me angry to see the easy way in which Mr. Windibank\u2014that is, my father\u2014took it all. He would not go to the police, and he would not go to "
+   },
+   {
+    "pattern": "\\bwhat a\\b",
+    "count": 6,
+    "example": "It is true. And yet\u2014! Well! I wish she had been of my own station! What a queen she would have made!"
+   },
+   {
+    "pattern": "\\bcome in\\b",
+    "count": 5,
+    "example": "Come in!"
+   },
+   {
+    "pattern": "\\bby no means\\b",
+    "count": 4,
+    "example": "Besides, we may chance to hit upon some other obvious facts which may have been by no means obvious to Mr. Lestrade. You know me too well to think tha"
+   },
+   {
+    "pattern": "\\bmy word\\b",
+    "count": 3,
+    "example": "But I would not have let the young man come to harm. I give you my word that I would have spoken out if it went against him at the Assizes."
+   },
+   {
+    "pattern": "\\blook here\\b",
+    "count": 2,
+    "example": "Look here, Watson,"
+   },
+   {
+    "pattern": "\\bsee here\\b",
+    "count": 2,
+    "example": "See here, sir! See what my wife found in its crop!"
+   },
+   {
+    "pattern": "\\bI daresay\\b",
+    "count": 2,
+    "example": "I daresay that if I had put \u00a3 100 down in front of him, that man would not have given me such complete information as was drawn from him by the idea t"
+   },
+   {
+    "pattern": "\\bI take it\\b",
+    "count": 2,
+    "example": "If so, it is a serious case. Nothing less would bring a man out on such a day and at such an hour. But I take it that it is more likely to be some cro"
+   },
+   {
+    "pattern": "\\bbelieve me\\b",
+    "count": 2,
+    "example": "If I tell her she will not believe me. You may remember the old Persian saying, 'There is danger for him who taketh the tiger cub, and danger also for"
+   },
+   {
+    "pattern": "\\bdepend upon it\\b",
+    "count": 2,
+    "example": "This is wanting in the police report, where more stress is laid, perhaps, upon the platitudes of the magistrate than upon the details, which to an obs"
+   },
+   {
+    "pattern": "\\bgo on\\b",
+    "count": 2,
+    "example": "I daresay that if I had put \u00a3 100 down in front of him, that man would not have given me such complete information as was drawn from him by the idea t"
+   },
+   {
+    "pattern": "\\bbless my\\b",
+    "count": 1,
+    "example": "The case is as plain as a pikestaff, and the more one goes into it the plainer it becomes. Still, of course, one can't refuse a lady, and such a very "
+   },
+   {
+    "pattern": "\\bcome now\\b",
+    "count": 1,
+    "example": "It is obvious. And now, you see, I had narrowed the field down considerably. The possession of a grey garment was a third point which, granting the so"
+   },
+   {
+    "pattern": "\\bnot a word\\b",
+    "count": 1,
+    "example": "Not a word. I have not seen a paper for some days."
+   },
+   {
+    "pattern": "\\bpoor devil\\b",
+    "count": 1,
+    "example": "Ay, bodies, Watson. We should be rich men if we had \u00a3 1000 for every poor devil who has been done to death in that den. It is the vilest murder-trap o"
+   },
+   {
+    "pattern": "\\bfor heaven's sake\\b",
+    "count": 1,
+    "example": "For Heaven's sake, tell me, then, what is this extraordinary mystery!"
+   },
+   {
+    "pattern": "\\bfor pity's sake\\b",
+    "count": 1,
+    "example": "Then, for pity's sake, tell me what was the cause of my sister's death."
+   },
+   {
+    "pattern": "\\bhow dare\\b",
+    "count": 1,
+    "example": "'Arthur!' I screamed, 'you villain! you thief! How dare you touch that coronet?'"
+   },
+   {
+    "pattern": "\\bmy eye\\b",
+    "count": 1,
+    "example": "My eye caught the name of Openshaw, and the heading 'Tragedy Near Waterloo Bridge.' Here is the account:"
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\byes, sir\\b",
+    "count": 13,
+    "example": "Yes, sir. He and a girl of fourteen, who does a bit of simple cooking and keeps the place clean\u2014that's all I have in the house, for I am a widower and"
+   },
+   {
+    "pattern": "\\bno, sir\\b",
+    "count": 6,
+    "example": "No, sir. But I want to find out about them, and who they are, and what their object was in playing this prank\u2014if it was a prank\u2014upon me. It was a pret"
+   },
+   {
+    "pattern": "\\byes, miss\\b",
+    "count": 1,
+    "example": "Yes, miss. Mr. Rucastle let me out when he came back before he went up to you. Ah, miss, it is a pity you didn't let me know what you were planning, f"
+   },
+   {
+    "pattern": "\\bplease, sir\\b",
+    "count": 1,
+    "example": "Well, would you please, sir, march upstairs, where we can get a cab to carry your Highness to the police-station?"
+   },
+   {
+    "pattern": "\\bvery well, sir\\b",
+    "count": 1,
+    "example": "Very well, sir. And this stone?"
+   },
+   {
+    "pattern": "\\bshall I\\b",
+    "count": 1,
+    "example": "What shall I do?"
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 35
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 16
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 7
+   },
+   {
+    "pattern": "\\bhullo\\b",
+    "count": 4
+   },
+   {
+    "pattern": "\\bcheck\\b",
+    "count": 3
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\btelephone\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bfolks\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bweird\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bstuff\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 599,
+   "it": 239,
+   "you": 220,
+   "and": 167,
+   "but": 150,
+   "'": 150,
+   "the": 127,
+   "he": 105,
+   "that": 89,
+   "what": 85,
+   "there": 81,
+   "well": 72,
+   "then": 70,
+   "oh": 67,
+   "yes": 65
+  }
+ },
+ {
+  "novel": "bleak-house",
+  "idioms": [
+   {
+    "pattern": "\\bI say\\b",
+    "count": 46,
+    "example": "I say I am afraid,"
+   },
+   {
+    "pattern": "\\bwhat a\\b",
+    "count": 37,
+    "example": "What a strange house!"
+   },
+   {
+    "pattern": "\\btell me\\b",
+    "count": 34,
+    "example": "Oh, dear godmother, tell me, pray do tell me, did Mama die on my birthday?"
+   },
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 28,
+    "example": "Aunt in fact, though not in law. Don't distress yourself! Don't weep! Don't tremble! Mrs. Rachael, our young friend has no doubt heard of\u2014the\u2014a\u2014Jarndy"
+   },
+   {
+    "pattern": "\\bgo on\\b",
+    "count": 27,
+    "example": "Anything to vary this detestable monotony. Oh, go on, do!"
+   },
+   {
+    "pattern": "\\bI dare say\\b",
+    "count": 26,
+    "example": "we thought it well that you should be in attendance also. You will not be discomposed by the Lord Chancellor, I dare say?"
+   },
+   {
+    "pattern": "\\bcome in\\b",
+    "count": 21,
+    "example": "May I come in?"
+   },
+   {
+    "pattern": "\\bto be sure\\b",
+    "count": 16,
+    "example": "To be sure, to be sure!"
+   },
+   {
+    "pattern": "\\bafter all\\b",
+    "count": 13,
+    "example": "there is something so tender in his manner, after all, and he is so very courtly and gentle to us, and\u2014"
+   },
+   {
+    "pattern": "\\bat last\\b",
+    "count": 13,
+    "example": "Oh, do pray tell me something of her. Do now, at last, dear godmother, if you please! What did I do to her? How did I lose her? Why am I so different "
+   },
+   {
+    "pattern": "\\bmind you\\b",
+    "count": 8,
+    "example": "Mind you do it thoroughly, and don't loiter. Shirking won't do for me. Make haste! Go along!"
+   },
+   {
+    "pattern": "\\bhear me\\b",
+    "count": 8,
+    "example": "as long as you won't hear me out\u2014"
+   },
+   {
+    "pattern": "\\bcome, come\\b",
+    "count": 7,
+    "example": "are not quite of one mind. Come, come, Rick, put a brighter face upon it!"
+   },
+   {
+    "pattern": "\\blook here\\b",
+    "count": 7,
+    "example": "Look here!"
+   },
+   {
+    "pattern": "\\bsay nothing\\b",
+    "count": 7,
+    "example": "Better to say nothing of the sort, Rick, because I don't mean it."
+   },
+   {
+    "pattern": "\\bwith all my heart\\b",
+    "count": 6,
+    "example": "With all my heart I do! With all my whole heart, Esther!"
+   },
+   {
+    "pattern": "\\bbelieve me\\b",
+    "count": 6,
+    "example": "\u2014once more, pray, pray forgive me; I am deeply grieved\u2014to accept my dearest cousin's offer is, I need not say, impossible. Besides, I have letters and"
+   },
+   {
+    "pattern": "\\bmy word\\b",
+    "count": 6,
+    "example": "How do you do, all of you? I am here again. I told you, you couldn't tire me, you know. I am fond of hard work, and am true to my word."
+   },
+   {
+    "pattern": "\\bsee here\\b",
+    "count": 5,
+    "example": "I told you what would come of it when I ceased to be so, and see here! Look at us\u2014look at us!"
+   },
+   {
+    "pattern": "\\bI take it\\b",
+    "count": 5,
+    "example": "It's easy, easy. Why not? I hear of a good little orphan girl without a protector, and I take it into my head to be that protector. She grows up, and "
+   },
+   {
+    "pattern": "\\bpoor soul\\b",
+    "count": 4,
+    "example": "Some neighbouring bells, reminding the poor soul that it was half-past nine, did more for us in the way of bringing our visit to an end than we could "
+   },
+   {
+    "pattern": "\\bupon my honour\\b",
+    "count": 4,
+    "example": "Upon my honour!"
+   },
+   {
+    "pattern": "\\bhear me out\\b",
+    "count": 4,
+    "example": "as long as you won't hear me out\u2014"
+   },
+   {
+    "pattern": "\\bbless my\\b",
+    "count": 3,
+    "example": "Bless my soul, sir! Mr. Tulkinghorn!"
+   },
+   {
+    "pattern": "\\bby the by\\b",
+    "count": 3,
+    "example": "By the by, Tony, don't forget old Smallweed,"
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\bshall I\\b",
+    "count": 28,
+    "example": "\u2014that Mrs. Rachael should charge herself with your maintenance and support (I beg you won't distress yourself), you are in a position to receive the r"
+   },
+   {
+    "pattern": "\\byes, sir\\b",
+    "count": 20,
+    "example": "Yes, sir,"
+   },
+   {
+    "pattern": "\\bbeg your pardon\\b",
+    "count": 19,
+    "example": "I beg your pardon, miss!"
+   },
+   {
+    "pattern": "\\bno, sir\\b",
+    "count": 18,
+    "example": "No, sir,"
+   },
+   {
+    "pattern": "\\byes, miss\\b",
+    "count": 8,
+    "example": "Yes, miss, my master. Jenny's asleep, quite worn out. She's scarcely had the child off her lap, poor thing, these seven days and nights, except when I"
+   },
+   {
+    "pattern": "\\bno, miss\\b",
+    "count": 6,
+    "example": "Oh, dear no, miss,"
+   },
+   {
+    "pattern": "\\bplease, sir\\b",
+    "count": 4,
+    "example": "If you please, sir,"
+   },
+   {
+    "pattern": "\\bif you please, sir\\b",
+    "count": 3,
+    "example": "If you please, sir,"
+   },
+   {
+    "pattern": "\\bas you please\\b",
+    "count": 3,
+    "example": "as many moments as you please. Time is no object here. We never know what o'clock it is, and we never care. Not the way to get on in life, you'll tell"
+   },
+   {
+    "pattern": "\\byes, ma'?am\\b",
+    "count": 2,
+    "example": "Yes, ma'am. I recollect him."
+   },
+   {
+    "pattern": "\\bno, ma'?am\\b",
+    "count": 1,
+    "example": "No, ma'am, Esther Summerson."
+   },
+   {
+    "pattern": "\\bno, my lord\\b",
+    "count": 1,
+    "example": "No, my lord."
+   },
+   {
+    "pattern": "\\bif you please, ma'?am\\b",
+    "count": 1,
+    "example": "If you please, ma'am, you had better tell then,"
+   },
+   {
+    "pattern": "\\bplease, ma'?am\\b",
+    "count": 1,
+    "example": "If you please, ma'am, you had better tell then,"
+   },
+   {
+    "pattern": "\\bbegging your pardon\\b",
+    "count": 1,
+    "example": "Begging your pardon for interrupting you a moment?"
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 260
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 68
+   },
+   {
+    "pattern": "\\bain't\\b",
+    "count": 52
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 52
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 26
+   },
+   {
+    "pattern": "\\bhi\\b(?![a-z])",
+    "count": 16
+   },
+   {
+    "pattern": "\\bstuff\\b",
+    "count": 10
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 8
+   },
+   {
+    "pattern": "\\bcheck\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bweird\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bguy\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bkid\\b(?!\\s*glove)",
+    "count": 1
+   },
+   {
+    "pattern": "\\bfolks\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\banyway\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\blike\\b.{0,8}\\byou know\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 1633,
+   "you": 596,
+   "and": 538,
+   "but": 374,
+   "it": 312,
+   "he": 308,
+   "my": 300,
+   "the": 234,
+   "if": 217,
+   "what": 203,
+   "oh": 202,
+   "now": 194,
+   "that": 188,
+   "why": 185,
+   "no": 180
+  }
+ },
+ {
+  "novel": "carmilla",
+  "idioms": [
+   {
+    "pattern": "\\bI dare say\\b",
+    "count": 5,
+    "example": "Not till autumn. Not for two months, I dare say,"
+   },
+   {
+    "pattern": "\\btell me\\b",
+    "count": 5,
+    "example": "Tell me nothing about ghosts. I shan't sleep tonight if you do."
+   },
+   {
+    "pattern": "\\bwhat a\\b",
+    "count": 2,
+    "example": "Besides, how can you tell that your religion and mine are the same; your forms wound me, and I hate funerals. What a fuss! Why you must die\u2014_everyone_"
+   },
+   {
+    "pattern": "\\bsee here\\b",
+    "count": 1,
+    "example": "See here, my lady,"
+   },
+   {
+    "pattern": "\\bI say\\b",
+    "count": 1,
+    "example": "Shall I say a word to Madame?"
+   },
+   {
+    "pattern": "\\bpoor thing\\b",
+    "count": 1,
+    "example": "Yes, poor thing! when I saw her last she certainly was quite lovely,"
+   },
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 1,
+    "example": "She laughed, and she would, no doubt, have met me with another evasion\u2014if, indeed, I can treat any occurrence in an interview every circumstance of wh"
+   },
+   {
+    "pattern": "\\bI daresay\\b",
+    "count": 1,
+    "example": "I daresay; but Martin chooses to be frightened, and never did I see fool more frightened."
+   },
+   {
+    "pattern": "\\bbelieve me\\b",
+    "count": 1,
+    "example": "but you would not believe me."
+   },
+   {
+    "pattern": "\\bafter all\\b",
+    "count": 1,
+    "example": "I'm sure he is. I know how kind you all are; but, dear child, I am quite well again. There is nothing ever wrong with me, but a little weakness. Peopl"
+   },
+   {
+    "pattern": "\\bat last\\b",
+    "count": 1,
+    "example": "Baron, how can I thank you? How can we all thank you? You will have delivered this region from a plague that has scourged its inhabitants for more tha"
+   },
+   {
+    "pattern": "\\bmind your\\b",
+    "count": 1,
+    "example": "You won't mind your papa's lowering your dress a very little. It is necessary, to detect a symptom of the complaint under which you have been sufferin"
+   },
+   {
+    "pattern": "\\bcome in\\b",
+    "count": 1,
+    "example": "I almost shiver; have I been dreaming? Let us come in. Come; come; come in."
+   },
+   {
+    "pattern": "\\blisten to me\\b",
+    "count": 1,
+    "example": "Well, listen to me,"
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\bshall I\\b",
+    "count": 3,
+    "example": "If you were less pretty I think I should be very much afraid of you, but being as you are, and you and I both so young, I feel only that I have made y"
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 6
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 5
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bguy\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bain't\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bweird\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 93,
+   "you": 26,
+   "it": 24,
+   "the": 23,
+   "and": 20,
+   "she": 20,
+   "how": 17,
+   "but": 16,
+   "we": 13,
+   "'": 12,
+   "he": 10,
+   "what": 9,
+   "that": 9,
+   "my": 8,
+   "there": 8
+  }
+ },
+ {
+  "novel": "dorian-gray",
+  "idioms": [
+   {
+    "pattern": "\\btell me\\b",
+    "count": 23,
+    "example": "My dear fellow, she tried to found a _salon_, and only succeeded in opening a restaurant. How could I admire her? But tell me, what did she say about "
+   },
+   {
+    "pattern": "\\bwhat a\\b",
+    "count": 10,
+    "example": "This is Lord Henry Wotton, Dorian, an old Oxford friend of mine. I have just been telling him what a capital sitter you were, and now you have spoiled"
+   },
+   {
+    "pattern": "\\bI dare say\\b",
+    "count": 6,
+    "example": "Oh, I can't explain. When I like people immensely, I never tell their names to any one. It is like surrendering a part of them. I have grown to love s"
+   },
+   {
+    "pattern": "\\bcome in\\b",
+    "count": 5,
+    "example": "Do come in. The light is quite perfect, and you can bring your drinks."
+   },
+   {
+    "pattern": "\\bmy word\\b",
+    "count": 4,
+    "example": "Upon my word, Dorian, Miss Sibyl knows how to pay compliments."
+   },
+   {
+    "pattern": "\\bmind you\\b",
+    "count": 3,
+    "example": "so mind you come"
+   },
+   {
+    "pattern": "\\bbelieve me\\b",
+    "count": 3,
+    "example": "but I could not help it. I must go now. Good-bye. Don't forget that you will have only one child now to look after, and believe me that if this man wr"
+   },
+   {
+    "pattern": "\\bafter all\\b",
+    "count": 3,
+    "example": "Perhaps, after all, America never has been discovered,"
+   },
+   {
+    "pattern": "\\bgo on\\b",
+    "count": 3,
+    "example": "My dear boy, the people who love only once in their lives are really the shallow people. What they call their loyalty, and their fidelity, I call eith"
+   },
+   {
+    "pattern": "\\bas sure as\\b",
+    "count": 2,
+    "example": "I wish I had, for as sure as there is a God in heaven, if he ever does you any wrong, I shall kill him."
+   },
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 2,
+    "example": "You are speaking about things you don't understand, James. In the profession we are accustomed to receive a great deal of most gratifying attention. I"
+   },
+   {
+    "pattern": "\\bat last\\b",
+    "count": 2,
+    "example": "I am glad you appreciate my work at last, Dorian,"
+   },
+   {
+    "pattern": "\\bhow dare\\b",
+    "count": 2,
+    "example": "Dead! Sibyl dead! It is not true! It is a horrible lie! How dare you say it?"
+   },
+   {
+    "pattern": "\\bI say\\b",
+    "count": 1,
+    "example": "But you are quite right. I have chosen my own life. All I say is, watch over Sibyl. Don't let her come to any harm. Mother, you must watch over her."
+   },
+   {
+    "pattern": "\\bword of honour\\b",
+    "count": 1,
+    "example": "If you try to look at it, Basil, on my word of honour I will never speak to you again as long as I live. I am quite serious. I don't offer any explana"
+   },
+   {
+    "pattern": "\\bof course not\\b",
+    "count": 1,
+    "example": "No, of course not,"
+   },
+   {
+    "pattern": "\\bsurely not\\b",
+    "count": 1,
+    "example": "Too strong! Surely not, my dear fellow? It is an admirable place for it. Let me see it."
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\bshall I\\b",
+    "count": 4,
+    "example": "Yes, I am glad now. I wonder shall I always be glad?"
+   },
+   {
+    "pattern": "\\bno, sir\\b",
+    "count": 3,
+    "example": "No, sir, except that he would write to you from Paris, if he did not find you at the club."
+   },
+   {
+    "pattern": "\\byes, sir\\b",
+    "count": 2,
+    "example": "Yes, sir,"
+   },
+   {
+    "pattern": "\\bbeg your pardon\\b",
+    "count": 1,
+    "example": "I beg your pardon. I thought\u2014"
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 30
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 19
+   },
+   {
+    "pattern": "\\bain't\\b",
+    "count": 5
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 5
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 4
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 4
+   },
+   {
+    "pattern": "\\bstuff\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bkids\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 614,
+   "you": 266,
+   "it": 173,
+   "but": 110,
+   "he": 90,
+   "what": 83,
+   "the": 76,
+   "and": 72,
+   "don't": 52,
+   "my": 51,
+   "that": 51,
+   "she": 51,
+   "they": 45,
+   "there": 43,
+   "how": 41
+  }
+ },
+ {
+  "novel": "dracula",
+  "idioms": [
+   {
+    "pattern": "\\btell me\\b",
+    "count": 21,
+    "example": "Because your peasant is at heart a coward and a fool! Those flames only appear on one night; and on that night no man of this land will, if he can hel"
+   },
+   {
+    "pattern": "\\bgo on\\b",
+    "count": 14,
+    "example": "That is why, I suppose, you wished him to go on to Bukovina. You cannot deceive me, my friend; I know too much, and my horses are swift."
+   },
+   {
+    "pattern": "\\bcome in\\b",
+    "count": 10,
+    "example": "I am Dracula; and I bid you welcome, Mr. Harker, to my house. Come in; the night air is chill, and you must need to eat and rest."
+   },
+   {
+    "pattern": "\\bbelieve me\\b",
+    "count": 8,
+    "example": "Believe me,"
+   },
+   {
+    "pattern": "\\bI say\\b",
+    "count": 5,
+    "example": "Well, my dear, what could I say? I could only tell him that I was the happiest woman in all the wide world, and that I had nothing to give him except "
+   },
+   {
+    "pattern": "\\bafter all\\b",
+    "count": 4,
+    "example": "There is no carriage here. The Herr is not expected after all. He will now come on to Bukovina, and return to-morrow or the next day; better the next "
+   },
+   {
+    "pattern": "\\bdoubtless\\b",
+    "count": 3,
+    "example": "I pray you, my good young friend, that you will not discourse of things other than business in your letters. It will doubtless please your friends to "
+   },
+   {
+    "pattern": "\\bI take it\\b",
+    "count": 3,
+    "example": "I take it that both you and Van Helsing had done already what I did to-day. Is not that so?"
+   },
+   {
+    "pattern": "\\bcome now\\b",
+    "count": 2,
+    "example": "In the not-so-far-off you will be happy that you have done all for her you love. Come now and be silent. You shall kiss her once before it is done, bu"
+   },
+   {
+    "pattern": "\\blook here\\b",
+    "count": 2,
+    "example": "Look here, sir,"
+   },
+   {
+    "pattern": "\\bpoor soul\\b",
+    "count": 2,
+    "example": "I can do this, all that can be at the present. You go wake those maids. Flick them in the face with a wet towel, and flick them hard. Make them get he"
+   },
+   {
+    "pattern": "\\bin the end\\b",
+    "count": 2,
+    "example": "We must trace each of these boxes; and when we are ready, we must either capture or kill this monster in his lair; or we must, so to speak, sterilise "
+   },
+   {
+    "pattern": "\\bat last\\b",
+    "count": 2,
+    "example": "Ah, well, poor girl, there is peace for her at last. It is the end!"
+   },
+   {
+    "pattern": "\\bcome along\\b",
+    "count": 2,
+    "example": "There, I knew the poor old chap would get into some kind of trouble; didn't I say it all along? Here's his head all cut and full of broken glass. 'E's"
+   },
+   {
+    "pattern": "\\bmind you\\b",
+    "count": 1,
+    "example": "'Ittin' of them over the 'ead with a pole is one way; scratchin' of their hears is another, when gents as is flush wants a bit of a show-orf to their "
+   },
+   {
+    "pattern": "\\bfor all the world\\b",
+    "count": 1,
+    "example": "No! no! no! For all the world, I wouldn't let you know that terrible story!"
+   },
+   {
+    "pattern": "\\bnot a word\\b",
+    "count": 1,
+    "example": "Not a word more would he say, but sat in his implacable sullenness as indifferent to me as though I had not been in the room at all. Thus departed for"
+   },
+   {
+    "pattern": "\\bsay nothing\\b",
+    "count": 1,
+    "example": "All the men, even Jonathan, seemed relieved; but it did not seem to me good that they should brave danger and, perhaps, lessen their safety--strength "
+   },
+   {
+    "pattern": "\\bpoor devil\\b",
+    "count": 1,
+    "example": "My God! what has happened to him? Poor, poor devil!"
+   },
+   {
+    "pattern": "\\bpoor thing\\b",
+    "count": 1,
+    "example": "What have we done, what has this poor thing done, that we are so sore beset? Is there fate amongst us still, sent down from the pagan world of old, th"
+   },
+   {
+    "pattern": "\\bwith all my heart\\b",
+    "count": 1,
+    "example": "I agree with you with all my heart,"
+   },
+   {
+    "pattern": "\\bupon my honour\\b",
+    "count": 1,
+    "example": "That's quite true, upon my honour. Honest Indian!"
+   },
+   {
+    "pattern": "\\bword of honour\\b",
+    "count": 1,
+    "example": "Jonathan, I want you to promise me something on your word of honour. A promise made to me, but made holily in God's hearing, and not to be broken thou"
+   },
+   {
+    "pattern": "\\bI daresay\\b",
+    "count": 1,
+    "example": "My poor little feet didn't make much noise then! I daresay poor old Mr. Swales would have told me that it was because I didn't want to wake up Geordie"
+   },
+   {
+    "pattern": "\\bshame upon\\b",
+    "count": 1,
+    "example": "Unclean! Unclean! Even the Almighty shuns my polluted flesh! I must bear this mark of shame upon my forehead until the Judgment Day."
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\bshall I\\b",
+    "count": 4,
+    "example": "What shall I do?"
+   },
+   {
+    "pattern": "\\bno, sir\\b",
+    "count": 1,
+    "example": "No, sir. But ye needn't have no difficulty about that. It's a 'igh 'un with a stone front with a bow on it, an' 'igh steps up to the door. I know them"
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 45
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 27
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 17
+   },
+   {
+    "pattern": "\\bain't\\b",
+    "count": 12
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 6
+   },
+   {
+    "pattern": "\\bcandy\\b",
+    "count": 5
+   },
+   {
+    "pattern": "\\bcheck\\b",
+    "count": 4
+   },
+   {
+    "pattern": "\\bweird\\b",
+    "count": 4
+   },
+   {
+    "pattern": "\\bfolks\\b",
+    "count": 3
+   },
+   {
+    "pattern": "\\bstuff\\b",
+    "count": 3
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 3
+   }
+  ],
+  "top_openers": {
+   "i": 348,
+   "you": 129,
+   "it": 90,
+   "the": 89,
+   "he": 79,
+   "but": 79,
+   "and": 73,
+   "we": 67,
+   "there": 47,
+   "what": 46,
+   "oh": 44,
+   "my": 40,
+   "then": 38,
+   "if": 37,
+   "come": 31
+  }
+ },
+ {
+  "novel": "frankenstein",
+  "idioms": [
+   {
+    "pattern": "\\bdoubtless\\b",
+    "count": 3,
+    "example": "I have, doubtless, excited your curiosity, as well as that of these good people; but you are too considerate to make inquiries."
+   },
+   {
+    "pattern": "\\btell me\\b",
+    "count": 3,
+    "example": "It gives me the greatest delight to see you; but tell me how you left my father, brothers, and Elizabeth."
+   },
+   {
+    "pattern": "\\bwhat a\\b",
+    "count": 2,
+    "example": "What a noble fellow!"
+   },
+   {
+    "pattern": "\\bby the by\\b",
+    "count": 1,
+    "example": "Very well, and very happy, only a little uneasy that they hear from you so seldom. By the by, I mean to lecture you a little upon their account myself"
+   },
+   {
+    "pattern": "\\bheaven forbid\\b",
+    "count": 1,
+    "example": "'Heaven forbid! Even if you were really criminal, for that can only drive you to desperation, and not instigate you to virtue. I also am unfortunate; "
+   },
+   {
+    "pattern": "\\bhow dare\\b",
+    "count": 1,
+    "example": "All men hate the wretched; how, then, must I be hated, who am miserable beyond all living things! Yet you, my creator, detest and spurn me, thy creatu"
+   },
+   {
+    "pattern": "\\bcome in\\b",
+    "count": 1,
+    "example": "I knocked. 'Who is there?' said the old man. 'Come in.'"
+   },
+   {
+    "pattern": "\\blisten to me\\b",
+    "count": 1,
+    "example": "Urged by this impulse, I seized on the boy as he passed and drew him towards me. As soon as he beheld my form, he placed his hands before his eyes and"
+   },
+   {
+    "pattern": "\\bhear me\\b",
+    "count": 1,
+    "example": "Unhappy man! Do you share my madness? Have you drunk also of the intoxicating draught? Hear me; let me reveal my tale, and you will dash the cup from "
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\bshall I\\b",
+    "count": 3,
+    "example": "how kind, how very good you are to me. This whole winter, instead of being spent in study, as you promised yourself, has been consumed in my sick room"
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 4
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bkid\\b(?!\\s*glove)",
+    "count": 1
+   },
+   {
+    "pattern": "\\bcheck\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bfolks\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bstuff\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 123,
+   "my": 35,
+   "you": 33,
+   "the": 31,
+   "but": 27,
+   "how": 22,
+   "he": 21,
+   "'": 20,
+   "do": 14,
+   "it": 14,
+   "this": 13,
+   "and": 12,
+   "what": 11,
+   "oh": 10,
+   "if": 9
+  }
+ },
+ {
+  "novel": "great-expectations",
+  "idioms": [
+   {
+    "pattern": "\\btell me\\b",
+    "count": 25,
+    "example": "Tell me directly what you've been doing to wear me away with fret and fright and worrit, or I'd have you out of that corner if you was fifty Pips, and"
+   },
+   {
+    "pattern": "\\bI say\\b",
+    "count": 19,
+    "example": "I say, you know!"
+   },
+   {
+    "pattern": "\\bwhat a\\b",
+    "count": 14,
+    "example": "the question being whether you're to be let to live. You know what a file is?"
+   },
+   {
+    "pattern": "\\bcome in\\b",
+    "count": 12,
+    "example": "come in, Pip."
+   },
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 11,
+    "example": "No doubt, no doubt. Do you find any gypsies, now, or tramps, or vagrants of any sort, out there?"
+   },
+   {
+    "pattern": "\\bgo on\\b",
+    "count": 10,
+    "example": "but wait a bit. Go on, Joseph. Good in you! Go on!"
+   },
+   {
+    "pattern": "\\bat last\\b",
+    "count": 8,
+    "example": "when you _do_ come to a J and a O, and says you, 'Here, at last, is a J-O, Joe,' how interesting reading is!"
+   },
+   {
+    "pattern": "\\bto be sure\\b",
+    "count": 7,
+    "example": "Well to be sure!"
+   },
+   {
+    "pattern": "\\bI dare say\\b",
+    "count": 7,
+    "example": "I address the rest of what I have to say, to you. You are to understand, first, that it is the request of the person from whom I take my instructions "
+   },
+   {
+    "pattern": "\\blook here\\b",
+    "count": 5,
+    "example": "and on Sundays I run up a real flag. Then look here. After I have crossed this bridge, I hoist it up\u2014so\u2014and cut off the communication."
+   },
+   {
+    "pattern": "\\bhear me\\b",
+    "count": 5,
+    "example": "Hear me out,\u2014but if I were to remove Joe into a higher sphere, as I shall hope to remove him when I fully come into my property, they would hardly do "
+   },
+   {
+    "pattern": "\\bmind you\\b",
+    "count": 4,
+    "example": "Though mind you, Pip,"
+   },
+   {
+    "pattern": "\\bafter all\\b",
+    "count": 4,
+    "example": "I'll redeem it at once. Let me introduce the topic, Handel, by mentioning that in London it is not the custom to put the knife in the mouth,\u2014for fear "
+   },
+   {
+    "pattern": "\\bhow dare\\b",
+    "count": 4,
+    "example": "that if you ever presumed to talk in that way here, I'd make an example of you. You infernal scoundrel, how dare you tell ME that?"
+   },
+   {
+    "pattern": "\\bby the by\\b",
+    "count": 3,
+    "example": "all of it. I come in behind yourself. I didn't see you, but I must have been pretty close behind you. By the by, the guns is going again."
+   },
+   {
+    "pattern": "\\bcome, come\\b",
+    "count": 3,
+    "example": "Come, come, come! Walk me, walk me!"
+   },
+   {
+    "pattern": "\\bbelieve me\\b",
+    "count": 3,
+    "example": "if you will believe me, those very words were on my lips, by a strange coincidence."
+   },
+   {
+    "pattern": "\\bbless my\\b",
+    "count": 2,
+    "example": "Lord bless my soul!"
+   },
+   {
+    "pattern": "\\bsay nothing\\b",
+    "count": 2,
+    "example": "You say nothing of her,"
+   },
+   {
+    "pattern": "\\bpoor soul\\b",
+    "count": 2,
+    "example": "my own self. I made it in a moment. It was like striking out a horseshoe complete, in a single blow. I never was so much surprised in all my life,\u2014cou"
+   },
+   {
+    "pattern": "\\bpoor thing\\b",
+    "count": 2,
+    "example": "Poor dear soul! Certainly not to be expected to look well, poor thing. The idea!"
+   },
+   {
+    "pattern": "\\bI venture\\b",
+    "count": 2,
+    "example": "don't hurt me by mentioning that. May I venture to congratulate you? Would you do me the favour of stepping into the shop?"
+   },
+   {
+    "pattern": "\\byou may depend\\b",
+    "count": 2,
+    "example": "and that is, that you have felt you could give me your confidence, Pip. And I am glad of another thing, and that is, that of course you know you may d"
+   },
+   {
+    "pattern": "\\bnever you mind\\b",
+    "count": 1,
+    "example": "Never you mind,"
+   },
+   {
+    "pattern": "\\bcome now\\b",
+    "count": 1,
+    "example": "Come now and then; come on your birthday.\u2014Ay!"
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\byes, sir\\b",
+    "count": 11,
+    "example": "Yes, sir,"
+   },
+   {
+    "pattern": "\\bshall I\\b",
+    "count": 7,
+    "example": "When shall I have you here again?"
+   },
+   {
+    "pattern": "\\byes, ma'?am\\b",
+    "count": 6,
+    "example": "Yes, ma'am."
+   },
+   {
+    "pattern": "\\byes, miss\\b",
+    "count": 5,
+    "example": "Yes, Miss Havisham."
+   },
+   {
+    "pattern": "\\bno, sir\\b",
+    "count": 3,
+    "example": "No, sir! No!"
+   },
+   {
+    "pattern": "\\byoung master\\b",
+    "count": 3,
+    "example": "Ah, young master, there's more changes than yours. But come in, come in. It's opposed to my orders to hold the gate open."
+   },
+   {
+    "pattern": "\\bif you please, sir\\b",
+    "count": 2,
+    "example": "If you please, sir, I should wish to speak to you."
+   },
+   {
+    "pattern": "\\bplease, sir\\b",
+    "count": 2,
+    "example": "If you please, sir, I should wish to speak to you."
+   },
+   {
+    "pattern": "\\bbeg your pardon\\b",
+    "count": 2,
+    "example": "I beg your pardon, Mr. Jaggers."
+   },
+   {
+    "pattern": "\\bvery good, sir\\b",
+    "count": 2,
+    "example": "Very good, sir."
+   },
+   {
+    "pattern": "\\bno, ma'?am\\b",
+    "count": 1,
+    "example": "No, ma'am, I am very sorry for you, and very sorry I can't play just now. If you complain of me I shall get into trouble with my sister, so I would do"
+   },
+   {
+    "pattern": "\\bno, miss\\b",
+    "count": 1,
+    "example": "No, Miss Havisham."
+   },
+   {
+    "pattern": "\\bbegging your pardon\\b",
+    "count": 1,
+    "example": "Begging your pardon, ma'am,"
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 105
+   },
+   {
+    "pattern": "\\bain't\\b",
+    "count": 56
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 19
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 16
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 10
+   },
+   {
+    "pattern": "\\bcheck\\b",
+    "count": 9
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 9
+   },
+   {
+    "pattern": "\\bweird\\b",
+    "count": 4
+   },
+   {
+    "pattern": "\\bstuff\\b",
+    "count": 4
+   },
+   {
+    "pattern": "\\bfolks\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\blike\\b.{0,8}\\byou know\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 649,
+   "and": 305,
+   "you": 270,
+   "but": 152,
+   "what": 136,
+   "it": 97,
+   "he": 93,
+   "if": 90,
+   "yes": 83,
+   "now": 80,
+   "that": 77,
+   "the": 76,
+   "pip": 71,
+   "no": 71,
+   "is": 67
+  }
+ },
+ {
+  "novel": "great-god-pan",
+  "idioms": [
+   {
+    "pattern": "\\bafter all\\b",
+    "count": 3,
+    "example": "Are you perfectly sure, Raymond, that your theory is not a phantasmagoria\u2014a splendid vision, certainly, but a mere vision after all?"
+   },
+   {
+    "pattern": "\\btell me\\b",
+    "count": 3,
+    "example": "He begged of me in the street one night. He was in the most pitiable plight, but I recognized the man, and I got him to tell me his history, or at lea"
+   },
+   {
+    "pattern": "\\bof course not\\b",
+    "count": 1,
+    "example": "Know who it is? No, of course not."
+   },
+   {
+    "pattern": "\\bto be sure\\b",
+    "count": 1,
+    "example": "Yes, yes, to be sure. The fact is, it's rather a peculiar sort of thing, and I haven't shown it to any one. I wouldn't say anything about it if I were"
+   },
+   {
+    "pattern": "\\bsurely not\\b",
+    "count": 1,
+    "example": "How on earth has it happened, Herbert? I always understood you would succeed to an excellent position in Dorsetshire. Did your father disinherit you? "
+   },
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 1,
+    "example": "Lord Argentine was found dead this morning by his valet under distressing circumstances. It is stated that there can be no doubt that his lordship com"
+   },
+   {
+    "pattern": "\\bat last\\b",
+    "count": 1,
+    "example": "he murmured at last."
+   },
+   {
+    "pattern": "\\bcome in\\b",
+    "count": 1,
+    "example": "Dear me, Villiers, it is very kind of you to look me up; I have not seen you for many months; I should think nearly a year. Come in, come in. And how "
+   },
+   {
+    "pattern": "\\bmy word\\b",
+    "count": 1,
+    "example": "None; absolutely no physical danger whatsoever, I give you my word. You are always timid, Clarke, always; but you know my history. I have devoted myse"
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\bbeg your pardon\\b",
+    "count": 1,
+    "example": "So it is, so it is. I beg your pardon, Villiers, I didn't think I was begging of an old college friend. Good-night."
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 20
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 5
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 72,
+   "you": 31,
+   "he": 23,
+   "it": 23,
+   "yes": 20,
+   "but": 17,
+   "the": 17,
+   "no": 15,
+   "and": 14,
+   "what": 14,
+   "well": 9,
+   "beaumont": 8,
+   "austin": 8,
+   "villiers": 7,
+   "that": 6
+  }
+ },
+ {
+  "novel": "hound-baskervilles",
+  "idioms": [
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 15,
+    "example": "But Dr. Mortimer was no doubt already stopping there?"
+   },
+   {
+    "pattern": "\\btell me\\b",
+    "count": 14,
+    "example": "But, tell me, Watson, what do you make of our visitor's stick? Since we have been so unfortunate as to miss him and have no notion of his errand, this"
+   },
+   {
+    "pattern": "\\bI dare say\\b",
+    "count": 4,
+    "example": "Well, I couldn't be sure of that, but I dare say my fare knew all about it. We pulled up halfway down the street and waited an hour and a half. Then t"
+   },
+   {
+    "pattern": "\\bwhat a\\b",
+    "count": 4,
+    "example": "What a pity! He might throw some light on that which is so dark to us. But as to your own researches, if there is any possible way in which I can be o"
+   },
+   {
+    "pattern": "\\bmy word\\b",
+    "count": 4,
+    "example": "About sending you. It's an ugly business, Watson, an ugly dangerous business, and the more I see of it the less I like it. Yes, my dear fellow, you ma"
+   },
+   {
+    "pattern": "\\bsay nothing\\b",
+    "count": 3,
+    "example": "[This from Hugo Baskerville to his sons Rodger and John, with instructions that they say nothing thereof to their sister Elizabeth.]"
+   },
+   {
+    "pattern": "\\bat last\\b",
+    "count": 3,
+    "example": "A false step yonder means death to man or beast. Only yesterday I saw one of the moor ponies wander into it. He never came out. I saw his head for qui"
+   },
+   {
+    "pattern": "\\bI say\\b",
+    "count": 2,
+    "example": "A woman's whim, Dr. Watson. When you know me better you will understand that I cannot always give reasons for what I say or do."
+   },
+   {
+    "pattern": "\\bnot a word\\b",
+    "count": 2,
+    "example": "Can you not tell when a warning is for your own good? Go back to London! Start tonight! Get away from this place at all costs! Hush, my brother is com"
+   },
+   {
+    "pattern": "\\bafter all\\b",
+    "count": 2,
+    "example": "Come, come, we are not so far wrong, after all,"
+   },
+   {
+    "pattern": "\\bcome, come\\b",
+    "count": 1,
+    "example": "Come, come, we are not so far wrong, after all,"
+   },
+   {
+    "pattern": "\\bcome now\\b",
+    "count": 1,
+    "example": "Well, it was up there. Come now, Watson, didn't you think yourself that it was the cry of a hound? I am not a child. You need not fear to speak the tr"
+   },
+   {
+    "pattern": "\\blook here\\b",
+    "count": 1,
+    "example": "Look here, Barrymore,"
+   },
+   {
+    "pattern": "\\bpoor devil\\b",
+    "count": 1,
+    "example": "Then the clothes have been the poor devil's death,"
+   },
+   {
+    "pattern": "\\bpoor thing\\b",
+    "count": 1,
+    "example": "Yes, sir, but the chance of five pounds is but a poor thing compared to the chance of having your throat cut. You see, it isn't like any ordinary conv"
+   },
+   {
+    "pattern": "\\bby no means\\b",
+    "count": 1,
+    "example": "No, no, my dear Watson, not all\u2014by no means all. I would suggest, for example, that a presentation to a doctor is more likely to come from a hospital "
+   },
+   {
+    "pattern": "\\bfor heaven's sake\\b",
+    "count": 1,
+    "example": "The blinds are up. You know the lie of the land best. Creep forward quietly and see what they are doing\u2014but for heaven's sake don't let them know that"
+   },
+   {
+    "pattern": "\\bwhat business\\b",
+    "count": 1,
+    "example": "What business?"
+   },
+   {
+    "pattern": "\\bcome in\\b",
+    "count": 1,
+    "example": "you must really give your horses a rest and come in to have a glass of wine and to congratulate me."
+   },
+   {
+    "pattern": "\\bspeak out\\b",
+    "count": 1,
+    "example": "Speak out, then! What does it mean?"
+   },
+   {
+    "pattern": "\\bspeak up\\b",
+    "count": 1,
+    "example": "See, the other moves also! Now, you rascal, do you deny that it is a signal? Come, speak up! Who is your confederate out yonder, and what is this cons"
+   },
+   {
+    "pattern": "\\blisten to me\\b",
+    "count": 1,
+    "example": "Now, listen to me, Barrymore! I have no interest in this matter but that of your master. I have come here with no object except to help him. Tell me, "
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\bno, sir\\b",
+    "count": 8,
+    "example": "No, sir, no; though I am happy to have had the opportunity of doing that as well. I came to you, Mr. Holmes, because I recognized that I am myself an "
+   },
+   {
+    "pattern": "\\byes, sir\\b",
+    "count": 7,
+    "example": "Yes, sir."
+   },
+   {
+    "pattern": "\\bbeg your pardon\\b",
+    "count": 1,
+    "example": "and if I have, I am sure that I beg your pardon. At the same time, I was very much surprised when I heard you two gentlemen come back this morning and"
+   },
+   {
+    "pattern": "\\bvery good, sir\\b",
+    "count": 1,
+    "example": "Very good, sir. If I must I must."
+   },
+   {
+    "pattern": "\\bat once, sir\\b",
+    "count": 1,
+    "example": "Would you wish dinner to be served at once, sir?"
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 27
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 7
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 7
+   },
+   {
+    "pattern": "\\bcheck\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bweird\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\blike\\b.{0,8}\\byou know\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bcontact\\b.{0,12}\\b(him|her|them|me)\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 220,
+   "he": 67,
+   "it": 63,
+   "you": 63,
+   "the": 61,
+   "said": 57,
+   "but": 53,
+   "we": 52,
+   "what": 46,
+   "and": 44,
+   "there": 32,
+   "no": 31,
+   "yes": 29,
+   "a": 28,
+   "my": 28
+  }
+ },
+ {
+  "novel": "invisible-man",
+  "idioms": [
+   {
+    "pattern": "\\bcome in\\b",
+    "count": 8,
+    "example": "I wish you wouldn't come in without knocking,"
+   },
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 7,
+    "example": "No doubt you are a bit difficult to see in this light, but I got a warrant and it's all correct. What I'm after ain't no invisibility,\u2014it's burglary. "
+   },
+   {
+    "pattern": "\\bI say\\b",
+    "count": 6,
+    "example": "I say!"
+   },
+   {
+    "pattern": "\\bat last\\b",
+    "count": 5,
+    "example": "I remember walking back to the empty house, through the place that had once been a village and was now patched and tinkered by the jerry builders into"
+   },
+   {
+    "pattern": "\\bgo on\\b",
+    "count": 5,
+    "example": "I can't go on,"
+   },
+   {
+    "pattern": "\\bwhat a\\b",
+    "count": 4,
+    "example": "What a turn them bandages did give me, to be sure!"
+   },
+   {
+    "pattern": "\\btell me\\b",
+    "count": 4,
+    "example": "And before I take any bills or get any breakfasts, or do any such things whatsoever, you got to tell me one or two things I don't understand, and what"
+   },
+   {
+    "pattern": "\\blook here\\b",
+    "count": 3,
+    "example": "Look here, my good woman\u2014"
+   },
+   {
+    "pattern": "\\bafter all\\b",
+    "count": 3,
+    "example": "Yes, the _tapetum_. It didn't go. After I'd given the stuff to bleach the blood and done certain other things to her, I gave the beast opium, and put "
+   },
+   {
+    "pattern": "\\bcome along\\b",
+    "count": 3,
+    "example": "Come along with those boxes,"
+   },
+   {
+    "pattern": "\\bI daresay\\b",
+    "count": 2,
+    "example": "Still, I daresay in my pocket\u2014"
+   },
+   {
+    "pattern": "\\bbelieve me\\b",
+    "count": 2,
+    "example": "I've worn worse\u2014in fact, I've worn none. But none so owdacious ugly\u2014if you'll allow the expression. I've been cadging boots\u2014in particular\u2014for days. Be"
+   },
+   {
+    "pattern": "\\bbless my\\b",
+    "count": 1,
+    "example": "Bless my soul alive!"
+   },
+   {
+    "pattern": "\\bnot a word\\b",
+    "count": 1,
+    "example": "Not a word of it,"
+   },
+   {
+    "pattern": "\\bpoor soul\\b",
+    "count": 1,
+    "example": "The poor soul's had an accident or an op'ration or somethin',"
+   },
+   {
+    "pattern": "\\bon my honour\\b",
+    "count": 1,
+    "example": "On my honour,"
+   },
+   {
+    "pattern": "\\bto be sure\\b",
+    "count": 1,
+    "example": "What a turn them bandages did give me, to be sure!"
+   },
+   {
+    "pattern": "\\bmind your\\b",
+    "count": 1,
+    "example": "You mind your own business, Hall,"
+   },
+   {
+    "pattern": "\\blisten to me\\b",
+    "count": 1,
+    "example": "Listen to me."
+   },
+   {
+    "pattern": "\\bmy word\\b",
+    "count": 1,
+    "example": "I thought I gave you my word,"
+   },
+   {
+    "pattern": "\\bmy eye\\b",
+    "count": 1,
+    "example": "I wish you'd keep your fingers out of my eye,"
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\bshall I\\b",
+    "count": 2,
+    "example": "_Please_ don't open the door. _Where_ shall I hide?"
+   },
+   {
+    "pattern": "\\bvery well, sir\\b",
+    "count": 1,
+    "example": "Very well, sir,"
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\bain't\\b",
+    "count": 19
+   },
+   {
+    "pattern": "\\byou know\\b",
+    "count": 13
+   },
+   {
+    "pattern": "\\bstuff\\b",
+    "count": 12
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 12
+   },
+   {
+    "pattern": "\\bhullo\\b",
+    "count": 4
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 3
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\btelephone\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bfolks\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\blike\\b.{0,8}\\byou know\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 212,
+   "and": 91,
+   "he": 77,
+   "but": 67,
+   "it's": 62,
+   "you": 51,
+   "the": 50,
+   "what": 37,
+   "he's": 31,
+   "it": 28,
+   "i'm": 28,
+   "if": 26,
+   "'": 23,
+   "that": 21,
+   "don't": 21
+  }
+ },
+ {
+  "novel": "jekyll-hyde",
+  "idioms": [
+   {
+    "pattern": "\\btell me\\b",
+    "count": 4,
+    "example": "Now, take your time, and tell me plainly what you want."
+   },
+   {
+    "pattern": "\\bsay nothing\\b",
+    "count": 3,
+    "example": "Here is another lesson to say nothing,"
+   },
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 2,
+    "example": "you know me: I am a man to be trusted. Make a clean breast of this in confidence; and I make no doubt I can get you out of it."
+   },
+   {
+    "pattern": "\\bwhat a\\b",
+    "count": 2,
+    "example": "must have secrets of his own; black secrets, by the look of him; secrets compared to which poor Jekyll's worst would be like sunshine. Things cannot c"
+   },
+   {
+    "pattern": "\\bby the by\\b",
+    "count": 1,
+    "example": "By the by,"
+   },
+   {
+    "pattern": "\\bsee here\\b",
+    "count": 1,
+    "example": "you come as gently as you can. I want you to hear, and I don't want you to be heard. And see here, sir, if by any chance he was to ask you in, don't g"
+   },
+   {
+    "pattern": "\\bpoor soul\\b",
+    "count": 1,
+    "example": "but I think I begin to see daylight. Your master, Poole, is plainly seized with one of those maladies that both torture and deform the sufferer; hence"
+   },
+   {
+    "pattern": "\\bwith all my heart\\b",
+    "count": 1,
+    "example": "With all my heart,"
+   },
+   {
+    "pattern": "\\bto be sure\\b",
+    "count": 1,
+    "example": "my mind misgives me he is in deep waters! He was wild when he was young; a long while ago to be sure; but in the law of God, there is no statute of li"
+   },
+   {
+    "pattern": "\\bdepend upon it\\b",
+    "count": 1,
+    "example": "You may depend upon it, sir,"
+   },
+   {
+    "pattern": "\\byou may depend\\b",
+    "count": 1,
+    "example": "You may depend upon it, sir,"
+   },
+   {
+    "pattern": "\\bhold your tongue\\b",
+    "count": 1,
+    "example": "Hold your tongue!"
+   },
+   {
+    "pattern": "\\bcome along\\b",
+    "count": 1,
+    "example": "but will you come along with me and see for yourself?"
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\bno, sir\\b",
+    "count": 8,
+    "example": "No, sir: I had a delicacy,"
+   },
+   {
+    "pattern": "\\byes, sir\\b",
+    "count": 3,
+    "example": "Yes, sir, he do indeed,"
+   },
+   {
+    "pattern": "\\bshall I\\b",
+    "count": 2,
+    "example": "Will you wait here by the fire, sir? or shall I give you a light in the dining room?"
+   },
+   {
+    "pattern": "\\bbeg your pardon\\b",
+    "count": 1,
+    "example": "I beg your pardon, Dr. Lanyon,"
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 11
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 5
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bcheck\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bfolks\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bstuff\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 100,
+   "and": 38,
+   "you": 30,
+   "it": 23,
+   "but": 20,
+   "he": 19,
+   "utterson": 17,
+   "this": 15,
+   "well": 14,
+   "what": 14,
+   "if": 13,
+   "there": 12,
+   "hyde": 12,
+   "jekyll": 11,
+   "my": 9
+  }
+ },
+ {
+  "novel": "moreau",
+  "idioms": [
+   {
+    "pattern": "\\bgo on\\b",
+    "count": 6,
+    "example": "I've done some science myself. I did my Biology at University College,\u2014getting out the ovary of the earthworm and the radula of the snail, and all tha"
+   },
+   {
+    "pattern": "\\btell me\\b",
+    "count": 6,
+    "example": "You were just beginning to tell me."
+   },
+   {
+    "pattern": "\\blook here\\b",
+    "count": 3,
+    "example": "Look here, Captain,"
+   },
+   {
+    "pattern": "\\bI say\\b",
+    "count": 3,
+    "example": "I say,"
+   },
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 3,
+    "example": "For my own part, I'm puzzled why the things I have done here have not been done before. Small efforts, of course, have been made,\u2014amputation, tongue-c"
+   },
+   {
+    "pattern": "\\bwhat a\\b",
+    "count": 3,
+    "example": "Is Caplatzi still flourishing? What a shop that was!"
+   },
+   {
+    "pattern": "\\bpoor devil\\b",
+    "count": 2,
+    "example": "Your sailors began to haze the poor devil as soon as he came aboard."
+   },
+   {
+    "pattern": "\\bI daresay\\b",
+    "count": 2,
+    "example": "ten years ago. How jolly it all used to be! But I made a young ass of myself,\u2014played myself out before I was twenty-one. I daresay it's all different "
+   },
+   {
+    "pattern": "\\bat last\\b",
+    "count": 2,
+    "example": "At last that song ended. I saw the Ape-man's face shining with perspiration; and my eyes being now accustomed to the darkness, I saw more distinctly t"
+   },
+   {
+    "pattern": "\\bcome along\\b",
+    "count": 2,
+    "example": "Come along,"
+   },
+   {
+    "pattern": "\\bafter all\\b",
+    "count": 1,
+    "example": "It is all the same to me. After all, it is better to keep your secret. There's nothing gained but a little relief if I respect your confidence. If I d"
+   },
+   {
+    "pattern": "\\blisten to me\\b",
+    "count": 1,
+    "example": "Listen to me for a moment,"
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\bas you please\\b",
+    "count": 1,
+    "example": "as you please."
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 12
+   },
+   {
+    "pattern": "\\bstuff\\b",
+    "count": 8
+   },
+   {
+    "pattern": "\\bhullo\\b",
+    "count": 6
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 5
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 4
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bweird\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 81,
+   "the": 44,
+   "he": 34,
+   "you": 27,
+   "what": 27,
+   "but": 26,
+   "it": 25,
+   "i'm": 20,
+   "we": 20,
+   "that": 17,
+   "none": 17,
+   "they": 15,
+   "it's": 14,
+   "and": 14,
+   "not": 11
+  }
+ },
+ {
+  "novel": "speech-extraction-report",
+  "idioms": [],
+  "servant_speech": [],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 41
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 8
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 6
+   },
+   {
+    "pattern": "\\bain't\\b",
+    "count": 5
+   },
+   {
+    "pattern": "\\bstuff\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bcandy\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\blike\\b.{0,8}\\byou know\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {}
+ },
+ {
+  "novel": "study-in-scarlet",
+  "idioms": [
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 8,
+    "example": "The question now is about h\u00e6moglobin. No doubt you see the significance of this discovery of mine?"
+   },
+   {
+    "pattern": "\\bat last\\b",
+    "count": 3,
+    "example": "It was some time before I found out where my two gentlemen were living; but I inquired and inquired until at last I dropped across them. They were at "
+   },
+   {
+    "pattern": "\\bcome along\\b",
+    "count": 3,
+    "example": "Come along, Doctor,"
+   },
+   {
+    "pattern": "\\bcome in\\b",
+    "count": 3,
+    "example": "Come in,"
+   },
+   {
+    "pattern": "\\bby no means\\b",
+    "count": 2,
+    "example": "By no means."
+   },
+   {
+    "pattern": "\\bmy eye\\b",
+    "count": 2,
+    "example": "I have my eye on a suite in Baker Street,"
+   },
+   {
+    "pattern": "\\bas sure as\\b",
+    "count": 1,
+    "example": "Surely you are not as sure as you pretend to be of all those particulars which you gave."
+   },
+   {
+    "pattern": "\\blook here\\b",
+    "count": 1,
+    "example": "Look here,"
+   },
+   {
+    "pattern": "\\bsee here\\b",
+    "count": 1,
+    "example": "See here!"
+   },
+   {
+    "pattern": "\\bI say\\b",
+    "count": 1,
+    "example": "This aneurism of mine makes me easily tired, and the tussle we had half an hour ago has not mended matters. I'm on the brink of the grave, and I am no"
+   },
+   {
+    "pattern": "\\bpoor devil\\b",
+    "count": 1,
+    "example": "Poor devil!"
+   },
+   {
+    "pattern": "\\bof course not\\b",
+    "count": 1,
+    "example": "No; of course not. I shouldn't care to hear you say you did. He's a likely lad, and he's a Christian, which is more than these folk here, in spite o' "
+   },
+   {
+    "pattern": "\\bdepend upon it\\b",
+    "count": 1,
+    "example": "'Your best way is to make a clean breast of the facts,' I answered. 'Depend upon it, if your son is innocent he will be none the worse.'"
+   },
+   {
+    "pattern": "\\bgo on\\b",
+    "count": 1,
+    "example": "I am one of the hounds and not the wolf; Mr. Gregson or Mr. Lestrade will answer for that. Go on, though. What did you do next?"
+   },
+   {
+    "pattern": "\\btell me\\b",
+    "count": 1,
+    "example": "'You had best tell me all about it now,' I said. 'Half-confidences are worse than none. Besides, you do not know how much we know of it.'"
+   },
+   {
+    "pattern": "\\bmy word\\b",
+    "count": 1,
+    "example": "I suppose he thought we had come to the hotel that he had mentioned, for he got out without another word, and followed me down the garden. I had to wa"
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\bno, sir\\b",
+    "count": 4,
+    "example": "No, sir."
+   },
+   {
+    "pattern": "\\bshall I\\b",
+    "count": 3,
+    "example": "shall I go and order you a cab?"
+   },
+   {
+    "pattern": "\\bbeg your pardon\\b",
+    "count": 1,
+    "example": "I really beg your pardon!"
+   },
+   {
+    "pattern": "\\bat once, sir\\b",
+    "count": 1,
+    "example": "I did it at once, sir,"
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 9
+   },
+   {
+    "pattern": "\\bain't\\b",
+    "count": 8
+   },
+   {
+    "pattern": "\\byou know\\b",
+    "count": 7
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 3
+   },
+   {
+    "pattern": "\\bhullo\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bcheck\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bweird\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bstuff\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 165,
+   "you": 83,
+   "it": 67,
+   "the": 59,
+   "he": 48,
+   "there": 35,
+   "and": 34,
+   "we": 34,
+   "what": 32,
+   "that": 27,
+   "'": 24,
+   "if": 23,
+   "this": 21,
+   "they": 19,
+   "no": 18
+  }
+ },
+ {
+  "novel": "time-machine",
+  "idioms": [
+   {
+    "pattern": "\\bat last\\b",
+    "count": 4,
+    "example": "At last!"
+   },
+   {
+    "pattern": "\\blook here\\b",
+    "count": 2,
+    "example": "Look here,"
+   },
+   {
+    "pattern": "\\bI say\\b",
+    "count": 2,
+    "example": "I say,"
+   },
+   {
+    "pattern": "\\bwhat a\\b",
+    "count": 2,
+    "example": "Presently I thought what a fool I was to get wet. I stood up and looked round me. A colossal figure, carved apparently in some white stone, loomed ind"
+   },
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 1,
+    "example": "I grieved to think how brief the dream of the human intellect had been. It had committed suicide. It had set itself steadfastly towards comfort and ea"
+   },
+   {
+    "pattern": "\\bafter all\\b",
+    "count": 1,
+    "example": "Within was a small apartment, and on a raised place in the corner of this was the Time Machine. I had the small levers in my pocket. So here, after al"
+   },
+   {
+    "pattern": "\\bin the end\\b",
+    "count": 1,
+    "example": "Even this artistic impetus would at last die away\u2014had almost died in the Time I saw. To adorn themselves with flowers, to dance, to sing in the sunlig"
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\bno, sir\\b",
+    "count": 1,
+    "example": "No, sir. No one has come out this way. I was expecting to find him here."
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 8
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\btelephone\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bweird\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 62,
+   "but": 25,
+   "the": 21,
+   "it": 15,
+   "and": 15,
+   "you": 14,
+   "it's": 11,
+   "what": 11,
+   "i'm": 8,
+   "for": 7,
+   "they": 6,
+   "there": 6,
+   "this": 6,
+   "if": 6,
+   "in": 6
+  }
+ },
+ {
+  "novel": "varney-vampire",
+  "idioms": [
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 146,
+    "example": "Be calm, dear. No doubt some attempt to rob the house."
+   },
+   {
+    "pattern": "\\btell me\\b",
+    "count": 122,
+    "example": "Oh, what is this that has happened\u2014what is this? Tell me, Marchdale! Robert Marchdale, you whom I have known even from my childhood, you will not dece"
+   },
+   {
+    "pattern": "\\bI dare say\\b",
+    "count": 120,
+    "example": "From bodily weakness, I dare say."
+   },
+   {
+    "pattern": "\\bI say\\b",
+    "count": 117,
+    "example": "I say a vampyre,"
+   },
+   {
+    "pattern": "\\bwhat a\\b",
+    "count": 110,
+    "example": "What a strange unearthly smell it has!"
+   },
+   {
+    "pattern": "\\bto be sure\\b",
+    "count": 82,
+    "example": "Not an article. The pulpit, to be sure, is covered with faded velvet; but beyond that, and an old box, in which I believe nothing is left but some boo"
+   },
+   {
+    "pattern": "\\bgo on\\b",
+    "count": 76,
+    "example": "He did not seem averse last night to go on such an adventure."
+   },
+   {
+    "pattern": "\\bafter all\\b",
+    "count": 75,
+    "example": "I suppose that is, after all, another name, Flora, for the nightmare?"
+   },
+   {
+    "pattern": "\\byou may depend\\b",
+    "count": 70,
+    "example": "Nor mine, you may depend,"
+   },
+   {
+    "pattern": "\\bcome in\\b",
+    "count": 46,
+    "example": "It was a rash impulse of us all to come in pursuit of this dreadful figure,"
+   },
+   {
+    "pattern": "\\bmy word\\b",
+    "count": 38,
+    "example": "Do you doubt my word?"
+   },
+   {
+    "pattern": "\\bbelieve me\\b",
+    "count": 28,
+    "example": "They are, believe me."
+   },
+   {
+    "pattern": "\\bcome along\\b",
+    "count": 26,
+    "example": "Come, now, listen to me. We need not, I think, trouble ourselves about the pane of glass, so come along."
+   },
+   {
+    "pattern": "\\bsay nothing\\b",
+    "count": 25,
+    "example": "A thousand thanks. Say nothing, then, to George of what we have been talking about. He is of a highly susceptible nature, and the very idea of such a "
+   },
+   {
+    "pattern": "\\bat last\\b",
+    "count": 24,
+    "example": "Yes; prize after prize we hauled into port, and at last the French vessels wouldn't come out of their harbours."
+   },
+   {
+    "pattern": "\\bcome, come\\b",
+    "count": 20,
+    "example": "George, stay with Flora for a time. Come, come, Mr. Holland, you ought, and you shall know all; then you can come to a judgment for yourself. This way"
+   },
+   {
+    "pattern": "\\bhear me\\b",
+    "count": 19,
+    "example": "Hear me, Charles,"
+   },
+   {
+    "pattern": "\\blisten to me\\b",
+    "count": 16,
+    "example": "be calm, George, and endeavour to listen to me."
+   },
+   {
+    "pattern": "\\bby no means\\b",
+    "count": 15,
+    "example": "Well, sir, you have certainly made a most unexpected choice of weapons. I can use a sword still, but am by no means a master of fencing. However, it s"
+   },
+   {
+    "pattern": "\\bdepend upon it\\b",
+    "count": 13,
+    "example": "Yes, captain, you may depend upon it he's the cause of all the mischief. Throw him overboard and that's all we want."
+   },
+   {
+    "pattern": "\\bfor heaven's sake\\b",
+    "count": 13,
+    "example": "Do you think. You are fertile in expedients. Do you think, Marchdale; and, for Heaven's sake, and for the sake of our own peace, find out some other w"
+   },
+   {
+    "pattern": "\\bdoubtless\\b",
+    "count": 12,
+    "example": "Oh, no, not at all. He will easily perceive that we do not want to make acquaintance with him, and then, as a gentleman, which doubtless he is, he wil"
+   },
+   {
+    "pattern": "\\bmind you\\b",
+    "count": 10,
+    "example": "That's right; there's nothing like giving a command to some one person. There's no good done without. Now I'll manage it all. Mind you, seven o'clock "
+   },
+   {
+    "pattern": "\\bas sure as\\b",
+    "count": 10,
+    "example": "Go and do it, then; for, as sure as you are a living man, his leg will be in in a minute."
+   },
+   {
+    "pattern": "\\bhow dare\\b",
+    "count": 10,
+    "example": "You infernal scoundrel; how dare you preach to me in such a way, you lubberly rascal?"
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\byes, sir\\b",
+    "count": 67,
+    "example": "Yes, sir, it was a vampyre."
+   },
+   {
+    "pattern": "\\bshall I\\b",
+    "count": 42,
+    "example": "It is an old friend of mine, and I am accustomed to the use of it. Shall I open the coffin?"
+   },
+   {
+    "pattern": "\\bno, sir\\b",
+    "count": 31,
+    "example": "No, sir, he is not; but recent circumstances have shattered his nerves; and, to tell the truth, you bear so strong a resemblance to an old portrait, i"
+   },
+   {
+    "pattern": "\\bas you please\\b",
+    "count": 28,
+    "example": "As you please, brother, and as you please, Mr. Marchdale. I know I am a frail reed, and my belief is that this affair will kill me quite. The truth is"
+   },
+   {
+    "pattern": "\\bbeg your pardon\\b",
+    "count": 18,
+    "example": "Oh, I beg your pardon there. I never challenge anybody, and when foolish people will call me out, contrary to my inclination, I think I am bound to ta"
+   },
+   {
+    "pattern": "\\byour honour\\b",
+    "count": 14,
+    "example": "On your honour."
+   },
+   {
+    "pattern": "\\byes, ma'?am\\b",
+    "count": 11,
+    "example": "Oh, yes, ma'am,"
+   },
+   {
+    "pattern": "\\bplease, sir\\b",
+    "count": 10,
+    "example": "If you please, sir,"
+   },
+   {
+    "pattern": "\\bif you please, sir\\b",
+    "count": 7,
+    "example": "If you please, sir,"
+   },
+   {
+    "pattern": "\\bvery well, sir\\b",
+    "count": 7,
+    "example": "Very well, sir."
+   },
+   {
+    "pattern": "\\bvery good, sir\\b",
+    "count": 6,
+    "example": "Oh, very good, sir. I\u2014I am willing to be agreeable, so I'll read it aloud, if it's all the same to you."
+   },
+   {
+    "pattern": "\\bno, ma'?am\\b",
+    "count": 5,
+    "example": "No, ma'am,"
+   },
+   {
+    "pattern": "\\bif you please, ma'?am\\b",
+    "count": 3,
+    "example": "Up the garden if you please, ma'am\u2014as quick as you can; the night air is very cold."
+   },
+   {
+    "pattern": "\\bplease, ma'?am\\b",
+    "count": 3,
+    "example": "Up the garden if you please, ma'am\u2014as quick as you can; the night air is very cold."
+   },
+   {
+    "pattern": "\\byes, miss\\b",
+    "count": 2,
+    "example": "Yes, miss."
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 335
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 170
+   },
+   {
+    "pattern": "\\bain't\\b",
+    "count": 161
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 86
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 57
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 30
+   },
+   {
+    "pattern": "\\bstuff\\b",
+    "count": 15
+   },
+   {
+    "pattern": "\\bfolks\\b",
+    "count": 10
+   },
+   {
+    "pattern": "\\bcheck\\b",
+    "count": 5
+   },
+   {
+    "pattern": "\\bgotten\\b",
+    "count": 4
+   },
+   {
+    "pattern": "\\blike\\b.{0,8}\\byou know\\b",
+    "count": 3
+   }
+  ],
+  "top_openers": {
+   "i": 3969,
+   "you": 1167,
+   "it": 887,
+   "and": 843,
+   "what": 752,
+   "but": 721,
+   "oh": 685,
+   "well": 674,
+   "the": 588,
+   "yes": 553,
+   "he": 476,
+   "that": 432,
+   "no": 386,
+   "why": 365,
+   "we": 347
+  }
+ },
+ {
+  "novel": "woman-in-white",
+  "idioms": [
+   {
+    "pattern": "\\btell me\\b",
+    "count": 40,
+    "example": "If it troubles you to explain your strange situation to me, don't think of returning to the subject again. I have no right to ask you for any explanat"
+   },
+   {
+    "pattern": "\\bI say\\b",
+    "count": 13,
+    "example": "You have many friends who love you, Miss Fairlie. Your happy future is the dear object of many hopes. May I say, at parting, that it is the dear objec"
+   },
+   {
+    "pattern": "\\bgo on\\b",
+    "count": 13,
+    "example": "Mentioned my mother's name! You interest me indescribably. Pray go on."
+   },
+   {
+    "pattern": "\\bcome in\\b",
+    "count": 11,
+    "example": "Hush, hush! She is coming of her own accord. Say nothing in her presence. Let this discovery of the likeness be kept a secret between you and me. Come"
+   },
+   {
+    "pattern": "\\bat last\\b",
+    "count": 8,
+    "example": "listen to me. The time has come\u2014I recite my good news\u2014I speak at last."
+   },
+   {
+    "pattern": "\\bwhat a\\b",
+    "count": 8,
+    "example": "What a very extraordinary thing to say, under the circumstances!"
+   },
+   {
+    "pattern": "\\bI venture\\b",
+    "count": 7,
+    "example": "May I venture to inquire why you express that hope?"
+   },
+   {
+    "pattern": "\\bno doubt\\b",
+    "count": 6,
+    "example": "We have understood each other, as friends should, and we may go back at once to the house. To tell you the truth, I am uneasy about Laura. She has sen"
+   },
+   {
+    "pattern": "\\bmy word\\b",
+    "count": 6,
+    "example": "Upon my word, Mr. Dempster, you pay my feelings a great compliment in thinking them weak enough to be shocked by such an urchin as that!"
+   },
+   {
+    "pattern": "\\bafter all\\b",
+    "count": 5,
+    "example": "Come, come! this contingency resolves itself into a matter of bargaining after all. What is the least you will take?"
+   },
+   {
+    "pattern": "\\bI dare say\\b",
+    "count": 4,
+    "example": "time will show. I dare say if we look out for the marriage in the papers we shall not be far wrong. Excuse my noticing it, but I am sorry to see you n"
+   },
+   {
+    "pattern": "\\bcome, come\\b",
+    "count": 3,
+    "example": "Come, come,"
+   },
+   {
+    "pattern": "\\blook here\\b",
+    "count": 3,
+    "example": "look here!"
+   },
+   {
+    "pattern": "\\bsay nothing\\b",
+    "count": 3,
+    "example": "Hush, hush! She is coming of her own accord. Say nothing in her presence. Let this discovery of the likeness be kept a secret between you and me. Come"
+   },
+   {
+    "pattern": "\\bpoor thing\\b",
+    "count": 3,
+    "example": "Ah, yes, that is the plantation side, and the poor thing dragged itself, I suppose, to the nearest shelter, as dogs will, to die. If you can moisten i"
+   },
+   {
+    "pattern": "\\bword of honour\\b",
+    "count": 3,
+    "example": "I shall talk of something else presently. My good friend, you are on the edge of your domestic precipice, and if I let you give the women one other ch"
+   },
+   {
+    "pattern": "\\bhow dare\\b",
+    "count": 3,
+    "example": "How dare you frighten a poor helpless woman like that?"
+   },
+   {
+    "pattern": "\\blisten to me\\b",
+    "count": 3,
+    "example": "listen to me. The time has come\u2014I recite my good news\u2014I speak at last."
+   },
+   {
+    "pattern": "\\bmind you\\b",
+    "count": 2,
+    "example": "Mind you keep that comfortable warm cloak on,"
+   },
+   {
+    "pattern": "\\bwith all my heart\\b",
+    "count": 2,
+    "example": "Oh, don't look at me like that! I promise it with all my heart."
+   },
+   {
+    "pattern": "\\btake my word\\b",
+    "count": 2,
+    "example": "Take my word for it, Laura, that man knows something of Sir Percival's embarrassments,"
+   },
+   {
+    "pattern": "\\bfor heaven's sake\\b",
+    "count": 2,
+    "example": "for Heaven's sake don't shake the room! Worthiest of all possible Gilmores, I meant no offence. My own views are so extremely liberal that I think I a"
+   },
+   {
+    "pattern": "\\bspeak out\\b",
+    "count": 2,
+    "example": "Speak out!"
+   },
+   {
+    "pattern": "\\bhear me\\b",
+    "count": 2,
+    "example": "Did you hear me?"
+   },
+   {
+    "pattern": "\\bmercy on\\b",
+    "count": 2,
+    "example": "Mercy on me! it's a question for your taste, my good lady, not for mine. Suppose you have a little of both? and suppose you begin with the chicken, be"
+   }
+  ],
+  "servant_speech": [
+   {
+    "pattern": "\\byes, sir\\b",
+    "count": 14,
+    "example": "Yes, sir."
+   },
+   {
+    "pattern": "\\bshall I\\b",
+    "count": 14,
+    "example": "What shall I see in my dreams to-night?"
+   },
+   {
+    "pattern": "\\byes, miss\\b",
+    "count": 7,
+    "example": "Yes, Miss Halcombe, as young as that."
+   },
+   {
+    "pattern": "\\bno, sir\\b",
+    "count": 6,
+    "example": "No, sir,"
+   },
+   {
+    "pattern": "\\bbeg your pardon\\b",
+    "count": 6,
+    "example": "I beg your pardon,"
+   },
+   {
+    "pattern": "\\bno, miss\\b",
+    "count": 5,
+    "example": "Oh no, miss!"
+   },
+   {
+    "pattern": "\\bplease, sir\\b",
+    "count": 2,
+    "example": "If you please, sir."
+   },
+   {
+    "pattern": "\\byes, ma'?am\\b",
+    "count": 1,
+    "example": "Yes, ma'am."
+   },
+   {
+    "pattern": "\\bif you please, sir\\b",
+    "count": 1,
+    "example": "If you please, sir."
+   },
+   {
+    "pattern": "\\bas you please\\b",
+    "count": 1,
+    "example": "You may confuse yourself, Percival, as much as you please, but you shall not confuse me. Let the question of the money be settled first. Have I convin"
+   }
+  ],
+  "anachronisms": [
+   {
+    "pattern": "\\byou know\\b",
+    "count": 61
+   },
+   {
+    "pattern": "\\bwhatever\\b",
+    "count": 59
+   },
+   {
+    "pattern": "\\bI mean\\b",
+    "count": 24
+   },
+   {
+    "pattern": "\\bactually\\b",
+    "count": 15
+   },
+   {
+    "pattern": "\\bcool\\b",
+    "count": 14
+   },
+   {
+    "pattern": "\\bcheck\\b",
+    "count": 6
+   },
+   {
+    "pattern": "\\banyway\\b",
+    "count": 2
+   },
+   {
+    "pattern": "\\bhi\\b(?![a-z])",
+    "count": 1
+   },
+   {
+    "pattern": "\\bain't\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bfolks\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bweird\\b",
+    "count": 1
+   },
+   {
+    "pattern": "\\bstuff\\b",
+    "count": 1
+   }
+  ],
+  "top_openers": {
+   "i": 783,
+   "you": 259,
+   "the": 190,
+   "what": 128,
+   "it": 122,
+   "yes": 109,
+   "if": 106,
+   "and": 106,
+   "she": 98,
+   "but": 88,
+   "he": 88,
+   "my": 79,
+   "no": 71,
+   "we": 65,
+   "hartright": 63
+  }
+ }
+]

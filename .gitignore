@@ -1,0 +1,14 @@
+# loop workshop — internal build logs, backups, transcripts
+hidden_files/
+# operational notes, not part of the game
+agent_notes/
+briefs/
+crons/
+# python
+__pycache__/
+*.pyc
+*.pyo
+# virtualenv (rebuilt via pip)
+spike/venv/
+# evennia runtime
+*.log
