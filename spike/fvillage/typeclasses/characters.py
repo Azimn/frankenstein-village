@@ -673,3 +673,123 @@ class TavernCat(SpikeCharacter):
         super().at_object_creation()
         self.db.spot = "the hearth"
         self.db.spots = ["the hearth", "the windowsill", "the bar", "the door"]
+
+
+LUCIAN_GREETS = [
+    "Ah! A guest! Welcome — welcome to the lamp shop. I'm Lucian DeVille, "
+    "and I don't mind telling you: I'm the nicest person in this town. Ask "
+    "anyone. They'll all tell you.",
+    "Come in, come in, out of the gloom! Light is what I sell, friend, and "
+    "this town — bless it — never has enough.",
+    "A new face! Or a familiar one — either way, you're among lamps, which "
+    "is to say among friends.",
+]
+
+LUCIAN_TALKS = [
+    "Lamps, my friend. Everyone needs light. Even the Manor — especially "
+    "the Manor, though they don't come here. Their loss.",
+    "Me? Oh, I'm just a lamp-seller. Lamps and kindness, that's the whole "
+    "of it. This town has been so welcoming — you wouldn't believe how "
+    "welcoming.",
+    "That brass one? Never needs oil. Honest goods, honest Lucian. "
+    "Everything in this shop is exactly what it appears to be.",
+    "You look like someone carrying a shadow. Everyone does, here. A lamp "
+    "won't fix it, but it's a start — that's what I tell everyone.",
+    "Bram's place? The Blood of the Vine? Oh, I drink there. Everyone "
+    "drinks there. Bram's — Bram's fine.",
+    # the mask flickers (rare)
+    "Nice? Yes. I'm nice. Everyone says so. It's important to be — ",
+    "Do you ever feel — no. A lamp. You came for a lamp.",
+]
+
+LUCIAN_SLIP_LINES = [
+    "The *antiquarian*. Yes. I've heard. 'Purveyor of Antiquities and other "
+    "Weaknesses' — weaknesses! On a painted sign! As if — ",
+    "Opening soon. Opening *soon*. My street had no antiquarian when I "
+    "chose it. None. Funny, that.",
+    "Haven't spoken to him. There's nothing to say. We sell — different "
+    "things. Entirely different things. Lamps, friend. Let's talk about lamps.",
+]
+
+
+class LucianDeVille(SpikeCharacter):
+    """Lucian DeVille, proprietor of the lamp shop.
+
+    The nicest person in town — ask anyone. Newer than old, older than new;
+    nobody remembers him arriving, which in this village means he arrived
+    correctly. He sells lamps. The lamps are real. Everything else in the
+    shop has a price that isn't money.
+
+    His one genuine emotion is territorial fury at Pretorius's forthcoming
+    shop — a man who is completely indifferent to him. The asymmetry is
+    the character: mention the antiquarian and watch the nicest person in
+    town go wrong around the eyes.
+    """
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.db.greet_lines = list(LUCIAN_GREETS)
+        self.db.talk_lines = list(LUCIAN_TALKS)
+
+    def _next_line(self, kind):
+        lines = self.db.greet_lines if kind == "greet" else self.db.talk_lines
+        attr = f"seen_{kind}"
+        seen = self.attributes.get(attr) or []
+        remaining = [line for line in lines if line not in seen]
+        if not remaining:
+            seen = []
+            remaining = list(lines)
+        import random
+        line = random.choice(remaining)
+        seen.append(line)
+        self.attributes.add(attr, seen)
+        return line
+
+    def greet(self, char):
+        line = self._next_line("greet")
+        self.location.msg_contents(
+            f'Lucian beams at {char.key}. "{line}"',
+            exclude=[],
+        )
+
+    def talk_to(self, char):
+        line = self._next_line("talk")
+        char.msg(f'Lucian says: "{line}"')
+        self.location.msg_contents(
+            f"Lucian clasps his hands, talking to {char.key}.",
+            exclude=[char],
+        )
+
+    def ask_about(self, char, topic):
+        """Answer a question. Returns the line, or None for no answer."""
+        t = topic.lower().strip()
+        if t.startswith("the "):
+            t = t[4:]
+
+        def has(*keys):
+            return any(k == t or k in t or t in k for k in keys)
+
+        import random
+        if has("pretorius", "antiquarian", "antique", "new shop", "opening",
+               "rival", "competitor", "purveyor"):
+            line = random.choice(LUCIAN_SLIP_LINES)
+            char.msg("Lucian goes very still.")
+            self.location.msg_contents(
+                f"Lucian's smile doesn't reach his eyes. {char.key} asked "
+                "about the antiquarian.",
+                exclude=[char],
+            )
+            return line
+        if has("lamp", "shop", "light", "lucian", "deville", "nice",
+               "nicest"):
+            return random.choice([
+                "Forty years? No — newer than that. Not new-new. Long "
+                "enough to be the nicest person in town, or so they tell "
+                "me, and who am I to argue with the town?",
+                "Every lamp here burns a little warmer than it should. "
+                "That's not magic, friend. That's craftsmanship. And "
+                "kindness.",
+                "A lamp for the dark, a kind word for the road. That's the "
+                "whole of my philosophy. People complicate it. I don't let them.",
+            ])
+        return None

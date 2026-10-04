@@ -115,3 +115,16 @@ class TavernRoom(SpikeRoom):
             if obj.key == "Bram" and hasattr(obj, "greet"):
                 obj.greet(moved_obj)
                 break
+
+
+class LampShopRoom(SpikeRoom):
+    """The Lamp Shop. Lucian greets arrivals — always delighted."""
+
+    def at_object_receive(self, moved_obj, source_location, **kwargs):
+        super().at_object_receive(moved_obj, source_location, **kwargs)
+        if not moved_obj.has_account:
+            return
+        for obj in self.contents:
+            if obj.key == "Lucian DeVille" and hasattr(obj, "greet"):
+                obj.greet(moved_obj)
+                break

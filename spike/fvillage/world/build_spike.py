@@ -76,9 +76,19 @@ tavern = get_or_create_room(
 )
 back_hall = get_or_create_room(
     "Tavern Back Hall", ROOM,
-    "A narrow back hall behind the Tavern. Six guest-room doors stand in "
+    "A narrow back hall behind the Blood of the Vine. Six guest-room doors stand in "
     "a row beneath low gas jets. The noise of the bar is close to the south.",
     side="ic",
+)
+lamp_shop = get_or_create_room(
+    "The Lamp Shop", ROOM,
+    "DeVille's Lamp Shop — though the painted sign says only LAMPS, in gold "
+    "leaf. Every surface glows: brass, glass, flames that never seem to need "
+    "tending. It smells of beeswax and something sweeter underneath. A "
+    "curtained doorway at the back is always closed. Lucian DeVille himself "
+    "is always — always — delighted to see you. The village square lies north.",
+    side="ic",
+    place="shop",
 )
 
 # --- exits ------------------------------------------------------------------
@@ -93,6 +103,8 @@ get_or_create_exit("south", back_hall, tavern, "evennia.objects.objects.DefaultE
 # IC side
 get_or_create_exit("east", square, tavern, "evennia.objects.objects.DefaultExit", aliases=["e"])
 get_or_create_exit("west", tavern, square, "evennia.objects.objects.DefaultExit", aliases=["w"])
+get_or_create_exit("south", square, lamp_shop, "evennia.objects.objects.DefaultExit", aliases=["s"])
+get_or_create_exit("north", lamp_shop, square, "evennia.objects.objects.DefaultExit", aliases=["n"])
 
 # --- account-owned private rooms --------------------------------------------
 from evennia.accounts.models import AccountDB
@@ -470,6 +482,70 @@ _fare(
         "flavor": "Cold water. It clears the head and steadies the hands.",
         "room": "drinks a full cup of water, deliberately.",
     },
+)
+
+# --- the lamp shop: Lucian DeVille -------------------------------------------
+# He says he sells lamps. The lamps are real. Everything else has a price
+# that isn't money. His one genuine emotion is fury at the antiquarian
+# whose shop hasn't even opened yet — a man completely indifferent to him.
+# Upgrade the Lamp Shop to its greeter typeclass (idempotent).
+if not lamp_shop.is_typeclass("typeclasses.rooms.LampShopRoom", exact=True):
+    lamp_shop.swap_typeclass("typeclasses.rooms.LampShopRoom", clean_attributes=False)
+    print("Lamp Shop upgraded to LampShopRoom.")
+_luc = [o for o in lamp_shop.contents if o.key == "Lucian DeVille"]
+_LUCIAN_DESC = (
+    "Lucian DeVille, in a waistcoat the color of lamplight. His smile "
+    "arrives before he does and lingers after he's turned away. His "
+    "hands are clean — remarkably clean, for a man who handles oil and "
+    "brass all day. He is, by every account in town, the nicest person "
+    "in it."
+)
+if _luc:
+    _luc[0].db.desc = _LUCIAN_DESC
+    print("Lucian DeVille already minds the shop (desc re-synced).")
+else:
+    lucian = create.create_object(
+        "typeclasses.characters.LucianDeVille",
+        key="Lucian DeVille",
+        location=lamp_shop,
+    )
+    lucian.aliases.add("lucian", "deville", "shopkeeper", "lamp seller",
+                       "lampseller")
+    lucian.db.desc = _LUCIAN_DESC
+    print("Lucian DeVille created in The Lamp Shop.")
+
+
+def _curio(key, aliases, desc):
+    found = [o for o in lamp_shop.contents if o.key == key]
+    if found:
+        obj = found[0]
+    else:
+        obj = create.create_object(
+            "evennia.objects.objects.DefaultObject",
+            key=key, location=lamp_shop, aliases=list(aliases),
+        )
+        print(f"curio created: {key}")
+    obj.db.desc = desc
+    return obj
+
+
+_curio(
+    "a brass lamp", ["brass lamp", "lamp"],
+    "A brass lamp, polished to a warm glow. The tag, in Lucian's careful "
+    "hand: 'Never needs oil. Never gutters. Some things are exactly what "
+    "they claim to be.'",
+)
+_curio(
+    "a silver pocket watch", ["pocket watch", "watch", "silver watch"],
+    "A silver pocket watch, cool to the touch. The hands don't keep the "
+    "hour — they keep the hour you most need. The price tag, in Lucian's "
+    "careful hand, reads only: 'One truth about your neighbor.'",
+)
+_curio(
+    "a black candle", ["black candle", "candle"],
+    "A black candle, never lit. The tag reads: 'Light this, and hear what "
+    "the village says about you when you leave the room.' Below, in smaller "
+    "script: 'Price on application.'",
 )
 
 # The common room's description claimed the front door "stands to the
