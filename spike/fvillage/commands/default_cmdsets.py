@@ -34,8 +34,9 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         #
         # any commands you add below will overload the default ones.
         #
-        from commands.village_cmds import CmdRumors, CmdTalk, CmdAsk, CmdRead, CmdTime, CmdListen, CmdSmell, CmdDiary, CmdPet, CmdThrow, CmdRoll, CmdSit, CmdStand, CmdPlay, CmdPractice, CmdDuet, CmdScore, CmdOOCOverride, CmdICOverride
+        from commands.village_cmds import CmdReport, CmdRumors, CmdTalk, CmdAsk, CmdRead, CmdTime, CmdListen, CmdSmell, CmdDiary, CmdPet, CmdThrow, CmdRoll, CmdSit, CmdStand, CmdPlay, CmdPractice, CmdDuet, CmdScore, CmdOOCOverride, CmdICOverride
 
+        self.add(CmdReport())
         self.add(CmdRumors())
         self.add(CmdTalk())
         self.add(CmdAsk())
@@ -74,9 +75,17 @@ class AccountCmdSet(default_cmds.AccountCmdSet):
         Populates the cmdset
         """
         super().at_cmdset_creation()
-        #
-        # any commands you add below will overload the default ones.
-        #
+        from commands.account_cmds import (
+            CmdSubstrate,
+            CmdVillageCharCreate,
+            CmdVillageIC,
+        )
+
+        # Same keys as Evennia's defaults intentionally replace the default
+        # entry paths. The substrate command is the account-level gate.
+        self.add(CmdSubstrate())
+        self.add(CmdVillageCharCreate())
+        self.add(CmdVillageIC())
 
 
 class UnloggedinCmdSet(default_cmds.UnloggedinCmdSet):

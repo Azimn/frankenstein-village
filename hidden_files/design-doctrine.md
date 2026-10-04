@@ -50,12 +50,17 @@ Evennia contribs (BSD) for machinery; public-domain content freely.
 Dialogue, memory, and social fabric are grown in-house — imported text
 feels imported.
 
+Source rule: ordinary canon and generated content are grounded in the public-domain Source Shelf; Dr. Septimius Pretorius is the single explicit film-bridge exception, and that exception does not authorize other adaptation-specific material.
+
 ## 6. The keeper is not in the RP world (Jay, 2026-10-03)
 
 The tavern keeper stays a role, never a person. No name, no backstory, no
 plot entanglement. He is a player-facing function — recognition, games,
 memory — not a character in the village's fiction. M. is the named soul;
 the keeper is the furniture that remembers you.
+
+**M. is the dual-ontology exception:** M. is a named in-fiction soul operating
+inside the Inn's dual-ontology space. Players are OOC there; M. remains M.
 
 ## 7. The third place (Jay, 2026-10-03)
 

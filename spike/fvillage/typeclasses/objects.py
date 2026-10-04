@@ -12,6 +12,8 @@ from evennia.objects.objects import DefaultObject
 from evennia.utils import create as _create
 from evennia.utils import search as _search
 
+from world.events import publish_world_event
+
 
 def _room_six_script():
     """The persistent Room Six mystery script (world flags), if present."""
@@ -33,24 +35,8 @@ def _set_stage(char, **kwargs):
     char.db.room_six = stage
 
 
-def _tavern():
-    found = [o for o in _search.search_object("The Tavern") if o.key == "The Tavern"]
-    return found[0] if found else None
-
-
-def seed_player_rumor(body):
-    """Append a provenance-bearing player rumor to the Tavern's talk."""
-    tavern = _tavern()
-    if not tavern:
-        return
-    rumors = tavern.db.player_rumors or []
-    if body not in rumors:
-        rumors.append(body)
-        tavern.db.player_rumors = rumors[-5:]
-
-
 class Register(DefaultObject):
-    """M.'s register, open on the bar of the Inn Common Room.
+    """M.'s register, open on the bar of the Tavern.
 
     The hook of the Room Six mystery: every entry is in M.'s neat,
     impatient hand except one — Room 6, three nights past, in a tall
@@ -85,7 +71,7 @@ class Register(DefaultObject):
 
 
 class RoomSixDoor(DefaultObject):
-    """The door of Room Six, at the far end of the Inn Hallway.
+    """The door of Room Six, in the Tavern's IC back hall.
 
     Six doors, five honest with dust. The sixth has a number plate
     polished like it was touched this morning. First close look reveals
@@ -136,17 +122,35 @@ class RoomSixDoor(DefaultObject):
         return desc
 
     def at_desc(self, looker=None, **kwargs):
-        # Side-effect hook (return value discarded): spawn one note per
-        # player on their first close look. Display ran just before this.
+        # Finding the note is the first persistent Room Six event. Record it
+        # before creating inventory state so the causal order is durable.
         if looker and looker.has_account:
             if not _player_stage(looker).get("found_note"):
-                note = _create.create_object(
-                    "typeclasses.objects.MysteryNote",
-                    key="a folded note",
-                    location=self.location,
+                def apply_consequence(_event):
+                    note = _create.create_object(
+                        "typeclasses.objects.MysteryNote",
+                        key="a folded note",
+                        location=looker,
+                    )
+                    note.aliases.add("note")
+                    note.db.owner_character_id = looker.id
+                    note.locks.add(
+                        f"get:id({looker.id}) or perm(Admin);"
+                        f"give:id({looker.id}) or perm(Admin);"
+                        f"drop:id({looker.id}) or perm(Admin);"
+                        f"search:id({looker.id}) or perm(Admin);"
+                        f"control:id({looker.id}) or perm(Admin)"
+                    )
+                    _set_stage(looker, found_note=True)
+                    looker.msg("You take the folded note before anyone else can.")
+                    return {"found_note": True, "note_id": note.id}
+
+                publish_world_event(
+                    "room_six.note_found",
+                    actor=looker,
+                    payload={"door_id": self.id},
+                    consequence=apply_consequence,
                 )
-                note.aliases.add("note")
-                _set_stage(looker, found_note=True)
         return super().at_desc(looker, **kwargs)
 
 
@@ -183,6 +187,10 @@ class MysteryNote(DefaultObject):
     # -- the M. road --------------------------------------------------------
 
     def at_pre_give(self, giver, getter, **kwargs):
+        owner_id = self.db.owner_character_id
+        if owner_id and giver.id != owner_id and not giver.check_permstring("Admin"):
+            giver.msg("The note is not yours to pass on.")
+            return False
         if getter.key == "M.":
             script = _room_six_script()
             if script is not None and script.db.m_told_by:
@@ -209,52 +217,55 @@ class MysteryNote(DefaultObject):
             self._tell_tavern(giver)
 
     def _tell_m(self, giver):
-        """M. reads it, burns it, and trusts the bearer forever."""
+        """Ledger the choice, then apply M.'s persistent consequence."""
         loc = giver.location
-        script = _room_six_script()
-        if script is not None:
-            script.db.m_told_by = giver.key
-        _set_stage(giver, told_m=True)
-        # M.'s memory: trust, per player.
-        m = getter = None
-        for obj in (loc.contents if loc else []):
-            if obj.key == "M.":
-                m = obj
-                break
-        if m is not None:
-            trusts = m.db.trusts or {}
-            trusts[giver.key] = True
-            m.db.trusts = trusts
-        if loc:
-            loc.msg_contents(
-                "M. takes the note. Her polishing stops — the glass hangs "
-                "forgotten in her hand, which has never happened before, "
-                "which is how the room knows something is wrong. She "
-                "reads. Once. Twice. Then she crosses to the hearth and "
-                "feeds the paper to the fire. It catches with a green-edged "
-                "flame.\n"
-                "\"Paid for,\" she says to no one. \"Paid for by whom, "
-                f"love?\" She looks at {giver.key}. \"Room Six stays shut "
-                "until I understand what was bought. You brought it to me "
-                "first. I won't forget that.\"",
-                exclude=[],
+
+        def apply_consequence(_event):
+            script = _room_six_script()
+            if script is not None:
+                script.db.m_told_by = giver.key
+            _set_stage(giver, told_m=True)
+            m = next(
+                (obj for obj in _search.search_object("M.") if obj.key == "M."),
+                None,
             )
-        giver.msg(
-            "(M. will answer you truly now, about Room Six. Ask her.)"
+            if m is not None:
+                trusts = m.db.trusts or {}
+                trusts[giver.key] = True
+                m.db.trusts = trusts
+            if loc:
+                loc.msg_contents(
+                    "M. takes the note. Her polishing stops; the glass hangs "
+                    "forgotten in her hand, which has never happened before, "
+                    "which is how the room knows something is wrong. She "
+                    "reads. Once. Twice. Then she crosses to the hearth and "
+                    "feeds the paper to the fire. It catches with a green-edged "
+                    "flame.\n"
+                    "\"Paid for,\" she says to no one. \"Paid for by whom, "
+                    f"love?\" She looks at {giver.key}. \"Room Six stays shut "
+                    "until I understand what was bought. You brought it to me "
+                    "first. I won't forget that.\"",
+                    exclude=[],
+                )
+            giver.msg("(M. will answer you truly now, about Room Six. Ask her.)")
+            self.db.burned = True
+            self.move_to(None, quiet=True, to_none=True)
+            return {"route": "m", "m_told_by": giver.key, "note_burned": True}
+
+        publish_world_event(
+            "room_six.note_to_m",
+            actor=giver,
+            payload={"note_id": self.id, "route": "m"},
+            consequence=apply_consequence,
         )
-        # The note is burned: remove it from play. NOTE — do NOT use
-        # self.delete() here. This runs inside Evennia's `give`, which
-        # still needs the object (with a valid id) afterwards for its
-        # confirmation message; deleting mid-command raises
-        # "needs to have a value for field id" (seen 2026-10-03).
-        # move_to(None, to_none=True) takes it out of the world while
-        # keeping the row intact.
-        self.db.burned = True
-        self.move_to(None, quiet=True, to_none=True)
 
     # -- the Tavern road -----------------------------------------------------
 
     def at_pre_drop(self, dropper, **kwargs):
+        owner_id = self.db.owner_character_id
+        if owner_id and dropper.id != owner_id and not dropper.check_permstring("Admin"):
+            dropper.msg("The note is not yours to place.")
+            return False
         loc = dropper.location
         if loc is not None and loc.tags.has("tavern", category="place"):
             script = _room_six_script()
@@ -272,41 +283,55 @@ class MysteryNote(DefaultObject):
             self._tell_tavern(dropper)
 
     def _tell_tavern(self, giver):
-        """The keeper pins it behind the bar; it becomes tavern talk."""
+        """Ledger, publish rumor, then apply the Tavern consequence."""
         loc = giver.location
-        script = _room_six_script()
-        if script is not None:
-            script.db.tavern_told_by = giver.key
-        _set_stage(giver, tavern_talk=True)
-        # M. hears it secondhand, and goes cold.
-        for obj in _search.search_object("M."):
-            if obj.key == "M.":
-                cold = obj.db.cold_to or {}
-                cold[giver.key] = True
-                obj.db.cold_to = cold
-                break
-        seed_player_rumor(
-            f"Room Six at the Inn Between was let three nights past — "
+        rumor = (
+            f"Room Six behind the Tavern was let three nights past — "
             f"though M. swears the house stood empty, and the hand in the "
             f"register isn't hers. *Heard from: {giver.key}, who found a "
             f"note under the door.*"
         )
-        if loc:
-            loc.msg_contents(
-                f"{giver.key} lets the folded note fall where the talk is "
-                "thickest. The keeper unfolds it, turns it over twice "
-                "though there's nothing on the back, and lets out a long "
-                "low whistle.\n"
-                "\"...V., is it?\" He looks at the door, then at "
-                f"{giver.key}. \"Well. The bar hears everything eventually "
-                "— might as well hear it clean.\" He pins the note behind "
-                "the bar, where everyone can see it and no one can reach it.",
-                exclude=[],
+
+        def apply_consequence(_event):
+            script = _room_six_script()
+            if script is not None:
+                script.db.tavern_told_by = giver.key
+            _set_stage(giver, tavern_talk=True)
+            for obj in _search.search_object("M."):
+                if obj.key == "M.":
+                    cold = obj.db.cold_to or {}
+                    cold[giver.key] = True
+                    obj.db.cold_to = cold
+                    break
+            if loc:
+                loc.msg_contents(
+                    f"{giver.key} lets the folded note fall where the talk is "
+                    "thickest. The keeper unfolds it, turns it over twice "
+                    "though there's nothing on the back, and lets out a long "
+                    "low whistle.\n"
+                    "\"...V., is it?\" He looks at the door, then at "
+                    f"{giver.key}. \"Well. The bar hears everything eventually "
+                    "— might as well hear it clean.\" He pins the note behind "
+                    "the bar, where everyone can see it and no one can reach it.",
+                    exclude=[],
+                )
+                if self.location != loc:
+                    self.move_to(loc, quiet=True)
+            self.db.pinned = True
+            self.db.desc = self.PINNED_TEXT
+            self.locks.add(
+                "get:false();give:false();drop:false();search:all();"
+                "view:all();control:perm(Admin)"
             )
-        self.db.pinned = True
-        # Rewrite the description itself: Evennia's look renders db.desc,
-        # not at_desc's return value.
-        self.db.desc = self.PINNED_TEXT
+            return {"route": "tavern", "tavern_told_by": giver.key, "note_pinned": True}
+
+        publish_world_event(
+            "room_six.note_to_tavern",
+            actor=giver,
+            payload={"note_id": self.id, "route": "tavern"},
+            rumor=rumor,
+            consequence=apply_consequence,
+        )
 
 
 class Seat(DefaultObject):

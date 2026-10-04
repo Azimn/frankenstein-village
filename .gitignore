@@ -1,5 +1,7 @@
 # loop workshop — internal build logs, backups, transcripts
-hidden_files/
+hidden_files/*
+# Governing doctrine is deliberately public and tracked.
+!hidden_files/design-doctrine.md
 # operational notes, not part of the game
 agent_notes/
 briefs/

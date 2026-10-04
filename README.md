@@ -6,16 +6,16 @@ Everything for building this game lives in this folder.
 
 ## Start here (reading order)
 
-1. **`files/frankenstein-village-world-bible-v0.2.md`** — Canon. The premise, the compact (disclosure/IC/OOC), the setting, tone, factions, the mystery engine, progression, open questions, and the Source Shelf (the 13 public-domain novels all generated content must draw from). *Canon lives here; everything else is rumor.*
-2. **`files/new-arrivals-guide-v0.2.md`** — "So You've Woken Up at the Inn." The player-facing pamphlet: where you are, the one rule (the front door), the mixed-world compact, commands (launch vs. coming-soon clearly split), the rumor→expedition→telling loop. v0.2 corrects v0.1: consent at the gate (not the door), no overpromised housing/commands, "no markers" without the "no tells" overpromise. The mechanics half of the generation packet (bible = canon half).
-3. **`files/frankenstein-village-quest-handoff-v0.3.md`** — The production backlog: content grammar, the standard quest packet, 35 quest/activity families, calling packs, NPC schedules, ambient events, incidents, rumors, discoveries, launch inventory targets, and acceptance tests. Working content until promoted into the bible.
-4. **`files/quest-generation-packet-v0.1.md`** — The formal generator contract: standing constraints (originality, tone, quest grammar, interdependence, object tags, NPC/mortality rules), six content families with quotas, anti-patterns, audit checklist, batch output format. Feed one family per run to a generator (ChatGPT or otherwise); audit every batch before canon.
-5. **`files/rumor-seeds-v0.1.md`** — CANON. 250 rumor seeds (family 1), each with provenance hook, 2–3 distortion variants, and §10 audit line. Accepted 2026-10-01 after auditor review: no premature finales, no load-bearing NPCs, Pretorius excluded per launch staging.
-6. **`files/ambient-events-v0.1.md`** — CANON. 300 ambient events (family 2): plain observations, no mechanics, witness counts ≤8. Accepted 2026-10-02 after auditor review. Deliberately echoes family-1 rumors without restating them — events are what rumors are *about*.
-7. **`files/incident-templates-v0.1.md`** — CANON. 75 incident templates (family 3) across 23 types: skeleton + 3+ variant slots + consequence branch + inheritance line. Accepted 2026-10-02 after auditor review. Positioned as what happens when family-1 rumors get investigated.
-8. **`files/npc-line-banks-v0.1.md`** — CANON. 432 NPC lines (family 4) across 12 roles: greetings, work talk, weather talk, deflections, person-mode. Opens with the VOICE GUIDE. Accepted 2026-10-02 after auditor review. Role-titled speakers, never named individuals.
-9. **`design-decisions.md`** — The running log of every settled design decision, newest last.
-4. **`design-decisions.md`** — The running log of every settled design decision, newest last.
+1. **`hidden_files/design-doctrine.md`**: Governing design doctrine: USP, emic-first measurement, one-loop principle, Tarn rule, keeper rule, third-place model, and reliability rule. Read this before designing or reviewing systems.
+2. **`files/frankenstein-village-world-bible-v0.2.md`**: Canon. The premise, the compact (disclosure/IC/OOC), the setting, tone, factions, the mystery engine, progression, open questions, and the Source Shelf. *Canon lives here; everything else is rumor.*
+3. **`files/new-arrivals-guide-v0.2.md`**: "So You've Woken Up at the Inn." The player-facing pamphlet: where you are, the one rule, the mixed-world compact, live commands, and the rumor→expedition→telling loop.
+4. **`files/frankenstein-village-quest-handoff-v0.3.md`**: The production backlog: content grammar, standard quest packet, content families, calling packs, schedules, incidents, launch inventory targets, and acceptance tests.
+5. **`files/quest-generation-packet-v0.1.md`**: The formal generator contract: standing constraints, quotas, anti-patterns, audit checklist, and batch format.
+6. **`files/rumor-seeds-v0.1.md`**: CANON. 250 accepted rumor seeds.
+7. **`files/ambient-events-v0.1.md`**: CANON. 300 accepted ambient events.
+8. **`files/incident-templates-v0.1.md`**: CANON. 75 accepted incident templates.
+9. **`files/npc-line-banks-v0.1.md`**: CANON. 432 accepted NPC lines across 12 roles.
+10. **`design-decisions.md`**: The running log of every settled design decision, newest last.
 
 ## Research
 
@@ -30,7 +30,7 @@ Everything for building this game lives in this folder.
 - `~/workspace/user/files/Darkmoor_Quest_Handoff.docx` — Original ChatGPT handoff document; superseded by `files/frankenstein-village-quest-handoff-v0.3.md`.
 - `~/workspace/user/files/ready_detective_one/` — Jay's Game Boy Color Sherlock Holmes game archive. Its mystery systems (evidence + hypotheses, moving world, Watson's developments ledger, rival investigators, travel costs time, no inert social variables) are design inputs — see bible §7 and §10.
 - `~/workspace/user/files/Frankenstein_Village_NPC_Simulation_Handoff_v0.1.txt` — Original ChatGPT NPC simulation handoff (2026-10-01); archived byte-identical as `research/npc-simulation-handoff-v0.1.md`, reviewed in `research/npc-simulation-review-2026-10-01.md`.
-- `~/workspace/goals/mixed-ai-human-text-mud/hidden_files/` — Internal working state, not player-facing.
+- `hidden_files/`: Internal working state, except the tracked public `design-doctrine.md` named above.
 
 ## Version history (superseded versions, recoverable from trash for 30 days)
 
@@ -44,4 +44,4 @@ Everything for building this game lives in this folder.
 - Victor Frankenstein is the absent center (not the film's "Henry"). Pretorius is **not** present at launch — dark shop, OPENING SOON sign, ticking crate.
 - "No one does it all": broad participation, capped simultaneous mastery, cross-calling interdependence.
 - Launch-gating rule: nothing future is load-bearing on day one.
-- Originality: all content re-grounded in the Source Shelf novels; no Universal/Ravenloft/film-quote material.
+- Originality: the Source Shelf is the default source authority; the doctrine records the one explicit bridge exception.

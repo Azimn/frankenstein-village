@@ -59,6 +59,26 @@ class SpikeRoom(DefaultRoom):
         return desc
 
 
+class PrivateRoom(SpikeRoom):
+    """One account's private OOC room at the Inn Between.
+
+    The exit lock is the ordinary access path. This hook is the second
+    boundary: even a direct move with hooks enabled cannot place another
+    connected player in the room.
+    """
+
+    def at_pre_object_receive(self, arriving_object, source_location, **kwargs):
+        account = getattr(arriving_object, "account", None)
+        if account:
+            owner_id = self.db.owner_account_id
+            if account.id != owner_id and not account.is_superuser:
+                arriving_object.msg("That room is private.")
+                return False
+        return super().at_pre_object_receive(
+            arriving_object, source_location, **kwargs
+        )
+
+
 class CommonRoom(SpikeRoom):
     """The Inn Between common room. M. greets arrivals."""
 

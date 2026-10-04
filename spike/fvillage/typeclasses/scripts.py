@@ -12,7 +12,11 @@ just overloads its hooks to have it perform its function.
 
 """
 
+from pathlib import Path
+
 from evennia.scripts.scripts import DefaultScript
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Script(DefaultScript):
@@ -147,13 +151,9 @@ class AmbientLife(SpikeScript):
 
     def _load_events(self):
         """Parse {room_key: [event texts]} out of the canon markdown."""
-        from pathlib import Path
         import re
 
-        path = (
-            Path.home()
-            / "workspace/goals/mixed-ai-human-text-mud/files/ambient-events-v0.1.md"
-        )
+        path = REPO_ROOT / "files" / "ambient-events-v0.1.md"
         try:
             text = path.read_text(encoding="utf-8")
         except OSError:
@@ -205,7 +205,10 @@ class AmbientLife(SpikeScript):
 
 
 class RoomSixMystery(DefaultScript):
-    """World flags for the Room Six mystery. No ticker — pure memory.
+    """Materialized world flags for Room Six. No ticker.
+
+    Canonical causal history lives in WorldEventLedger; these flags are the
+    fast projection used by the current gameplay code.
 
     db.m_told_by: key of the first player who gave the note to M.
     db.tavern_told_by: key of the first player who let the Tavern hear it.
@@ -217,6 +220,102 @@ class RoomSixMystery(DefaultScript):
         self.desc = "Room Six mystery: world flags."
         self.interval = -1
         self.persistent = True
+
+
+class ModerationQueue(DefaultScript):
+    """Persistent, human-reviewed report queue.
+
+    Reports create records only. They never warn, mute, move, or punish a
+    player automatically. A human staff account must explicitly review and
+    close each record.
+    """
+
+    def at_script_creation(self):
+        self.key = "moderation_queue"
+        self.desc = "Human-reviewed compact reports."
+        self.interval = -1
+        self.persistent = True
+        if self.db.reports is None:
+            self.db.reports = []
+        if self.db.next_report_id is None:
+            self.db.next_report_id = 1
+
+    def submit(self, report):
+        reports = list(self.db.reports or [])
+        report = dict(report)
+        report["id"] = int(self.db.next_report_id or 1)
+        report["status"] = "open"
+        self.db.next_report_id = report["id"] + 1
+        reports.append(report)
+        self.db.reports = reports
+        return report
+
+    def open_reports(self):
+        return [
+            dict(report)
+            for report in (self.db.reports or [])
+            if report.get("status") == "open"
+        ]
+
+    def close_report(self, report_id, reviewer_account):
+        import time
+
+        reports = list(self.db.reports or [])
+        for report in reports:
+            if report.get("id") == report_id and report.get("status") == "open":
+                report["status"] = "closed"
+                report["reviewed_at"] = time.time()
+                report["reviewed_by"] = reviewer_account.key
+                report["reviewed_by_id"] = reviewer_account.id
+                self.db.reports = reports
+                return dict(report)
+        return None
+
+
+class WorldEventLedger(DefaultScript):
+    """Canonical persistent event ledger for world changes."""
+
+    def at_script_creation(self):
+        self.key = "world_event_ledger"
+        self.desc = "Canonical persistent event ledger."
+        self.interval = -1
+        self.persistent = True
+        if self.db.events is None:
+            self.db.events = []
+        if self.db.next_event_id is None:
+            self.db.next_event_id = 1
+
+    def begin_event(self, event):
+        events = list(self.db.events or [])
+        event = dict(event)
+        event["id"] = int(self.db.next_event_id or 1)
+        event["status"] = "recorded"
+        self.db.next_event_id = event["id"] + 1
+        events.append(event)
+        self.db.events = events
+        return dict(event)
+
+    def update_event(self, event_id, **fields):
+        events = list(self.db.events or [])
+        updated = None
+        for index, event in enumerate(events):
+            if event.get("id") != event_id:
+                continue
+            replacement = dict(event)
+            replacement.update(fields)
+            events[index] = replacement
+            updated = replacement
+            break
+        if updated is not None:
+            self.db.events = events
+            return dict(updated)
+        return None
+
+    def get_event(self, event_id):
+        for event in self.db.events or []:
+            if event.get("id") == event_id:
+                return dict(event)
+        return None
 
 
 _NUMWORDS = [
@@ -255,7 +354,7 @@ class WarmthWatch(SpikeScript):
 
     ROOM_KEYS = (
         "Private Room", "Inn Common Room", "Inn Hallway",
-        "Village Square", "The Tavern",
+        "Village Square", "The Tavern", "Tavern Back Hall",
     )
 
     def at_script_creation(self):
@@ -325,11 +424,11 @@ class WarmthWatch(SpikeScript):
             found = [o for o in search.search_object(key) if o.key == key]
             if not found:
                 continue
-            room = found[0]
-            for char in room.contents:
-                if not char.has_account:
-                    continue
-                self._tick_char(char, key, weather)
+            for room in found:
+                for char in room.contents:
+                    if not char.has_account:
+                        continue
+                    self._tick_char(char, key, weather)
 
 
 class VillageTime(SpikeScript):
@@ -360,13 +459,13 @@ class VillageTime(SpikeScript):
         self.db.hour = hour
         name = village_hour_name(hour)
         for key in ("Village Square", "The Tavern", "Inn Common Room",
-                    "Inn Hallway", "Private Room"):
+                    "Inn Hallway", "Private Room", "Tavern Back Hall"):
             found = [o for o in search.search_object(key) if o.key == key]
             if not found:
                 continue
-            room = found[0]
-            if any(o.has_account for o in room.contents):
-                room.msg_contents(f"The village bell counts {name}.")
+            for room in found:
+                if any(o.has_account for o in room.contents):
+                    room.msg_contents(f"The village bell counts {name}.")
 
 
 class VillageWeather(SpikeScript):

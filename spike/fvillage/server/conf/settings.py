@@ -41,6 +41,21 @@ SERVERNAME = "fvillage"
 # Between entirely.
 BASE_CHARACTER_TYPECLASS = "typeclasses.characters.SpikeCharacter"
 
+# The compact requires an account-level gate before any character can enter
+# the world. Mode 2 starts accounts OOC and exposes the normal character
+# roster/selection flow instead of silently creating and puppeting a character.
+MULTISESSION_MODE = 2
+AUTO_CREATE_CHARACTER_WITH_ACCOUNT = False
+AUTO_PUPPET_ON_LOGIN = False
+
+# One account may own several masks, but only one may be active at a time.
+# Item 6 adds the explicit policy check in addition to this engine limit.
+MAX_NR_SIMULTANEOUS_PUPPETS = 1
+MAX_NR_CHARACTERS = 5
+
+# Guest accounts do not have a disclosure model and may not bypass the gate.
+GUEST_ENABLED = False
+
 
 ######################################################################
 # Settings given in secret_settings.py override those in this file.

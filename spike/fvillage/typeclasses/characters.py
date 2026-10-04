@@ -64,24 +64,29 @@ KEEPER_GREETS = [
     "Come in, friend! The fire's lit, the talk's flowing — you're just in time for both.",
     "Welcome in! Lunch is stew — it's always stew, and it's always good.",
 ]
+KEEPER_DESC = (
+    "The tavern keeper, apron on and cloth in hand, forever wiping the same "
+    "spot on the bar. The spot is worn through the varnish to pale wood — "
+    "worn by more years than he could possibly have stood there. He keeps "
+    "the taps, the tables, the dice cup, and the room moving. He remembers "
+    "what regulars do here and otherwise returns to the work."
+)
 KEEPER_TALKS = [
-    # work talk (transaction mode)
+    # Role-function only. The keeper has no biography, private wound, family,
+    # or plot life; his depth is recognition and functional witnessing.
     "Ale's tuppence the pint. The best ale's fourpence — you'll know the difference by the third one.",
     "I don't water the beer. Ask anyone — my beer's honest, which is more than I can say for my customers.",
     "The stew's whatever went in the pot. It's always good and I never say what's in it — house rule.",
     "Darts in the corner, cards at the back table. Losers buy the round — that's the other house rule.",
     "Breakages you pay for. Fights you take outside. Singing you're welcome to — badly, preferably.",
-    # small talk
-    "Rain's my best friend — fills the house, empties the roads. I pray for rain and feel guilty about it.",
+    "Rain fills the room and empties the road. Good weather for another round.",
     "Fog's good for business too. Nobody walks home in fog — they stay, and they drink.",
-    # deflections
     "The manor? They don't drink here. Their loss — my beer's better than whatever they've got up that hill.",
-    "He drank here once, they say. Before my time. The old-timers point at the corner table — I let them.",
+    "They point at the corner table when they tell that one. The table never confirms it.",
     "Folk ask how long I've kept this house. I tell them: longer than the roof, shorter than the cellar. They laugh. I wipe the bar.",
-    # person-mode (after closing)
-    "People think I just pour. I listen — it's the real trade. A tavern keeper hears everything and repeats nothing. Mostly.",
-    "My father kept this house. He said: \"The beer's the excuse. The room's the business.\" He was right.",
-    "Don't tell M. at the inn, but my stew's better. This is war, friend — a delicious, endless war.",
+    "The beer is the excuse. The room is the business.",
+    "A tavern keeper hears more than he pours. Most of it stays behind the bar.",
+    "Ask after the room, the drink, the games, or the talk. Those I can help with.",
 ]
 
 
@@ -93,37 +98,35 @@ class Character(DefaultCharacter):
 class SpikeCharacter(Character):
     """Player character for the spike.
 
-    New characters never see Limbo: Account.at_post_create_character moves
-    them to the Inn Common Room and flags them, and at_post_puppet below
-    runs the arrival flow exactly once.
+    New masks begin in the account's locked private room at the Inn Between.
     """
 
     def at_post_puppet(self, **kwargs):
         super().at_post_puppet(**kwargs)
         if self.db.new_arrival:
             self.db.new_arrival = False
-            loc = self.location
-            if loc:
-                for obj in loc.contents:
-                    if obj.key == "M." and hasattr(obj, "greet"):
-                        obj.greet(self)
-                        break
             self.msg(
-                "|yYou wake at the Inn Between.|n\n"
-                "This is the backstage of the world — everything here is "
-                "out of character. Your room is upstairs, private and "
-                "persisting. When you're ready for the village, take the "
-                "hallway east, then south through the front door. You'll "
-                "be reminded. Every time."
+                "|yYou wake in your room at the Inn Between.|n\n"
+                "This room is private, persistent, and out of character. "
+                "The disclosure gate is already behind you. Go down to the "
+                "common room, then east through the hallway and south through "
+                "the front door when you are ready to enter the fiction."
             )
         else:
             self._catch_up()
 
     def at_post_unpuppet(self, account=None, session=None, **kwargs):
+        owner_account = account or self.account
         super().at_post_unpuppet(account, session=session, **kwargs)
         # Only a real departure (no sessions left), not one of several.
         if not self.sessions.count():
-            self.db.last_seen = time.time()
+            now = time.time()
+            if owner_account:
+                owner_account.db.last_seen = now
+                if hasattr(owner_account, "record_history"):
+                    owner_account.record_history(
+                        "mask_left", mask=self.key, mask_id=self.id
+                    )
             log_world_event("departure", who=self.key)
 
     # -- posture: sit/stand ------------------------------------------------
@@ -167,7 +170,8 @@ class SpikeCharacter(Character):
         diary they keep.
         """
         now = time.time()
-        last = self.db.last_seen
+        account = self.account
+        last = account.db.last_seen if account else None
         # Only on the first session, and only after a real absence.
         if self.sessions.count() != 1:
             return
@@ -357,10 +361,10 @@ class Innkeeper(SpikeCharacter):
 
 
 class TavernKeeper(SpikeCharacter):
-    """The tavern keeper. Role-titled per canon (Role 10, line bank v0.1).
+    """The tavern keeper, a role-function rather than an authored person.
 
-    Transaction-mode at the bar (work talk), person-mode after closing.
-    Greets arrivals to the Tavern; the Tavern room typeclass calls greet().
+    Recognition, games, memory, and witnessing are intentional. Biography,
+    private history, family, and plot entanglement are not.
     """
 
     def at_object_creation(self):
@@ -381,6 +385,55 @@ class TavernKeeper(SpikeCharacter):
         self.attributes.add(attr, seen)
         return line
 
+    @staticmethod
+    def _account_key(char):
+        account = char.account
+        return str(account.id) if account else None
+
+    @staticmethod
+    def _mask_key(char):
+        return str(char.id)
+
+    def _memory_channels(self, char):
+        """Return account and mask memory without crossing the IC boundary.
+
+        Account memory is continuity infrastructure. Mask memory is the only
+        channel used to render recognition in the Tavern, so a fresh mask is
+        not greeted as an old acquaintance merely because the same account
+        wore another mask before.
+        """
+        account_memory = dict(self.db.account_memory or {})
+        mask_memory = dict(self.db.mask_memory or {})
+        account_key = self._account_key(char)
+        mask_key = self._mask_key(char)
+
+        account_mem = account_memory.get(
+            account_key,
+            {"visits": 0, "last_seen": 0, "masks_seen": []},
+        ) if account_key else {"visits": 0, "last_seen": 0, "masks_seen": []}
+        mask_mem = mask_memory.get(
+            mask_key,
+            {"visits": 0, "last_seen": 0, "interests": []},
+        )
+
+        # One-time migration from the pre-boundary keeper store. It is keyed
+        # by the old character name and therefore belongs to mask memory.
+        legacy = (self.db.memory or {}).get(char.key)
+        if legacy and not mask_mem.get("visits"):
+            mask_mem.update(dict(legacy))
+
+        return account_memory, mask_memory, account_key, mask_key, account_mem, mask_mem
+
+    def _save_memory_channels(
+        self, account_memory, mask_memory, account_key, mask_key,
+        account_mem, mask_mem,
+    ):
+        if account_key:
+            account_memory[account_key] = account_mem
+        mask_memory[mask_key] = mask_mem
+        self.db.account_memory = account_memory
+        self.db.mask_memory = mask_memory
+
     def greet(self, char):
         """Called by the Tavern when a player character enters.
 
@@ -391,18 +444,29 @@ class TavernKeeper(SpikeCharacter):
         """
         import time
 
-        memory = self.db.memory or {}
-        mem = memory.get(char.key, {"visits": 0, "last_seen": 0, "interests": []})
-        prev_seen = mem.get("last_seen", 0)
-        mem["visits"] = mem.get("visits", 0) + 1
-        mem["last_seen"] = time.time()
-        memory[char.key] = mem
-        self.db.memory = memory
+        (
+            account_memory, mask_memory, account_key, mask_key,
+            account_mem, mask_mem,
+        ) = self._memory_channels(char)
+        prev_seen = mask_mem.get("last_seen", 0)
+        now = time.time()
+        mask_mem["visits"] = mask_mem.get("visits", 0) + 1
+        mask_mem["last_seen"] = now
+        account_mem["visits"] = account_mem.get("visits", 0) + 1
+        account_mem["last_seen"] = now
+        masks_seen = list(account_mem.get("masks_seen", []))
+        if char.id not in masks_seen:
+            masks_seen.append(char.id)
+        account_mem["masks_seen"] = masks_seen[-20:]
+        self._save_memory_channels(
+            account_memory, mask_memory, account_key, mask_key,
+            account_mem, mask_mem,
+        )
 
-        if mem["visits"] <= 1:
+        if mask_mem["visits"] <= 1:
             line = self._next_line("greet")
         else:
-            line = self._returnee_line(char, mem, prev_seen)
+            line = self._returnee_line(char, mask_mem, prev_seen)
         self.location.msg_contents(
             f'The tavern keeper looks up. "{line}"',
             exclude=[],
@@ -410,14 +474,22 @@ class TavernKeeper(SpikeCharacter):
 
     def note_interest(self, char, topic):
         """Record something a player cared about (ask topics, darts)."""
-        memory = self.db.memory or {}
-        mem = memory.get(char.key, {"visits": 0, "last_seen": 0, "interests": []})
-        interests = mem.get("interests", [])
+        (
+            account_memory, mask_memory, account_key, mask_key,
+            account_mem, mask_mem,
+        ) = self._memory_channels(char)
+        interests = list(mask_mem.get("interests", []))
         if topic not in interests:
             interests.append(topic)
-            mem["interests"] = interests[-6:]
-        memory[char.key] = mem
-        self.db.memory = memory
+            mask_mem["interests"] = interests[-6:]
+        aggregate = list(account_mem.get("activity_categories", []))
+        if topic not in aggregate:
+            aggregate.append(topic)
+        account_mem["activity_categories"] = aggregate[-20:]
+        self._save_memory_channels(
+            account_memory, mask_memory, account_key, mask_key,
+            account_mem, mask_mem,
+        )
 
     def _returnee_line(self, char, mem, prev_seen):
         import time

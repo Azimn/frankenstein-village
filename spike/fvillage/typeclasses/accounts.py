@@ -22,7 +22,127 @@ several more options for customizing the Guest account system.
 
 """
 
+import time
+
 from evennia.accounts.accounts import DefaultAccount, DefaultGuest
+
+
+PRIVATE_ROOM_DESC = (
+    "Your room at the Inn Between. It is private and it persists; no one "
+    "else can enter. A short guide lies on the nightstand. Stairs lead "
+    "down to the common room."
+)
+PRIVATE_ROOM_AIR = (
+    "The air is close and warm, smelling of clean linen and lamp oil."
+)
+PRIVATE_ROOM_SOUND = "The inn settles around you: a creak, a sigh, then quiet."
+PRIVATE_GUIDE = (
+    "A short pamphlet in a careful hand. It reads:\n\n"
+    "'So you've woken up at the Inn. This room and the common room are "
+    "out of character. Your room is private and persistent. The front "
+    "door is the threshold: beyond it you are in character. The account "
+    "disclosure gate was accepted before you were allowed to enter.'"
+)
+
+
+def _find_common_room():
+    from evennia.utils import search
+
+    rooms = [
+        obj for obj in search.search_object("Inn Common Room")
+        if obj.key == "Inn Common Room"
+    ]
+    return rooms[0] if rooms else None
+
+
+def ensure_private_room(account):
+    """Return the account's private room, creating/repairing it as needed."""
+    from evennia.utils import create, search
+
+    rooms = [
+        obj for obj in search.search_object("Private Room")
+        if obj.key == "Private Room" and obj.db.owner_account_id == account.id
+    ]
+    if rooms:
+        room = rooms[0]
+    else:
+        room = create.create_object(
+            "typeclasses.rooms.PrivateRoom",
+            key="Private Room",
+        )
+
+    room.db.owner_account_id = account.id
+    room.db.desc = PRIVATE_ROOM_DESC
+    room.db.sense_air = PRIVATE_ROOM_AIR
+    room.db.sense_sound = PRIVATE_ROOM_SOUND
+    room.tags.add("ooc", category="side")
+    room.tags.add("private_room", category="place")
+    room.locks.add(
+        f"view:pid({account.id}) or perm(Admin);"
+        f"search:pid({account.id}) or perm(Admin);"
+        f"enter:pid({account.id}) or perm(Admin)"
+    )
+
+    if not any(obj.key == "nightstand" for obj in room.contents):
+        stand = create.create_object(
+            "evennia.objects.objects.DefaultObject",
+            key="nightstand",
+            location=room,
+            aliases=["stand", "table"],
+        )
+        stand.db.desc = "A plain oak nightstand. The guide lies on top of it."
+    if not any(obj.key == "guide" for obj in room.contents):
+        guide = create.create_object(
+            "evennia.objects.objects.DefaultObject",
+            key="guide",
+            location=room,
+            aliases=["pamphlet", "booklet"],
+        )
+        guide.db.desc = PRIVATE_GUIDE
+
+    common = _find_common_room()
+    if common:
+        ups = [
+            ex for ex in common.exits
+            if ex.destination and ex.destination.id == room.id
+        ]
+        if ups:
+            up_exit = ups[0]
+        else:
+            up_exit = create.create_object(
+                "evennia.objects.objects.DefaultExit",
+                key="up",
+                location=common,
+                destination=room,
+                aliases=["u", "room", "my room"],
+            )
+        up_exit.locks.add(
+            f"traverse:pid({account.id}) or perm(Admin);"
+            f"view:pid({account.id}) or perm(Admin);"
+            f"search:pid({account.id}) or perm(Admin)"
+        )
+
+        downs = [
+            ex for ex in room.exits
+            if ex.destination and ex.destination.id == common.id
+        ]
+        if downs:
+            down_exit = downs[0]
+        else:
+            down_exit = create.create_object(
+                "evennia.objects.objects.DefaultExit",
+                key="down",
+                location=room,
+                destination=common,
+                aliases=["d"],
+            )
+        down_exit.locks.add(
+            f"traverse:pid({account.id}) or perm(Admin);"
+            f"view:pid({account.id}) or perm(Admin);"
+            f"search:pid({account.id}) or perm(Admin)"
+        )
+
+    return room
 
 
 class Account(DefaultAccount):
@@ -136,30 +256,70 @@ class Account(DefaultAccount):
 
     """
 
+    def record_history(self, kind, **fields):
+        """Append private, account-level continuity history."""
+        history = list(self.db.long_term_history or [])
+        event = {"t": time.time(), "kind": kind}
+        event.update(fields)
+        history.append(event)
+        self.db.long_term_history = history
+        return event
+
+    def at_post_login(self, session=None, **kwargs):
+        super().at_post_login(session=session, **kwargs)
+        ensure_private_room(self)
+        if self.db.disclosure_consent is not True or self.db.substrate not in {
+            "human", "ai"
+        }:
+            self.msg(
+                "|yDisclosure gate:|n before character creation or world "
+                "entry, declare |wsubstrate human|n or |wsubstrate ai|n.",
+                session=session,
+            )
+
+    def at_look(self, target=None, session=None, **kwargs):
+        base = super().at_look(target=target, session=session, **kwargs)
+        substrate = self.db.substrate
+        label = substrate.upper() if substrate in {"human", "ai"} else "UNDECLARED"
+        gate = "OPEN" if self.db.disclosure_consent is True else "CLOSED"
+        return f"|wAccount substrate:|n {label}    |wDisclosure gate:|n {gate}\n\n{base}"
+
+    def puppet_object(self, session, obj):
+        """Enforce disclosure plus one-active-mask account policy."""
+        if self.db.disclosure_consent is not True or self.db.substrate not in {
+            "human", "ai"
+        }:
+            self.msg(
+                "World entry is blocked until you declare substrate human or ai.",
+                session=session,
+            )
+            return None
+        active = [puppet for puppet in self.get_all_puppets() if puppet]
+        if any(puppet.id != obj.id for puppet in active):
+            self.msg(
+                "One account may wear only one mask at a time. Return OOC "
+                "before entering another.",
+                session=session,
+            )
+            return None
+        ensure_private_room(self)
+        result = super().puppet_object(session, obj)
+        self.record_history(
+            "mask_entered", mask=obj.key, mask_id=obj.id
+        )
+        return result
+
     def at_post_create_character(self, character, **kwargs):
-        """Route new characters to the Inn Between, never Limbo.
-
-        Evennia creates characters at settings.START_LOCATION (Limbo, #2 by
-        default) with stock tutorial text. For Frankenstein Village the
-        fiction starts at the Inn Between: flag the character so
-        SpikeCharacter.at_post_puppet can run the arrival flow once, point
-        home at the Common Room (Evennia restores stowed characters to home
-        when prelogout_location is missing), and move them there now.
-        """
+        """Start every mask in the owning account's private OOC room."""
         super().at_post_create_character(character, **kwargs)
-        from evennia.utils import search
-
-        rooms = [
-            o for o in search.search_object("Inn Common Room")
-            if o.key == "Inn Common Room"
-        ]
-        if not rooms:
-            return
-        common = rooms[0]
+        room = ensure_private_room(self)
         character.db.new_arrival = True
-        character.home = common
-        if character.location != common:
-            character.move_to(common, quiet=True)
+        character.home = room
+        if character.location != room:
+            character.move_to(room, quiet=True)
+        self.record_history(
+            "mask_created", mask=character.key, mask_id=character.id
+        )
 
 
 class Guest(DefaultGuest):

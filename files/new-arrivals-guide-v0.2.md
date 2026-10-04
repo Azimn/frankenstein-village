@@ -26,16 +26,18 @@ You were told all of this at the gate, before you ever saw this room, and you ch
 
 These work now:
 
-- `look` — see the room you're in. `look <thing>` or `examine <thing>` — inspect it closely. Examining is how mysteries are solved here: no one will hand you the answer.
+- `look`: see the room you're in. `look <thing>`: inspect something closely. Looking closely is how mysteries are solved here: no one will hand you the answer.
 - `north`, `south`, `east`, `west` (or `n`, `s`, `e`, `w`) — move. `up`, `down` for stairs.
 - `say <words>` — speak to the room.
+- `whisper <person> = <words>`: speak privately to someone nearby.
 - `inventory` (or `i`) — what you're carrying.
+- `rumors`: hear the talk currently circulating in the Tavern.
+- `diary`: read your private persistent notes. `diary <text>` writes; `diary/delete <number>` tears out an entry.
 - `help <topic>` — help on anything. `report <person> <reason>` — if someone breaks the compact (see below).
 
 These are coming soon, and you'll hear when they arrive:
 
-- `whisper` — speak privately. (For now, step into your room.)
-- `rumors` — what the village is talking about. `quests` — what you've taken on. `journal` — what you've recorded. (For now, the Tavern and the Chronicle do this work.)
+- `quests`: what you've taken on. `journal`: the deliberately thin record of quest developments. Your private `diary` is separate and works now.
 
 Travel takes time. Choices close doors. Asking everyone everything is not a strategy — deciding is.
 

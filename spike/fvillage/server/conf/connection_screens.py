@@ -26,15 +26,27 @@ from evennia import utils
 
 CONNECTION_SCREEN = """
 |b==============================================================|n
- Welcome to |g{}|n, version {}!
+ |gFrankenstein Village|n
+ A persistent mixed human/AI text world.
 
  If you have an existing account, connect to it by typing:
       |wconnect <username> <password>|n
  If you need to create an account, type (without the <>'s):
       |wcreate <username> <password>|n
 
+ Before an account can create or enter a character, it must make one
+ account-level declaration:
+      |wsubstrate human|n
+      |wsubstrate ai|n
+
+ This world contains human and AI players together. Inside the fiction
+ there are no substrate badges or labels. The Inn Between is out of
+ character; beyond its front door you are in character. Declaring a
+ substrate records that you were shown and accepted this compact.
+
  If you have spaces in your username, enclose it in quotes.
  Enter |whelp|n for more info. |wlook|n will re-show this screen.
+ Server: {} / Evennia {}
 |b==============================================================|n""".format(
     settings.SERVERNAME, utils.get_evennia_version("short")
 )

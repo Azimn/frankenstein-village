@@ -8,16 +8,15 @@ Frankenstein Village spike — custom commands.
 """
 import random
 import re
+import shlex
 from pathlib import Path
 
 from evennia import Command
 from evennia.commands.default.muxcommand import MuxCommand
 
-# Canon rumor seeds, checked into the goal workspace.
-RUMOR_FILE = (
-    Path.home()
-    / "workspace/goals/mixed-ai-human-text-mud/files/rumor-seeds-v0.1.md"
-)
+# Canon lives in this repository, not in a particular worker's home directory.
+REPO_ROOT = Path(__file__).resolve().parents[3]
+RUMOR_FILE = REPO_ROOT / "files" / "rumor-seeds-v0.1.md"
 
 _SEED_RE = re.compile(r"^\*\*(\d+)\.\*\*\s*(.+?)\s*[—–-]\s*\*Heard from:\*", re.M)
 
@@ -30,6 +29,124 @@ def load_rumor_seeds():
         num, body = match.group(1), match.group(2).strip()
         seeds.append((num, body))
     return seeds
+
+
+def _moderation_queue():
+    """Return the persistent report queue, creating it if needed."""
+    from evennia import create_script
+    from evennia.scripts.models import ScriptDB
+
+    try:
+        return ScriptDB.objects.get(db_key="moderation_queue")
+    except ScriptDB.DoesNotExist:
+        return create_script(
+            "typeclasses.scripts.ModerationQueue",
+            key="moderation_queue",
+            persistent=True,
+        )
+
+
+class CmdReport(MuxCommand):
+    """Report a compact violation for human review.
+
+    Usage:
+        report <person> <reason>
+        report <person> = <reason>
+        report/review
+        report/close <id>
+
+    Reporting has no automatic punishment path. Review and closure are staff
+    actions, and the reviewer must be an account declared as human.
+    """
+
+    key = "report"
+    help_category = "Village"
+
+    def _staff_account(self):
+        account = self.caller.account
+        if not account or not account.check_permstring("Admin"):
+            self.caller.msg("That report action is for staff.")
+            return None
+        if account.db.substrate != "human":
+            self.caller.msg(
+                "Compact reports require review by a staff account declared human."
+            )
+            return None
+        return account
+
+    def _review(self):
+        if not self._staff_account():
+            return
+        reports = _moderation_queue().open_reports()
+        if not reports:
+            self.caller.msg("No open reports.")
+            return
+        lines = ["|yOpen compact reports:|n"]
+        for report in reports:
+            lines.append(
+                f"#{report['id']} {report['reporter_mask']} -> "
+                f"{report['target']}: {report['reason']}"
+            )
+        self.caller.msg("\n".join(lines))
+
+    def _close(self):
+        account = self._staff_account()
+        if not account:
+            return
+        arg = (self.args or "").strip()
+        if not arg.isdigit():
+            self.caller.msg("Close which report? report/close <id>")
+            return
+        closed = _moderation_queue().close_report(int(arg), account)
+        if not closed:
+            self.caller.msg("No open report has that id.")
+            return
+        self.caller.msg(f"Report #{closed['id']} closed after human review.")
+
+    def func(self):
+        if "review" in self.switches:
+            self._review()
+            return
+        if "close" in self.switches:
+            self._close()
+            return
+
+        raw = (self.args or "").strip()
+        if not raw:
+            self.caller.msg("Report whom, and why? report <person> <reason>")
+            return
+        if "=" in raw:
+            target, reason = (part.strip() for part in raw.split("=", 1))
+        else:
+            try:
+                parts = shlex.split(raw)
+            except ValueError:
+                parts = []
+            if len(parts) < 2:
+                self.caller.msg("Report whom, and why? report <person> <reason>")
+                return
+            target, reason = parts[0], " ".join(parts[1:])
+        if not target or not reason:
+            self.caller.msg("Report whom, and why? report <person> <reason>")
+            return
+
+        import time
+
+        account = self.caller.account
+        record = _moderation_queue().submit({
+            "created_at": time.time(),
+            "reporter_account": account.key if account else None,
+            "reporter_account_id": account.id if account else None,
+            "reporter_mask": self.caller.key,
+            "reporter_mask_id": self.caller.id,
+            "target": target,
+            "reason": reason,
+            "location": self.caller.location.key if self.caller.location else None,
+        })
+        self.caller.msg(
+            f"Report #{record['id']} recorded for human review. "
+            "Nothing is punished automatically."
+        )
 
 
 class CmdRumors(Command):

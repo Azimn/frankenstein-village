@@ -43,13 +43,6 @@ def get_or_create_exit(key, src, dest, typeclass, aliases=()):
 
 
 # --- rooms -----------------------------------------------------------------
-private = get_or_create_room(
-    "Private Room", ROOM,
-    "Your room at the Inn Between. It is private and it persists — no one "
-    "can listen in, by design. A short guide lies on the nightstand. "
-    "Stairs lead down to the common room.",
-    side="ooc",
-)
 common = get_or_create_room(
     "Inn Common Room", COMMON,
     "The backstage of the world. A low hearth, scarred tables, the smell of "
@@ -60,9 +53,8 @@ common = get_or_create_room(
 )
 hallway = get_or_create_room(
     "Inn Hallway", ROOM,
-    "A narrow hallway lined with doors, all closed. Yours is the one you "
-    "came from. The common room lies west; at the south end, the front door "
-    "waits — heavy oak, brass handle worn bright.",
+    "A narrow threshold hall. The common room lies west; at the south end, "
+    "the front door waits, heavy oak with its brass handle worn bright.",
     side="ooc",
 )
 square = get_or_create_room(
@@ -81,19 +73,53 @@ tavern = get_or_create_room(
     side="ic",
     place="tavern",
 )
+back_hall = get_or_create_room(
+    "Tavern Back Hall", ROOM,
+    "A narrow back hall behind the Tavern. Six guest-room doors stand in "
+    "a row beneath low gas jets. The noise of the bar is close to the south.",
+    side="ic",
+)
 
 # --- exits ------------------------------------------------------------------
 # OOC side
-get_or_create_exit("down", private, common, "evennia.objects.objects.DefaultExit", aliases=["d"])
-get_or_create_exit("up", common, private, "evennia.objects.objects.DefaultExit", aliases=["u"])
 get_or_create_exit("east", common, hallway, "evennia.objects.objects.DefaultExit", aliases=["e"])
 get_or_create_exit("west", hallway, common, "evennia.objects.objects.DefaultExit", aliases=["w"])
 # The threshold. South from the hallway, north back from the square.
 get_or_create_exit("south", hallway, square, DOOR, aliases=["s", "door", "front door"])
 get_or_create_exit("north", square, hallway, DOOR, aliases=["n"])
+get_or_create_exit("north", tavern, back_hall, "evennia.objects.objects.DefaultExit", aliases=["n"])
+get_or_create_exit("south", back_hall, tavern, "evennia.objects.objects.DefaultExit", aliases=["s"])
 # IC side
 get_or_create_exit("east", square, tavern, "evennia.objects.objects.DefaultExit", aliases=["e"])
 get_or_create_exit("west", tavern, square, "evennia.objects.objects.DefaultExit", aliases=["w"])
+
+# --- account-owned private rooms --------------------------------------------
+from evennia.accounts.models import AccountDB
+from typeclasses.accounts import ensure_private_room
+
+legacy_private_rooms = [
+    obj for obj in search.search_object("Private Room")
+    if obj.key == "Private Room" and not obj.db.owner_account_id
+]
+
+for account in AccountDB.objects.all():
+    room = ensure_private_room(account)
+    for character in account.characters.all():
+        character.home = room
+        if character.location in legacy_private_rooms:
+            character.move_to(room, quiet=True)
+
+# Remove the old shared room and its public exit after owned rooms exist.
+for legacy in legacy_private_rooms:
+    for ex in list(common.exits):
+        if ex.destination and ex.destination.id == legacy.id:
+            ex.delete()
+    for obj in list(legacy.contents):
+        # Characters were moved above. Anything left is legacy room scenery.
+        obj.delete()
+    for ex in list(legacy.exits):
+        ex.delete()
+    legacy.delete()
 
 # --- M. ----------------------------------------------------------------------
 found = [o for o in common.contents if o.key == "M."]
@@ -137,6 +163,7 @@ if not tavern.is_typeclass("typeclasses.rooms.TavernRoom", exact=True):
 else:
     print("Tavern already a TavernRoom.")
 
+from typeclasses.characters import KEEPER_DESC
 found = [o for o in tavern.contents if o.key == "the tavern keeper"]
 if found:
     print("The tavern keeper already keeps the bar.")
@@ -146,12 +173,7 @@ else:
         key="the tavern keeper",
         location=tavern,
     )
-    keeper.db.desc = (
-        "Broad-armed, sharp-eyed, forever wiping the same spot on the bar. "
-        "The spot is worn through the varnish to pale wood — worn by more "
-        "years than he could possibly have stood there. "
-        "Listens more than he talks — but when he talks, it's worth hearing."
-    )
+    keeper.db.desc = KEEPER_DESC
     keeper.aliases.add("keeper", "barkeep", "barkeeper")
     print("Tavern keeper created in The Tavern.")
 
@@ -212,22 +234,6 @@ def get_or_create_scenery(key, location, desc, aliases=()):
     return obj
 
 
-get_or_create_scenery(
-    "nightstand", private,
-    "A plain oak nightstand. The guide lies on top of it.",
-    aliases=["stand", "table"],
-)
-get_or_create_scenery(
-    "guide", private,
-    "A short pamphlet in a careful hand. It reads:\n\n"
-    "\"So you've woken up at the Inn. This is the Inn Between — the "
-    "backstage of the world. Everything here is out of character. Your "
-    "room is private and it persists; no one can listen in, by design. "
-    "The Inn's front door is the most important object in the building: "
-    "step through it and you are in character. You will be reminded. "
-    "Every time.\"",
-    aliases=["pamphlet", "booklet"],
-)
 get_or_create_scenery(
     "well", square,
     "The village well at the square's heart. It steams faintly, though "
@@ -290,15 +296,18 @@ common.db.desc = (
 # re-syncs the live objects with the canonical text so prose fixes land
 # without wiping the DB. Idempotent.
 from typeclasses.characters import (
-    INNKEEPER_GREETS, INNKEEPER_TALKS, KEEPER_GREETS, KEEPER_TALKS,
+    INNKEEPER_GREETS, INNKEEPER_TALKS, KEEPER_DESC, KEEPER_GREETS,
+    KEEPER_TALKS,
 )
 
-_private = [o for o in search.search_object("Private Room") if o.key == "Private Room"][0]
-_private.db.desc = (
-    "Your room at the Inn Between. It is private and it persists — no one "
-    "can listen in, by design. A short guide lies on the nightstand. "
-    "Stairs lead down to the common room."
-)
+for _private in [
+    o for o in search.search_object("Private Room")
+    if o.key == "Private Room" and o.db.owner_account_id
+]:
+    _private.db.desc = (
+        "Your room at the Inn Between. It is private and it persists; no one "
+        "else can enter. A short guide lies on the nightstand. Stairs lead down."
+    )
 _tavern = [o for o in search.search_object("The Tavern") if o.key == "The Tavern"][0]
 _tavern.db.desc = (
     "The social hub of the village. Long tables, a hearth that never quite "
@@ -312,6 +321,7 @@ if _m:
     print("M. line pools re-synced.")
 _k = [o for o in _tavern.contents if o.key == "the tavern keeper"]
 if _k:
+    _k[0].db.desc = KEEPER_DESC
     _k[0].db.greet_lines = list(KEEPER_GREETS)
     _k[0].db.talk_lines = list(KEEPER_TALKS)
     print("Keeper line pools re-synced.")
@@ -333,13 +343,45 @@ def get_or_create_typed(key, location, typeclass, aliases=()):
     return obj
 
 
-common = [o for o in search.search_object("Inn Common Room") if o.key == "Inn Common Room"][0]
-hallway = [o for o in search.search_object("Inn Hallway") if o.key == "Inn Hallway"][0]
+def relocate_or_create_typed(key, location, typeclass, aliases=()):
+    """Move a unique typed object to its canonical location or create it."""
+    found = [
+        o for o in search.search_object(key)
+        if o.key == key and o.typeclass_path == typeclass
+    ]
+    if found:
+        obj = found[0]
+        if obj.location != location:
+            obj.move_to(location, quiet=True)
+            print(f"moved: {key} -> {location.key}")
+    else:
+        obj = create.create_object(
+            typeclass, key=key, location=location, aliases=list(aliases)
+        )
+        print(f"created: {key} ({typeclass}) in {location.key}")
+    for alias in aliases:
+        if alias not in (obj.aliases.all() or []):
+            obj.aliases.add(alias)
+    return obj
 
-get_or_create_typed("register", common, "typeclasses.objects.Register",
-                    aliases=["guest book"])
-get_or_create_typed("Room Six door", hallway, "typeclasses.objects.RoomSixDoor",
-                    aliases=["sixth door"])
+register = relocate_or_create_typed(
+    "register", tavern, "typeclasses.objects.Register", aliases=["guest book"]
+)
+room_six_door = relocate_or_create_typed(
+    "Room Six door", back_hall, "typeclasses.objects.RoomSixDoor",
+    aliases=["sixth door"],
+)
+
+# Canonical event history is created before any mystery projection scripts.
+if ScriptDB.objects.filter(db_key="world_event_ledger").exists():
+    print("world_event_ledger script exists.")
+else:
+    create_script(
+        "typeclasses.scripts.WorldEventLedger",
+        key="world_event_ledger",
+        persistent=True,
+    )
+    print("world_event_ledger script created.")
 
 if ScriptDB.objects.filter(db_key="room_six").exists():
     print("room_six script exists.")
@@ -350,6 +392,17 @@ else:
         persistent=True,
     )
     print("room_six script created.")
+
+# Reports are records for staff review, never an automatic punishment system.
+if ScriptDB.objects.filter(db_key="moderation_queue").exists():
+    print("moderation_queue script exists.")
+else:
+    create_script(
+        "typeclasses.scripts.ModerationQueue",
+        key="moderation_queue",
+        persistent=True,
+    )
+    print("moderation_queue script created.")
 
 # --- seats --------------------------------------------------------------------
 # sit/stand furniture: the bar, the hearth, the usual table. Seats are a
@@ -424,15 +477,20 @@ SENSES = {
         "The air is warm — woodsmoke, stew, beer, and the particular perfume of talk.",
         "Talk laps at every table; the fire pops; someone laughs too loud.",
     ),
+    "Tavern Back Hall": (
+        "The air is cooler here, touched by lamp oil and old plaster.",
+        "The Tavern murmurs through the wall; the six doors answer with silence.",
+    ),
 }
 for _key, (_air, _sound) in SENSES.items():
-    _room = [o for o in search.search_object(_key) if o.key == _key][0]
-    _room.db.sense_air = _air
-    _room.db.sense_sound = _sound
+    _rooms = [o for o in search.search_object(_key) if o.key == _key]
+    for _room in _rooms:
+        _room.db.sense_air = _air
+        _room.db.sense_sound = _sound
 print("senses set.")
 
 # Room Six's door keeps its own counsel — audibly.
-_door = [o for o in hallway.contents if o.key == "Room Six door"]
+_door = [o for o in back_hall.contents if o.key == "Room Six door"]
 if _door:
     _door[0].db.listen_line = (
         "Beyond the door: nothing. Which is itself a kind of answer."
