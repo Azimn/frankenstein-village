@@ -45,8 +45,8 @@ def _actor_ref(actor):
 def _publish_tavern_rumor(body):
     """Publish through the existing player-rumor surface."""
     found = [
-        obj for obj in search.search_object("The Tavern")
-        if obj.key == "The Tavern"
+        obj for obj in search.search_object("The Blood of the Vine")
+        if obj.key == "The Blood of the Vine"
     ]
     if not found:
         return {"published": False, "reason": "tavern_missing", "body": body}

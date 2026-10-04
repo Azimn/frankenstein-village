@@ -62,14 +62,15 @@ square = get_or_create_room(
     "Cobbles, gaslight, and the smell of rain that hasn't fallen. At the "
     "square's heart a well steams faintly, though the night is cool. The "
     "manor looms on the hill above; the Inn Between stands behind you, "
-    "its windows warm. The Tavern's sign creaks to the east.",
+    "its windows warm. The Blood of the Vine's sign creaks to the east.",
     side="ic",
 )
 tavern = get_or_create_room(
-    "The Tavern", ROOM,
-    "The social hub of the village. Long tables, a hearth that never quite "
-    "goes out, and talk — always talk. Someone here is always saying "
-    "something strange. The village square lies west, through the door.",
+    "The Blood of the Vine", ROOM,
+    "The Blood of the Vine, the village's social hub. A painted sign "
+    "outside reads 'Hanul Sangue della Vite'. Long tables, a hearth that "
+    "never quite goes out, and talk — always talk. Someone here is always "
+    "saying something strange. The village square lies west, through the door.",
     side="ic",
     place="tavern",
 )
@@ -156,7 +157,7 @@ if added:
 
 # --- the Tavern -------------------------------------------------------------
 # Upgrade the Tavern to its greeter typeclass (idempotent).
-tavern = [o for o in search.search_object("The Tavern") if o.key == "The Tavern"][0]
+tavern = [o for o in search.search_object("The Blood of the Vine") if o.key == "The Blood of the Vine"][0]
 if not tavern.is_typeclass("typeclasses.rooms.TavernRoom", exact=True):
     tavern.swap_typeclass("typeclasses.rooms.TavernRoom", clean_attributes=False)
     print("Tavern upgraded to TavernRoom.")
@@ -164,18 +165,20 @@ else:
     print("Tavern already a TavernRoom.")
 
 from typeclasses.characters import KEEPER_DESC
-found = [o for o in tavern.contents if o.key == "the tavern keeper"]
+found = [o for o in tavern.contents if o.key == "Bram"]
 if found:
-    print("The tavern keeper already keeps the bar.")
+    found[0].db.desc = KEEPER_DESC
+    print("Bram already keeps the bar (desc re-synced).")
 else:
     keeper = create.create_object(
         "typeclasses.characters.TavernKeeper",
-        key="the tavern keeper",
+        key="Bram",
         location=tavern,
     )
     keeper.db.desc = KEEPER_DESC
-    keeper.aliases.add("keeper", "barkeep", "barkeeper")
-    print("Tavern keeper created in The Tavern.")
+    keeper.aliases.add("keeper", "the keeper", "tavern keeper",
+                        "the tavern keeper", "barkeep", "barkeeper", "bram")
+    print("Bram created in the Blood of the Vine.")
 
 # --- the tavern cat -----------------------------------------------------------
 found = [o for o in tavern.contents if o.key == "the tavern cat"]
@@ -234,6 +237,16 @@ def get_or_create_scenery(key, location, desc, aliases=()):
     return obj
 
 
+# the hanging sign: the Blood of the Vine announces itself (square, eastward)
+get_or_create_scenery(
+    "a hanging sign", square,
+    "A painted wooden sign on creaking chains, pointing east. Gold "
+    "vine-leaves curl around words in a careful hand: 'Hanul Sangue della "
+    "Vite'. Someone has repainted the leaves recently, and with love.",
+    aliases=["sign"],
+)
+
+
 get_or_create_scenery(
     "well", square,
     "The village well at the square's heart. It steams faintly, though "
@@ -241,6 +254,56 @@ get_or_create_scenery(
     "can't quite see.",
     aliases=["village well"],
 )
+
+# mushrooms by the well: the spike's standing poison item. The `toxic`
+# magnitude path in _consume is proven by the bad-stew surprise, but no
+# item has used it directly until now. These mushrooms always bite back
+# a little — that is the honest deal the damp stones offer. The folklore
+# warning is in the desc, so a queasy player has only themselves to blame.
+# A bad cap seeds the ledger -> rumor pipeline (consumable-surprise with
+# provenance), the same way the stew's bad night does.
+found = [o for o in square.contents if o.key == "a cluster of mushrooms"]
+if found:
+    mushrooms = found[0]
+    print("mushrooms already grow by the well.")
+else:
+    mushrooms = create.create_object(
+        "evennia.objects.objects.DefaultObject",
+        key="a cluster of mushrooms", location=square,
+        aliases=["mushrooms", "cluster", "toadstools"],
+    )
+    print("mushrooms created: a cluster of mushrooms")
+mushrooms.db.desc = (
+    "A cluster of pale mushrooms pushing up where the well's damp stones "
+    "meet the cobbles. Some are kind and some are not, and only somebody's "
+    "grandmother could name each one with confidence."
+)
+mushrooms.tags.add("consumable")
+mushrooms.tags.add("food")  # the eat gate
+mushrooms.db.consume = {
+    "nourish": 5,
+    "toxic": 25,
+    "flavor": "You eat a cap. Earthy at first, peppery after — and then "
+              "your stomach files a formal complaint. The square has two "
+              "of everything for a while.",
+    "room": "eats one of the well mushrooms, and goes a remarkable shade "
+            "of green.",
+    "surprises": [
+        {"chance": 25, "key": "kind",
+         "text": "A kind one — earthy, peppery, entirely friendly. This "
+                 "time. Your stomach only grumbles a little.",
+         "room": "eats a well mushroom, and looks relieved to be fine."},
+        {"chance": 30, "key": "unkind",
+         "text": "The cap is peppery going down and mutinous coming back. "
+                 "You sit down on the damp stones and wait for the world "
+                 "to settle.",
+         "room": "eats a well mushroom and has to sit down on the damp "
+                 "stones.",
+         "rumor": "Someone ate the mushrooms by the well and spent the "
+                  "afternoon green. The keeper's expression did not change.",
+         "effect": "queasy"},
+    ],
+}
 
 # darts & board: the keeper's talk already promises them; now they're real
 get_or_create_scenery(
@@ -436,18 +499,19 @@ for _private in [
         "Your room at the Inn Between. It is private and it persists; no one "
         "else can enter. A short guide lies on the nightstand. Stairs lead down."
     )
-_tavern = [o for o in search.search_object("The Tavern") if o.key == "The Tavern"][0]
+_tavern = [o for o in search.search_object("The Blood of the Vine") if o.key == "The Blood of the Vine"][0]
 _tavern.db.desc = (
-    "The social hub of the village. Long tables, a hearth that never quite "
-    "goes out, and talk — always talk. Someone here is always saying "
-    "something strange. The village square lies west, through the door."
+    "The Blood of the Vine, the village's social hub. A painted sign "
+    "outside reads 'Hanul Sangue della Vite'. Long tables, a hearth that "
+    "never quite goes out, and talk — always talk. Someone here is always "
+    "saying something strange. The village square lies west, through the door."
 )
 _m = [o for o in search.search_object("M.") if o.key == "M."]
 if _m:
     _m[0].db.greet_lines = list(INNKEEPER_GREETS)
     _m[0].db.talk_lines = list(INNKEEPER_TALKS)
     print("M. line pools re-synced.")
-_k = [o for o in _tavern.contents if o.key == "the tavern keeper"]
+_k = [o for o in _tavern.contents if o.key == "Bram"]
 if _k:
     _k[0].db.desc = KEEPER_DESC
     _k[0].db.greet_lines = list(KEEPER_GREETS)
@@ -601,7 +665,7 @@ SENSES = {
         "The air is cold and damp. Gaslight hisses at the square's heart.",
         "Cobbles hold the echo of footsteps long gone; the well steams faintly.",
     ),
-    "The Tavern": (
+    "The Blood of the Vine": (
         "The air is warm — woodsmoke, stew, beer, and the particular perfume of talk.",
         "Talk laps at every table; the fire pops; someone laughs too loud.",
     ),

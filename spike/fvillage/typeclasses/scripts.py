@@ -139,7 +139,7 @@ class AmbientLife(SpikeScript):
     # Canon sections mapped onto spike rooms. Sections for locations the
     # spike doesn't have yet (manor, marshes, ...) are skipped.
     SECTION_ROOMS = {
-        "tavern & the inn": ["The Tavern", "Inn Common Room"],
+        "tavern & the inn": ["The Blood of the Vine", "Inn Common Room"],
         "well & the square": ["Village Square"],
     }
 
@@ -354,7 +354,7 @@ class WarmthWatch(SpikeScript):
 
     ROOM_KEYS = (
         "Private Room", "Inn Common Room", "Inn Hallway",
-        "Village Square", "The Tavern", "Tavern Back Hall",
+        "Village Square", "The Blood of the Vine", "Tavern Back Hall",
     )
 
     def at_script_creation(self):
@@ -458,7 +458,7 @@ class VillageTime(SpikeScript):
         hour = (hour + 1) % 24
         self.db.hour = hour
         name = village_hour_name(hour)
-        for key in ("Village Square", "The Tavern", "Inn Common Room",
+        for key in ("Village Square", "The Blood of the Vine", "Inn Common Room",
                     "Inn Hallway", "Private Room", "Tavern Back Hall"):
             found = [o for o in search.search_object(key) if o.key == key]
             if not found:

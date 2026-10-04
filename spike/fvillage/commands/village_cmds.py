@@ -563,7 +563,7 @@ class CmdThrow(Command):
         roll = random.random()
         # The keeper notices who plays.
         for obj in loc.contents:
-            if obj.key == "the tavern keeper" and hasattr(obj, "note_interest"):
+            if obj.key == "Bram" and hasattr(obj, "note_interest"):
                 obj.note_interest(self.caller, "darts")
                 break
         if roll < 0.30:
@@ -622,7 +622,7 @@ class CmdRoll(Command):
             return
         # The keeper notices who plays.
         for obj in loc.contents:
-            if obj.key == "the tavern keeper" and hasattr(obj, "note_interest"):
+            if obj.key == "Bram" and hasattr(obj, "note_interest"):
                 obj.note_interest(self.caller, "dice")
                 break
         match = re.search(r"\b(?:vs|versus|against)\b\s+(.+)", arg)
@@ -662,7 +662,7 @@ class CmdRoll(Command):
     def _duel(self, target):
         keeper = None
         for obj in self.caller.location.contents:
-            if obj.key == "the tavern keeper":
+            if obj.key == "Bram":
                 keeper = obj
                 break
         if keeper is None:
@@ -930,7 +930,7 @@ class CmdDraw(Command):
         # The keeper notices who plays — and reads the card himself.
         keeper = None
         for obj in loc.contents:
-            if obj.key == "the tavern keeper" and hasattr(obj, "note_interest"):
+            if obj.key == "Bram" and hasattr(obj, "note_interest"):
                 obj.note_interest(self.caller, "fortunes")
                 keeper = obj
                 break
@@ -1176,7 +1176,7 @@ class CmdPlay(Command):
             beats.append(RANK_UP_LINES[new_rank])
         # the keeper notices who plays
         for obj in self.caller.location.contents:
-            if obj.key == "the tavern keeper" and hasattr(obj, "note_interest"):
+            if obj.key == "Bram" and hasattr(obj, "note_interest"):
                 obj.note_interest(self.caller, "fiddle")
                 break
         self.caller.location.msg_contents("\n".join(beats), exclude=[])
@@ -1328,7 +1328,7 @@ class CmdPractice(Command):
             beats.append(RANK_UP_LINES[new_rank])
         # the keeper notices who works, not only who performs
         for obj in self.caller.location.contents:
-            if obj.key == "the tavern keeper" and hasattr(obj, "note_interest"):
+            if obj.key == "Bram" and hasattr(obj, "note_interest"):
                 obj.note_interest(self.caller, "fiddle")
                 break
         self.caller.location.msg_contents("\n".join(beats), exclude=[])
@@ -1441,7 +1441,7 @@ class CmdDuet(Command):
 
     def _find_keeper(self):
         for obj in self.caller.location.contents:
-            if obj.key == "the tavern keeper":
+            if obj.key == "Bram":
                 return obj
         return None
 
@@ -2090,7 +2090,7 @@ def _consume(caller, item, kind, verb_self, verb_room):
     # The keeper notices appetites.
     if me.location:
         keeper = next(
-            (o for o in me.location.contents if o.key == "the tavern keeper"),
+            (o for o in me.location.contents if o.key == "Bram"),
             None,
         )
         if keeper is not None:
@@ -2100,7 +2100,7 @@ def _consume(caller, item, kind, verb_self, verb_room):
                 for key, line in KEEPER_FARE_LINES.items():
                     if key in item.key:
                         me.location.msg_contents(
-                            f"The tavern keeper says, {line}"
+                            f"Bram says, {line}"
                         )
                         break
 

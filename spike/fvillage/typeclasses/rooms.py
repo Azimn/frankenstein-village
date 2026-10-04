@@ -112,6 +112,6 @@ class TavernRoom(SpikeRoom):
         if not moved_obj.has_account:
             return
         for obj in self.contents:
-            if obj.key == "the tavern keeper" and hasattr(obj, "greet"):
+            if obj.key == "Bram" and hasattr(obj, "greet"):
                 obj.greet(moved_obj)
                 break

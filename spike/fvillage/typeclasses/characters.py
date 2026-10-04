@@ -65,11 +65,12 @@ KEEPER_GREETS = [
     "Welcome in! Lunch is stew — it's always stew, and it's always good.",
 ]
 KEEPER_DESC = (
-    "The tavern keeper, apron on and cloth in hand, forever wiping the same "
-    "spot on the bar. The spot is worn through the varnish to pale wood — "
-    "worn by more years than he could possibly have stood there. He keeps "
-    "the taps, the tables, the dice cup, and the room moving. He remembers "
-    "what regulars do here and otherwise returns to the work."
+    "Bram, apron on and cloth in hand, forever wiping the same spot on the "
+    "bar. The spot is worn through the varnish to pale wood — worn by more "
+    "years than he could possibly have stood there. Nobody knows what the V "
+    "stands for. Magda claims she does. He keeps the taps, the tables, the "
+    "dice cup, and the room moving. He remembers what regulars do here and "
+    "otherwise returns to the work."
 )
 KEEPER_TALKS = [
     # Role-function only. The keeper has no biography, private wound, family,
@@ -248,8 +249,8 @@ class SpikeCharacter(Character):
         turnovers = 0
         try:
             from evennia.utils import search
-            taverns = [o for o in search.search_object("The Tavern")
-                       if o.key == "The Tavern"]
+            taverns = [o for o in search.search_object("The Blood of the Vine")
+                       if o.key == "The Blood of the Vine"]
             if taverns:
                 rots = taverns[0].db.rumor_rotations or []
                 turnovers = sum(1 for ts in rots if ts > last)
@@ -426,10 +427,11 @@ class Innkeeper(SpikeCharacter):
 
 
 class TavernKeeper(SpikeCharacter):
-    """The tavern keeper, a role-function rather than an authored person.
+    """Bram V., keeper of the Blood of the Vine.
 
-    Recognition, games, memory, and witnessing are intentional. Biography,
-    private history, family, and plot entanglement are not.
+    A role-function growing into a person. Recognition, games, memory, and
+    witnessing are intentional; the biography is still arriving. Nobody
+    knows what the V stands for.
     """
 
     def at_object_creation(self):
@@ -533,7 +535,7 @@ class TavernKeeper(SpikeCharacter):
         else:
             line = self._returnee_line(char, mask_mem, prev_seen)
         self.location.msg_contents(
-            f'The tavern keeper looks up. "{line}"',
+            f'Bram looks up. "{line}"',
             exclude=[],
         )
 
@@ -600,9 +602,9 @@ class TavernKeeper(SpikeCharacter):
 
     def talk_to(self, char):
         line = self._next_line("talk")
-        char.msg(f'The tavern keeper says: "{line}"')
+        char.msg(f'Bram says: "{line}"')
         self.location.msg_contents(
-            f"The tavern keeper leans on the bar, talking to {char.key}.",
+            f"Bram leans on the bar, talking to {char.key}.",
             exclude=[char],
         )
 

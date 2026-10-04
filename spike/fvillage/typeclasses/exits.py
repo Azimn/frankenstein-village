@@ -13,6 +13,32 @@ class Exit(DefaultExit):
     pass
 
 
+class PrivateRoomExit(DefaultExit):
+    """
+    The single shared 'up' exit in the Inn Common Room.
+
+    One object, many rooms: at_traverse routes each traveler to their own
+    account's private room (created on demand). This replaced the earlier
+    per-account 'up' exits, which multiplied in the room's exit listing and
+    made 'up' ambiguous ("More than one match for 'up'"). Privacy holds by
+    construction — you can only ever arrive in your own room — so the
+    traverse lock stays open.
+    """
+
+    def at_traverse(self, traversing_object, target_location, **kwargs):
+        # Deferred import: accounts imports nothing from exits at module
+        # level, but keep the dependency one-directional anyway.
+        from typeclasses.accounts import ensure_private_room
+
+        account = traversing_object.account
+        if account is None:
+            traversing_object.msg("You have no room of your own here.")
+            return
+        room = ensure_private_room(account)
+        traversing_object.msg("You climb the stairs to your room.")
+        super().at_traverse(traversing_object, room, **kwargs)
+
+
 class FrontDoorExit(DefaultExit):
     """
     An exit that knows which way the threshold runs. The destination

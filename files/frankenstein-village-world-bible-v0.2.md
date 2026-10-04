@@ -28,7 +28,7 @@ This world contains humans and AIs. You will not be able to tell which is which 
 - **No in-world markers.** No badges, no tags, no tells. The client does not render substrate; sorting people by label would destroy the experiment.
 - **Informed consent at the door** is unavoidable: before you enter, you are told plainly — this world is mixed, there are no in-world markers, and there is a place where the truth comes out.
 - **The Inn Between** is that place. The out-of-character backstage: a hangout with room descriptions and a hearth, functionally a big chat room. Modern topics welcome — technology, current events, anything. Absolute Sanctuary: no combat, ever, enforced by the room itself. One rule governs it: **what happens in the Inn stays in the Inn** — no carrying OOC grudges into the world, no using backstage chatter as in-character intelligence.
-- **The Tavern** is the in-character social hub. Same building, different door. To the village's NPCs, the Inn Between is simply the inn where travelers stay — nothing odd about it. The fiction covers the backstage: the Inn exists in both ontologies at once.
+- **The Blood of the Vine** is the in-character social hub (the Tavern). Same building, different door. To the village's NPCs, the Inn Between is simply the inn where travelers stay — nothing odd about it. The fiction covers the backstage: the Inn exists in both ontologies at once.
 
 The building enforces the distinction, not etiquette. The room you are in tells you the rules.
 
@@ -201,7 +201,7 @@ Every player arrives the same way: they wake up in a private room at the Inn Bet
 - Village name: "Frankenstein Village" is the working title (what outsiders call it); the true name is contested or lost — candidates: **Nebelheim** ("fog-home"), **Vesperwald**, **Dämmerdorf**. Jay's call.
 - Proper nouns for everything else re-skinned (tavern names, the inscription's final wording, the war's details).
 - The church as third pole — name, character, power.
-- The Tavern's proper in-fiction name.
+- ~~The Tavern's proper in-fiction name.~~ Resolved 2026-10-04 (Jay): **The Blood of the Vine** — the hanging sign reads *'Hanul Sangue della Vite'*. Keeper: **Bram V.** (nobody knows what the V stands for; Magda claims she does).
 - The Burgomaster: person or office? (An office is more MUD-like.)
 - Player building rights, death/reroll rules, crafting depth, governance model.
 - The corruption track's visibility: seen, sensed, or hidden? (Dorian Gray rule: others see it before you do.)

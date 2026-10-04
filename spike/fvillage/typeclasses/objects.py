@@ -200,7 +200,7 @@ class MysteryNote(DefaultObject):
                     "thank you for the road.\""
                 )
                 return False
-        if getter.key == "the tavern keeper":
+        if getter.key == "Bram":
             script = _room_six_script()
             if script is not None and script.db.tavern_told_by:
                 giver.msg(
@@ -213,7 +213,7 @@ class MysteryNote(DefaultObject):
     def at_give(self, giver, getter, **kwargs):
         if getter.key == "M.":
             self._tell_m(giver)
-        elif getter.key == "the tavern keeper":
+        elif getter.key == "Bram":
             self._tell_tavern(giver)
 
     def _tell_m(self, giver):

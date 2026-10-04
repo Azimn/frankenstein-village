@@ -102,25 +102,39 @@ def ensure_private_room(account):
 
     common = _find_common_room()
     if common:
-        ups = [
-            ex for ex in common.exits
-            if ex.destination and ex.destination.id == room.id
+        # Converge legacy per-account "up" exits into the single shared
+        # PrivateRoomExit. (B5, 2026-10-04: N same-keyed exits made 'up'
+        # ambiguous — "More than one match for 'up'" — and spammed the
+        # exit listing. One exit routes each traveler to their own room.)
+        for ex in list(common.exits):
+            dest = ex.destination
+            if (
+                ex.key == "up"
+                and dest is not None
+                and dest.tags.has("private_room", category="place")
+                and not ex.is_typeclass(
+                    "typeclasses.exits.PrivateRoomExit", exact=True
+                )
+            ):
+                ex.delete()
+        shared_ups = [
+            ex
+            for ex in common.exits
+            if ex.is_typeclass(
+                "typeclasses.exits.PrivateRoomExit", exact=True
+            )
         ]
-        if ups:
-            up_exit = ups[0]
+        if shared_ups:
+            up_exit = shared_ups[0]
         else:
             up_exit = create.create_object(
-                "evennia.objects.objects.DefaultExit",
+                "typeclasses.exits.PrivateRoomExit",
                 key="up",
                 location=common,
-                destination=room,
+                destination=room,  # placeholder; at_traverse routes per-account
                 aliases=["u", "room", "my room"],
             )
-        up_exit.locks.add(
-            f"traverse:pid({account.id}) or perm(Admin);"
-            f"view:pid({account.id}) or perm(Admin);"
-            f"search:pid({account.id}) or perm(Admin)"
-        )
+        up_exit.locks.add("traverse:all()")
 
         downs = [
             ex for ex in room.exits
@@ -136,6 +150,9 @@ def ensure_private_room(account):
                 destination=common,
                 aliases=["d"],
             )
+        # The room desc says "Stairs lead down" — make that examinable.
+        if "stairs" not in (down_exit.aliases.all() or []):
+            down_exit.aliases.add("stairs")
         down_exit.locks.add(
             f"traverse:pid({account.id}) or perm(Admin);"
             f"view:pid({account.id}) or perm(Admin);"
