@@ -160,6 +160,71 @@ class SpikeCharacter(Character):
         if self.db.posture:
             self.db.posture = None
             self.msg("You stand up.")
+        self._needs_tick()
+
+    # -- consumable needs: hunger, drunkenness, queasiness -------------------
+    # Travel costs time; time costs food. Hunger rises with movement and
+    # falls when you eat. Alcohol wears off as you walk it off. Queasiness
+    # (bad stew, mostly) counts down the same way. Numbers are the physics;
+    # score narrates them in bands, never digits (the bladder principle).
+
+    def _hunger(self):
+        if self.db.hunger is None:
+            self.db.hunger = 50
+        return self.db.hunger
+
+    def _drunkenness(self):
+        if self.db.drunkenness is None:
+            self.db.drunkenness = 0
+        return self.db.drunkenness
+
+    def _queasy(self):
+        return self.db.queasy or 0
+
+    def hunger_band(self):
+        h = self._hunger()
+        if h >= 80:
+            return "famished"
+        if h >= 60:
+            return "hungry"
+        if h <= 29:
+            return "sated"
+        return None
+
+    def drunk_band(self):
+        d = self._drunkenness()
+        if d >= 90:
+            return "wasted"
+        if d >= 60:
+            return "drunk"
+        if d >= 30:
+            return "tipsy"
+        return None
+
+    def _needs_tick(self):
+        """One movement's worth of metabolism. Called from at_post_move."""
+        import random
+        # Hunger.
+        was = self._hunger()
+        self.db.hunger = min(100, was + 2)
+        if was < 80 <= self.db.hunger:
+            self.msg("Your stomach growls. You should eat something soon.")
+        # Sobering up.
+        drunk = self._drunkenness()
+        if drunk > 0:
+            self.db.drunkenness = max(0, drunk - 5)
+            # The room has opinions when you're drunk.
+            if drunk >= 60 and random.random() < 0.15 and self.location:
+                self.location.msg_contents(
+                    f"{self.key} staggers slightly.",
+                    exclude=[self],
+                )
+                self.msg("You stagger slightly.")
+        # Settling the stomach.
+        if self._queasy() > 0:
+            self.db.queasy = self._queasy() - 1
+            if self._queasy() == 0:
+                self.msg("Your stomach settles.")
 
     def _catch_up(self):
         """'While you were away' — prosthetic continuity for returnees.
@@ -525,6 +590,8 @@ class TavernKeeper(SpikeCharacter):
             parts.append("The dice have missed you.")
         elif "fiddle" in interests:
             parts.append("Haven't heard the fiddle in a while.")
+        elif "fortunes" in interests:
+            parts.append("The cards have missed you.")
         elif mem.get("visits", 0) >= 4:
             parts.append("The usual table's free.")
         if not parts:

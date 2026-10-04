@@ -264,6 +264,15 @@ get_or_create_scenery(
     aliases=["cup"],
 )
 
+# fortune deck: the tavern's corner-table game (draw card)
+get_or_create_scenery(
+    "a deck of fortune cards", tavern,
+    "A worn deck of fortune cards, edges soft from handling, squared neatly "
+    "on the corner table. Someone has thumbed the ace of spades nearly "
+    "through. (Try: draw card.)",
+    aliases=["fortune deck", "deck", "cards"],
+)
+
 # the fiddle: hangs on its peg by the hearth, for anyone with the nerve
 found = [o for o in tavern.contents if o.key == "a fiddle"]
 if not found:
@@ -280,6 +289,125 @@ if not found:
     print("fiddle created in The Tavern.")
 else:
     print("The fiddle already hangs by the hearth.")
+
+# the sideboard: the tavern's help-yourself hospitality (eat / drink)
+# Tags are the physics: `consumable` + `food`/`drink`. Magnitudes and the
+# surprise table live in db.consume; the eat/drink commands read them.
+get_or_create_scenery(
+    "a sideboard", tavern,
+    "A long sideboard laden with the tavern's hospitality: bread, cheese, "
+    "a pot of stew, ale, wine, water. Help yourself — the keeper insists. "
+    "(Try: eat bread. Or: drink ale.)",
+    aliases=["sideboard"],
+)
+
+
+def _fare(key, aliases, kind, desc, consume):
+    found = [o for o in tavern.contents if o.key == key]
+    if found:
+        obj = found[0]
+    else:
+        obj = create.create_object(
+            "evennia.objects.objects.DefaultObject",
+            key=key, location=tavern, aliases=list(aliases),
+        )
+        print(f"fare created: {key}")
+    obj.db.desc = desc
+    obj.tags.add("consumable")
+    obj.tags.add(kind)  # "food" or "drink" — the eat/drink gate
+    obj.db.consume = consume
+    return obj
+
+
+_fare(
+    "a loaf of bread", ["bread", "loaf"], "food",
+    "Dark rye, still warm from the morning bake. Someone knows their oven.",
+    {
+        "nourish": 25,
+        "flavor": "You tear off a hunk of rye. Warm, honest, gone too soon.",
+        "room": "tears into the rye bread.",
+        "surprises": [
+            {"chance": 6, "key": "stale",
+             "text": "This bread has seen better days — dry as a sermon.",
+             "room": "makes a face at the bread.",
+             "effect": "nonourish"},
+        ],
+    },
+)
+_fare(
+    "a wedge of cheese", ["cheese", "wedge"], "food",
+    "Hard cheese, sharp enough to argue with.",
+    {
+        "nourish": 15,
+        "flavor": "The cheese bites back a little. You respect that.",
+        "room": "works through a wedge of the sharp cheese.",
+    },
+)
+_fare(
+    "a bowl of stew", ["stew", "bowl"], "food",
+    "Thick stew, mostly root vegetables. The meat's provenance is uncertain, "
+    "and the keeper changes the subject when asked.",
+    {
+        "nourish": 40,
+        "flavor": "The stew is thick, peppery, and — you decide not to ask.",
+        "room": "spoons up the stew without asking questions.",
+        "surprises": [
+            {"chance": 5, "key": "coin",
+             "text": "You bite down on something hard — a copper coin, worn "
+                     "smooth! Lucky stew.",
+             "room": "bites down on something hard, and grins.",
+             "effect": "coin"},
+            {"chance": 6, "key": "off",
+             "text": "Something in this stew was... ambitious. Your stomach "
+                     "turns.",
+             "room": "goes a little green around the edges.",
+             "rumor": "Don't eat the stew on Thursdays. Just don't.",
+             "effect": "queasy"},
+        ],
+    },
+)
+_fare(
+    "a tankard of ale", ["ale", "tankard"], "drink",
+    "House ale, foamy and honest. Mostly honest.",
+    {
+        "nourish": 5, "alcohol": 25,
+        "flavor": "The ale is foamy and forthright.",
+        "room": "takes a long pull of ale.",
+        "surprises": [
+            {"chance": 8, "key": "watered",
+             "text": "This tastes thin. Watered, unless your tongue's lying. "
+                     "The keeper avoids your eye.",
+             "room": "sniffs at the ale suspiciously.",
+             "rumor": "The keeper waters the ale. Or so the talk goes."},
+        ],
+    },
+)
+_fare(
+    "a cup of wine", ["wine", "cup"], "drink",
+    "Red wine, better than it has any right to be at this price.",
+    {
+        "alcohol": 40,
+        "flavor": "The wine is dark and unhurried.",
+        "room": "sips the wine with undue ceremony.",
+        "surprises": [
+            {"chance": 6, "key": "vintage",
+             "text": "This is... actually remarkable. Blackcurrant, old "
+                     "wood, something like forgiveness.",
+             "room": "closes their eyes over the wine.",
+             "effect": "heal"},
+        ],
+    },
+)
+_fare(
+    "a cup of water", ["water", "cup"], "drink",
+    "Cold well water. Free, honest, and — the regulars will tell you — "
+    "strategically useful.",
+    {
+        "sobering": 15,
+        "flavor": "Cold water. It clears the head and steadies the hands.",
+        "room": "drinks a full cup of water, deliberately.",
+    },
+)
 
 # The common room's description claimed the front door "stands to the
 # south", but the door is only reachable via the hallway (east). Fix the

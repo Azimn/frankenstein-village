@@ -718,6 +718,266 @@ class CmdRoll(Command):
         )
 
 
+# -- Card fortunes -------------------------------------------------------------
+# A worn deck on the tavern's corner table. Public-domain cartomancy:
+# each card carries one fixed reading, written in the keeper's voice
+# (plain-spoken, directive, points at the game loop). Spades are the
+# mystery vein — while Room Six's note is pinned behind the bar, the
+# keeper's eyes drift to it on a spade draw.
+
+_SUIT_NAMES = {"S": "Spades", "H": "Hearts", "D": "Diamonds", "C": "Clubs"}
+_RANK_NAMES = {
+    "A": "Ace", "2": "Two", "3": "Three", "4": "Four", "5": "Five",
+    "6": "Six", "7": "Seven", "8": "Eight", "9": "Nine", "10": "Ten",
+    "J": "Jack", "Q": "Queen", "K": "King",
+}
+
+# code -> (card title, keeper's reading)
+FORTUNES = {
+    # Spades: secrets, sorrow, trouble
+    "AS": ("The Ace of Spades.",
+           "An ending that arrives dressed as a beginning. Watch what the "
+           "village buries this week — and who does the burying."),
+    "2S": ("The Two of Spades.",
+           "A parting, or a narrow miss. Something that could have gone "
+           "wrong didn't — don't spend the luck twice."),
+    "3S": ("The Three of Spades.",
+           "Tears kept indoors. Someone in this room is grieving in "
+           "private, and the cards won't name them."),
+    "4S": ("The Four of Spades.",
+           "Rest after trouble. Take the quiet while it's offered — it "
+           "doesn't stay long in this village."),
+    "5S": ("The Five of Spades.",
+           "A small cruelty, or a sharp word that outlives its welcome. "
+           "Mind your tongue at the bar tonight."),
+    "6S": ("The Six of Spades.",
+           "A journey over water, or away from one. What leaves the square "
+           "doesn't always come back better."),
+    "7S": ("The Seven of Spades.",
+           "A warning dressed as advice. If someone urges you to hurry, "
+           "ask what they gain by your haste."),
+    "8S": ("The Eight of Spades.",
+           "A snare of your own making. The cards are blunt about this "
+           "one: stop digging the hole."),
+    "9S": ("The Nine of Spades.",
+           "A sorrow that keeps its own hours. It passes — but it passes "
+           "slower if you feed it."),
+    "10S": ("The Ten of Spades.",
+            "Worry, not ruin. Worry is the tax the living pay for being "
+            "alive."),
+    "JS": ("The Jack of Spades.",
+           "A watchful young man, or a warning about one. He listens more "
+           "than he says, and says less than he knows."),
+    "QS": ("The Queen of Spades.",
+           "A woman carrying grief like a trade. She means no harm — but "
+           "grief borrows sharp tools."),
+    "KS": ("The King of Spades.",
+           "A dark man in a position of power. He'll offer you something. "
+           "Count the cost twice before you take it."),
+    # Hearts: the heart's business — love, home, kin
+    "AH": ("The Ace of Hearts.",
+           "A new affection, or an old one rekindled. The heart moves "
+           "faster than the village's gossip — barely."),
+    "2H": ("The Two of Hearts.",
+           "A good partnership, or a reconciliation. Two people who stopped "
+           "talking start again."),
+    "3H": ("The Three of Hearts.",
+           "Small joys, honestly earned. A warm hearth, a full cup. Don't "
+           "apologize for wanting them."),
+    "4H": ("The Four of Hearts.",
+           "Restlessness in a comfortable chair. You have what you wanted "
+           "and it isn't enough — sit with that a while."),
+    "5H": ("The Five of Hearts.",
+           "A jealousy, or a wounded pride. Most of the damage here is done "
+           "by imagining."),
+    "6H": ("The Six of Hearts.",
+           "An old friend walks back into the story. The past keeps its own "
+           "appointments."),
+    "7H": ("The Seven of Hearts.",
+           "A wish that needs choosing. You can't want everything — pick "
+           "the want you'd defend."),
+    "8H": ("The Eight of Hearts.",
+           "A journey for the heart's sake: a visit, a letter answered, a "
+           "door knocked on after too long."),
+    "9H": ("The Nine of Hearts.",
+           "The wish card. What you most want is closer than you think — "
+           "but it asks something in return."),
+    "10H": ("The Ten of Hearts.",
+            "Good fortune in full measure. Home, hearth, and people who'd "
+            "miss you. Say so while you can."),
+    "JH": ("The Jack of Hearts.",
+           "A fair young man with an open face. He'll bring news, or "
+           "trouble, or both — hard to tell with the young."),
+    "QH": ("The Queen of Hearts.",
+           "A kind woman, steady as the hearth. Trust her counsel over your "
+           "own cleverness."),
+    "KH": ("The King of Hearts.",
+           "A good man, generous and easily moved. He'd give you his coat. "
+           "Let him — then return the favor."),
+    # Diamonds: coin and news — money, letters, material tidings
+    "AD": ("The Ace of Diamonds.",
+           "A letter, or tidings about money. Read it twice — the second "
+           "reading is the true one."),
+    "2D": ("The Two of Diamonds.",
+           "A fair exchange, or a small partnership of convenience. Both "
+           "sides get what they need. For now."),
+    "3D": ("The Three of Diamonds.",
+           "Your work noticed by the right eyes. Modest reward, honestly "
+           "come by."),
+    "4D": ("The Four of Diamonds.",
+           "A miserliness — yours or another's. Holding too tight is its "
+           "own kind of losing."),
+    "5D": ("The Five of Diamonds.",
+           "Money trouble, or a quarrel about it. The village forgets debts "
+           "slower than it forgives them."),
+    "6D": ("The Six of Diamonds.",
+           "A debt repaid, or a favor returned. The ledger balances — rarer "
+           "than it sounds."),
+    "7D": ("The Seven of Diamonds.",
+           "A gamble, or a speculation. The risk is real and so is the "
+           "prize. Your call."),
+    "8D": ("The Eight of Diamonds.",
+           "News about work, or work about news. A practical matter moves "
+           "forward."),
+    "9D": ("The Nine of Diamonds.",
+           "A windfall, or a well-earned reward. Enjoy it — and put some "
+           "by, because the cards remember winter."),
+    "10D": ("The Ten of Diamonds.",
+            "A legacy, or money through family. It comes with strings. They "
+            "all do."),
+    "JD": ("The Jack of Diamonds.",
+           "A messenger, or a young man with a scheme. Hear him out, but "
+           "keep your hand on your purse."),
+    "QD": ("The Queen of Diamonds.",
+           "A practical woman with a sharp eye for value. She'll drive a "
+           "hard bargain and keep her word."),
+    "KD": ("The King of Diamonds.",
+           "A man of business, or a matter of business. He respects the "
+           "deal more than the handshake — make it plain."),
+    # Clubs: work and company — labor, enterprise, the social round
+    "AC": ("The Ace of Clubs.",
+           "A new undertaking, or a burst of ambition. The work is good — "
+           "start before the courage cools."),
+    "2C": ("The Two of Clubs.",
+           "An obstacle, or a rival at the trade. Competition sharpens you. "
+           "Let it."),
+    "3C": ("The Three of Clubs.",
+           "Your efforts bear fruit. Not the whole harvest — the first "
+           "basket. Keep picking."),
+    "4C": ("The Four of Clubs.",
+           "A change of plans, or a journey for work's sake. Pack light "
+           "and keep your tools sharp."),
+    "5C": ("The Five of Clubs.",
+           "A new friend in a useful place. Alliances made over work "
+           "outlast alliances made over drink."),
+    "6C": ("The Six of Clubs.",
+           "Success after struggle. You earned this one the hard way — "
+           "that's why it'll stick."),
+    "7C": ("The Seven of Clubs.",
+           "A small victory, or a wager won. Take the win graciously and "
+           "don't press your luck."),
+    "8C": ("The Eight of Clubs.",
+           "Restlessness about your calling. The work is fine — it's the "
+           "wanting that's moved."),
+    "9C": ("The Nine of Clubs.",
+           "An achievement, or a goal reached. Mark it. The village marks "
+           "nothing for you."),
+    "10C": ("The Ten of Clubs.",
+            "A journey by land, or a venture that carries you. Fortune "
+            "favors the packed bag."),
+    "JC": ("The Jack of Clubs.",
+           "A dark young man, quick and ambitious. He'll be useful — or "
+           "he'll be trouble. Possibly both, in that order."),
+    "QC": ("The Queen of Clubs.",
+           "A capable woman, warm once she trusts you. She runs things. "
+           "Let her."),
+    "KC": ("The King of Clubs.",
+           "A dark man of enterprise, generous to his friends. Get on his "
+           "good side before you need it."),
+}
+
+
+class CmdDraw(Command):
+    """
+    Draw a fortune card from the tavern's worn deck.
+
+    Usage:
+        draw card
+
+    One card, one fortune, no take-backs — the keeper reads it, and the
+    room hears it. Spades turn his eyes toward the note behind the bar,
+    if there's a note there.
+    """
+
+    key = "draw"
+    help_category = "Village"
+
+    def func(self):
+        loc = self.caller.location
+        if not loc or not loc.tags.has("tavern", category="place"):
+            self.caller.msg(
+                "Draw what, where? The fortune deck's on the corner table "
+                "in the Tavern."
+            )
+            return
+        arg = (self.args or "").strip().lower()
+        if "card" not in arg:
+            self.caller.msg(
+                "Draw what? The fortune deck's on the corner table. "
+                "(Try: draw card.)"
+            )
+            return
+        # The keeper notices who plays — and reads the card himself.
+        keeper = None
+        for obj in loc.contents:
+            if obj.key == "the tavern keeper" and hasattr(obj, "note_interest"):
+                obj.note_interest(self.caller, "fortunes")
+                keeper = obj
+                break
+        # No immediate repeats: the deck holds a grudge, of a kind.
+        codes = list(FORTUNES)
+        recent = list(self.caller.db.fortune_recent or [])
+        pool = [c for c in codes if c not in recent] or codes
+        code = random.choice(pool)
+        recent.append(code)
+        self.caller.db.fortune_recent = recent[-3:]
+        title, reading = FORTUNES[code]
+        lines = [
+            f"{self.caller.key} draws a card from the worn deck on the "
+            "corner table."
+        ]
+        if keeper:
+            lines.append(f'The keeper turns it over. "{title}"')
+            lines.append(reading)
+            if code.endswith("S") and self._note_pinned():
+                if code == "AS":
+                    lines.append(
+                        "'The ace of spades. The village has buried enough "
+                        "this year — read the note behind the bar, if you "
+                        "haven't.'"
+                    )
+                else:
+                    lines.append(
+                        "The keeper's eyes flick, just once, to the folded "
+                        "note pinned behind the bar. 'Some cards know more "
+                        "than they say.'"
+                    )
+        else:
+            lines.append(f"You turn it over: {title}")
+            lines.append(reading)
+        loc.msg_contents("\n".join(lines), exclude=[])
+
+    @staticmethod
+    def _note_pinned():
+        """Room Six's note hangs behind the bar (the tavern road)."""
+        try:
+            from evennia.scripts.models import ScriptDB
+
+            return bool(ScriptDB.objects.get(db_key="room_six").db.tavern_told_by)
+        except Exception:
+            return False
+
+
 def fiddle_rank(skill):
     """Named ranks, DF-style: every rank must change the text the player
     sees, or the loop is dead. The village names what it hears."""
@@ -1555,6 +1815,17 @@ class CmdScore(Command):
             w = 1.0
         band = WarmthWatch._felt_band(w)
         lines.append(self.FELT_STATE[band])
+        # hunger and drink, narrated in bands — never digits.
+        if hasattr(me, "hunger_band"):
+            hband = me.hunger_band()
+            if hband in HUNGER_BANDS:
+                lines.append(HUNGER_BANDS[hband])
+        if hasattr(me, "drunk_band"):
+            dband = me.drunk_band()
+            if dband in DRUNK_BANDS:
+                lines.append(DRUNK_BANDS[dband])
+        if me.db.queasy:
+            lines.append("Your stomach is unsettled.")
         skill = me.db.fiddle_skill or 0.0
         if skill > 0:
             lines.append(f"Fiddle: {fiddle_rank(skill)}.")
@@ -1674,3 +1945,234 @@ class CmdICOverride(Command):
             "gives you. The front door of the Inn Between is the only "
             "threshold — step through it to change masks."
         )
+
+
+# --- consumables: eat, drink, and regret --------------------------------------
+#
+# Tags are the physics: an item tagged `consumable` + `food` (or `drink`)
+# can be eaten (or drunk). Magnitudes live in db.consume:
+#   {"nourish": 25, "heal": 0, "alcohol": 25, "toxic": 0, "sobering": 0,
+#    "flavor": "...", "room": "...", "surprises": [...]}
+# A surprise is {"chance": 8, "key": "watered", "text": "...", "room": "...",
+# "rumor": "...", "effect": "coin"|"queasy"|"nonourish"|"heal"}.
+# Surprises feed the event pipeline: surprise -> ledger -> rumor. The world
+# remembers the unexpected — that is what makes it a game instead of prose.
+
+HUNGER_BANDS = {
+    "sated": "You feel comfortably full.",
+    "hungry": "Your stomach is starting to complain.",
+    "famished": "Hunger gnaws at you.",
+}
+
+DRUNK_BANDS = {
+    "tipsy": "A pleasant warmth hums behind your eyes.",
+    "drunk": "The room has opinions about which way is up.",
+    "wasted": "You are very drunk. Sitting down seems wise.",
+}
+
+DRUNK_CROSS_LINES = {
+    "tipsy": "A pleasant warmth spreads through you.",
+    "drunk": "The room tilts, just slightly.",
+    "wasted": "Oh no.",
+}
+
+KEEPER_FARE_LINES = {
+    "ale": '"Easy on the ale. That\'s the good cask."',
+    "wine": '"Someone with taste."',
+    "stew": '"Stew\'s mostly root vegetable. Mostly."',
+    "bread": '"Bread\'s fresh this morning. Mostly."',
+    "cheese": '"Sharp enough to argue with, that cheese."',
+    "water": '"Water\'s free. Everything else, we\'ll talk."',
+}
+
+
+def _consume(caller, item, kind, verb_self, verb_room):
+    """Shared eat/drink implementation. kind is 'food' or 'drink'."""
+    from world.events import publish_world_event
+
+    me = caller
+    data = item.db.consume or {}
+
+    # Roll each surprise in order; the first hit wins.
+    surprise = None
+    for s in data.get("surprises") or []:
+        try:
+            chance = float(s.get("chance", 0))
+        except (TypeError, ValueError):
+            continue
+        if random.random() * 100 < chance:
+            surprise = s
+            break
+    effect = (surprise or {}).get("effect")
+
+    # Magnitudes. A "nonourish" surprise (stale bread) voids the nourish.
+    nourish = 0 if effect == "nonourish" else data.get("nourish", 0) or 0
+    alcohol = data.get("alcohol", 0) or 0
+    toxic = data.get("toxic", 0) or 0
+    sobering = data.get("sobering", 0) or 0
+    heal = data.get("heal", 0) or 0
+
+    # Apply to the body.
+    if nourish and hasattr(me, "_hunger"):
+        me.db.hunger = max(0, me._hunger() - nourish)
+    drunk_before = me._drunkenness() if hasattr(me, "_drunkenness") else 0
+    if alcohol and hasattr(me, "_drunkenness"):
+        me.db.drunkenness = min(100, drunk_before + alcohol)
+    if sobering and hasattr(me, "_drunkenness"):
+        me.db.drunkenness = max(0, me._drunkenness() - sobering)
+    if toxic:
+        me.db.queasy = max(me.db.queasy or 0, toxic)
+    if heal:
+        me.db.queasy = 0
+    extra = ""
+    if effect == "coin":
+        from evennia import create_object
+        coin = create_object(
+            "evennia.objects.objects.DefaultObject",
+            key="a copper coin",
+            location=me,
+            aliases=["coin", "copper"],
+        )
+        coin.db.desc = "A copper coin, slightly dented. Found in the stew."
+        extra = " You pocket it."
+    elif effect == "queasy":
+        me.db.queasy = max(me.db.queasy or 0, 5)
+    elif effect == "heal":
+        me.db.queasy = 0
+        extra = " You feel restored."
+
+    # Narration. A surprise replaces the ordinary flavor with its own.
+    if surprise:
+        personal = surprise.get("text", f"You {verb_self} the {item.key}.")
+        room = surprise.get("room")
+        room_line = f"{me.key} {room}" if room else None
+    else:
+        personal = data.get("flavor") or f"You {verb_self} the {item.key}."
+        room_line = data.get("room") or f"{me.key} {verb_room} the {item.key}."
+    me.msg(personal + extra)
+    if room_line and me.location:
+        me.location.msg_contents(room_line, exclude=[me])
+
+    # Drunkenness crossings announce themselves.
+    if alcohol and hasattr(me, "drunk_band"):
+        band = me.drunk_band()
+        before = (
+            "wasted" if drunk_before >= 90
+            else "drunk" if drunk_before >= 60
+            else "tipsy" if drunk_before >= 30
+            else None
+        )
+        if band and band != before and band in DRUNK_CROSS_LINES:
+            me.msg(DRUNK_CROSS_LINES[band])
+            if me.location:
+                if band == "tipsy":
+                    me.location.msg_contents(
+                        f"{me.key} looks pleasantly flushed.", exclude=[me]
+                    )
+                elif band == "drunk":
+                    me.location.msg_contents(
+                        f"{me.key} is visibly drunk.", exclude=[me]
+                    )
+                elif band == "wasted":
+                    me.location.msg_contents(
+                        f"{me.key} is extremely drunk.", exclude=[me]
+                    )
+
+    # The unexpected becomes memory: surprise -> ledger -> rumor.
+    if surprise and surprise.get("rumor"):
+        publish_world_event(
+            "consumable-surprise",
+            actor=me,
+            payload={"item": item.key, "surprise": surprise.get("key")},
+            rumor=surprise["rumor"],
+        )
+
+    # The keeper notices appetites.
+    if me.location:
+        keeper = next(
+            (o for o in me.location.contents if o.key == "the tavern keeper"),
+            None,
+        )
+        if keeper is not None:
+            if hasattr(keeper, "note_interest"):
+                keeper.note_interest(me, "food" if kind == "food" else "drink")
+            if random.random() < 0.35:
+                for key, line in KEEPER_FARE_LINES.items():
+                    if key in item.key:
+                        me.location.msg_contents(
+                            f"The tavern keeper says, {line}"
+                        )
+                        break
+
+
+class CmdEat(Command):
+    """
+    Eat something edible.
+
+    Usage:
+        eat <food>
+
+    The sideboard in the Tavern is laden and help-yourself. Food soothes
+    hunger; some of it does other things. The stew's provenance is uncertain.
+    """
+
+    key = "eat"
+    help_category = "Village"
+
+    def func(self):
+        arg = (self.args or "").strip()
+        if not arg:
+            self.caller.msg("Eat what?")
+            return
+        item = self.caller.search(arg)
+        if not item:
+            return
+        if not item.tags.has("consumable"):
+            self.caller.msg(f"You can't eat {item.key}.")
+            return
+        if not item.tags.has("food"):
+            self.caller.msg(
+                f"You can't eat that. (The {item.key} isn't food. "
+                "Try drinking it.)"
+            )
+            return
+        if self.caller.db.queasy:
+            self.caller.msg(
+                "Your stomach turns at the thought of food. Maybe later."
+            )
+            return
+        _consume(self.caller, item, "food", "eat", "eats")
+
+
+class CmdDrink(Command):
+    """
+    Drink something drinkable.
+
+    Usage:
+        drink <drink>
+
+    Ale, wine, water — the sideboard's help-yourself. Alcohol has effects,
+    and effects have witnesses. Water sobers.
+    """
+
+    key = "drink"
+    help_category = "Village"
+
+    def func(self):
+        arg = (self.args or "").strip()
+        if not arg:
+            self.caller.msg("Drink what?")
+            return
+        item = self.caller.search(arg)
+        if not item:
+            return
+        if not item.tags.has("consumable"):
+            self.caller.msg(f"You can't drink {item.key}.")
+            return
+        if not item.tags.has("drink"):
+            self.caller.msg(
+                f"You can't drink that. (The {item.key} isn't drinkable. "
+                "Try eating it.)"
+            )
+            return
+        _consume(self.caller, item, "drink", "drink", "drinks")
