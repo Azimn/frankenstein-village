@@ -674,7 +674,7 @@ class TavernKeeper(SpikeCharacter):
         }:
             self.note_interest(char, "stew")
             return random.choice(STEW_DEFLECTIONS)
-        if t == "m" or "innkeeper" in t or "innkeep" in t:
+        if t.rstrip(".") == "m" or "innkeeper" in t or "innkeep" in t:
             return (
                 "M.? Best innkeeper in the village. Don't tell her I "
                 "said so — she'd raise my rent out of spite."

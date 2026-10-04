@@ -119,11 +119,17 @@ class SpikeScript(DefaultScript):
     """
 
     def at_server_start(self):
+        # Fresh ticker, unconditionally. A script created via `evennia shell`
+        # starts its ticker in the shell's process; after the shell exits
+        # the server can see a phantom ndb task (or none at all) while the
+        # ticker silently never runs. Stopping any existing task and starting
+        # anew guarantees the LoopingCall is bound to a live instance in
+        # this process. (2026-10-04: village_routine's ticker was dead this
+        # way — present and "running" per ndb, never firing.)
         if not self.is_active:
             return
-        task = self.ndb._task
-        if not task or not task.running:
-            self.start()
+        self._stop_task()
+        self.start()
 
 
 class AmbientLife(SpikeScript):
@@ -445,6 +451,8 @@ class VillageTime(SpikeScript):
         self.persistent = True
         if self.db.hour is None:
             self.db.hour = 21  # the village starts at night
+        if self.db.day is None:
+            self.db.day = 1  # day counter; routines shift monthly on it
 
     def at_repeat(self):
         from evennia.utils import search
@@ -457,6 +465,8 @@ class VillageTime(SpikeScript):
             hour = 21
         hour = (hour + 1) % 24
         self.db.hour = hour
+        if hour == 0:
+            self.db.day = (self.db.day or 1) + 1
         name = village_hour_name(hour)
         for key in ("Village Square", "The Blood of the Vine", "Inn Common Room",
                     "Inn Hallway", "Private Room", "Tavern Back Hall"):
@@ -652,6 +662,26 @@ class CatLife(SpikeScript):
                 "hearth, lays it precisely before the empty chair, and "
                 "stares at it."
             )
+
+
+class VillageRoutine(SpikeScript):
+    """Daily routines for the tavern regulars.
+
+    Every interval (one game-hour), each regular is moved to wherever
+    their schedule — or an active deviation — says they should be, with
+    an arrival/departure line in their own voice. Every 30 game-days one
+    regular's hours shift permanently, via the event ledger.
+    """
+
+    def at_script_creation(self):
+        self.key = "village_routine"
+        self.desc = "Daily routines for the tavern regulars."
+        self.interval = 600
+        self.persistent = True
+
+    def at_repeat(self):
+        from world.routines import tick
+        tick()
 
 
 class TavernLife(SpikeScript):

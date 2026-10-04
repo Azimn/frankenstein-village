@@ -91,6 +91,18 @@ lamp_shop = get_or_create_room(
     place="shop",
 )
 
+# Offstage: where regulars are when their schedule says "home". No exits —
+# the churchyard, the cottages, the woods edge don't exist as rooms yet.
+# Players never go here; the schedule's observable consequence is that
+# people leave and come back.
+get_or_create_room(
+    "Offstage", ROOM,
+    "Behind the village: churchyards and cottages and the woods edge, "
+    "all the places the map hasn't drawn yet.",
+    side="ic",
+    place="offstage",
+)
+
 # --- exits ------------------------------------------------------------------
 # OOC side
 get_or_create_exit("east", common, hallway, "evennia.objects.objects.DefaultExit", aliases=["e"])
@@ -813,6 +825,7 @@ for _skey, _sclass in (
     ("village_weather", "typeclasses.scripts.VillageWeather"),
     ("warmth_watch", "typeclasses.scripts.WarmthWatch"),
     ("tavern_life", "typeclasses.scripts.TavernLife"),
+    ("village_routine", "typeclasses.scripts.VillageRoutine"),
 ):
     if ScriptDB.objects.filter(db_key=_skey).exists():
         print(f"{_skey} script exists.")
