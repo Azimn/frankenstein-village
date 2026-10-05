@@ -147,6 +147,16 @@ def game_date(game_day, epoch=(EPOCH_MONTH, EPOCH_DAY)):
     return d.month, d.day
 
 
+def is_sunday(game_day):
+    """Day 1 was a Sunday (Oct 4). The village keeps the Lord's day."""
+    return (game_day - 1) % 7 == 0
+
+
+def weekday_name(game_day):
+    return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday",
+            "Friday", "Saturday"][(game_day - 1) % 7]
+
+
 def feast_on(month, day, year=2000):
     """Feast info for a month/day, or None. Checks fixed, moveable, Advent."""
     if (month, day) in FIXED_FEASTS:

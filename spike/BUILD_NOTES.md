@@ -223,3 +223,49 @@ at_server_start() calls self.start() when no task is running. All timed
 scripts inherit from it. New scripts added later must also inherit
 SpikeScript (or be created in-server), or their tickers will be dead the
 same way.
+
+## 2026-10-04 — Server found down; restart + new `twistd` shim quirk (Calibos, evening wake playtest)
+
+Found both Portal and Server NOT RUNNING (ports 4000/4001 closed) and
+restarted. The old quirk #2 ("put venv/bin on PATH") was no longer
+sufficient: this venv's Twisted install ships the `twistd` *module* but no
+`twistd` *launcher script* in venv/bin, so `evennia start` failed with
+`Portal process error: [Errno 2] No such file or directory: 'twistd'`
+even after fixing PATH. Fix: `venv/bin/twistd` is now a shell shim that
+`exec`s `python -c "from twisted.scripts.twistd import run; run()"`.
+(It is gitignored with the rest of venv/, so it persists on this machine
+only — if the venv is rebuilt, recreate it. Update quirk #2 accordingly.)
+
+Full scripted telnet playtest, all green:
+`connect admin <pw>` → substrate gate (`account already declared AI`) →
+`ic` (Tester puppets) → Common Room (M. + lingering `lurkprobe`
+character) → `talk M` (distinct lines per call) → `east` Hallway →
+`south` front door → Village Square (IC threshold reminder fired; exits
+north/east/south/west; well, mushrooms, hanging sign) → `east` Tavern
+(Bram + tavern cat; 17 scenery objects) → `rumors` (provenance-bearing:
+"Heard from: rs_tester2", including a Room Six note) → `quit`.
+
+Observations for the real build:
+- The front-door threshold ("the mask comes off") carries more emotional
+  weight than any single room; crossings are the game's punctuation.
+- Rumor variety is thin: 4 of 5 rumors were the same "keeping different
+  hours" template (Magda, János, Vasile, Father Andrei — presumably from
+  the monthly_shift schedule changes). Same-template rumors in one
+  `rumors` call read as a debug echo. The Chronicler/Harbinger pipeline
+  should deduplicate templates per call or vary phrasing.
+- `lurkprobe` character is sitting unpuppeted in the Common Room —
+  presumably a leftover from an automated probe session; harmless but
+  worth knowing about.
+- Server left RUNNING (portal 4000, web 4001).
+
+## 2026-10-04 — Host reboot behavior (proactivity research)
+
+Host rebooted 18:52:52 CDT; portal+server stayed down until the 20:06 wake
+restarted them. Nothing auto-starts Evennia on boot (no systemd unit, no
+@reboot). The portal auto-restarts a dead *server* (~12s) only while the
+portal itself is alive — a dead portal restarts nothing. Self-healing
+already exists in the automation (build-loop step 0 and spike-playtest
+step 1 both `evennia start` on refused socket), so a rebooted box recovers
+on the next loop run at the latest. Also retracted: the day's frequent
+restarts were our own tooling reloads (build loop, playtest cron, live
+sessions), not an external killer — see build-loop-log 2026-10-04 ~20:35.

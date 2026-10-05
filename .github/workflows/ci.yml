@@ -1,0 +1,70 @@
+name: Frankenstein Village CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Bootstrap the Evennia spike
+        env:
+          EVENNIA_SUPERUSER_USERNAME: ci-admin
+          EVENNIA_SUPERUSER_EMAIL: ci@example.invalid
+        run: |
+          export EVENNIA_SUPERUSER_PASSWORD="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          python spike/bootstrap.py
+
+      - name: Put the spike virtual environment on PATH
+        run: echo "$GITHUB_WORKSPACE/spike/venv/bin" >> "$GITHUB_PATH"
+
+      - name: Compile game source
+        run: >-
+          python -m compileall -q
+          spike/fvillage/commands
+          spike/fvillage/typeclasses
+          spike/fvillage/world
+
+      - name: Run no-model prototype regressions
+        run: |
+          python prototype/rumor-mill/rumor_mill.py
+          python prototype/engagement-tiers/experiments.py all
+
+      - name: Start the Evennia spike for integration harnesses
+        working-directory: spike/fvillage
+        run: |
+          evennia start
+          sleep 3
+
+      - name: Run supplied spike regression harnesses
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -x spike/tests/run_all.sh ]]; then
+            spike/tests/run_all.sh
+          elif [[ -f spike/tests/run_all.py ]]; then
+            python spike/tests/run_all.py
+          elif compgen -G "spike/tests/test_*.py" > /dev/null; then
+            for harness in spike/tests/test_*.py; do
+              echo "Running ${harness}"
+              python "${harness}"
+            done
+          else
+            echo "No supplied spike harnesses found yet."
+            echo "Add run_all.sh, run_all.py, or test_*.py under spike/tests/."
+          fi
+
+      - name: Stop the Evennia spike
+        if: always()
+        working-directory: spike/fvillage
+        run: evennia stop || true

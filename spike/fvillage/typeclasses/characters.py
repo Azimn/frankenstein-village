@@ -1009,6 +1009,25 @@ class FatherAndrei(TavernRegular):
                 "between God and the thing in the catacombs. I perform it "
                 "either way.",
             ])
+        if has("mass", "sunday", "communion", "blessing", "blessed"):
+            from evennia.scripts.models import ScriptDB
+            try:
+                routine = ScriptDB.objects.get(db_key="village_routine")
+                last = routine.db.last_mass_day
+            except Exception:
+                last = None
+            if last and char.db.blessed_day == last:
+                return (
+                    "Sunday last, I saw you there. The candles bowed for you "
+                    "like everyone else. Walk in it."
+                )
+            if last:
+                return (
+                    "Sundays at ten. The bell rings the peal — you'd hear it "
+                    "from anywhere in the village. Magda sings loud enough "
+                    "for two."
+                )
+            return "Sundays at ten. Come and see."
         if has("all souls", "all saints", "november", "feast", "calendar",
                "easter", "christmas", "lent"):
             from world import liturgical

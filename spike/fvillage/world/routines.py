@@ -349,7 +349,9 @@ def tick():
     try:
         clock = ScriptDB.objects.get(db_key="village_time")
         day = clock.db.day or 1
+        hour = clock.db.hour if clock.db.hour is not None else 21
         _apply_feast(day)
+        _apply_mass(day, hour)
         routine = ScriptDB.objects.get(db_key="village_routine")
         if day and day % 30 == 0 and routine.db.last_monthly_day != day:
             routine.db.last_monthly_day = day
@@ -357,6 +359,105 @@ def tick():
     except ScriptDB.DoesNotExist:
         pass
     return moves
+
+
+# --- Sunday mass ---------------------------------------------------------------
+# 10:00 every Sunday. The congregation: Andrei, Magda, Vasile (back pew),
+# and any players present. The homily reads the week's ledger — the priest
+# comments on real events, obliquely. Attendees are blessed (db.blessed_day),
+# which Andrei remembers and Magda notices.
+
+MASS_CONGREGATION = (
+    ("andrei", "says the mass"),
+    ("magda", "sings loud enough for two"),
+    ("vasile", "stands at the back, arms crossed, stays anyway"),
+)
+
+HOMILY_BY_KIND = {
+    "confession": "We are grateful for the seal of the box, and for those "
+                  "unburdened in it.",
+    "routine": "We pray for those whose hours are unsettled.",
+    "feast": "We give thanks for the turning year.",
+}
+
+
+def _homily_lines():
+    """Two homily lines drawn from the week's real ledger events."""
+    try:
+        from world.events import get_event_ledger
+
+        events = list(get_event_ledger().db.events or [])[-6:]
+    except Exception:
+        events = []
+    lines = []
+    for e in events:
+        line = HOMILY_BY_KIND.get(e.get("kind"))
+        if line and line not in lines:
+            lines.append(line)
+        if len(lines) >= 2:
+            break
+    if not lines:
+        lines = ["We remember the week's small mercies, and name them quietly."]
+    return lines
+
+
+def hold_mass(day):
+    """Ring the peal, gather the congregation, say the mass. Returns count."""
+    from world import liturgical
+
+    church = _room("St. Lazarus Church")
+    if not church:
+        return 0
+    try:
+        from evennia.scripts.models import ScriptDB
+        routine = ScriptDB.objects.get(db_key="village_routine")
+        if routine.db.last_mass_day == day:
+            return 0  # already held today
+        routine.db.last_mass_day = day
+    except ScriptDB.DoesNotExist:
+        return 0
+    # Gather the congregation.
+    for regular_key, _role in MASS_CONGREGATION:
+        set_deviation(regular_key, "St. Lazarus Church", 11,
+                      "Sunday mass", day=day)
+    advance(day=day)  # move them now; the liturgy shouldn't wait
+    church.msg_contents("The church bell rings a full peal over the square.")
+    church.msg_contents(
+        'Father Andrei takes the altar. "In nomine Patris, et Filii, '
+        'et Spiritus Sancti."'
+    )
+    for line in _homily_lines():
+        church.msg_contents(f'Andrei: "{line}"')
+    # The blessing: attendees are marked, and the village records it.
+    # Only the living get blessed — not the pews, not the exits.
+    attendees = []
+    for o in church.contents:
+        is_person = o.has_account or getattr(o.db, "regular_key", None)
+        if is_person:
+            o.db.blessed_day = day
+            attendees.append(o.key)
+    church.msg_contents(
+        'Andrei raises his hands. "Benedicat vos omnipotens Deus." '
+        "The candles bow, all at once, and straighten."
+    )
+    try:
+        from world.events import publish_world_event
+
+        publish_world_event(
+            "mass",
+            payload={"day": day, "attendees": attendees},
+            rumor="Sunday mass was well attended.",
+        )
+    except Exception:
+        pass
+    return len(attendees)
+
+
+def _apply_mass(day, hour):
+    from world import liturgical
+
+    if liturgical.is_sunday(day) and hour == 10:
+        hold_mass(day)
 
 
 def _apply_feast(day):
