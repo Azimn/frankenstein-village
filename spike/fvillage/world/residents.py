@@ -667,36 +667,42 @@ def record_player_interaction(npc, player, *, kind="talk", depth=1.0):
     return relationship_for(npc, player)
 
 
+def decay_resident_engagement(npc, day):
+    state = resident_state(npc)
+    if not state:
+        return False
+    last = state.get("last_decay_day")
+    if last is None:
+        state["last_decay_day"] = int(day)
+        save_state(npc, state)
+        return False
+    elapsed = max(0, int(day) - int(last))
+    if elapsed <= 0:
+        return False
+    state["engagement"] = float(state.get("engagement") or 0.0) * (
+        ENGAGEMENT_DECAY ** elapsed
+    )
+    old = state.get("engagement_tier", "D")
+    new = _tier_after_decay(
+        old,
+        state["engagement"],
+        state.get("engagement_floor") or 0.0,
+    )
+    state["engagement_tier"] = new
+    state["simulation_resolution"] = RESOLUTION[new]
+    state["last_decay_day"] = int(day)
+    # Character depth, facts, relationships, and memories intentionally
+    # remain untouched here.
+    save_state(npc, state)
+    return new != old
+
+
 def decay_engagement(day=None):
     if day is None:
         day, _hour = _clock()
     changed = 0
     for npc in all_residents():
-        state = resident_state(npc)
-        last = state.get("last_decay_day")
-        if last is None:
-            state["last_decay_day"] = int(day)
-            save_state(npc, state)
-            continue
-        elapsed = max(0, int(day) - int(last))
-        if elapsed <= 0:
-            continue
-        state["engagement"] = float(state.get("engagement") or 0.0) * (
-            ENGAGEMENT_DECAY ** elapsed
-        )
-        old = state.get("engagement_tier", "D")
-        new = _tier_after_decay(
-            old,
-            state["engagement"],
-            state.get("engagement_floor") or 0.0,
-        )
-        state["engagement_tier"] = new
-        state["simulation_resolution"] = RESOLUTION[new]
-        state["last_decay_day"] = int(day)
-        # Character depth, facts, relationships, and memories intentionally
-        # remain untouched here.
-        save_state(npc, state)
-        if new != old:
+        if decay_resident_engagement(npc, day):
             changed += 1
     return changed
 
