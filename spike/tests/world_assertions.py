@@ -32,6 +32,7 @@ for room_key in (
 
 for script_key in (
     "world_event_ledger",
+    "rumor_registry",
     "room_six",
     "moderation_queue",
     "ambient_life",
@@ -65,6 +66,132 @@ playable = load_rumor_seeds()
 ids = {int(num) for num, _body in playable}
 assert ids == set(PLAYABLE_RUMOR_IDS) == {151, 201, 236}, ids
 assert len(load_rumor_seeds(playable_only=False)) == 250, "canon rumor corpus changed"
+
+# Rumors are structured belief objects with immutable roots and append-only
+# transmission provenance. The three live canon hooks seed real NPC beliefs.
+rumor_registry = ScriptDB.objects.get(db_key="rumor_registry")
+canon_roots = [
+    dict(rumor)
+    for rumor in (rumor_registry.db.rumors or [])
+    if rumor.get("canonical_seed_id") is not None
+]
+assert {r["canonical_seed_id"] for r in canon_roots} == {151, 201, 236}
+assert len(canon_roots) == 3, "rebuild duplicated canonical rumor roots"
+for root in canon_roots:
+    assert root.get("source_actor"), root
+    assert root.get("source_type") == "canon_teller", root
+    assert root.get("privacy") == "public", root
+    assert len(root.get("variants") or []) == 3, root
+
+magda = one("Magda")
+vasile = one("Old Vasile")
+janos = one("János")
+m = one("M.")
+assert magda.tags.has("participant", category="rumor")
+assert vasile.tags.has("participant", category="rumor")
+assert janos.tags.has("participant", category="rumor")
+assert not m.tags.has("participant", category="rumor"), (
+    "OOC innkeeper must not participate in IC rumor simulation"
+)
+
+root = next(r for r in canon_roots if r["canonical_seed_id"] == 201)
+root_before = dict(root)
+magda_belief = rumor_registry.belief_for(magda, root["id"])
+assert magda_belief, "seeded NPC lacks canon rumor belief"
+
+# Tavern life may already have changed Magda's current version before this
+# assertion shell starts. Reset only her current belief to a new direct hearing
+# so the controlled provenance chain below has a deterministic three links.
+rumor_registry.hear_direct(
+    root["id"],
+    magda,
+    source_label=root["source_actor"],
+    source_type=root["source_type"],
+    location="The Blood of the Vine",
+    force_new=True,
+)
+
+first = rumor_registry.transmit(
+    root["id"],
+    magda,
+    vasile,
+    location="The Blood of the Vine",
+    force_accept=True,
+    force_variant_index=0,
+)
+assert first and first["accepted"]
+second = rumor_registry.transmit(
+    root["id"],
+    vasile,
+    janos,
+    location="The Blood of the Vine",
+    force_accept=True,
+    force_variant_index=1,
+)
+assert second and second["accepted"]
+assert rumor_registry.get_rumor(root["id"]) == root_before, (
+    "retelling mutated the immutable rumor root"
+)
+chain = rumor_registry.provenance(second["id"])
+assert len(chain) == 3, chain
+assert chain[0]["parent_id"] is None
+assert chain[1]["parent_id"] == chain[0]["id"]
+assert chain[2]["parent_id"] == chain[1]["id"]
+assert chain[2]["distortion_generation"] == 2
+assert chain[2]["claim"] == root["variants"][1]
+known = rumor_registry.known_by(root["id"])
+known_ids = {entry.get("id") for entry in known}
+assert {magda.id, vasile.id, janos.id}.issubset(known_ids)
+assert len(rumor_registry.current_claims(root["id"])) >= 2
+
+from world.rumors import propagate_colocated_npcs
+autonomous = propagate_colocated_npcs(announce=False, max_per_room=1)
+assert autonomous, "routine-scale NPC rumor propagation produced no retelling"
+
+# Event-generated rumors enter the same registry and retain their event link.
+from world.events import publish_world_event
+qa_event = publish_world_event(
+    "qa_rumor",
+    actor=magda,
+    payload={"proof": True},
+    rumor="The QA bell rang twice.",
+)
+assert qa_event["status"] == "complete"
+qa_rumor_id = qa_event["rumor"]["rumor_id"]
+qa_root = rumor_registry.get_rumor(qa_rumor_id)
+assert qa_root["original_event_id"] == qa_event["id"]
+assert qa_root["source_actor"] == "Magda"
+assert qa_root["source_type"] == "npc"
+assert qa_root["claim"] == "The QA bell rang twice."
+
+# Remove the synthetic event from the same temporary world used by the telnet
+# pass. The assertion proves integration without making QA chatter player-facing.
+ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+ledger.db.events = [
+    event for event in (ledger.db.events or [])
+    if event.get("id") != qa_event["id"]
+]
+rumor_registry.db.rumors = [
+    rumor for rumor in (rumor_registry.db.rumors or [])
+    if rumor.get("id") != qa_rumor_id
+]
+rumor_registry.db.transmissions = [
+    transmission for transmission in (rumor_registry.db.transmissions or [])
+    if transmission.get("rumor_id") != qa_rumor_id
+]
+tavern = one("The Blood of the Vine")
+tavern.db.public_rumor_ids = [
+    rid for rid in (tavern.db.public_rumor_ids or [])
+    if rid != qa_rumor_id
+]
+tavern.db.player_rumors = [
+    body for body in (tavern.db.player_rumors or [])
+    if body != "The QA bell rang twice."
+]
+for npc in search.search_tag("participant", category="rumor"):
+    beliefs = dict(npc.db.rumor_beliefs or {})
+    beliefs.pop(str(qa_rumor_id), None)
+    npc.db.rumor_beliefs = beliefs
 
 # Moderation lifecycle is tested on an isolated temporary script so running
 # these assertions against a real development world cannot pollute its queue.

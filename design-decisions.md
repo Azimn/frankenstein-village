@@ -218,3 +218,18 @@ The launch moderation promise is now executable rather than documentary.
 - Staff actions and appeal resolutions are append-only in the persistent moderation audit trail. Overturning an appeal deactivates the sanction without deleting its history.
 - Staff surfaces: `report/review`, `report/warn`, `report/ban`, `report/dismiss`, `report/appeals`, `report/resolve`, and `report/audit`.
 - Regression coverage explicitly proves that a raw report cannot sanction, a ban cannot precede a warning, a warning does not block entry, a reviewed ban does block entry, and a successful appeal restores entry.
+
+## 2026-10-05 - Production rumor provenance implemented
+
+The rumor system is now structured simulation state rather than Tavern display text.
+
+- Every live rumor has an immutable root record with subject, claim, source actor and type, source event, origin time and location, confidence, emotional charge, privacy, distortion generation, optional canon seed identity, and authored variants.
+- Retellings never rewrite the root. Every hearing or retelling creates an append-only transmission record with a parent pointer, immediate speaker, listener, location, confidence, accepted/rejected state, claim variant, and distortion generation.
+- Current belief lives on the character mask. This keeps IC knowledge separate across masks while the registry preserves the historical chain.
+- The three currently reachable canon rumors, seeds 151, 201, and 236, now seed real beliefs in IC rumor-participating NPCs. The full 250-seed corpus remains available as canon content without surfacing unreachable promises.
+- IC residents participate through an explicit rumor tag. M. is mechanically excluded because NPCs may not perceive the OOC layer.
+- NPC rumor traffic runs with no language model. Routine ticks perform at most one retelling per occupied room, and Tavern life can render a real retelling as ambient conversation.
+- Players hear structured rumors through `rumors`, inspect their own reconstructable chain with `rumors R<number>`, and pass a rumor they actually know with `retell <person> R<number>`.
+- Asking a Tavern regular about rumors now transmits one of that NPC's actual beliefs to the player, including whatever distortion that NPC currently holds.
+- World-event rumors enter the same registry and retain the causal link to the canonical world-event ledger. Existing pre-registry Tavern rumor strings are migrated idempotently instead of discarded.
+- Regression coverage verifies root immutability, three-generation provenance, authored distortion, NPC belief seeding, OOC exclusion, event linkage, stable rebuild identity, and the player retell path over real telnet.

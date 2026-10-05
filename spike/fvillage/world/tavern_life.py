@@ -91,6 +91,11 @@ def _bram(tavern):
 
 
 def _beat_gossip(regulars, bram, say):
+    from world.rumors import propagate_colocated_npcs
+
+    spread = propagate_colocated_npcs(announce=True, max_per_room=1)
+    if spread:
+        return "rumor-retell"
     say(random.choice(MAGDA_GOSSIP))
     return "gossip"
 

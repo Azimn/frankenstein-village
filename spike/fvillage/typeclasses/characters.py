@@ -1001,6 +1001,37 @@ class TavernRegular(SpikeCharacter):
             exclude=[char],
         )
 
+    def ask_about(self, char, topic):
+        """Share an actually held rumor when asked about local talk."""
+        if not topic_matches(
+            topic.lower().strip(),
+            "rumor", "rumors", "rumour", "rumours", "gossip", "talk",
+        ):
+            return None
+
+        from world.rumors import get_rumor_registry
+
+        registry = get_rumor_registry()
+        beliefs = list(registry.beliefs_for(self).values())
+        if not beliefs:
+            return "Nothing I would put my name to. Ask again after the room has turned."
+
+        belief = random.choice(beliefs)
+        result = registry.transmit(
+            belief["rumor_id"],
+            self,
+            char,
+            location=self.location.key if self.location else None,
+            force_accept=True,
+        )
+        if not result:
+            return "Had a story a moment ago. Lost the thread."
+        source = belief.get("heard_from") or "someone"
+        return (
+            f"{result['claim']} I heard my version from {source}. "
+            f"If you carry it farther, remember that part."
+        )
+
 
 ANDREI = {
     "greet": [
@@ -1137,4 +1168,4 @@ class FatherAndrei(TavernRegular):
                 "A new shop. The village will decide what it thinks of that "
                 "long before I do."
             )
-        return None
+        return super().ask_about(char, topic)

@@ -400,6 +400,14 @@ def tick():
             monthly_shift(day)
     except ScriptDB.DoesNotExist:
         pass
+
+    # Rumor traffic is part of the simulation, not a player-triggered effect.
+    # One bounded retelling per occupied room per game-hour keeps it cheap.
+    try:
+        from world.rumors import propagate_colocated_npcs
+        propagate_colocated_npcs(announce=False, max_per_room=1)
+    except Exception:
+        pass
     return moves
 
 
