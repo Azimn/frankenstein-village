@@ -34,7 +34,19 @@ def main():
                 resident["stable_id"],
                 kin_id,
             )
+        employer_id = resident.get("employer_id")
+        if employer_id:
+            assert employer_id in resident_data.RESIDENT_BY_ID, (
+                resident["stable_id"],
+                employer_id,
+            )
+        for linked_id in resident.get("social_links") or ():
+            assert linked_id in resident_data.RESIDENT_BY_ID, (
+                resident["stable_id"],
+                linked_id,
+            )
 
+    assert resident_data.RESIDENT_BY_ID["rada_petrescu"]["employer_id"] == "otto_kessler"
     population = [
         resident
         for resident in residents
