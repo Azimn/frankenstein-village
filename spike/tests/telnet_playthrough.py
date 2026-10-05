@@ -52,6 +52,23 @@ class Client:
         self.sock.sendall(line.encode("utf-8") + b"\n")
         return self.read_quiet(max_wait=wait)
 
+    def sync_login_screen(self) -> str:
+        """Wait for Evennia's connection screen before sending credentials."""
+        deadline = time.monotonic() + 6.0
+        gathered = []
+        poked = False
+        while time.monotonic() < deadline:
+            out = self.read_quiet(max_wait=1.0, quiet=0.25)
+            if out:
+                gathered.append(out)
+            joined = "\n".join(gathered)
+            if "Frankenstein Village" in joined and "connect <username>" in joined:
+                return joined
+            if not poked:
+                self.sock.sendall(b"look\n")
+                poked = True
+        return "\n".join(gathered)
+
     def close(self):
         self.sock.close()
 
@@ -77,7 +94,8 @@ def main() -> int:
 
     c = Client(args.host, args.port)
     try:
-        c.read_quiet()
+        banner = c.sync_login_screen()
+        require(banner, "frankenstein village")
 
         out = c.command(f"connect {args.username} {args.password}", wait=4.0)
         require(out, "disclosure gate", "substrate human", "substrate ai")
