@@ -492,8 +492,15 @@ class ResidentNPC(Character):
             )
 
     def ask_about(self, char, topic):
-        from world.residents import generic_ask_line
+        try:
+            from world.situations import resident_situation_ask
+            line = resident_situation_ask(self, char, topic)
+            if line:
+                return line
+        except Exception:
+            pass
 
+        from world.residents import generic_ask_line
         return generic_ask_line(self, char, topic)
 
 
