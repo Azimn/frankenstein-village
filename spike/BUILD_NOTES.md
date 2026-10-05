@@ -394,3 +394,34 @@ Regression coverage now requires:
 - real telnet discovery through `chronicle gap` and `harbinger archive`;
 - generalized `journal chronicle` and `decide chronicle reconstruct`;
 - persistence of incident state, evidence, and Chronicle gap policy across a real server restart.
+
+## 2026-10-05 - Timed incident windows
+
+`world/timed_incidents.py` implements short-lived shared world windows that layer on top of ordinary schedules and the major incident feed.
+
+The first live template is The Well Boils:
+
+`scheduled start -> active physical window -> firsthand witness state -> expiry -> residue -> event -> rumor -> Harbinger`
+
+The registry runs a 30-second expiry check, but start eligibility remains tied to the authoritative village clock. The well event uses a 600-second live window and a seven-day recurrence cooldown.
+
+Player evidence is mask-specific and quality-bearing:
+- active-window observation records `firsthand`;
+- later residue records `aftermath`;
+- aftermath inspection cannot overwrite retained firsthand evidence.
+
+The start event is private and is not published merely because the window exists. Expiry produces a public aftermath event with rumor and Harbinger eligibility but explicitly does not create a Chronicle entry. This preserves the distinction between witnessed disturbance, public reporting, and institutional truth.
+
+The registry stores only the current occurrence plus the twelve most recent prior occurrences. Restart catch-up resolves an expired current window directly without replaying elapsed ticks.
+
+Regression coverage verifies:
+- registry and dynamic well idempotence;
+- private start-event behavior;
+- firsthand versus aftermath evidence isolation;
+- retained firsthand quality after later inspection;
+- no-observer continuation;
+- Harbinger publication without automatic Chronicle promotion;
+- weekly recurrence and cooldown;
+- bounded occurrence history;
+- real telnet observation and journal display;
+- evidence persistence across a real server restart.
