@@ -359,3 +359,38 @@ A player needs at least two independent evidence sources before `decide strongbo
 The open branch is immediate and public. The quiet branch runs for seven game days before its autonomous aftermath. With no player intervention, the situation advances after seven game days to the accepted left-alone consequence. All three outcomes mutate shared church state and emit structured events. Latecomers inherit the changed world rather than receiving a fresh private copy.
 
 Regression coverage verifies player-knowledge isolation, insufficient-evidence rejection, shared branch locking, quiet autonomous progression, open publication and rumor provenance, unattended progression, idempotent situation creation, real telnet investigation and decision, and persistence of the shared aftermath and player evidence through a real server restart.
+
+## 2026-10-05 - Incident feed generalization
+
+The production situation layer now distinguishes authored template existence from active world presence. `ensure_situations()` materializes templates idempotently, while `surface_incident_feed()` decides which dormant incident becomes active.
+
+Current feed rules:
+- shared situations, never per-player quest copies;
+- deterministic ranking, so restart does not reshuffle the same state;
+- maximum active-situation slots;
+- prerequisite situation states;
+- base weights with extension points for time, weather, cooldown, and recurrence;
+- direct current-time evaluation rather than replaying elapsed hours.
+
+The first dependency chain is:
+
+`Tithe Strongbox surfaced -> Tithe aftermath -> feed slot opens -> Torn Chronicle surfaces`
+
+The Torn Chronicle then uses:
+
+`Chronicle gap -> Harbinger archive or Ilona testimony -> reconstruct/preserve choice -> event -> Chronicle/Harbinger -> rumor -> persistent aftermath`
+
+A third unattended branch advances after ten game days and turns the unfilled gap into a public attraction.
+
+Regression coverage now requires:
+- Torn Chronicle dormant before its prerequisite;
+- no second active incident while the strongbox quiet branch is still changing;
+- automatic feed surfacing when a slot opens;
+- per-mask archive evidence isolation;
+- optional Ilona witness evidence;
+- insufficient-evidence rejection;
+- reconstruct, preserve, and left-alone outcomes;
+- explicit press-derived provenance after reconstruction;
+- real telnet discovery through `chronicle gap` and `harbinger archive`;
+- generalized `journal chronicle` and `decide chronicle reconstruct`;
+- persistence of incident state, evidence, and Chronicle gap policy across a real server restart.

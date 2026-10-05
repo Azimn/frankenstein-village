@@ -21,6 +21,7 @@ from evennia.utils import search
 
 REGISTRY_KEY = "situation_registry"
 TITHE_ID = "INC-0006-TITHE-STRONGBOX"
+TORN_CHRONICLE_ID = "INC-0008-TORN-CHRONICLE"
 
 STATE_ORDER = {
     "dormant": 0,
@@ -104,6 +105,90 @@ TEMPLATES = {
             "the Harbinger files preserve the later public account."
         ),
         "legend": "The two-key rule is cited whenever anything later goes missing.",
+        "feed": {
+            "initial_state": "surfaced",
+            "weight": 100,
+            "after": [],
+        },
+    },
+    TORN_CHRONICLE_ID: {
+        "template_id": "canon-incident-008",
+        "working_title": "The Torn Chronicle",
+        "content_family": "incident",
+        "canonical_status": "canon template instantiated",
+        "spoiler_tier": 1,
+        "primary_location": "Chronicle",
+        "secondary_locations": ["The Blood of the Vine"],
+        "involved_npcs": ["ilona_szabo"],
+        "factions": ["Chronicler"],
+        "calling_relevance": ["chronicler", "detective"],
+        "repeatability": "one-shot",
+        "hook": (
+            "A numbered sequence of Chronicle pages has been cut out cleanly. "
+            "The stubs remain, and the Harbinger archive still covers the missing dates."
+        ),
+        "autonomy": {
+            "initial_deadline_days": 10,
+            "left_alone": (
+                "The gap remains untouched long enough to become famous in its own right. "
+                "Visitors begin coming to see what the village chose not to rewrite."
+            ),
+        },
+        "choices": {
+            "reconstruct": {
+                "label": "reconstruct the missing sequence from Harbinger files",
+                "minimum_evidence": 2,
+                "closes": "preserve the gap",
+                "aliases": ["rewrite", "restore", "reconstruct"],
+            },
+            "preserve": {
+                "label": "preserve the numbered gap as an honest wound",
+                "minimum_evidence": 2,
+                "closes": "reconstruct from the newspaper",
+                "aliases": ["leave", "gap", "preserve"],
+            },
+        },
+        "evidence": {
+            "gap": {
+                "label": "the numbered page stubs",
+                "provenance": "physical",
+                "summary": (
+                    "The pages were cut out cleanly rather than torn. Numbered stubs "
+                    "show exactly which sequence is missing, but not what those pages said."
+                ),
+            },
+            "harbinger_archive": {
+                "label": "the surviving Harbinger files",
+                "provenance": "documentary",
+                "summary": (
+                    "Printed issues survive for the missing dates. They can supply an "
+                    "account, but their own source notes and corrections show why newspaper "
+                    "copy cannot be treated as recovered server truth."
+                ),
+            },
+            "ilona": {
+                "label": "Ilona Szabó's assessment",
+                "provenance": "witness",
+                "summary": (
+                    "Ilona confirms that the cut was deliberate and the numbering is genuine. "
+                    "She refuses to pretend that surviving newspaper copy is the same thing as "
+                    "the missing Chronicle pages."
+                ),
+            },
+        },
+        "inheritance": (
+            "The numbered stubs, Harbinger files, and public record itself carry the thread "
+            "even if the current Chronicler dies or leaves."
+        ),
+        "legend": (
+            "The missing sequence becomes a standing example whenever later generations "
+            "argue over whether uncertainty should be repaired or preserved."
+        ),
+        "feed": {
+            "initial_state": "dormant",
+            "weight": 70,
+            "after": [TITHE_ID],
+        },
     },
 }
 
@@ -139,7 +224,15 @@ def _player_key(player):
 
 def _new_situation(stable_id, *, day, hour):
     template = TEMPLATES[stable_id]
-    deadline_day = int(day) + int(template["autonomy"]["initial_deadline_days"])
+    initial_state = (template.get("feed") or {}).get(
+        "initial_state", "dormant"
+    )
+    surfaced = initial_state == "surfaced"
+    deadline_day = (
+        int(day) + int(template["autonomy"]["initial_deadline_days"])
+        if surfaced
+        else None
+    )
     return {
         "id": stable_id,
         "template_id": template["template_id"],
@@ -153,11 +246,12 @@ def _new_situation(stable_id, *, day, hour):
         "factions": list(template["factions"]),
         "calling_relevance": list(template["calling_relevance"]),
         "repeatability": template["repeatability"],
-        "state": "surfaced",
-        "surfaced_day": int(day),
-        "surfaced_hour": int(hour),
+        "state": initial_state,
+        "surfaced_day": int(day) if surfaced else None,
+        "surfaced_hour": int(hour) if surfaced else None,
         "deadline_day": deadline_day,
-        "deadline_hour": int(hour),
+        "deadline_hour": int(hour) if surfaced else None,
+        "surface_count": 1 if surfaced else 0,
         "branch": None,
         "resolved_day": None,
         "resolved_hour": None,
@@ -187,6 +281,174 @@ def ensure_situations():
             created += 1
     registry.db.situations = situations
     return {"created": created, "count": len(situations)}
+
+
+ACTIVE_STATES = {"surfaced", "investigating", "changing"}
+
+
+def _feed_eligible(stable_id, situations, *, day, hour):
+    situation = dict(situations.get(stable_id) or {})
+    template = TEMPLATES[stable_id]
+    feed = dict(template.get("feed") or {})
+    if situation.get("state") not in {"dormant", "dormant_recurrence"}:
+        return False
+
+    for dependency in feed.get("after") or []:
+        prior = dict(situations.get(dependency) or {})
+        if prior.get("state") not in {"aftermath", "resolved_locally"}:
+            return False
+
+    not_before_day = feed.get("not_before_day")
+    if not_before_day is not None and int(day) < int(not_before_day):
+        return False
+
+    cooldown_until = situation.get("cooldown_until_day")
+    if cooldown_until is not None and int(day) < int(cooldown_until):
+        return False
+
+    required_weather = feed.get("weather")
+    if required_weather:
+        try:
+            weather = ScriptDB.objects.get(db_key="village_weather")
+            if str(weather.db.current or "").lower() not in {
+                str(value).lower() for value in required_weather
+            }:
+                return False
+        except ScriptDB.DoesNotExist:
+            return False
+
+    return True
+
+
+def incident_feed_candidates(*, day=None, hour=None):
+    """Return deterministic eligible incident candidates in feed order."""
+    if day is None or hour is None:
+        now_day, now_hour = _clock()
+        day = now_day if day is None else int(day)
+        hour = now_hour if hour is None else int(hour)
+
+    situations = copy.deepcopy(dict(_registry().db.situations or {}))
+    candidates = []
+    for stable_id, template in TEMPLATES.items():
+        if not _feed_eligible(
+            stable_id,
+            situations,
+            day=int(day),
+            hour=int(hour),
+        ):
+            continue
+        feed = dict(template.get("feed") or {})
+        score = int(feed.get("weight") or 0)
+        preferred_hours = list(feed.get("preferred_hours") or [])
+        if preferred_hours and int(hour) in preferred_hours:
+            score += 15
+        candidates.append({
+            "id": stable_id,
+            "score": score,
+            "title": template["working_title"],
+        })
+    return sorted(
+        candidates,
+        key=lambda entry: (-entry["score"], entry["id"]),
+    )
+
+
+def _surface_side_effects(stable_id):
+    if stable_id == TORN_CHRONICLE_ID:
+        try:
+            from world.publications import get_public_record_registry
+            public_records = get_public_record_registry()
+            public_records.db.chronicle_gap_policy = "open_gap"
+            public_records.db.chronicle_gap_source = None
+        except Exception:
+            pass
+
+
+def surface_incident_feed(*, day=None, hour=None, max_active=1):
+    """Fill available incident slots without player ownership or acceptance."""
+    if day is None or hour is None:
+        now_day, now_hour = _clock()
+        day = now_day if day is None else int(day)
+        hour = now_hour if hour is None else int(hour)
+
+    registry = _registry()
+    situations = copy.deepcopy(dict(registry.db.situations or {}))
+    active = sum(
+        1 for situation in situations.values()
+        if dict(situation).get("state") in ACTIVE_STATES
+    )
+    slots = max(0, int(max_active) - active)
+    if not slots:
+        return []
+
+    surfaced = []
+    candidates = incident_feed_candidates(day=day, hour=hour)
+    for candidate in candidates[:slots]:
+        stable_id = candidate["id"]
+        situation = dict(situations[stable_id])
+        template = TEMPLATES[stable_id]
+        situation["state"] = "surfaced"
+        situation["surfaced_day"] = int(day)
+        situation["surfaced_hour"] = int(hour)
+        situation["deadline_day"] = int(day) + int(
+            template["autonomy"]["initial_deadline_days"]
+        )
+        situation["deadline_hour"] = int(hour)
+        situation["surface_count"] = int(situation.get("surface_count") or 0) + 1
+        situations[stable_id] = situation
+        surfaced.append(stable_id)
+
+    if surfaced:
+        registry.db.situations = situations
+        for stable_id in surfaced:
+            _surface_side_effects(stable_id)
+        _metrics(feed_surfaces=len(surfaced))
+    _metrics(feed_checks=1)
+    return surfaced
+
+
+SUBJECT_ALIASES = {
+    "strongbox": TITHE_ID,
+    "tithe": TITHE_ID,
+    "tithe strongbox": TITHE_ID,
+    "church strongbox": TITHE_ID,
+    TITHE_ID.lower(): TITHE_ID,
+    "chronicle": TORN_CHRONICLE_ID,
+    "torn chronicle": TORN_CHRONICLE_ID,
+    "chronicle gap": TORN_CHRONICLE_ID,
+    "missing pages": TORN_CHRONICLE_ID,
+    TORN_CHRONICLE_ID.lower(): TORN_CHRONICLE_ID,
+}
+
+
+def resolve_situation_subject(subject):
+    return SUBJECT_ALIASES.get(str(subject or "").strip().lower())
+
+
+def _normalize_choice(stable_id, choice):
+    raw = str(choice or "").strip().lower()
+    template = TEMPLATES.get(stable_id) or {}
+    for canonical, definition in (template.get("choices") or {}).items():
+        aliases = set(definition.get("aliases") or [])
+        aliases.add(canonical)
+        if raw in aliases:
+            return canonical
+    if stable_id == TITHE_ID:
+        legacy = {
+            "open": "openly",
+            "public": "openly",
+            "publicly": "openly",
+            "accuse": "openly",
+            "quiet": "quietly",
+            "private": "quietly",
+            "privately": "quietly",
+        }
+        return legacy.get(raw, raw if raw in {"openly", "quietly"} else None)
+    return None
+
+
+def choice_names(stable_id):
+    return list((TEMPLATES.get(stable_id) or {}).get("choices") or {})
 
 
 def get_situation(stable_id=TITHE_ID):
@@ -412,28 +674,148 @@ def _begin_quiet_investigation(situation, player):
     return situation
 
 
+def _set_chronicle_gap_policy(policy, *, source=None):
+    from world.publications import get_public_record_registry
+
+    registry = get_public_record_registry()
+    registry.db.chronicle_gap_policy = str(policy)
+    registry.db.chronicle_gap_source = source
+    return {
+        "chronicle_gap_policy": str(policy),
+        "chronicle_gap_source": source,
+    }
+
+
+def _apply_torn_reconstruct(situation, player):
+    from world.events import publish_world_event
+
+    day, hour = _clock()
+
+    def consequence(_event):
+        return _set_chronicle_gap_policy(
+            "reconstructed_from_harbinger",
+            source="Harbinger archive",
+        )
+
+    event = publish_world_event(
+        "incident.torn_chronicle.reconstructed",
+        actor=player,
+        payload={
+            "situation_id": situation["id"],
+            "headline": "Missing Chronicle Sequence Reconstructed",
+            "public_summary": (
+                "The missing Chronicle sequence has been reconstructed from surviving "
+                "Harbinger files. The replacement is explicitly marked as press-derived "
+                "rather than recovered original text."
+            ),
+            "chronicle_summary": (
+                "The Chronicle records that its missing numbered sequence was "
+                "reconstructed from surviving Harbinger files. The reconstruction is "
+                "marked as press-derived and does not claim to recover the lost original."
+            ),
+            "chronicle_eligible": True,
+            "publication_priority": "special",
+            "resident_ids": ["ilona_szabo"],
+        },
+        rumor=(
+            "They filled the Chronicle's missing pages from old Harbinger files. "
+            "Some call it repair; some call it copying yesterday's mistakes into history."
+        ),
+        consequence=consequence,
+    )
+    situation = _record_event(situation, event)
+    situation["state"] = "aftermath"
+    situation["branch"] = "reconstruct"
+    situation["resolved_day"] = day
+    situation["resolved_hour"] = hour
+    situation["objective_mutations"] = {
+        "chronicle_gap_policy": "reconstructed_from_harbinger",
+        "chronicle_gap_source": "Harbinger archive",
+    }
+    situation["aftermath"] = (
+        "The numbered gap has been filled with a reconstruction derived from surviving "
+        "Harbinger issues. The new pages are plainly marked as reconstruction, not original."
+    )
+    return situation
+
+
+def _apply_torn_preserve(situation, player):
+    from world.events import publish_world_event
+
+    day, hour = _clock()
+
+    def consequence(_event):
+        return _set_chronicle_gap_policy("preserved_gap", source=None)
+
+    event = publish_world_event(
+        "incident.torn_chronicle.gap_preserved",
+        actor=player,
+        payload={
+            "situation_id": situation["id"],
+            "headline": "Chronicle Leaves Missing Sequence Blank",
+            "public_summary": (
+                "The Chronicler has preserved the numbered gap rather than replace "
+                "missing pages with a newspaper reconstruction. The absence is now "
+                "part of the public record."
+            ),
+            "chronicle_summary": (
+                "The Chronicle records the decision to preserve its missing numbered "
+                "sequence as a documented gap rather than infer lost text from the press."
+            ),
+            "chronicle_eligible": True,
+            "publication_priority": "special",
+            "resident_ids": ["ilona_szabo"],
+        },
+        rumor=(
+            "The Chronicler left the missing pages blank on purpose. The empty sequence "
+            "now says more to half the village than a reconstruction would have."
+        ),
+        consequence=consequence,
+    )
+    situation = _record_event(situation, event)
+    situation["state"] = "aftermath"
+    situation["branch"] = "preserve"
+    situation["resolved_day"] = day
+    situation["resolved_hour"] = hour
+    situation["objective_mutations"] = {
+        "chronicle_gap_policy": "preserved_gap",
+        "chronicle_gap_source": None,
+    }
+    situation["aftermath"] = (
+        "The numbered gap remains visible and documented. Later readers can see where "
+        "the record failed instead of mistaking a reconstruction for recovered history."
+    )
+    return situation
+
+
+def _apply_choice(situation, player, normalized):
+    stable_id = situation["id"]
+    if stable_id == TITHE_ID:
+        if normalized == "openly":
+            return _apply_open_aftermath(situation, player)
+        if normalized == "quietly":
+            return _begin_quiet_investigation(situation, player)
+    elif stable_id == TORN_CHRONICLE_ID:
+        if normalized == "reconstruct":
+            return _apply_torn_reconstruct(situation, player)
+        if normalized == "preserve":
+            return _apply_torn_preserve(situation, player)
+    return None
+
+
 def choose(player, choice, stable_id=TITHE_ID):
     """Make the first canonical door-closing choice for a shared situation."""
     situation = get_situation(stable_id)
     template = TEMPLATES.get(stable_id)
     if not situation or not template:
         return None, "That situation is not present in the village."
+    if situation.get("state") == "dormant":
+        return None, "That situation has not surfaced in the village."
 
-    normalized = str(choice or "").strip().lower()
-    aliases = {
-        "open": "openly",
-        "public": "openly",
-        "publicly": "openly",
-        "accuse": "openly",
-        "openly": "openly",
-        "quiet": "quietly",
-        "private": "quietly",
-        "privately": "quietly",
-        "quietly": "quietly",
-    }
-    normalized = aliases.get(normalized)
+    normalized = _normalize_choice(stable_id, choice)
     if normalized not in template["choices"]:
-        return None, "Choose either openly or quietly."
+        options = " or ".join(choice_names(stable_id))
+        return None, f"Choose {options}."
 
     if situation.get("branch") or STATE_ORDER.get(
         situation.get("state"), 0
@@ -462,24 +844,22 @@ def choose(player, choice, stable_id=TITHE_ID):
     })
     situation["choice_history"] = history
 
-    if normalized == "openly":
-        situation = _apply_open_aftermath(situation, player)
-    else:
-        situation = _begin_quiet_investigation(situation, player)
+    situation = _apply_choice(situation, player, normalized)
+    if not situation:
+        return None, "That choice has no implemented world consequence."
 
     _save(situation)
     _metrics(choices=1)
     discover_situation(
         player,
         stable_id,
-        note=(
-            "You chose to raise the loss openly."
-            if normalized == "openly"
-            else "You chose to keep the inquiry quiet for a week."
-        ),
+        note=f"You chose to {template['choices'][normalized]['label']}.",
     )
-    return get_situation(stable_id), None
 
+    # A resolved incident frees a feed slot immediately. A changing incident
+    # still occupies its slot until its autonomous deadline is reached.
+    surface_incident_feed(day=day, hour=hour, max_active=1)
+    return get_situation(stable_id), None
 
 def _left_alone(situation):
     from world.events import publish_world_event
@@ -532,6 +912,49 @@ def _left_alone(situation):
         "roof_repair_delay_winters": int(
             getattr(_church().db, "roof_repair_delay_winters", 1) or 1
         ) if _church() else 1,
+    }
+    situation["aftermath"] = TEMPLATES[situation["id"]]["autonomy"]["left_alone"]
+    return situation
+
+
+def _torn_left_alone(situation):
+    from world.events import publish_world_event
+
+    day, hour = _clock()
+
+    def consequence(_event):
+        return _set_chronicle_gap_policy("famous_gap", source=None)
+
+    event = publish_world_event(
+        "incident.torn_chronicle.left_alone",
+        payload={
+            "situation_id": situation["id"],
+            "headline": "Visitors Come to See the Chronicle Gap",
+            "public_summary": (
+                "The missing Chronicle sequence has remained untouched long enough "
+                "to become an object of study. Visitors now ask to see the numbered stubs."
+            ),
+            "chronicle_summary": (
+                "The Chronicle records that its missing sequence remains unreconstructed "
+                "and has itself become a subject of public and scholarly attention."
+            ),
+            "chronicle_eligible": True,
+            "resident_ids": ["ilona_szabo"],
+        },
+        rumor=(
+            "People have begun coming from outside the village just to see the Chronicle's "
+            "missing pages. Nobody agrees whether that makes the gap evidence or attraction."
+        ),
+        consequence=consequence,
+    )
+    situation = _record_event(situation, event)
+    situation["state"] = "aftermath"
+    situation["branch"] = "left_alone"
+    situation["resolved_day"] = day
+    situation["resolved_hour"] = hour
+    situation["objective_mutations"] = {
+        "chronicle_gap_policy": "famous_gap",
+        "chronicle_gap_source": None,
     }
     situation["aftermath"] = TEMPLATES[situation["id"]]["autonomy"]["left_alone"]
     return situation
@@ -606,10 +1029,12 @@ def advance_situations(*, day=None, hour=None):
         if (int(day), int(hour)) < due:
             continue
 
-        if situation.get("branch") == "quietly":
+        if stable_id == TITHE_ID and situation.get("branch") == "quietly":
             situation = _finish_quiet(situation)
-        elif not situation.get("branch"):
+        elif stable_id == TITHE_ID and not situation.get("branch"):
             situation = _left_alone(situation)
+        elif stable_id == TORN_CHRONICLE_ID and not situation.get("branch"):
+            situation = _torn_left_alone(situation)
         else:
             continue
         situations[stable_id] = situation
@@ -618,6 +1043,11 @@ def advance_situations(*, day=None, hour=None):
     if advanced:
         registry.db.situations = situations
         _metrics(autonomous_advances=advanced)
+    surfaced = surface_incident_feed(
+        day=int(day),
+        hour=int(hour),
+        max_active=1,
+    )
     return advanced
 
 
@@ -648,7 +1078,114 @@ def situation_status_for_player(player, stable_id=TITHE_ID):
         "developments": list(knowledge["developments"]),
         "aftermath": situation.get("aftermath"),
         "inheritance": template["inheritance"],
+        "choices": list(template.get("choices") or {}),
     }
+
+
+def chronicle_gap_description(looker=None):
+    situation = get_situation(TORN_CHRONICLE_ID)
+    if not situation or situation.get("state") == "dormant":
+        return None
+    if looker is not None:
+        discover_evidence(looker, "gap", TORN_CHRONICLE_ID)
+
+    branch = situation.get("branch")
+    if situation.get("state") == "aftermath":
+        if branch == "reconstruct":
+            return (
+                "The numbered stubs are still visible, but a replacement sequence has "
+                "been inserted after them. Every reconstructed page is marked in the "
+                "margin: DERIVED FROM HARBINGER FILES. The replacement is press-derived, "
+                "not recovered original text; the source difference is not hidden."
+            )
+        if branch == "preserve":
+            return (
+                "The numbered stubs remain between blank guard leaves. A note records "
+                "that the missing sequence was deliberately left unreconstructed. "
+                "Nothing pretends to know what the cut pages said."
+            )
+        return (
+            "The numbered stubs remain under a protective guard sheet. Visitors have "
+            "begun asking to see the famous gap, which the Chronicle still refuses to fill."
+        )
+
+    return (
+        "A numbered run of Chronicle pages is missing. The leaves were cut out cleanly, "
+        "not torn; the narrow stubs remain bound in sequence. Their numbers establish "
+        "exactly where the absence begins and ends, but the surviving paper does not "
+        "tell you what the pages said."
+    )
+
+
+def harbinger_archive_evidence(looker=None):
+    situation = get_situation(TORN_CHRONICLE_ID)
+    if not situation or situation.get("state") == "dormant":
+        return None
+    if looker is not None:
+        discover_evidence(looker, "harbinger_archive", TORN_CHRONICLE_ID)
+    return (
+        "Older bound Harbinger files cover the Chronicle's missing dates. They preserve "
+        "printable accounts, source language, and later corrections, but they are still "
+        "newspaper records rather than the missing Chronicle originals."
+    )
+
+
+def resident_situation_ask(npc, player, topic):
+    if getattr(npc.db, "resident_id", None) != "ilona_szabo":
+        return None
+    lowered = str(topic or "").lower()
+    if not any(
+        token in lowered
+        for token in ("chronicle", "missing page", "missing pages", "gap", "torn")
+    ):
+        return None
+    situation = get_situation(TORN_CHRONICLE_ID)
+    if not situation or situation.get("state") == "dormant":
+        return None
+    discover_evidence(player, "ilona", TORN_CHRONICLE_ID)
+    if situation.get("state") == "aftermath":
+        if situation.get("branch") == "reconstruct":
+            return (
+                "We reconstructed it from the Harbinger, and marked every line for "
+                "what it is. A copied account is not a recovered page."
+            )
+        if situation.get("branch") == "preserve":
+            return (
+                "I left the gap visible. An honest absence is better than a confident "
+                "invention wearing archival ink."
+            )
+        return (
+            "The gap has become famous enough to attract visitors. Fame has not made "
+            "the missing pages any less missing."
+        )
+    return (
+        "The cut was clean, and the numbering is genuine. The Harbinger files survive, "
+        "but I will not call newspaper copy the same thing as the pages we lost."
+    )
+
+
+def decision_message(stable_id, branch):
+    if stable_id == TITHE_ID:
+        if branch == "openly":
+            return (
+                "You raise the missing tithe openly. The accusation is now public, "
+                "the church changes its strongbox procedure, and the quiet road is closed."
+            )
+        return (
+            "You ask that the inquiry stay quiet for a week. The public accusation road "
+            "is closed, and the village clock keeps moving."
+        )
+    if stable_id == TORN_CHRONICLE_ID:
+        if branch == "reconstruct":
+            return (
+                "You authorize a reconstruction from the Harbinger archive. The replacement "
+                "pages are marked as press-derived, and the choice is now part of village history."
+            )
+        return (
+            "You preserve the numbered gap instead of reconstructing it. The absence remains "
+            "visible, documented, and shared by every later reader."
+        )
+    return "The shared situation changes."
 
 
 def strongbox_description(looker=None):

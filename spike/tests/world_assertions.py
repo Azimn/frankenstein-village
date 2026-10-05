@@ -166,6 +166,8 @@ public_records_snapshot = {
     "next_chronicle_id": public_records.db.next_chronicle_id,
     "next_deposition_id": public_records.db.next_deposition_id,
     "last_harbinger_day": public_records.db.last_harbinger_day,
+    "chronicle_gap_policy": public_records.db.chronicle_gap_policy,
+    "chronicle_gap_source": public_records.db.chronicle_gap_source,
 }
 rumor_snapshot = {
     "rumors": copy.deepcopy(list(rumor_registry.db.rumors or [])),
@@ -312,20 +314,28 @@ assert rumor_registry.belief_for(ilona, harbinger_roots[0]["id"]), (
     "printed Harbinger story did not feed knowledge back into the Chronicler"
 )
 
-# Shared situation engine: players may know different evidence, but there is
-# one canonical incident state and one door-closing world outcome.
+# Shared situation engine and incident feed: one canonical world state,
+# separate per-mask evidence, deterministic surfacing, and autonomous aftermath.
 from world.situations import (
     TITHE_ID,
+    TORN_CHRONICLE_ID,
     advance_situations,
     choose,
+    chronicle_gap_description,
     discover_evidence,
     get_situation,
     get_situation_registry,
+    harbinger_archive_evidence,
+    incident_feed_candidates,
+    resident_situation_ask,
     situation_status_for_player,
 )
 
 situation_registry = get_situation_registry()
-assert set((situation_registry.db.situations or {}).keys()) == {TITHE_ID}
+assert set((situation_registry.db.situations or {}).keys()) == {
+    TITHE_ID,
+    TORN_CHRONICLE_ID,
+}
 situation_original = copy.deepcopy(dict(situation_registry.db.situations or {}))
 situation_metrics_original = copy.deepcopy(dict(situation_registry.db.metrics or {}))
 church = one("St. Lazarus Church")
@@ -339,6 +349,11 @@ inc_alice = SimpleNamespace(id=910001, key="incident_alice", has_account=True)
 inc_bob = SimpleNamespace(id=910002, key="incident_bob", has_account=True)
 
 assert get_situation(TITHE_ID)["state"] == "surfaced"
+assert get_situation(TORN_CHRONICLE_ID)["state"] == "dormant"
+assert incident_feed_candidates() == [], (
+    "dependent incident surfaced before its prerequisite aftermath"
+)
+
 discover_evidence(inc_alice, "lock", TITHE_ID)
 discover_evidence(inc_bob, "roll", TITHE_ID)
 alice_status = situation_status_for_player(inc_alice, TITHE_ID)
@@ -348,9 +363,7 @@ assert [entry["id"] for entry in bob_status["evidence"]] == ["roll"]
 assert "roll" not in {entry["id"] for entry in alice_status["evidence"]}
 assert "lock" not in {entry["id"] for entry in bob_status["evidence"]}
 
-# The authored witness is a useful third channel when his schedule makes him
-# available, but he is not load-bearing. Exercise the actual Andrei dialogue
-# hook directly without forcing him into a QA room.
+# The authored witness is useful when available but never load-bearing.
 andrei = one("Father Andrei")
 andrei_line = andrei.ask_about(inc_bob, "strongbox")
 assert "key was hanging where it belongs" in andrei_line.lower()
@@ -362,12 +375,13 @@ assert {entry["id"] for entry in bob_after_witness["evidence"]} == {
 failed_choice, choice_error = choose(inc_alice, "openly", TITHE_ID)
 assert failed_choice is None and "at least 2" in choice_error
 
-# Quiet branch consumes the public-accusation road and advances on its own.
+# Quiet branch occupies the only active feed slot until its timer resolves.
 discover_evidence(inc_alice, "roll", TITHE_ID)
 quiet, choice_error = choose(inc_alice, "quietly", TITHE_ID)
 assert not choice_error
 assert quiet["state"] == "changing"
 assert quiet["branch"] == "quietly"
+assert get_situation(TORN_CHRONICLE_ID)["state"] == "dormant"
 quiet_event = ledger.get_event(quiet["event_ids"][-1])
 assert quiet_event["kind"] == "incident.tithe_strongbox.quiet_inquiry"
 assert not quiet_event.get("publications"), (
@@ -382,10 +396,13 @@ assert quiet_done["state"] == "aftermath"
 assert quiet_done["branch"] == "quietly"
 assert church.db.tithe_strongbox_policy == "two_key"
 assert church.db.tithe_confidence == "guarded"
+assert get_situation(TORN_CHRONICLE_ID)["state"] == "surfaced", (
+    "incident feed did not fill the newly available slot"
+)
 late_choice, late_error = choose(inc_bob, "openly", TITHE_ID)
 assert late_choice is None and "door has already closed" in late_error
 
-# Reset the shared incident only for the next adversarial branch.
+# Reset for the public branch.
 situation_registry.db.situations = copy.deepcopy(situation_original)
 situation_registry.db.metrics = copy.deepcopy(situation_metrics_original)
 church.db.tithe_strongbox_policy = church_state_original["tithe_strongbox_policy"]
@@ -393,8 +410,14 @@ church.db.tithe_confidence = church_state_original["tithe_confidence"]
 church.db.roof_repair_delay_winters = church_state_original[
     "roof_repair_delay_winters"
 ]
+public_records.db.chronicle_gap_policy = public_records_snapshot[
+    "chronicle_gap_policy"
+]
+public_records.db.chronicle_gap_source = public_records_snapshot[
+    "chronicle_gap_source"
+]
 
-# Open branch is immediate, public, provenance-bearing, and globally shared.
+# Open branch is immediate, public, provenance-bearing, and releases the feed slot.
 discover_evidence(inc_alice, "lock", TITHE_ID)
 discover_evidence(inc_alice, "roll", TITHE_ID)
 opened, choice_error = choose(inc_alice, "openly", TITHE_ID)
@@ -412,14 +435,111 @@ assert open_event["publications"]["special_edition_id"]
 assert get_story(
     open_event["publications"]["harbinger_story_id"]
 )["status"] == "published"
+torn = get_situation(TORN_CHRONICLE_ID)
+assert torn["state"] == "surfaced"
+assert public_records.db.chronicle_gap_policy == "open_gap"
 
-# Reset again and prove unattended content progresses without a player.
+# Save the feed-surfaced world as the common starting point for the second
+# incident's three outcome branches.
+feed_surface_snapshot = copy.deepcopy(
+    dict(situation_registry.db.situations or {})
+)
+
+# Different masks may discover different archive evidence.
+gap_text = chronicle_gap_description(inc_alice)
+assert "cut out cleanly" in gap_text
+archive_text = harbinger_archive_evidence(inc_bob)
+assert "newspaper records" in archive_text
+alice_torn = situation_status_for_player(inc_alice, TORN_CHRONICLE_ID)
+bob_torn = situation_status_for_player(inc_bob, TORN_CHRONICLE_ID)
+assert {entry["id"] for entry in alice_torn["evidence"]} == {"gap"}
+assert {entry["id"] for entry in bob_torn["evidence"]} == {
+    "harbinger_archive"
+}
+
+# Ilona is a third optional witness channel, not a survival dependency.
+ilona = by_resident_id["ilona_szabo"]
+ilona_line = resident_situation_ask(ilona, inc_bob, "missing Chronicle pages")
+assert ilona_line and "newspaper copy" in ilona_line.lower()
+assert {entry["id"] for entry in situation_status_for_player(
+    inc_bob, TORN_CHRONICLE_ID
+)["evidence"]} == {"harbinger_archive", "ilona"}
+
+# Reconstruction requires two channels and visibly remains press-derived.
+failed_torn, torn_error = choose(
+    inc_alice,
+    "reconstruct",
+    TORN_CHRONICLE_ID,
+)
+assert failed_torn is None and "at least 2" in torn_error
+harbinger_archive_evidence(inc_alice)
+reconstructed, torn_error = choose(
+    inc_alice,
+    "reconstruct",
+    TORN_CHRONICLE_ID,
+)
+assert not torn_error
+assert reconstructed["state"] == "aftermath"
+assert reconstructed["branch"] == "reconstruct"
+assert public_records.db.chronicle_gap_policy == "reconstructed_from_harbinger"
+assert public_records.db.chronicle_gap_source == "Harbinger archive"
+reconstruct_event = ledger.get_event(reconstructed["event_ids"][-1])
+assert reconstruct_event["kind"] == "incident.torn_chronicle.reconstructed"
+assert reconstruct_event["publications"]["harbinger_story_id"]
+assert reconstruct_event["publications"]["chronicle_entry_id"]
+assert reconstruct_event["publications"]["special_edition_id"]
+assert "press-derived" in chronicle_gap_description(inc_alice).lower()
+late_torn, late_torn_error = choose(
+    inc_bob,
+    "preserve",
+    TORN_CHRONICLE_ID,
+)
+assert late_torn is None and "door has already closed" in late_torn_error
+
+# Preserve branch starts from the same surfaced state and keeps the gap honest.
+situation_registry.db.situations = copy.deepcopy(feed_surface_snapshot)
+public_records.db.chronicle_gap_policy = "open_gap"
+public_records.db.chronicle_gap_source = None
+chronicle_gap_description(inc_alice)
+harbinger_archive_evidence(inc_alice)
+preserved, preserve_error = choose(
+    inc_alice,
+    "preserve",
+    TORN_CHRONICLE_ID,
+)
+assert not preserve_error
+assert preserved["state"] == "aftermath"
+assert preserved["branch"] == "preserve"
+assert public_records.db.chronicle_gap_policy == "preserved_gap"
+assert "left unreconstructed" in chronicle_gap_description(inc_alice).lower()
+
+# Left alone is authored continuation, not frozen content.
+situation_registry.db.situations = copy.deepcopy(feed_surface_snapshot)
+public_records.db.chronicle_gap_policy = "open_gap"
+public_records.db.chronicle_gap_source = None
+untouched_torn = get_situation(TORN_CHRONICLE_ID)
+assert advance_situations(
+    day=untouched_torn["deadline_day"],
+    hour=untouched_torn["deadline_hour"],
+) == 1
+famous_gap = get_situation(TORN_CHRONICLE_ID)
+assert famous_gap["state"] == "aftermath"
+assert famous_gap["branch"] == "left_alone"
+assert public_records.db.chronicle_gap_policy == "famous_gap"
+
+# Reset again and prove the first incident also progresses when nobody acts.
 situation_registry.db.situations = copy.deepcopy(situation_original)
 situation_registry.db.metrics = copy.deepcopy(situation_metrics_original)
 church.db.tithe_strongbox_policy = church_state_original["tithe_strongbox_policy"]
 church.db.tithe_confidence = church_state_original["tithe_confidence"]
 church.db.roof_repair_delay_winters = church_state_original[
     "roof_repair_delay_winters"
+]
+public_records.db.chronicle_gap_policy = public_records_snapshot[
+    "chronicle_gap_policy"
+]
+public_records.db.chronicle_gap_source = public_records_snapshot[
+    "chronicle_gap_source"
 ]
 untouched = get_situation(TITHE_ID)
 assert advance_situations(
@@ -432,8 +552,9 @@ assert left_alone["branch"] == "left_alone"
 assert church.db.tithe_strongbox_policy == "two_key"
 assert church.db.tithe_confidence == "low"
 assert int(church.db.roof_repair_delay_winters or 0) >= 1
+assert get_situation(TORN_CHRONICLE_ID)["state"] == "surfaced"
 
-# QA branches must leave the actual playtest world in the untouched surfaced
+# QA branches must leave the actual playtest world in the untouched initial
 # state. Restore canonical event/publication/rumor registries and readership.
 situation_registry.db.situations = copy.deepcopy(situation_original)
 situation_registry.db.metrics = copy.deepcopy(situation_metrics_original)

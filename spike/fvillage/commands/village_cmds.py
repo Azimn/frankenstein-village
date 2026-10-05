@@ -630,19 +630,28 @@ class CmdHarbinger(Command):
 
         arg = (self.args or "").strip()
         if arg.lower() == "archive":
+            from world.situations import harbinger_archive_evidence
+
             editions = list(
                 get_public_record_registry().db.harbinger_editions or []
             )
-            if not editions:
-                self.caller.msg("No Harbinger issues have reached the village yet.")
-                return
             lines = ["|yThe Harbinger archive:|n"]
-            for edition in editions[-8:]:
-                label = "special edition" if edition.get("special") else "morning issue"
-                lines.append(
-                    f"Issue #{edition['id']}, day {edition['day']}: "
-                    f"{label}, {len(edition.get('story_ids') or [])} stories."
-                )
+            if editions:
+                for edition in editions[-8:]:
+                    label = (
+                        "special edition"
+                        if edition.get("special")
+                        else "morning issue"
+                    )
+                    lines.append(
+                        f"Issue #{edition['id']}, day {edition['day']}: "
+                        f"{label}, {len(edition.get('story_ids') or [])} stories."
+                    )
+            else:
+                lines.append("No recent printed issue is in the active file.")
+            archive_note = harbinger_archive_evidence(self.caller)
+            if archive_note:
+                lines.append(f"\n{archive_note}")
             self.caller.msg("\n".join(lines))
             return
 
@@ -712,8 +721,22 @@ class CmdChronicle(Command):
             get_chronicle_entry,
             submit_deposition,
         )
+        from world.situations import (
+            TORN_CHRONICLE_ID,
+            chronicle_gap_description,
+            get_situation,
+        )
 
         arg = (self.args or "").strip()
+        if arg.lower() in {"gap", "missing pages", "missing page", "stubs"}:
+            description = chronicle_gap_description(self.caller)
+            if not description:
+                self.caller.msg(
+                    "The public Chronicle shows no active numbered gap."
+                )
+                return
+            self.caller.msg(description)
+            return
         if arg.lower().startswith("submit "):
             token = arg.split(None, 1)[1]
             rumor_id = _parse_rumor_id(token)
@@ -756,19 +779,27 @@ class CmdChronicle(Command):
             return
 
         entries = chronicle_entries()
-        if not entries:
-            self.caller.msg("The public Chronicle has no entries yet.")
-            return
         lines = ["|yThe public Chronicle index:|n"]
-        for entry in entries[-10:]:
-            status = (
-                "verified"
-                if entry.get("claim_status") == "verified_event"
-                else "account"
-            )
+        if entries:
+            for entry in entries[-10:]:
+                status = (
+                    "verified"
+                    if entry.get("claim_status") == "verified_event"
+                    else "account"
+                )
+                lines.append(
+                    f"[C{entry['id']}] {entry['title']} ({status})"
+                )
+        else:
+            lines.append("No ordinary entries are indexed yet.")
+
+        torn = get_situation(TORN_CHRONICLE_ID)
+        if torn and torn.get("state") != "dormant":
             lines.append(
-                f"[C{entry['id']}] {entry['title']} ({status})"
+                "A numbered sequence is missing from the bound record. "
+                "Use |wchronicle gap|n to inspect what remains."
             )
+
         lines.append(
             "Use |wchronicle C<number>|n to read an entry, or "
             "|wchronicle submit R<number>|n to submit a rumor you actually heard."
@@ -777,15 +808,7 @@ class CmdChronicle(Command):
 
 
 class CmdJournal(Command):
-    """Read the thin persistent record of situations you have discovered.
-
-    Usage:
-        journal
-        journal strongbox
-
-    This is not a quest checklist. It records what your current mask has
-    actually encountered and leaves undiscovered evidence undisclosed.
-    """
+    """Read the thin persistent record of situations your mask discovered."""
 
     key = "journal"
     aliases = ["developments"]
@@ -796,47 +819,46 @@ class CmdJournal(Command):
             return
 
         from world.situations import (
-            TITHE_ID,
             known_situations,
+            resolve_situation_subject,
             situation_status_for_player,
         )
 
         arg = (self.args or "").strip().lower()
         if arg:
-            if arg in {
-                "strongbox", "tithe", "tithe strongbox", "church strongbox",
-                TITHE_ID.lower(),
-            }:
-                status = situation_status_for_player(self.caller, TITHE_ID)
-                if not status:
-                    self.caller.msg(
-                        "Nothing about the church strongbox is in your journal."
-                    )
-                    return
-                lines = [
-                    f"|y{status['title']}|n",
-                    f"State: {status['state'].replace('_', ' ')}.",
-                ]
-                if status["evidence"]:
-                    lines.append("Evidence you have actually encountered:")
-                    for evidence in status["evidence"]:
-                        lines.append(
-                            f"  * {evidence['label']}: {evidence['summary']}"
-                        )
-                if status.get("aftermath"):
-                    lines.append(f"Aftermath: {status['aftermath']}")
-                elif status.get("branch") == "quietly":
-                    lines.append(
-                        "The inquiry is being kept quiet. Time is still moving."
-                    )
-                elif len(status["evidence"]) >= 2:
-                    lines.append(
-                        "You know enough to make a consequential choice with "
-                        "decide strongbox openly or decide strongbox quietly."
-                    )
-                self.caller.msg("\n".join(lines))
+            stable_id = resolve_situation_subject(arg)
+            if not stable_id:
+                self.caller.msg("That situation is not in your journal.")
                 return
-            self.caller.msg("That situation is not in your journal.")
+            status = situation_status_for_player(self.caller, stable_id)
+            if not status:
+                self.caller.msg(
+                    "Nothing about that situation is in your journal."
+                )
+                return
+
+            lines = [
+                f"|y{status['title']}|n",
+                f"State: {status['state'].replace('_', ' ')}.",
+            ]
+            if status["evidence"]:
+                lines.append("Evidence you have actually encountered:")
+                for evidence in status["evidence"]:
+                    lines.append(
+                        f"  * {evidence['label']}: {evidence['summary']}"
+                    )
+            if status.get("aftermath"):
+                lines.append(f"Aftermath: {status['aftermath']}")
+            elif status.get("branch") == "quietly":
+                lines.append(
+                    "The inquiry is being kept quiet. Time is still moving."
+                )
+            elif len(status["evidence"]) >= 2 and status.get("choices"):
+                choices = " or ".join(status["choices"])
+                lines.append(
+                    f"You know enough to make a consequential choice: {choices}."
+                )
+            self.caller.msg("\n".join(lines))
             return
 
         known = known_situations(self.caller)
@@ -860,14 +882,7 @@ class CmdJournal(Command):
 
 
 class CmdDecide(Command):
-    """Make a door-closing decision in a shared village situation.
-
-    Usage:
-        decide strongbox openly
-        decide strongbox quietly
-
-    Decisions affect the shared world. They are not private quest branches.
-    """
+    """Make a door-closing decision in a shared village situation."""
 
     key = "decide"
     aliases = ["resolve"]
@@ -887,37 +902,33 @@ class CmdDecide(Command):
         parts = raw.split()
         if len(parts) < 2:
             self.caller.msg(
-                "Try: decide strongbox openly, or decide strongbox quietly"
+                "Name a situation and a choice, for example: "
+                "decide strongbox openly"
             )
             return
+
         subject = " ".join(parts[:-1]).lower()
         choice = parts[-1].lower()
-        if subject not in {
-            "strongbox", "tithe", "tithe strongbox", "church strongbox",
-        }:
+
+        from world.situations import (
+            choose,
+            decision_message,
+            resolve_situation_subject,
+        )
+
+        stable_id = resolve_situation_subject(subject)
+        if not stable_id:
             self.caller.msg("You do not have a decision framed that way.")
             return
 
-        from world.situations import TITHE_ID, choose
-
-        situation, error = choose(self.caller, choice, TITHE_ID)
+        situation, error = choose(self.caller, choice, stable_id)
         if error:
             self.caller.msg(error)
             return
 
-        if situation.get("branch") == "openly":
-            self.caller.msg(
-                "You raise the missing tithe openly. The accusation is now "
-                "public, the church changes its strongbox procedure, and the "
-                "quiet road is closed."
-            )
-        else:
-            self.caller.msg(
-                "You ask that the inquiry stay quiet for a week. The public "
-                "accusation road is closed, and the village clock keeps moving."
-            )
-
-
+        self.caller.msg(
+            decision_message(stable_id, situation.get("branch"))
+        )
 
 
 class CmdTalk(Command):
