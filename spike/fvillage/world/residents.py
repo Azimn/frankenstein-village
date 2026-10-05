@@ -1069,6 +1069,15 @@ def consume_world_event(event):
         for kin_id in definition.get("kin") or ():
             if kin_id in RESIDENT_BY_ID:
                 affected.add(kin_id)
+        employer_id = definition.get("employer_id")
+        if employer_id in RESIDENT_BY_ID:
+            affected.add(employer_id)
+        for linked_id in definition.get("social_links") or ():
+            if linked_id in RESIDENT_BY_ID:
+                affected.add(linked_id)
+        for other in RESIDENTS:
+            if other.get("employer_id") == target_id:
+                affected.add(other["stable_id"])
 
     touched = []
     for stable_id in sorted(affected):
