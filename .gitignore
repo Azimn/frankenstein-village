@@ -14,3 +14,4 @@ __pycache__/
 spike/venv/
 # evennia runtime
 *.log
+.github/workflows/

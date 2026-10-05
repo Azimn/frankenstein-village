@@ -355,8 +355,15 @@ get_or_create_scenery(
     "dartboard", tavern,
     "A scarred board in the corner, the wire gleaming. Three nights running, "
     "someone's darts have all landed in the wire.",
-    aliases=["board"],
+    aliases=["darts"],
 )
+# The dartboard's old "board" alias now belongs to the price board; fix the
+# live object (get_or_create_scenery doesn't touch existing aliases).
+_db = [o for o in tavern.contents if o.key == "dartboard"]
+if _db and "board" in _db[0].aliases.all():
+    _db[0].aliases.remove("board")
+    if "darts" not in _db[0].aliases.all():
+        _db[0].aliases.add("darts")
 
 # dice cup: the tavern's other house game (roll dice / roll dice vs keeper)
 get_or_create_scenery(
@@ -398,14 +405,43 @@ else:
 # surprise table live in db.consume; the eat/drink commands read them.
 get_or_create_scenery(
     "a sideboard", tavern,
-    "A long sideboard laden with the tavern's hospitality: bread, cheese, "
-    "a pot of stew, ale, wine, water. Help yourself — the keeper insists. "
-    "(Try: eat bread. Or: drink ale.)",
+    "A long sideboard laden with the tavern's fare: bread, cheese, "
+    "a pot of stew, ale, wine, water. The price board on the wall says "
+    "what coin buys. (Try: eat bread. Or: drink ale.)",
     aliases=["sideboard"],
 )
 
+# the price board: Jay's ruling, 2026-10-04 — coin, with a price list on
+# the wall. 1890 Austria-Hungary: forint, 1 ft = 100 krajczár. Bram chalks
+# it himself; the figures match TAVERN_PRICES in village_cmds.py.
+get_or_create_scenery(
+    "a chalked price board", tavern,
+    "Chalked on the board in Bram's blocky hand:\n"
+    "  bread ...... 4 kr\n"
+    "  cheese ..... 6 kr\n"
+    "  stew ...... 12 kr\n"
+    "  ale ........ 5 kr\n"
+    "  wine ...... 10 kr\n"
+    "  water ..... free\n"
+    "Underneath, underlined twice: COIN FIRST.",
+    aliases=["board", "price board", "prices", "price list"],
+)
+# The sideboard's old "help yourself" text predates coin; refresh it.
+_sb = [o for o in tavern.contents if o.key == "a sideboard"]
+if _sb:
+    _sb[0].db.desc = (
+        "A long sideboard laden with the tavern's fare: bread, cheese, "
+        "a pot of stew, ale, wine, water. The price board on the wall says "
+        "what coin buys. (Try: eat bread. Or: drink ale.)"
+    )
 
-def _fare(key, aliases, kind, desc, consume):
+
+# Servings live in the consume dict as `servings_max`; the live count is
+# db.servings. Only the keeper's restock refills — a rebuild never resets
+# mid-session counts (init only if never set). Water has no servings_max:
+# well water is free and infinite by design. The well mushrooms aren't
+# _fare at all — they're wild, not the keeper's board.
+def _fare(key, aliases, kind, desc, consume, servings=None, short=None):
     found = [o for o in tavern.contents if o.key == key]
     if found:
         obj = found[0]
@@ -418,7 +454,13 @@ def _fare(key, aliases, kind, desc, consume):
     obj.db.desc = desc
     obj.tags.add("consumable")
     obj.tags.add(kind)  # "food" or "drink" — the eat/drink gate
-    obj.db.consume = consume
+    obj.db.consume = dict(consume)
+    if servings is not None:
+        obj.db.consume["servings_max"] = servings
+        if short:
+            obj.db.consume["short"] = short
+        if obj.db.servings is None:
+            obj.db.servings = servings
     return obj
 
 
@@ -436,6 +478,7 @@ _fare(
              "effect": "nonourish"},
         ],
     },
+    servings=6, short="bread",
 )
 _fare(
     "a wedge of cheese", ["cheese", "wedge"], "food",
@@ -445,6 +488,7 @@ _fare(
         "flavor": "The cheese bites back a little. You respect that.",
         "room": "works through a wedge of the sharp cheese.",
     },
+    servings=5, short="cheese",
 )
 _fare(
     "a bowl of stew", ["stew", "bowl"], "food",
@@ -468,6 +512,7 @@ _fare(
              "effect": "queasy"},
         ],
     },
+    servings=8, short="stew",
 )
 _fare(
     "a tankard of ale", ["ale", "tankard"], "drink",
@@ -484,6 +529,7 @@ _fare(
              "rumor": "The keeper waters the ale. Or so the talk goes."},
         ],
     },
+    servings=8, short="ale",
 )
 _fare(
     "a cup of wine", ["wine", "cup"], "drink",
@@ -500,6 +546,7 @@ _fare(
              "effect": "heal"},
         ],
     },
+    servings=6, short="wine",
 )
 _fare(
     "a cup of water", ["water", "cup"], "drink",

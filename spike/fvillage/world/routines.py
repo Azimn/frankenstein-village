@@ -341,11 +341,53 @@ def monthly_shift(day):
             "new_start": new_start}
 
 
+# --- the sideboard: finite hospitality, keeper-resupplied ----------------------
+# Backlog #13 (2026-10-04): fare used to be infinitely help-yourself. Each
+# fare now carries servings_max, and eating/drinking decrements db.servings.
+# The keeper refills the board on the routine tick — but only his hands do
+# it, so if Bram is ever deviated away from the tavern, the board stays bare
+# until he comes back. That's the deal: hospitality is work, not magic.
+
+
+def restock_sideboard():
+    """Refill depleted sideboard fare if Bram is in the tavern.
+
+    Returns the list of refilled fare short names (for logs/tests). Fires
+    only when something was actually refilled — quiet when the board's full.
+    """
+    tavern = _room("The Blood of the Vine")
+    if not tavern:
+        return []
+    keeper = next((o for o in tavern.contents if o.key == "Bram"), None)
+    if keeper is None:
+        return []  # nobody's hands to set it out
+    refilled = []
+    for obj in tavern.contents:
+        data = obj.db.consume or {}
+        max_s = data.get("servings_max")
+        if not max_s:
+            continue  # water and the well mushrooms aren't the keeper's board
+        left = obj.db.servings
+        if left is None:
+            left = max_s
+        if left < max_s:
+            obj.db.servings = max_s
+            refilled.append(data.get("short") or obj.key)
+    if refilled:
+        tavern.msg_contents(
+            "Bram comes out with a tray: "
+            + ", ".join(refilled)
+            + '. "There. The board\'s full again."'
+        )
+    return refilled
+
+
 def tick():
     """One routine pass: move the village, apply feast observances, check month."""
     from evennia.scripts.models import ScriptDB
 
     moves = advance()
+    restock_sideboard()
     try:
         clock = ScriptDB.objects.get(db_key="village_time")
         day = clock.db.day or 1

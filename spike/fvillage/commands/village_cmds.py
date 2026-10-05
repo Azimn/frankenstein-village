@@ -1982,8 +1982,112 @@ KEEPER_FARE_LINES = {
     "stew": '"Stew\'s mostly root vegetable. Mostly."',
     "bread": '"Bread\'s fresh this morning. Mostly."',
     "cheese": '"Sharp enough to argue with, that cheese."',
-    "water": '"Water\'s free. Everything else, we\'ll talk."',
+    "water": '"Water\'s free. The board\'s on the wall for the rest."',
 }
+
+
+# --- the village economy: coin -------------------------------------------
+# 1890 Austria-Hungary: the forint (florin), 1 ft = 100 krajczár. Copper
+# krajczár are the everyday coin; Bram's board is priced in kr. (Jay's
+# ruling, 2026-10-04: coin, with a price list on the wall.)
+#
+# Purses are db.coins_kr (integer krajczár), lazily initialized — any
+# character, old or new, starts with coin for the road. Only players pay;
+# the house feeds its regulars on the tab. Bram's take lands in his till
+# (bram.db.till_kr) — a hidden variable with a future observable
+# consequence, not a fake number.
+TAVERN_PRICES = {  # fare short name -> krajczár
+    "bread": 4,
+    "cheese": 6,
+    "stew": 12,
+    "ale": 5,
+    "wine": 10,
+    # water: free on purpose. It's the one kindness.
+}
+STARTING_COINS_KR = 200  # 2 forint
+
+
+def fmt_coins(kr):
+    """1890-flavored money string: 4 kr, 1 ft 20 kr, 2 ft."""
+    kr = int(kr or 0)
+    ft, k = divmod(kr, 100)
+    if ft and k:
+        return f"{ft} ft {k} kr"
+    if ft:
+        return f"{ft} ft"
+    return f"{k} kr"
+
+
+def purse_of(char):
+    """The character's purse in kr, initialized on first touch."""
+    if char.db.coins_kr is None:
+        char.db.coins_kr = STARTING_COINS_KR
+    return char.db.coins_kr
+
+
+def _pay_for_fare(caller, item):
+    """Charge a player for sideboard fare. Returns (ok, price_paid).
+
+    Free fare (water, wild mushrooms) costs nothing. NPCs eat on the
+    house tab — only the living with accounts pay coin.
+    """
+    price = TAVERN_PRICES.get(_fare_short(item))
+    if not price:
+        return True, 0
+    if not caller.has_account:
+        return True, 0  # regulars drink on the house
+    purse = purse_of(caller)
+    if purse < price:
+        short = _fare_short(item)
+        caller.msg(
+            f"Bram doesn't look up from his polishing. \"{short.title()}'s "
+            f"{fmt_coins(price)}. The board's on the wall.\" "
+            f"(You've got {fmt_coins(purse)}.)"
+        )
+        return False, 0
+    caller.db.coins_kr = purse - price
+    if caller.location:
+        bram = next(
+            (o for o in caller.location.contents if o.key == "Bram"), None
+        )
+        if bram is not None:
+            bram.db.till_kr = (bram.db.till_kr or 0) + price
+    return True, price
+
+
+def _fare_short(item):
+    """Plain short name for a fare item ("a loaf of bread" -> "bread")."""
+    short = (item.db.consume or {}).get("short")
+    if short:
+        return short
+    key = item.key or ""
+    low = key.lower()
+    for art in ("a ", "an "):
+        if low.startswith(art):
+            return key[len(art):]
+    return key
+
+
+def _fare_depleted(caller, item):
+    """True (with a message) if this sideboard fare has been eaten out.
+
+    Water has no servings_max — the well is infinite. Wild fare (the
+    mushrooms) isn't _fare at all, so this never gates it.
+    """
+    max_s = (item.db.consume or {}).get("servings_max")
+    if not max_s:
+        return False
+    left = item.db.servings
+    if left is None:  # safety: fare created before servings existed
+        item.db.servings = max_s
+        return False
+    if left > 0:
+        return False
+    caller.msg(
+        f"The {_fare_short(item)}'s all gone. The keeper will set more "
+        "out when he has a moment."
+    )
+    return True
 
 
 def _consume(caller, item, kind, verb_self, verb_room):
@@ -2024,17 +2128,24 @@ def _consume(caller, item, kind, verb_self, verb_room):
         me.db.queasy = max(me.db.queasy or 0, toxic)
     if heal:
         me.db.queasy = 0
+    # Servings: finite hospitality. The sideboard keeps count, and the last
+    # serving announces itself.
+    last_serving = False
+    max_s = data.get("servings_max")
+    if max_s:
+        left = item.db.servings
+        if left is None:
+            left = max_s
+        left = max(0, left - 1)
+        item.db.servings = left
+        if left == 0:
+            last_serving = True
     extra = ""
     if effect == "coin":
-        from evennia import create_object
-        coin = create_object(
-            "evennia.objects.objects.DefaultObject",
-            key="a copper coin",
-            location=me,
-            aliases=["coin", "copper"],
-        )
-        coin.db.desc = "A copper coin, slightly dented. Found in the stew."
-        extra = " You pocket it."
+        # A copper 2-krajczár piece, worn smooth — straight to the purse.
+        # (Replaces the old physical-coin object: coin is coin now.)
+        me.db.coins_kr = purse_of(me) + 2
+        extra = " You pocket it. (+2 kr)"
     elif effect == "queasy":
         me.db.queasy = max(me.db.queasy or 0, 5)
     elif effect == "heal":
@@ -2049,6 +2160,8 @@ def _consume(caller, item, kind, verb_self, verb_room):
     else:
         personal = data.get("flavor") or f"You {verb_self} the {item.key}."
         room_line = data.get("room") or f"{me.key} {verb_room} the {item.key}."
+    if last_serving:
+        personal = f"That was the last of the {_fare_short(item)}. " + personal
     me.msg(personal + extra)
     if room_line and me.location:
         me.location.msg_contents(room_line, exclude=[me])
@@ -2112,8 +2225,9 @@ class CmdEat(Command):
     Usage:
         eat <food>
 
-    The sideboard in the Tavern is laden and help-yourself. Food soothes
-    hunger; some of it does other things. The stew's provenance is uncertain.
+    The sideboard in the Tavern is laden and coin-fed: bread, cheese,
+    stew. Food soothes hunger; some of it does other things. The stew's
+    provenance is uncertain. Check the price board on the wall.
     """
 
     key = "eat"
@@ -2136,12 +2250,21 @@ class CmdEat(Command):
                 "Try drinking it.)"
             )
             return
+        if _fare_depleted(self.caller, item):
+            return
         if self.caller.db.queasy:
             self.caller.msg(
                 "Your stomach turns at the thought of food. Maybe later."
             )
             return
+        ok, price = _pay_for_fare(self.caller, item)
+        if not ok:
+            return
         _consume(self.caller, item, "food", "eat", "eats")
+        if price:
+            self.caller.msg(
+                f"({fmt_coins(price)} — purse: {fmt_coins(purse_of(self.caller))}.)"
+            )
 
 
 class CmdDrink(Command):
@@ -2151,8 +2274,8 @@ class CmdDrink(Command):
     Usage:
         drink <drink>
 
-    Ale, wine, water — the sideboard's help-yourself. Alcohol has effects,
-    and effects have witnesses. Water sobers.
+    Ale, wine, water — the sideboard's coin-fed, water excepted. Alcohol
+    has effects, and effects have witnesses. Water sobers, and it's free.
     """
 
     key = "drink"
@@ -2175,7 +2298,16 @@ class CmdDrink(Command):
                 "Try eating it.)"
             )
             return
+        if _fare_depleted(self.caller, item):
+            return
+        ok, price = _pay_for_fare(self.caller, item)
+        if not ok:
+            return
         _consume(self.caller, item, "drink", "drink", "drinks")
+        if price:
+            self.caller.msg(
+                f"({fmt_coins(price)} — purse: {fmt_coins(purse_of(self.caller))}.)"
+            )
 
 
 class CmdConfess(Command):
