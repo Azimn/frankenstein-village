@@ -850,6 +850,41 @@ room_six_door = relocate_or_create_typed(
 )
 
 # Canonical event history is created before any mystery projection scripts.
+if ScriptDB.objects.filter(db_key="rumor_registry").exists():
+    print("rumor_registry script exists.")
+else:
+    create_script(
+        "typeclasses.scripts.RumorRegistry",
+        key="rumor_registry",
+        persistent=True,
+    )
+    print("rumor_registry script created.")
+
+# Only IC residents who can actually exchange gossip join the rumor network.
+# M. is deliberately absent: NPCs must never perceive the OOC layer.
+_rumor_profiles = {
+    "Bram": (0.65, 0.45),
+    "Old Vasile": (0.35, 0.30),
+    "Magda": (0.90, 0.65),
+    "János": (0.45, 0.25),
+    "Father Andrei": (0.50, 0.35),
+    "Lucian DeVille": (0.75, 0.55),
+}
+_rumor_participants = []
+for _name, (_curiosity, _gullibility) in _rumor_profiles.items():
+    _found = [o for o in search.search_object(_name) if o.key == _name]
+    if not _found:
+        continue
+    _npc = _found[0]
+    _npc.tags.add("participant", category="rumor")
+    _npc.db.rumor_curiosity = _curiosity
+    _npc.db.rumor_gullibility = _gullibility
+    _rumor_participants.append(_npc)
+
+from world.rumors import seed_playable_rumors
+_seeded_rumors = seed_playable_rumors(participants=_rumor_participants)
+print(f"rumor roots ready: {len(_seeded_rumors)} playable canon seeds.")
+
 if ScriptDB.objects.filter(db_key="world_event_ledger").exists():
     print("world_event_ledger script exists.")
 else:
