@@ -674,28 +674,148 @@ def _begin_quiet_investigation(situation, player):
     return situation
 
 
+def _set_chronicle_gap_policy(policy, *, source=None):
+    from world.publications import get_public_record_registry
+
+    registry = get_public_record_registry()
+    registry.db.chronicle_gap_policy = str(policy)
+    registry.db.chronicle_gap_source = source
+    return {
+        "chronicle_gap_policy": str(policy),
+        "chronicle_gap_source": source,
+    }
+
+
+def _apply_torn_reconstruct(situation, player):
+    from world.events import publish_world_event
+
+    day, hour = _clock()
+
+    def consequence(_event):
+        return _set_chronicle_gap_policy(
+            "reconstructed_from_harbinger",
+            source="Harbinger archive",
+        )
+
+    event = publish_world_event(
+        "incident.torn_chronicle.reconstructed",
+        actor=player,
+        payload={
+            "situation_id": situation["id"],
+            "headline": "Missing Chronicle Sequence Reconstructed",
+            "public_summary": (
+                "The missing Chronicle sequence has been reconstructed from surviving "
+                "Harbinger files. The replacement is explicitly marked as press-derived "
+                "rather than recovered original text."
+            ),
+            "chronicle_summary": (
+                "The Chronicle records that its missing numbered sequence was "
+                "reconstructed from surviving Harbinger files. The reconstruction is "
+                "marked as press-derived and does not claim to recover the lost original."
+            ),
+            "chronicle_eligible": True,
+            "publication_priority": "special",
+            "resident_ids": ["ilona_szabo"],
+        },
+        rumor=(
+            "They filled the Chronicle's missing pages from old Harbinger files. "
+            "Some call it repair; some call it copying yesterday's mistakes into history."
+        ),
+        consequence=consequence,
+    )
+    situation = _record_event(situation, event)
+    situation["state"] = "aftermath"
+    situation["branch"] = "reconstruct"
+    situation["resolved_day"] = day
+    situation["resolved_hour"] = hour
+    situation["objective_mutations"] = {
+        "chronicle_gap_policy": "reconstructed_from_harbinger",
+        "chronicle_gap_source": "Harbinger archive",
+    }
+    situation["aftermath"] = (
+        "The numbered gap has been filled with a reconstruction derived from surviving "
+        "Harbinger issues. The new pages are plainly marked as reconstruction, not original."
+    )
+    return situation
+
+
+def _apply_torn_preserve(situation, player):
+    from world.events import publish_world_event
+
+    day, hour = _clock()
+
+    def consequence(_event):
+        return _set_chronicle_gap_policy("preserved_gap", source=None)
+
+    event = publish_world_event(
+        "incident.torn_chronicle.gap_preserved",
+        actor=player,
+        payload={
+            "situation_id": situation["id"],
+            "headline": "Chronicle Leaves Missing Sequence Blank",
+            "public_summary": (
+                "The Chronicler has preserved the numbered gap rather than replace "
+                "missing pages with a newspaper reconstruction. The absence is now "
+                "part of the public record."
+            ),
+            "chronicle_summary": (
+                "The Chronicle records the decision to preserve its missing numbered "
+                "sequence as a documented gap rather than infer lost text from the press."
+            ),
+            "chronicle_eligible": True,
+            "publication_priority": "special",
+            "resident_ids": ["ilona_szabo"],
+        },
+        rumor=(
+            "The Chronicler left the missing pages blank on purpose. The empty sequence "
+            "now says more to half the village than a reconstruction would have."
+        ),
+        consequence=consequence,
+    )
+    situation = _record_event(situation, event)
+    situation["state"] = "aftermath"
+    situation["branch"] = "preserve"
+    situation["resolved_day"] = day
+    situation["resolved_hour"] = hour
+    situation["objective_mutations"] = {
+        "chronicle_gap_policy": "preserved_gap",
+        "chronicle_gap_source": None,
+    }
+    situation["aftermath"] = (
+        "The numbered gap remains visible and documented. Later readers can see where "
+        "the record failed instead of mistaking a reconstruction for recovered history."
+    )
+    return situation
+
+
+def _apply_choice(situation, player, normalized):
+    stable_id = situation["id"]
+    if stable_id == TITHE_ID:
+        if normalized == "openly":
+            return _apply_open_aftermath(situation, player)
+        if normalized == "quietly":
+            return _begin_quiet_investigation(situation, player)
+    elif stable_id == TORN_CHRONICLE_ID:
+        if normalized == "reconstruct":
+            return _apply_torn_reconstruct(situation, player)
+        if normalized == "preserve":
+            return _apply_torn_preserve(situation, player)
+    return None
+
+
 def choose(player, choice, stable_id=TITHE_ID):
     """Make the first canonical door-closing choice for a shared situation."""
     situation = get_situation(stable_id)
     template = TEMPLATES.get(stable_id)
     if not situation or not template:
         return None, "That situation is not present in the village."
+    if situation.get("state") == "dormant":
+        return None, "That situation has not surfaced in the village."
 
-    normalized = str(choice or "").strip().lower()
-    aliases = {
-        "open": "openly",
-        "public": "openly",
-        "publicly": "openly",
-        "accuse": "openly",
-        "openly": "openly",
-        "quiet": "quietly",
-        "private": "quietly",
-        "privately": "quietly",
-        "quietly": "quietly",
-    }
-    normalized = aliases.get(normalized)
+    normalized = _normalize_choice(stable_id, choice)
     if normalized not in template["choices"]:
-        return None, "Choose either openly or quietly."
+        options = " or ".join(choice_names(stable_id))
+        return None, f"Choose {options}."
 
     if situation.get("branch") or STATE_ORDER.get(
         situation.get("state"), 0
@@ -724,24 +844,22 @@ def choose(player, choice, stable_id=TITHE_ID):
     })
     situation["choice_history"] = history
 
-    if normalized == "openly":
-        situation = _apply_open_aftermath(situation, player)
-    else:
-        situation = _begin_quiet_investigation(situation, player)
+    situation = _apply_choice(situation, player, normalized)
+    if not situation:
+        return None, "That choice has no implemented world consequence."
 
     _save(situation)
     _metrics(choices=1)
     discover_situation(
         player,
         stable_id,
-        note=(
-            "You chose to raise the loss openly."
-            if normalized == "openly"
-            else "You chose to keep the inquiry quiet for a week."
-        ),
+        note=f"You chose to {template['choices'][normalized]['label']}.",
     )
-    return get_situation(stable_id), None
 
+    # A resolved incident frees a feed slot immediately. A changing incident
+    # still occupies its slot until its autonomous deadline is reached.
+    surface_incident_feed(day=day, hour=hour, max_active=1)
+    return get_situation(stable_id), None
 
 def _left_alone(situation):
     from world.events import publish_world_event
@@ -794,6 +912,49 @@ def _left_alone(situation):
         "roof_repair_delay_winters": int(
             getattr(_church().db, "roof_repair_delay_winters", 1) or 1
         ) if _church() else 1,
+    }
+    situation["aftermath"] = TEMPLATES[situation["id"]]["autonomy"]["left_alone"]
+    return situation
+
+
+def _torn_left_alone(situation):
+    from world.events import publish_world_event
+
+    day, hour = _clock()
+
+    def consequence(_event):
+        return _set_chronicle_gap_policy("famous_gap", source=None)
+
+    event = publish_world_event(
+        "incident.torn_chronicle.left_alone",
+        payload={
+            "situation_id": situation["id"],
+            "headline": "Visitors Come to See the Chronicle Gap",
+            "public_summary": (
+                "The missing Chronicle sequence has remained untouched long enough "
+                "to become an object of study. Visitors now ask to see the numbered stubs."
+            ),
+            "chronicle_summary": (
+                "The Chronicle records that its missing sequence remains unreconstructed "
+                "and has itself become a subject of public and scholarly attention."
+            ),
+            "chronicle_eligible": True,
+            "resident_ids": ["ilona_szabo"],
+        },
+        rumor=(
+            "People have begun coming from outside the village just to see the Chronicle's "
+            "missing pages. Nobody agrees whether that makes the gap evidence or attraction."
+        ),
+        consequence=consequence,
+    )
+    situation = _record_event(situation, event)
+    situation["state"] = "aftermath"
+    situation["branch"] = "left_alone"
+    situation["resolved_day"] = day
+    situation["resolved_hour"] = hour
+    situation["objective_mutations"] = {
+        "chronicle_gap_policy": "famous_gap",
+        "chronicle_gap_source": None,
     }
     situation["aftermath"] = TEMPLATES[situation["id"]]["autonomy"]["left_alone"]
     return situation
@@ -868,10 +1029,12 @@ def advance_situations(*, day=None, hour=None):
         if (int(day), int(hour)) < due:
             continue
 
-        if situation.get("branch") == "quietly":
+        if stable_id == TITHE_ID and situation.get("branch") == "quietly":
             situation = _finish_quiet(situation)
-        elif not situation.get("branch"):
+        elif stable_id == TITHE_ID and not situation.get("branch"):
             situation = _left_alone(situation)
+        elif stable_id == TORN_CHRONICLE_ID and not situation.get("branch"):
+            situation = _torn_left_alone(situation)
         else:
             continue
         situations[stable_id] = situation
@@ -880,6 +1043,11 @@ def advance_situations(*, day=None, hour=None):
     if advanced:
         registry.db.situations = situations
         _metrics(autonomous_advances=advanced)
+    surfaced = surface_incident_feed(
+        day=int(day),
+        hour=int(hour),
+        max_active=1,
+    )
     return advanced
 
 
