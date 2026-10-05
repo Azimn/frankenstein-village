@@ -12,6 +12,7 @@ from pathlib import Path
 import sqlite3
 import subprocess
 import sys
+import time
 import venv
 
 
@@ -58,6 +59,18 @@ def _default_home_exists() -> bool:
         return row is not None
     except sqlite3.Error:
         return False
+
+
+def _wait_for_default_home(timeout: float = 45.0) -> None:
+    """Wait for Evennia's asynchronous first-start setup to create Limbo."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if _default_home_exists():
+            return
+        time.sleep(0.25)
+    raise RuntimeError(
+        "Evennia started but did not create DEFAULT_HOME (#2) during initial setup."
+    )
 
 
 def _ensure_twistd_launcher(python: Path) -> None:
@@ -126,6 +139,7 @@ def main() -> int:
     if not _default_home_exists():
         print("Initializing Evennia default database objects...")
         _run([evennia, "start"], cwd=GAME, env=env)
+        _wait_for_default_home()
         _run([evennia, "stop"], cwd=GAME, env=env)
 
     with (GAME / "world" / "build_spike.py").open("rb") as build_script:
