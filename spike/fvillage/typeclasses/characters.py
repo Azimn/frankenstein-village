@@ -7,7 +7,28 @@ arrival guide: welcoming, directive, always pointing at the front door.
 """
 from evennia.objects.objects import DefaultCharacter
 import random
+import re
 import time
+
+
+def topic_matches(text, *keys):
+    """Word-boundary topic matching for ask_about resolvers.
+
+    'six' matches 'room six' but not 'sixpence'; 'mass' matches the mass
+    but not 'massacre'. Multi-word keys must appear as a contiguous run.
+    Replaces the old substring helper whose `t in k` clause let any
+    fragment ('re', 'venice' via 'nice') hijack a topic — and, worse,
+    write the wrong interest into NPC memory.
+    """
+    words = re.findall(r"[a-z0-9']+", text.lower())
+    for key in keys:
+        kw = re.findall(r"[a-z0-9']+", key.lower())
+        if not kw:
+            continue
+        for i in range(len(words) - len(kw) + 1):
+            if words[i:i + len(kw)] == kw:
+                return True
+    return False
 
 
 def _world_log():
@@ -378,7 +399,7 @@ class Innkeeper(SpikeCharacter):
         cold = (self.db.cold_to or {}).get(char.key)
 
         def has(*keys):
-            return any(k == t or k in t or t in k for k in keys)
+            return topic_matches(t, *keys)
 
         if has("register", "guest book", "guestbook", "book"):
             return (
@@ -558,12 +579,22 @@ class TavernKeeper(SpikeCharacter):
 
         if mask_mem["visits"] <= 1:
             line = self._next_line("greet")
+        elif prev_seen and now - prev_seen < 300:
+            # Stepped out and back within five minutes: a nod, not a
+            # reunion. Recognition fires on returns, not room entries.
+            line = None
         else:
             line = self._returnee_line(char, mask_mem, prev_seen)
-        self.location.msg_contents(
-            f'Bram looks up. "{line}"',
-            exclude=[],
-        )
+        if line is None:
+            self.location.msg_contents(
+                f"Bram nods at {char.key}, already wiping.",
+                exclude=[],
+            )
+        else:
+            self.location.msg_contents(
+                f'Bram looks up. "{line}"',
+                exclude=[],
+            )
 
     def note_interest(self, char, topic):
         """Record something a player cared about (ask topics, darts).
@@ -674,7 +705,7 @@ class TavernKeeper(SpikeCharacter):
             t = t[4:]
 
         def has(*keys):
-            return any(k == t or k in t or t in k for k in keys)
+            return topic_matches(t, *keys)
 
         if has("room six", "room 6", "six", "sixth room"):
             self.note_interest(char, "room six")
@@ -835,7 +866,7 @@ class LucianDeVille(SpikeCharacter):
             t = t[4:]
 
         def has(*keys):
-            return any(k == t or k in t or t in k for k in keys)
+            return topic_matches(t, *keys)
 
         import random
         if has("pretorius", "antiquarian", "antique", "new shop", "opening",
@@ -1014,7 +1045,7 @@ class FatherAndrei(TavernRegular):
             t = t[4:]
 
         def has(*keys):
-            return any(k == t or k in t or t in k for k in keys)
+            return topic_matches(t, *keys)
 
         import random
         if has("faith", "god", "believe", "belief", "doubt"):
@@ -1025,6 +1056,23 @@ class FatherAndrei(TavernRegular):
                 "calendar and candles, and I do those whether I feel them "
                 "or not.",
             ])
+        # Feast calendar before the patron-saint branch: "all saints" must
+        # reach the calendar, not the Lazarus line.
+        if has("all souls", "all saints", "november", "feast", "calendar",
+               "easter", "christmas", "lent"):
+            from world import liturgical
+            from evennia.scripts.models import ScriptDB
+            try:
+                day = ScriptDB.objects.get(db_key="village_time").db.day or 1
+            except Exception:
+                day = 1
+            ahead, info = liturgical.next_feast(day)
+            if info:
+                when = "today" if ahead == 0 else f"in {ahead} days"
+                return (
+                    f"{info['name']} — {when}. {info['note']}"
+                )
+            return "The calendar turns. It always turns."
         if has("church", "lazarus", "saint", "patron"):
             return (
                 "St. Lazarus. The patron got up and walked out of his own "
@@ -1071,21 +1119,6 @@ class FatherAndrei(TavernRegular):
                     "for two."
                 )
             return "Sundays at ten. Come and see."
-        if has("all souls", "all saints", "november", "feast", "calendar",
-               "easter", "christmas", "lent"):
-            from world import liturgical
-            from evennia.scripts.models import ScriptDB
-            try:
-                day = ScriptDB.objects.get(db_key="village_time").db.day or 1
-            except Exception:
-                day = 1
-            ahead, info = liturgical.next_feast(day)
-            if info:
-                when = "today" if ahead == 0 else f"in {ahead} days"
-                return (
-                    f"{info['name']} — {when}. {info['note']}"
-                )
-            return "The calendar turns. It always turns."
         if has("vasile", "gravedigger", "graves"):
             return (
                 "Vasile dug for forty years and never once asked me to "
