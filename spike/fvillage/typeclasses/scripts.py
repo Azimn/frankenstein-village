@@ -605,6 +605,32 @@ class ModerationQueue(DefaultScript):
         return dict(selected), None
 
 
+class ScheduledEventRegistry(DefaultScript):
+    """Persistent calendar state for recurring village events.
+
+    The village clock is the only scheduler. This registry provides durable
+    idempotence, active-state tracking, and bounded history for calendar events
+    whose actual behavior lives in world.scheduled_events.
+    """
+
+    def at_script_creation(self):
+        self.key = "scheduled_event_registry"
+        self.desc = "Recurring village calendar and event-state registry."
+        self.interval = -1
+        self.persistent = True
+        if self.db.events is None:
+            self.db.events = {}
+        if self.db.metrics is None:
+            self.db.metrics = {
+                "checks": 0,
+                "starts": 0,
+                "ends": 0,
+                "pulses": 0,
+            }
+
+
+
+
 class TimedIncidentRegistry(DefaultScript):
     """Persistent short-lived world windows and their witness records.
 
