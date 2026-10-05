@@ -31,7 +31,7 @@ def _strip_markup(text):
 
 
 def _parse_seed_line(number, line):
-    heard_marker = " — *Heard from:* "
+    heard_marker = " \\u2014 *Heard from:* "
     if heard_marker not in line:
         heard_marker = " - *Heard from:* "
     if heard_marker not in line:
@@ -103,6 +103,7 @@ def seed_playable_rumors(*, participants=()):
             source_actor=seed["source_actor"],
             source_type="canon_teller",
             original_event_id=None,
+            origin_location=None,
             confidence=0.52,
             emotional_charge=0.25,
             privacy="public",
@@ -150,6 +151,7 @@ def publish_public_rumor(
         source_actor=source_actor or "village event",
         source_type=source_type,
         original_event_id=original_event_id,
+        origin_location=location,
         confidence=confidence,
         emotional_charge=emotional_charge,
         privacy="public",
@@ -203,8 +205,36 @@ def publish_public_rumor(
     }
 
 
+def migrate_legacy_public_rumors(tavern):
+    """Upgrade pre-registry Tavern strings without losing player-created talk."""
+    registry = get_rumor_registry()
+    public_ids = list(tavern.db.public_rumor_ids or [])
+    for body in list(tavern.db.player_rumors or []):
+        claim = _dynamic_claim(body)
+        if not claim:
+            continue
+        rumor = registry.ensure_rumor(
+            subject="legacy_tavern",
+            claim=claim,
+            source_actor="older tavern talk",
+            source_type="legacy",
+            original_event_id=None,
+            origin_location=tavern.key,
+            confidence=0.50,
+            emotional_charge=0.25,
+            privacy="public",
+            variants=[],
+            family="legacy_tavern",
+        )
+        if rumor["id"] not in public_ids:
+            public_ids.append(rumor["id"])
+    tavern.db.public_rumor_ids = public_ids[-50:]
+    return public_ids
+
+
 def public_dynamic_rumors(tavern):
     registry = get_rumor_registry()
+    migrate_legacy_public_rumors(tavern)
     roots = []
     for rid in list(tavern.db.public_rumor_ids or []):
         rumor = registry.get_rumor(rid)
@@ -215,12 +245,19 @@ def public_dynamic_rumors(tavern):
 
 def hear_public(actor, rumor_id, tavern=None):
     tavern = tavern or _find_tavern()
-    return get_rumor_registry().hear_direct(
+    registry = get_rumor_registry()
+    root = registry.get_rumor(rumor_id)
+    existing = registry.belief_for(actor, rumor_id)
+    refresh = bool(
+        root and existing and existing.get("claim") != root.get("claim")
+    )
+    return registry.hear_direct(
         rumor_id,
         actor,
         source_label=(tavern.key if tavern else "village talk"),
         source_type="public_tavern",
         location=(tavern.key if tavern else None),
+        force_new=refresh,
     )
 
 
