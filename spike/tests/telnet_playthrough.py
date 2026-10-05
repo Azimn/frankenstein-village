@@ -125,6 +125,21 @@ def main() -> int:
         out = c.command("purse")
         require(out, "2 ft")
 
+        # A generic background resident uses the same player-facing interface
+        # as authored NPCs. Repeated attention produces recognition and then a
+        # persistent piece of characterization without any LLM.
+        first_silas = c.command("talk Silas Crowe")
+        require(first_silas, "silas crowe says", "work as hunter")
+        last_silas = first_silas
+        for _ in range(7):
+            last_silas = c.command("talk Silas Crowe")
+        require(last_silas, "back again")
+
+        out = c.command("ask Silas Crowe about interests")
+        require(out, "weakness for")
+        out = c.command("ask Silas Crowe about history")
+        require(out, "since you keep asking")
+
         out = c.command("rumors")
         require(out, "confessional")
         require(out, "well steams")
