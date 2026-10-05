@@ -22,7 +22,7 @@ for room_key in (
     "Village Square",
     "The Blood of the Vine",
     "Tavern Back Hall",
-    "Lamp Shop",
+    "The Lamp Shop",
     "St. Lazarus Church",
 ):
     one(room_key)
