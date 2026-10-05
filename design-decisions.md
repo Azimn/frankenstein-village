@@ -287,3 +287,20 @@ The event does not require a player to be present. If nobody witnesses it direct
 Timed incident state persists through restart. Expired windows are resolved directly from current time rather than replaying every missed sub-tick. Historical occurrences are bounded so recurring incidents cannot create unbounded storage growth.
 
 The thin journal records whether a timed-event observation is firsthand or aftermath evidence. It does not reveal a timed event to a player who never encountered either the active window or its traces.
+
+## 2026-10-05 - Recurring village calendar consolidated
+
+Predictable civic rhythms now share one persistent scheduled-event registry driven by the authoritative village clock.
+
+The calendar initially owns three live event types:
+- Harbinger Publication: a daily 08:00 pulse using the existing newspaper publication pipeline.
+- Market Morning: a Saturday 07:00 to 12:00 civic window in the Village Square.
+- Sunday Service: a Sunday 10:00 to 11:00 social convergence window using the existing 1890 liturgical Mass implementation.
+
+This replaces separate scheduling logic previously embedded in VillageTime for the Harbinger and in the routine ticker for Sunday Mass. Event-specific behavior remains in its appropriate subsystem; the calendar owns when it starts, when it ends, idempotence, active-state tracking, and bounded history.
+
+Market Morning uses persistent schedule deviations rather than special market NPC copies. Relevant existing residents temporarily converge on the square, then return to their ordinary schedules at noon. The market itself is normal recurring village life and therefore does not create a canonical world-event ledger record merely for occurring.
+
+Active scheduled events render through a generic room overlay rather than permanent room-description changes. This is the extension point for future council nights, lectures, delivery days, memorials, and similar recurring activity.
+
+The public `calendar` command is intentionally available from the Inn Between as well as IC space. Predictable schedules are planning information, not secret game state. Hidden incidents and quest timers are not exposed by this command.
