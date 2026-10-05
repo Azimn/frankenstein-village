@@ -605,6 +605,345 @@ class ModerationQueue(DefaultScript):
         return dict(selected), None
 
 
+class RumorRegistry(DefaultScript):
+    """Persistent rumor roots, transmissions, and per-actor belief updates.
+
+    Root rumor records are immutable after creation. Every hearing or retelling
+    creates a transmission record with a parent pointer. Actor belief stores
+    only point at transmissions, so current belief and historical provenance
+    remain separate.
+    """
+
+    def at_script_creation(self):
+        self.key = "rumor_registry"
+        self.desc = "Persistent rumor provenance and belief registry."
+        self.interval = -1
+        self.persistent = True
+        if self.db.rumors is None:
+            self.db.rumors = []
+        if self.db.transmissions is None:
+            self.db.transmissions = []
+        if self.db.next_rumor_id is None:
+            self.db.next_rumor_id = 1
+        if self.db.next_transmission_id is None:
+            self.db.next_transmission_id = 1
+
+    @staticmethod
+    def _actor_ref(actor):
+        if actor is None:
+            return None
+        account = getattr(actor, "account", None)
+        return {
+            "key": getattr(actor, "key", None),
+            "id": getattr(actor, "id", None),
+            "kind": "player" if account else "npc",
+            "account_id": getattr(account, "id", None) if account else None,
+        }
+
+    @staticmethod
+    def _beliefs(actor):
+        return dict(actor.db.rumor_beliefs or {})
+
+    @staticmethod
+    def _write_belief(actor, rumor_id, belief):
+        beliefs = dict(actor.db.rumor_beliefs or {})
+        beliefs[str(rumor_id)] = dict(belief)
+        # Current belief is bounded while the immutable registry keeps history.
+        if len(beliefs) > 40:
+            oldest = sorted(
+                beliefs.items(),
+                key=lambda pair: pair[1].get("heard_at", 0),
+            )[: len(beliefs) - 40]
+            for key, _value in oldest:
+                beliefs.pop(key, None)
+        actor.db.rumor_beliefs = beliefs
+        return dict(belief)
+
+    def beliefs_for(self, actor):
+        return self._beliefs(actor)
+
+    def belief_for(self, actor, rumor_id):
+        belief = self._beliefs(actor).get(str(rumor_id))
+        return dict(belief) if belief else None
+
+    def ensure_rumor(
+        self,
+        *,
+        subject,
+        claim,
+        source_actor,
+        source_type,
+        original_event_id,
+        confidence,
+        emotional_charge,
+        privacy,
+        variants=None,
+        canonical_seed_id=None,
+        family=None,
+    ):
+        """Return an existing root for a stable identity or create one."""
+        rumors = list(self.db.rumors or [])
+        for rumor in rumors:
+            if canonical_seed_id is not None and (
+                rumor.get("canonical_seed_id") == canonical_seed_id
+            ):
+                return dict(rumor)
+            if (
+                original_event_id is not None
+                and rumor.get("original_event_id") == original_event_id
+                and rumor.get("subject") == subject
+            ):
+                return dict(rumor)
+
+        import time
+
+        rumor = {
+            "id": int(self.db.next_rumor_id or 1),
+            "subject": subject,
+            "claim": claim,
+            "source_actor": source_actor,
+            "source_type": source_type,
+            "original_event_id": original_event_id,
+            "created_at": time.time(),
+            "confidence": float(confidence),
+            "emotional_charge": float(emotional_charge),
+            "privacy": privacy,
+            "distortion_generation": 0,
+            "variants": list(variants or []),
+            "canonical_seed_id": canonical_seed_id,
+            "family": family or subject,
+        }
+        self.db.next_rumor_id = rumor["id"] + 1
+        rumors.append(rumor)
+        self.db.rumors = rumors
+        return dict(rumor)
+
+    def get_rumor(self, rumor_id):
+        try:
+            rumor_id = int(rumor_id)
+        except (TypeError, ValueError):
+            return None
+        for rumor in self.db.rumors or []:
+            if rumor.get("id") == rumor_id:
+                return dict(rumor)
+        return None
+
+    def get_transmission(self, transmission_id):
+        try:
+            transmission_id = int(transmission_id)
+        except (TypeError, ValueError):
+            return None
+        for transmission in self.db.transmissions or []:
+            if transmission.get("id") == transmission_id:
+                return dict(transmission)
+        return None
+
+    def _append_transmission(
+        self,
+        *,
+        rumor,
+        parent_id,
+        speaker_ref,
+        listener,
+        claim,
+        confidence,
+        generation,
+        location,
+        accepted,
+        source_type,
+    ):
+        import time
+
+        transmissions = list(self.db.transmissions or [])
+        record = {
+            "id": int(self.db.next_transmission_id or 1),
+            "rumor_id": rumor["id"],
+            "parent_id": parent_id,
+            "speaker": speaker_ref,
+            "listener": self._actor_ref(listener),
+            "claim": claim,
+            "confidence": float(confidence),
+            "emotional_charge": min(
+                1.0,
+                float(rumor.get("emotional_charge", 0.0))
+                + (0.04 * int(generation or 0)),
+            ),
+            "heard_at": time.time(),
+            "heard_location": location,
+            "distortion_generation": int(generation or 0),
+            "accepted": bool(accepted),
+            "source_type": source_type,
+        }
+        self.db.next_transmission_id = record["id"] + 1
+        transmissions.append(record)
+        self.db.transmissions = transmissions
+        return dict(record)
+
+    def hear_direct(
+        self,
+        rumor_id,
+        listener,
+        *,
+        source_label,
+        source_type,
+        location=None,
+        force_new=False,
+    ):
+        """Record direct hearing from a root source or public institution."""
+        rumor = self.get_rumor(rumor_id)
+        if not rumor or listener is None:
+            return None
+        existing = self.belief_for(listener, rumor_id)
+        if existing and not force_new:
+            return existing
+
+        record = self._append_transmission(
+            rumor=rumor,
+            parent_id=None,
+            speaker_ref={
+                "key": source_label,
+                "id": None,
+                "kind": source_type,
+                "account_id": None,
+            },
+            listener=listener,
+            claim=rumor["claim"],
+            confidence=rumor["confidence"],
+            generation=0,
+            location=location,
+            accepted=True,
+            source_type=source_type,
+        )
+        belief = {
+            "rumor_id": rumor["id"],
+            "transmission_id": record["id"],
+            "claim": record["claim"],
+            "confidence": record["confidence"],
+            "heard_from": source_label,
+            "heard_at": record["heard_at"],
+            "heard_location": location,
+            "distortion_generation": 0,
+        }
+        return self._write_belief(listener, rumor["id"], belief)
+
+    def transmit(
+        self,
+        rumor_id,
+        speaker,
+        listener,
+        *,
+        location=None,
+        force_accept=False,
+        force_variant_index=None,
+    ):
+        """Retell a known rumor and append an immutable transmission."""
+        rumor = self.get_rumor(rumor_id)
+        if not rumor or speaker is None or listener is None:
+            return None
+        source_belief = self.belief_for(speaker, rumor_id)
+        if not source_belief:
+            return None
+        parent = self.get_transmission(source_belief.get("transmission_id"))
+        if not parent:
+            return None
+
+        import random
+
+        generation = int(parent.get("distortion_generation") or 0) + 1
+        claim = parent.get("claim") or rumor["claim"]
+        variants = list(rumor.get("variants") or [])
+        curiosity = float(speaker.db.rumor_curiosity or 0.5)
+        mutate_p = min(0.6, 0.18 * (0.5 + curiosity))
+        if variants:
+            if force_variant_index is not None:
+                index = max(0, min(int(force_variant_index), len(variants) - 1))
+                claim = variants[index]
+            elif random.random() < mutate_p:
+                claim = random.choice(variants)
+
+        confidence = min(
+            1.0,
+            float(parent.get("confidence") or rumor["confidence"])
+            + 0.04
+            + (0.06 * curiosity),
+        )
+
+        existing = self.belief_for(listener, rumor_id)
+        gullibility = float(listener.db.rumor_gullibility or 0.5)
+        accepted = True
+        if existing and not force_accept:
+            accepted = (
+                confidence > float(existing.get("confidence") or 0.0) + 0.12
+                or random.random() < gullibility
+            )
+
+        record = self._append_transmission(
+            rumor=rumor,
+            parent_id=parent["id"],
+            speaker_ref=self._actor_ref(speaker),
+            listener=listener,
+            claim=claim,
+            confidence=confidence,
+            generation=generation,
+            location=location,
+            accepted=accepted,
+            source_type="retelling",
+        )
+
+        if accepted:
+            belief = {
+                "rumor_id": rumor["id"],
+                "transmission_id": record["id"],
+                "claim": record["claim"],
+                "confidence": record["confidence"],
+                "heard_from": speaker.key,
+                "heard_at": record["heard_at"],
+                "heard_location": location,
+                "distortion_generation": generation,
+            }
+            self._write_belief(listener, rumor["id"], belief)
+        return record
+
+    def provenance(self, transmission_id):
+        """Return oldest-to-newest transmission chain."""
+        chain = []
+        current = self.get_transmission(transmission_id)
+        seen = set()
+        while current and current["id"] not in seen:
+            seen.add(current["id"])
+            chain.append(current)
+            parent_id = current.get("parent_id")
+            current = self.get_transmission(parent_id) if parent_id else None
+        chain.reverse()
+        return chain
+
+    def known_by(self, rumor_id):
+        """Return actor references for accepted hearings, without duplicates."""
+        known = {}
+        for transmission in self.db.transmissions or []:
+            if (
+                transmission.get("rumor_id") == rumor_id
+                and transmission.get("accepted")
+            ):
+                listener = transmission.get("listener") or {}
+                identity = (listener.get("kind"), listener.get("id"))
+                known[identity] = dict(listener)
+        return list(known.values())
+
+    def current_claims(self, rumor_id):
+        """Return distinct accepted claim variants currently represented."""
+        return sorted(
+            {
+                transmission.get("claim")
+                for transmission in self.db.transmissions or []
+                if transmission.get("rumor_id") == rumor_id
+                and transmission.get("accepted")
+                and transmission.get("claim")
+            }
+        )
+
+
+
 class WorldEventLedger(DefaultScript):
     """Canonical persistent event ledger for world changes."""
 
