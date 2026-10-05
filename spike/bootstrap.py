@@ -61,6 +61,21 @@ def _default_home_exists() -> bool:
         return False
 
 
+def _dump_startup_logs() -> None:
+    """Print startup logs so CI failures show the real spawned-server error."""
+    logdir = GAME / "server" / "logs"
+    for path in sorted(logdir.glob("*")):
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if text.strip():
+            print(f"\n--- {path.name} (tail) ---")
+            print("\n".join(text.splitlines()[-160:]))
+
+
 def _wait_for_default_home(timeout: float = 45.0) -> None:
     """Wait for Evennia's asynchronous first-start setup to create Limbo."""
     deadline = time.monotonic() + timeout
@@ -139,8 +154,20 @@ def main() -> int:
     if not _default_home_exists():
         print("Initializing Evennia default database objects...")
         _run([evennia, "start"], cwd=GAME, env=env)
-        _wait_for_default_home()
-        _run([evennia, "stop"], cwd=GAME, env=env)
+        try:
+            _wait_for_default_home()
+        except Exception:
+            _dump_startup_logs()
+            raise
+        finally:
+            subprocess.run(
+                [str(evennia), "stop"],
+                cwd=GAME,
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
 
     with (GAME / "world" / "build_spike.py").open("rb") as build_script:
         _run([evennia, "shell"], cwd=GAME, env=env, stdin=build_script)
