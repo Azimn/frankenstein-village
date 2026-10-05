@@ -138,6 +138,12 @@ class SpikeCharacter(Character):
             now = time.time()
             if owner_account:
                 owner_account.db.last_seen = now
+                # Per-mask absence: the account may wear several masks, and
+                # each life keeps its own clock. Without this, playing mask B
+                # on Tuesday erases mask A's Wednesday catch-up.
+                seen = dict(owner_account.db.mask_last_seen or {})
+                seen[self.id] = now
+                owner_account.db.mask_last_seen = seen
                 if hasattr(owner_account, "record_history"):
                     owner_account.record_history(
                         "mask_left", mask=self.key, mask_id=self.id
@@ -251,7 +257,13 @@ class SpikeCharacter(Character):
         """
         now = time.time()
         account = self.account
-        last = account.db.last_seen if account else None
+        # Per-mask absence first (each life keeps its own clock), falling
+        # back to the legacy account timestamp for older sessions.
+        last = None
+        if account:
+            last = (account.db.mask_last_seen or {}).get(self.id)
+            if last is None:
+                last = account.db.last_seen
         # Only on the first session, and only after a real absence.
         if self.sessions.count() != 1:
             return
@@ -554,15 +566,21 @@ class TavernKeeper(SpikeCharacter):
         )
 
     def note_interest(self, char, topic):
-        """Record something a player cared about (ask topics, darts)."""
+        """Record something a player cared about (ask topics, darts).
+
+        Interests are ordered by recency — re-noting a topic moves it to
+        the front of memory, so Bram greets you as who you've been
+        lately, not who you were first.
+        """
         (
             account_memory, mask_memory, account_key, mask_key,
             account_mem, mask_mem,
         ) = self._memory_channels(char)
         interests = list(mask_mem.get("interests", []))
-        if topic not in interests:
-            interests.append(topic)
-            mask_mem["interests"] = interests[-6:]
+        if topic in interests:
+            interests.remove(topic)
+        interests.append(topic)
+        mask_mem["interests"] = interests[-6:]
         aggregate = list(account_mem.get("activity_categories", []))
         if topic not in aggregate:
             aggregate.append(topic)
@@ -585,32 +603,55 @@ class TavernKeeper(SpikeCharacter):
                 f"Been {'a day' if days == 1 else f'{days} days'} — "
                 "the stew's still stew."
             )
-        if "room six" in interests:
-            try:
-                from evennia.scripts.models import ScriptDB
-                pinned = bool(
-                    ScriptDB.objects.get(db_key="room_six").db.tavern_told_by
-                )
-            except Exception:
-                pinned = False
-            if pinned:
-                parts.append(
-                    "Still chasing Six, eh? The note's still behind the "
-                    "bar, if your memory needs the help."
-                )
-            else:
-                parts.append("Still chasing Six, eh?")
-        elif "darts" in interests:
-            parts.append("The board's missed you.")
-        elif "dice" in interests:
-            parts.append("The dice have missed you.")
-        elif "fiddle" in interests:
-            parts.append("Haven't heard the fiddle in a while.")
-        elif "fortunes" in interests:
-            parts.append("The cards have missed you.")
-        elif "stew" in interests:
-            parts.append("Still on about the stew, eh? House rule stands.")
-        elif mem.get("visits", 0) >= 4:
+        # The debt of honor comes first — Bram never forgets who owes
+        # the house a round. Settle it by buying fare; he won't wager
+        # with you until it's square.
+        debts = char.db.dice_debts or 0
+        if debts > 0:
+            parts.append(
+                f"You still owe the house {debts} round{'s' if debts > 1 else ''}, "
+                f"{name}. Buy a drink and we'll call it even — no dice "
+                "till then."
+            )
+        # Greet by most recent interest, not fixed priority: who you've
+        # been lately outranks who you were first.
+        recent = list(reversed(interests))
+        greeted = False
+        for topic in recent:
+            if greeted:
+                break
+            if topic == "room six":
+                try:
+                    from evennia.scripts.models import ScriptDB
+                    pinned = bool(
+                        ScriptDB.objects.get(db_key="room_six").db.tavern_told_by
+                    )
+                except Exception:
+                    pinned = False
+                if pinned:
+                    parts.append(
+                        "Still chasing Six, eh? The note's still behind the "
+                        "bar, if your memory needs the help."
+                    )
+                else:
+                    parts.append("Still chasing Six, eh?")
+                greeted = True
+            elif topic == "darts":
+                parts.append("The board's missed you.")
+                greeted = True
+            elif topic == "dice":
+                parts.append("The dice have missed you.")
+                greeted = True
+            elif topic == "fiddle":
+                parts.append("Haven't heard the fiddle in a while.")
+                greeted = True
+            elif topic == "fortunes":
+                parts.append("The cards have missed you.")
+                greeted = True
+            elif topic == "stew":
+                parts.append("Still on about the stew, eh? House rule stands.")
+                greeted = True
+        if not greeted and mem.get("visits", 0) >= 4:
             parts.append("The usual table's free.")
         if not parts:
             return f"Back again, {name}. Good. The fire's still lit."

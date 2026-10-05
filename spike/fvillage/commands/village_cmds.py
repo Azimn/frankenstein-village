@@ -17,7 +17,7 @@ from evennia.commands.default.general import CmdLook
 
 
 class CmdExamine(CmdLook):
-    """ExamiLook at something closely. (An alias for look, for travelers
+    """Look at something closely. (An alias for look, for travelers
     whose fingers type it first.)
 
     Usage:
@@ -714,6 +714,14 @@ class CmdRoll(Command):
                 "The keeper isn't about — roll on your own for now."
             )
             return
+        # No wagers while you owe the house: settle up first.
+        if (self.caller.db.dice_debts or 0) > 0:
+            self.caller.msg(
+                "Bram folds his arms. 'You still owe the house a round, "
+                "friend. Buy a drink and we'll call it even — then we'll "
+                "talk dice.'"
+            )
+            return
         if target not in (
             "keeper", "the keeper", "the tavern keeper",
             "barkeep", "barkeeper",
@@ -738,8 +746,14 @@ class CmdRoll(Command):
         if mine > his:
             # The copper is real: 2 kr from Bram's till to the player's purse.
             # No inert variables — the dice game touches the economy.
+            # The house keeps a starting float so the first win of a fresh
+            # world doesn't pay out 0 kr of ceremonial satire.
+            HOUSE_FLOAT = 50
+            till = keeper.db.till_kr
+            if till is None:
+                till = HOUSE_FLOAT
+                keeper.db.till_kr = till
             stake = 2
-            till = keeper.db.till_kr or 0
             paid = min(stake, till)
             keeper.db.till_kr = till - paid
             purse = purse_of(self.caller)
@@ -2125,6 +2139,14 @@ def _pay_for_fare(caller, item):
         )
         if bram is not None:
             bram.db.till_kr = (bram.db.till_kr or 0) + price
+    # Buying a drink settles the debt of honor: the house remembers,
+    # and the house forgives — once.
+    if (caller.db.dice_debts or 0) > 0:
+        caller.db.dice_debts = caller.db.dice_debts - 1
+        caller.msg(
+            "Bram nods, once. \"That squares the round you owed. "
+            "We're even.\""
+        )
     return True, price
 
 

@@ -151,11 +151,17 @@ class RoomSixDoor(DefaultObject):
         )
         note.aliases.add("note")
         note.db.owner_character_id = looker.id
+        # Capture the door's id NOW: Evennia moves the note into inventory
+        # before at_get() runs, so at_get cannot read the door from
+        # self.location. The ledger must record true causal provenance.
+        note.db.door_id = self.id
+        note.db.hall_id = hall.id if hall else None
         note.locks.add(
             f"get:id({looker.id}) or perm(Admin);"
             f"give:id({looker.id}) or perm(Admin);"
             f"drop:id({looker.id}) or perm(Admin);"
             f"search:id({looker.id}) or perm(Admin);"
+            f"view:id({looker.id}) or perm(Admin);"  # others can't even see it
             f"control:id({looker.id}) or perm(Admin)"
         )
 
@@ -200,7 +206,8 @@ class MysteryNote(DefaultObject):
                 publish_world_event(
                     "room_six.note_found",
                     actor=getter,
-                    payload={"door_id": self.location.id if self.location else None,
+                    payload={"door_id": self.db.door_id,
+                             "hall_id": self.db.hall_id,
                              "note_id": self.id},
                 )
                 getter.msg("You take the folded note before anyone else can.")
