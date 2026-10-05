@@ -261,3 +261,17 @@ The first player who makes a valid door-closing decision changes the shared situ
 Situation advancement is attached to the coarse village clock. There is no per-player quest ticker and no high-frequency incident loop. Cost depends on the number of active shared situations rather than elapsed game time or player count.
 
 The live `journal` is deliberately not a conventional quest checklist. It is prosthetic memory for discovered developments. `decide` is a world action, not a private branching-dialogue choice.
+
+## 2026-10-05 - Situation engine generalized into a deterministic incident feed
+
+The shared situation model now includes feed eligibility and surfacing rather than assuming every authored situation begins active.
+
+Each incident template may define an initial state, base weight, prerequisite situations, optional time or weather gates, and cooldown metadata. The feed checks dormant candidates against current world state, applies deterministic scoring, respects a maximum active-situation count, and surfaces only the highest-ranked eligible work. No player owns or accepts the feed item.
+
+Canon incident #8, The Torn Chronicle, is the second production template and the first incident surfaced by the feed. It remains dormant while The Tithe Strongbox is unresolved. When the strongbox reaches aftermath, the newly free incident slot exposes the numbered Chronicle gap.
+
+The Torn Chronicle uses three independent evidence channels: the physical numbered stubs, the surviving Harbinger archive, and optional testimony from Chronicler Ilona Szabó. Ilona is not load-bearing. Two independent channels are sufficient for the decision.
+
+The two door-closing approaches are reconstruction from Harbinger files or preservation of the gap. Reconstruction does not silently convert newspaper copy into recovered truth. The replacement sequence is explicitly marked as press-derived, while the objective Chronicle record records the decision to reconstruct. Preserving the gap leaves an attributable absence. If nobody acts, the gap remains long enough to become a public and scholarly attraction.
+
+The general journal and decision commands now resolve situation topics through the registry rather than branching on one hard-coded incident. Chronicle and Harbinger archive commands can become evidence surfaces only when an eligible situation has actually surfaced.
