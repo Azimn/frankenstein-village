@@ -348,6 +348,17 @@ assert [entry["id"] for entry in bob_status["evidence"]] == ["roll"]
 assert "roll" not in {entry["id"] for entry in alice_status["evidence"]}
 assert "lock" not in {entry["id"] for entry in bob_status["evidence"]}
 
+# The authored witness is a useful third channel when his schedule makes him
+# available, but he is not load-bearing. Exercise the actual Andrei dialogue
+# hook directly without forcing him into a QA room.
+andrei = one("Father Andrei")
+andrei_line = andrei.ask_about(inc_bob, "strongbox")
+assert "key was hanging where it belongs" in andrei_line.lower()
+bob_after_witness = situation_status_for_player(inc_bob, TITHE_ID)
+assert {entry["id"] for entry in bob_after_witness["evidence"]} == {
+    "roll", "andrei"
+}
+
 failed_choice, choice_error = choose(inc_alice, "openly", TITHE_ID)
 assert failed_choice is None and "at least 2" in choice_error
 
