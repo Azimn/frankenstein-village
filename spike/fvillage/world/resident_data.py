@@ -421,7 +421,7 @@ RESIDENTS = (
               traits=("calm","discreet")),
     _resident("sorin_dragomir", "Sorin Dragomir", age_band="adult", gender="man",
               household="dragomir", occupation="night watchman",
-              schedule="night_watch", traits=("vigilant","superstitious"),
+              schedule="night_watch", traits=("vigilant","superstitious")),
 )
 
 
