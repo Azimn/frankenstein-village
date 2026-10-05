@@ -36,6 +36,7 @@ for script_key in (
     "resident_population",
     "public_records",
     "situation_registry",
+    "timed_incident_registry",
     "room_six",
     "moderation_queue",
     "ambient_life",
@@ -52,6 +53,7 @@ bread = one("a loaf of bread")
 assert bread.db.servings == 2, "rebuild reset live sideboard servings"
 
 well = one("well")
+assert well.typeclass_path == "typeclasses.objects.VillageWell"
 assert "straight" in (well.db.desc or "").lower(), "well rumor has no inspectable evidence"
 
 confessional = one("a confessional box")
@@ -156,6 +158,13 @@ locations_snapshot = copy.deepcopy(
     dict(population_registry.db.location_states or {})
 )
 public_records = ScriptDB.objects.get(db_key="public_records")
+timed_registry = ScriptDB.objects.get(db_key="timed_incident_registry")
+timed_incident_snapshot = copy.deepcopy(
+    dict(timed_registry.db.incidents or {})
+)
+timed_metrics_snapshot = copy.deepcopy(
+    dict(timed_registry.db.metrics or {})
+)
 public_records_snapshot = {
     "harbinger_drafts": copy.deepcopy(list(public_records.db.harbinger_drafts or [])),
     "harbinger_editions": copy.deepcopy(list(public_records.db.harbinger_editions or [])),
