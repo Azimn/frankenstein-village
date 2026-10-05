@@ -1317,23 +1317,14 @@ class VillageTime(SpikeScript):
         except Exception:
             pass
 
-        # The Harbinger prints on a fixed morning cadence. Special editions
-        # are handled immediately by the publication pipeline and do not
-        # consume the regular daily issue.
+        # Recurring civic and institutional events share one calendar layer.
+        # The registry makes starts and endings idempotent at clock boundaries.
         try:
-            from world.publications import publish_due_harbinger
-            edition = publish_due_harbinger(self.db.day or 1, hour)
-            if edition:
-                for public_key in ("Village Square", "The Blood of the Vine"):
-                    for room in [
-                        o for o in search.search_object(public_key)
-                        if o.key == public_key
-                    ]:
-                        if any(o.has_account for o in room.contents):
-                            room.msg_contents(
-                                "A newspaper runner calls out the new issue of "
-                                "The Harbinger."
-                            )
+            from world.scheduled_events import advance_scheduled_events
+            advance_scheduled_events(
+                day=self.db.day or 1,
+                hour=hour,
+            )
         except Exception:
             pass
 
