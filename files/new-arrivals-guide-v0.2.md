@@ -34,12 +34,14 @@ These work now:
 - `rumors`: hear the talk currently circulating in the Tavern. `rumors R<number>` traces a story you know; `retell <person> R<number>` passes it on.
 - `harbinger`: read the latest printed issue. `harbinger archive` lists recent issues; `harbinger H<number>` shows a story's editorial basis and corrections.
 - `chronicle`: browse the public Chronicle. `chronicle C<number>` reads an entry; `chronicle submit R<number>` records your version of a rumor as attributed testimony without certifying it as true.
+- `journal`: read the deliberately thin record of village situations your current mask has actually encountered. `journal <topic>` shows only evidence you discovered, never hidden objectives or answers.
+- `decide <situation> <choice>`: make a consequential choice when an investigated situation offers one. The choice changes the shared world, so another player does not get a private alternate outcome.
 - `diary`: read your private persistent notes. `diary <text>` writes; `diary/delete <number>` tears out an entry.
 - `help <topic>` — help on anything. `report <person> <reason>` — if someone breaks the compact (see below).
 
 These are coming soon, and you'll hear when they arrive:
 
-- `quests`: what you've taken on. `journal`: the deliberately thin record of quest developments. Your private `diary` is separate and works now.
+- `quests`: a broader index for authored and recurring work. The live `journal` is intentionally thinner and records only situations you have actually encountered. Your private `diary` is separate.
 
 Travel takes time. Choices close doors. Asking everyone everything is not a strategy — deciding is.
 
