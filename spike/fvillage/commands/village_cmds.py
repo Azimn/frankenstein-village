@@ -378,6 +378,12 @@ class CmdRumors(Command):
             )
             return
         root = registry.get_rumor(rumor_id)
+        if not root:
+            self.caller.msg(
+                f"The source record for R{rumor_id} is missing. "
+                "The story cannot be traced right now."
+            )
+            return
         chain = registry.provenance(belief["transmission_id"])
         certainty = float(belief.get("confidence") or 0.0)
         if certainty < 0.45:
@@ -518,7 +524,7 @@ class CmdRetell(Command):
         else:
             parts = raw.rsplit(None, 1)
             if len(parts) != 2:
-                self.caller.msg("Tell whom which rumor? Try: tell Magda R1")
+                self.caller.msg("Retell to whom? Try: retell Magda R1")
                 return
             target_name, token = parts
 
