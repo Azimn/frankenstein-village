@@ -443,3 +443,78 @@ FACT_POOL = (
 )
 
 FACT_BY_ID = {fact["id"]: fact for fact in FACT_POOL}
+
+
+def schedule_block(resident, hour):
+    """Pure schedule lookup used by production and offline simulation."""
+    schedule_id = resident.get("schedule_id")
+    blocks = SCHEDULES.get(schedule_id) or ()
+    for start, end, location, activity in blocks:
+        if int(start) <= int(hour) < int(end):
+            logical = resident["home_id"] if location == "home" else location
+            return {
+                "start": int(start),
+                "end": int(end),
+                "desired_location": logical,
+                "activity": activity,
+            }
+    return {
+        "start": 0,
+        "end": 24,
+        "desired_location": resident["home_id"],
+        "activity": "keeps ordinary household hours",
+    }
+
+
+def location_available(location_id, availability):
+    state = (availability or {}).get(location_id)
+    if state is None:
+        return True
+    if isinstance(state, bool):
+        return state
+    return bool(state.get("available", True))
+
+
+def resolve_schedule(resident, hour, availability=None, current_location=None):
+    """Resolve one hour without replaying skipped time.
+
+    The return value is consequential state only. No ambient action is
+    generated here. If a desired location is unavailable, home is the first
+    fallback, then the current valid location, then the generic Offstage sink.
+    """
+    block = schedule_block(resident, hour)
+    desired = block["desired_location"]
+    if location_available(desired, availability):
+        return {
+            **block,
+            "logical_location": desired,
+            "source": "schedule",
+            "reason": None,
+        }
+
+    reason_state = (availability or {}).get(desired) or {}
+    if isinstance(reason_state, dict):
+        why = reason_state.get("reason") or f"{desired}_unavailable"
+    else:
+        why = f"{desired}_unavailable"
+
+    home = resident["home_id"]
+    if location_available(home, availability):
+        fallback = home
+    elif current_location and location_available(current_location, availability):
+        fallback = current_location
+    else:
+        fallback = "offstage"
+
+    return {
+        **block,
+        "logical_location": fallback,
+        "source": "fallback",
+        "reason": why,
+    }
+
+
+def projection_for(location_id):
+    if location_id.startswith("home:"):
+        return "Offstage"
+    return LOCATION_PROJECTIONS.get(location_id, "Offstage")
