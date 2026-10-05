@@ -110,6 +110,14 @@ def main() -> int:
         out = c.command("chronicle")
         require(out, "in-character village record", "cross the front door")
 
+        # The public calendar is intentionally available backstage so groups
+        # can plan around predictable village rhythms before crossing IC.
+        out = c.command("calendar")
+        require(out, "village calendar")
+        require(out, "harbinger normally appears daily at 08:00")
+        require(out, "market morning is saturday")
+        require(out, "sunday mass is held at st. lazarus")
+
         out = c.command("down")
         require(out, "inn common room")
 
