@@ -294,6 +294,31 @@ class Account(DefaultAccount):
                 session=session,
             )
 
+        notices = list(self.db.moderation_notices or [])
+        changed = False
+        for notice in notices:
+            if notice.get("seen"):
+                continue
+            action_id = notice.get("action_id")
+            kind = notice.get("kind", "moderation")
+            text = notice.get("text") or "A human moderator updated your account."
+            self.msg(
+                f"|yModeration notice #{action_id}:|n {kind}. {text}",
+                session=session,
+            )
+            notice["seen"] = True
+            changed = True
+        if changed:
+            self.db.moderation_notices = notices
+
+        if self.db.compact_ban_actions:
+            self.msg(
+                "|rWorld entry is suspended after human review.|n "
+                "You may remain OOC and use |wappeal|n to review or appeal "
+                "the active action.",
+                session=session,
+            )
+
     def at_look(self, target=None, session=None, **kwargs):
         base = super().at_look(target=target, session=session, **kwargs)
         substrate = self.db.substrate
@@ -302,12 +327,19 @@ class Account(DefaultAccount):
         return f"|wAccount substrate:|n {label}    |wDisclosure gate:|n {gate}\n\n{base}"
 
     def puppet_object(self, session, obj):
-        """Enforce disclosure plus one-active-mask account policy."""
+        """Enforce disclosure, moderation, and one-active-mask account policy."""
         if self.db.disclosure_consent is not True or self.db.substrate not in {
             "human", "ai"
         }:
             self.msg(
                 "World entry is blocked until you declare substrate human or ai.",
+                session=session,
+            )
+            return None
+        if self.db.compact_ban_actions:
+            self.msg(
+                "World entry is suspended after human review. "
+                "Use 'appeal' from OOC space to review or appeal the action.",
                 session=session,
             )
             return None
