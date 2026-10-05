@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import sqlite3
 import subprocess
 import sys
 import venv
@@ -42,6 +43,21 @@ def _run(args, *, cwd=None, env=None, stdin=None):
         stdin=stdin,
         check=True,
     )
+
+
+def _default_home_exists() -> bool:
+    """Return whether Evennia's required default home object (#2) exists."""
+    database = GAME / "server" / "evennia.db3"
+    if not database.exists():
+        return False
+    try:
+        with sqlite3.connect(database) as conn:
+            row = conn.execute(
+                "SELECT 1 FROM objects_objectdb WHERE id = 2 LIMIT 1"
+            ).fetchone()
+        return row is not None
+    except sqlite3.Error:
+        return False
 
 
 def _ensure_twistd_launcher(python: Path) -> None:
@@ -101,7 +117,17 @@ def main() -> int:
     env = os.environ.copy()
     env["PATH"] = str(_bin("python").parent) + os.pathsep + env.get("PATH", "")
 
+    (GAME / "server" / "logs").mkdir(parents=True, exist_ok=True)
     _run([evennia, "migrate"], cwd=GAME, env=env)
+
+    # Evennia creates account #1, Limbo #2, and its other initial objects on
+    # the first start, not during migrate. The world builder needs #2 as its
+    # default home, so initialize a genuinely fresh database before building.
+    if not _default_home_exists():
+        print("Initializing Evennia default database objects...")
+        _run([evennia, "start"], cwd=GAME, env=env)
+        _run([evennia, "stop"], cwd=GAME, env=env)
+
     with (GAME / "world" / "build_spike.py").open("rb") as build_script:
         _run([evennia, "shell"], cwd=GAME, env=env, stdin=build_script)
 
