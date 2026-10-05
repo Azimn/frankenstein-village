@@ -281,7 +281,7 @@ def start_timed_incident(
     firsthand_count = 0
     if room:
         for obj in list(room.contents):
-            if not obj.has_account:
+            if not obj.has_account or not obj.is_connected:
                 continue
             incident, added = _record_player_observation(
                 incident,
