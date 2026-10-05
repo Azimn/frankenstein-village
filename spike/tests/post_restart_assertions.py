@@ -3,7 +3,12 @@
 from evennia.utils import search
 
 from world.residents import facts_known_by_player, resident_state
-from world.situations import TITHE_ID, get_situation, situation_status_for_player
+from world.situations import (
+    TITHE_ID,
+    TORN_CHRONICLE_ID,
+    get_situation,
+    situation_status_for_player,
+)
 from world.publications import (
     chronicle_entries,
     edition_stories,
@@ -62,6 +67,20 @@ church = one("St. Lazarus Church")
 assert church.db.tithe_strongbox_policy == "two_key"
 assert church.db.tithe_confidence == "divided"
 
+torn = get_situation(TORN_CHRONICLE_ID)
+assert torn["state"] == "aftermath"
+assert torn["branch"] == "reconstruct"
+torn_status = situation_status_for_player(smoke, TORN_CHRONICLE_ID)
+assert torn_status
+assert {entry["id"] for entry in torn_status["evidence"]} == {
+    "gap", "harbinger_archive"
+}
+from world.publications import get_public_record_registry
+public_records = get_public_record_registry()
+assert public_records.db.chronicle_gap_policy == "reconstructed_from_harbinger"
+assert public_records.db.chronicle_gap_source == "Harbinger archive"
+
 print("POST_RESTART_RESIDENT_ASSERTIONS_GREEN")
 print("POST_RESTART_PUBLIC_RECORD_ASSERTIONS_GREEN")
 print("POST_RESTART_SITUATION_ASSERTIONS_GREEN")
+print("POST_RESTART_INCIDENT_FEED_ASSERTIONS_GREEN")
