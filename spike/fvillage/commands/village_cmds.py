@@ -83,7 +83,7 @@ def load_rumor_seeds(*, playable_only=True):
 
 
 def _moderation_queue():
-    """Return the persistent report queue, creating it if needed."""
+    """Return the persistent moderation queue, creating it if needed."""
     from evennia import create_script
     from evennia.scripts.models import ScriptDB
 
@@ -98,16 +98,26 @@ def _moderation_queue():
 
 
 class CmdReport(MuxCommand):
-    """Report a compact violation for human review.
+    """Report a compact violation or review moderation as human staff.
 
-    Usage:
+    Player:
         report <person> <reason>
         report <person> = <reason>
-        report/review
-        report/close <id>
 
-    Reporting has no automatic punishment path. Review and closure are staff
-    actions, and the reviewer must be an account declared as human.
+    Human staff:
+        report/review
+        report/warn <report id> [note]
+        report/ban <report id> [note]
+        report/dismiss <report id> [note]
+        report/close <report id>
+        report/appeals
+        report/resolve <appeal id> uphold|overturn [note]
+        report/audit
+
+    A report never punishes anyone automatically. Warnings and bans require
+    an explicit action by a staff account declared human. A ban requires an
+    active human-issued warning first. Moderation actions are append-only and
+    may be appealed from the account/OOC layer.
     """
 
     key = "report"
@@ -120,10 +130,21 @@ class CmdReport(MuxCommand):
             return None
         if account.db.substrate != "human":
             self.caller.msg(
-                "Compact reports require review by a staff account declared human."
+                "Compact moderation requires a staff account declared human."
             )
             return None
         return account
+
+    def _parse_id_note(self, usage):
+        raw = (self.args or "").strip()
+        if not raw:
+            self.caller.msg(usage)
+            return None, None
+        first, *rest = raw.split(None, 1)
+        if not first.isdigit():
+            self.caller.msg(usage)
+            return None, None
+        return int(first), rest[0].strip() if rest else ""
 
     def _review(self):
         if not self._staff_account():
@@ -134,32 +155,151 @@ class CmdReport(MuxCommand):
             return
         lines = ["|yOpen compact reports:|n"]
         for report in reports:
+            linked = (
+                f" [account #{report['target_account_id']}]"
+                if report.get("target_account_id")
+                else " [unlinked name]"
+            )
             lines.append(
                 f"#{report['id']} {report['reporter_mask']} -> "
-                f"{report['target']}: {report['reason']}"
+                f"{report['target']}{linked}: {report['reason']}"
             )
         self.caller.msg("\n".join(lines))
 
-    def _close(self):
+    def _dismiss(self):
         account = self._staff_account()
         if not account:
             return
-        arg = (self.args or "").strip()
-        if not arg.isdigit():
-            self.caller.msg("Close which report? report/close <id>")
+        report_id, note = self._parse_id_note(
+            "Dismiss which report? report/dismiss <id> [note]"
+        )
+        if report_id is None:
             return
-        closed = _moderation_queue().close_report(int(arg), account)
+        closed = _moderation_queue().dismiss_report(report_id, account, note=note)
         if not closed:
             self.caller.msg("No open report has that id.")
             return
-        self.caller.msg(f"Report #{closed['id']} closed after human review.")
+        self.caller.msg(f"Report #{closed['id']} dismissed after human review.")
+
+    def _warn(self):
+        account = self._staff_account()
+        if not account:
+            return
+        report_id, note = self._parse_id_note(
+            "Warn from which report? report/warn <id> [note]"
+        )
+        if report_id is None:
+            return
+        action, error = _moderation_queue().warn_report(
+            report_id, account, note=note
+        )
+        if error:
+            self.caller.msg(error)
+            return
+        self.caller.msg(
+            f"Report #{report_id} resolved with compact warning "
+            f"#{action['id']}. The action is appealable."
+        )
+
+    def _ban(self):
+        account = self._staff_account()
+        if not account:
+            return
+        report_id, note = self._parse_id_note(
+            "Ban from which report? report/ban <id> [note]"
+        )
+        if report_id is None:
+            return
+        action, error = _moderation_queue().ban_report(
+            report_id, account, note=note
+        )
+        if error:
+            self.caller.msg(error)
+            return
+        self.caller.msg(
+            f"Report #{report_id} resolved with world-entry suspension "
+            f"#{action['id']}. The player remains OOC-capable and may appeal."
+        )
+
+    def _appeals(self):
+        if not self._staff_account():
+            return
+        appeals = _moderation_queue().open_appeals()
+        if not appeals:
+            self.caller.msg("No open moderation appeals.")
+            return
+        lines = ["|yOpen moderation appeals:|n"]
+        for appeal in appeals:
+            lines.append(
+                f"#{appeal['id']} {appeal['account_key']} appeals action "
+                f"#{appeal['action_id']}: {appeal['reason']}"
+            )
+        self.caller.msg("\n".join(lines))
+
+    def _resolve(self):
+        account = self._staff_account()
+        if not account:
+            return
+        raw = (self.args or "").strip()
+        parts = raw.split(None, 2)
+        if len(parts) < 2 or not parts[0].isdigit():
+            self.caller.msg(
+                "Resolve which appeal? "
+                "report/resolve <appeal id> uphold|overturn [note]"
+            )
+            return
+        appeal_id = int(parts[0])
+        outcome = parts[1].lower()
+        note = parts[2].strip() if len(parts) > 2 else ""
+        resolved, error = _moderation_queue().resolve_appeal(
+            appeal_id, account, outcome, note=note
+        )
+        if error:
+            self.caller.msg(error)
+            return
+        self.caller.msg(
+            f"Appeal #{appeal_id} resolved: {resolved['outcome']}."
+        )
+
+    def _audit(self):
+        if not self._staff_account():
+            return
+        actions = _moderation_queue().audit_actions()
+        if not actions:
+            self.caller.msg("The moderation audit trail is empty.")
+            return
+        lines = ["|yRecent moderation actions:|n"]
+        for action in actions:
+            state = "active" if action.get("active") else "recorded"
+            target = action.get("target_account_id")
+            lines.append(
+                f"#{action['id']} {action['kind']} by "
+                f"{action['reviewed_by']} target={target or '-'} "
+                f"report={action.get('report_id') or '-'} [{state}]"
+            )
+        self.caller.msg("\n".join(lines))
 
     def func(self):
         if "review" in self.switches:
             self._review()
             return
-        if "close" in self.switches:
-            self._close()
+        if "warn" in self.switches:
+            self._warn()
+            return
+        if "ban" in self.switches:
+            self._ban()
+            return
+        if "dismiss" in self.switches or "close" in self.switches:
+            self._dismiss()
+            return
+        if "appeals" in self.switches:
+            self._appeals()
+            return
+        if "resolve" in self.switches:
+            self._resolve()
+            return
+        if "audit" in self.switches:
+            self._audit()
             return
 
         raw = (self.args or "").strip()
@@ -183,6 +323,16 @@ class CmdReport(MuxCommand):
 
         import time
 
+        linked = self.caller.search(target, quiet=True)
+        if not isinstance(linked, list):
+            linked = [linked] if linked else []
+        linked = [
+            obj for obj in linked
+            if obj and obj != self.caller and getattr(obj, "has_account", False)
+        ]
+        target_obj = linked[0] if len(linked) == 1 else None
+        target_account = target_obj.account if target_obj else None
+
         account = self.caller.account
         record = _moderation_queue().submit({
             "created_at": time.time(),
@@ -190,7 +340,10 @@ class CmdReport(MuxCommand):
             "reporter_account_id": account.id if account else None,
             "reporter_mask": self.caller.key,
             "reporter_mask_id": self.caller.id,
-            "target": target,
+            "target": target_obj.key if target_obj else target,
+            "target_mask_id": target_obj.id if target_obj else None,
+            "target_account": target_account.key if target_account else None,
+            "target_account_id": target_account.id if target_account else None,
             "reason": reason,
             "location": self.caller.location.key if self.caller.location else None,
         })

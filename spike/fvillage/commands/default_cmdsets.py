@@ -83,6 +83,7 @@ class AccountCmdSet(default_cmds.AccountCmdSet):
         """
         super().at_cmdset_creation()
         from commands.account_cmds import (
+            CmdAppeal,
             CmdSubstrate,
             CmdVillageCharCreate,
             CmdVillageIC,
@@ -91,6 +92,7 @@ class AccountCmdSet(default_cmds.AccountCmdSet):
         # Same keys as Evennia's defaults intentionally replace the default
         # entry paths. The substrate command is the account-level gate.
         self.add(CmdSubstrate())
+        self.add(CmdAppeal())
         self.add(CmdVillageCharCreate())
         self.add(CmdVillageIC())
 

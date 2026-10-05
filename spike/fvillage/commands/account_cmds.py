@@ -16,6 +16,25 @@ def _gate_open(account):
     )
 
 
+def _moderation_queue():
+    """Return the persistent moderation queue, creating it if needed."""
+    from evennia import create_script
+    from evennia.scripts.models import ScriptDB
+
+    try:
+        return ScriptDB.objects.get(db_key="moderation_queue")
+    except ScriptDB.DoesNotExist:
+        return create_script(
+            "typeclasses.scripts.ModerationQueue",
+            key="moderation_queue",
+            persistent=True,
+        )
+
+
+def _world_entry_allowed(account):
+    return not bool(account.db.compact_ban_actions)
+
+
 class CmdSubstrate(MuxCommand):
     """Declare the account substrate and accept the mixed-world compact.
 
@@ -78,6 +97,72 @@ class CmdSubstrate(MuxCommand):
         )
 
 
+class CmdAppeal(MuxCommand):
+    """Review or appeal human-issued moderation actions from OOC space.
+
+    Usage:
+        appeal
+        appeal <action id> <reason>
+
+    This command is account-level on purpose. A suspended player may remain
+    out of character, read the moderation state, and submit an appeal without
+    entering the world.
+    """
+
+    key = "appeal"
+    locks = "cmd:all()"
+    help_category = "Account"
+    account_caller = True
+
+    def func(self):
+        account = self.account
+        queue = _moderation_queue()
+        raw = (self.args or "").strip()
+
+        if not raw:
+            actions = queue.active_actions_for(account.id)
+            appeals = queue.appeals_for(account.id)
+            if not actions and not appeals:
+                self.msg("This account has no active moderation actions or appeals.")
+                return
+            lines = ["|yYour compact moderation record:|n"]
+            for action in actions:
+                label = "warning" if action["kind"] == "warning" else "world-entry suspension"
+                note = action.get("note") or "No additional note."
+                lines.append(f"Action #{action['id']}: {label}. {note}")
+            for appeal in appeals[-10:]:
+                suffix = (
+                    f" -> {appeal.get('outcome')}"
+                    if appeal.get("status") == "resolved"
+                    else ""
+                )
+                lines.append(
+                    f"Appeal #{appeal['id']} for action #{appeal['action_id']}: "
+                    f"{appeal['status']}{suffix}"
+                )
+            if actions:
+                lines.append(
+                    "To appeal an active action: appeal <action id> <reason>"
+                )
+            self.msg("\n".join(lines))
+            return
+
+        parts = raw.split(None, 1)
+        if len(parts) < 2 or not parts[0].isdigit() or not parts[1].strip():
+            self.msg("Usage: appeal <action id> <reason>")
+            return
+        action_id = int(parts[0])
+        reason = parts[1].strip()
+        appeal, error = queue.submit_appeal(account, action_id, reason)
+        if error:
+            self.msg(error)
+            return
+        self.msg(
+            f"Appeal #{appeal['id']} recorded for human review. "
+            "The moderation action remains in effect unless it is overturned."
+        )
+
+
 class CmdVillageCharCreate(default_account.CmdCharCreate):
     """Default character creation, blocked until disclosure is complete."""
 
@@ -86,6 +171,12 @@ class CmdVillageCharCreate(default_account.CmdCharCreate):
             self.msg(
                 "Character creation is behind the disclosure gate. "
                 "Use: substrate human  OR  substrate ai"
+            )
+            return
+        if not _world_entry_allowed(self.account):
+            self.msg(
+                "World entry is suspended after human review. "
+                "Use 'appeal' from OOC space to review or appeal the action."
             )
             return
         return super().func()
@@ -99,6 +190,12 @@ class CmdVillageIC(default_account.CmdIC):
             self.msg(
                 "World entry is behind the disclosure gate. "
                 "Use: substrate human  OR  substrate ai"
+            )
+            return
+        if not _world_entry_allowed(self.account):
+            self.msg(
+                "World entry is suspended after human review. "
+                "Use 'appeal' from OOC space to review or appeal the action."
             )
             return
         ensure_private_room(self.account)
