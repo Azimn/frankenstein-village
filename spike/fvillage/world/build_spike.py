@@ -1016,6 +1016,7 @@ if _door:
 for _skey, _sclass in (
     ("village_time", "typeclasses.scripts.VillageTime"),
     ("village_weather", "typeclasses.scripts.VillageWeather"),
+    ("resident_population", "typeclasses.scripts.ResidentPopulationRegistry"),
     ("warmth_watch", "typeclasses.scripts.WarmthWatch"),
     ("tavern_life", "typeclasses.scripts.TavernLife"),
     ("village_routine", "typeclasses.scripts.VillageRoutine"),
@@ -1025,6 +1026,16 @@ for _skey, _sclass in (
     else:
         create_script(_sclass, key=_skey, persistent=True)
         print(f"{_skey} script created.")
+# Materialize or register the persistent resident population only after
+# village time exists, so first placement resolves against the actual clock.
+from world.residents import ensure_population
+_population = ensure_population()
+print(
+    "resident population ready: "
+    f"{_population['population_size']} residents "
+    f"({_population['created']} created, {_population['registered']} registered)."
+)
+
 # The square starts under fog, as it has always been.
 _square = [o for o in search.search_object("Village Square") if o.key == "Village Square"][0]
 if not _square.db.weather_sense:
