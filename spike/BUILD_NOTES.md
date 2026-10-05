@@ -54,6 +54,20 @@ export EVENNIA_SUPERUSER_USERNAME=admin EVENNIA_SUPERUSER_EMAIL=admin@localhost 
 Test account: `admin` / `spike-admin-2026` (spike-local only).
 Test character `Tester` puppets on login; starts in the Private Room.
 
+## Regression suite
+
+From the repository root, run `python3.12 spike/tests/run_all.py`. The runner
+copies the repository to an isolated temporary checkout, bootstraps a fresh
+Evennia database, mutates live state and rebuilds to prove idempotence, runs
+world invariants, starts the server, and drives a real telnet player path.
+The acceptance bar is one command returning zero on a fresh checkout.
+
+The telnet pass covers disclosure, character creation, private-room entry, the
+OOC-to-IC threshold, Bram by canonical name, real dice wagers, the purse,
+reachable rumor hooks, Room Six discovery, an explicit note choice, the
+published consequence, M.'s later state-dependent reaction, and the shared
+private-room return path.
+
 ## Quirks hit (Evennia 6.1.0)
 
 1. **Non-TTY superuser infinite loop.** With no superuser and no TTY, the
@@ -62,9 +76,10 @@ Test character `Tester` puppets on login; starts in the Private Room.
    `RecursionError` (it surfaces inside Django's query compiler, which is
    misleading). Fix: set `EVENNIA_SUPERUSER_USERNAME` /
    `EVENNIA_SUPERUSER_PASSWORD` env vars before any `evennia` command.
-2. **`twistd` not on PATH.** `evennia start` fails with
+2. **`twistd` launcher may be missing.** `evennia start` can fail with
    `Portal process error: [Errno 2] No such file or directory: 'twistd'`.
-   Fix: put `venv/bin` on PATH.
+   `spike/bootstrap.py` recreates the launcher when pip leaves only the
+   Twisted module behind. Keep `venv/bin` on PATH when running manually.
 3. **No `create_character`.** `evennia.utils.create` in 6.x has
    `create_object`/`create_account`/etc. but no `create_character` — create
    characters with `create_object(<CharacterTypeclass>, ...)`.
