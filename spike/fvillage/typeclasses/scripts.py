@@ -605,6 +605,29 @@ class ModerationQueue(DefaultScript):
         return dict(selected), None
 
 
+class ResidentPopulationRegistry(DefaultScript):
+    """Shared coordination state for the resident population.
+
+    Character-specific mutable state never lives here. This script owns only
+    cross-resident coordination: logical-place availability, fact claims, and
+    aggregate instrumentation.
+    """
+
+    def at_script_creation(self):
+        self.key = "resident_population"
+        self.desc = "Resident population coordination and instrumentation."
+        self.interval = -1
+        self.persistent = True
+        if self.db.location_states is None:
+            self.db.location_states = {}
+        if self.db.fact_claims is None:
+            self.db.fact_claims = {}
+        if self.db.metrics is None:
+            self.db.metrics = {}
+
+
+
+
 class RumorRegistry(DefaultScript):
     """Persistent rumor roots, transmissions, and per-actor belief updates.
 
