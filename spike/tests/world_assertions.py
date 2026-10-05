@@ -34,6 +34,7 @@ for script_key in (
     "world_event_ledger",
     "rumor_registry",
     "resident_population",
+    "public_records",
     "room_six",
     "moderation_queue",
     "ambient_life",
@@ -629,6 +630,17 @@ assert autonomous, "routine-scale NPC rumor propagation produced no retelling"
 
 # Event-generated rumors enter the same registry and retain their event link.
 from world.events import publish_world_event
+qa_public_snapshot = {
+    "harbinger_drafts": copy.deepcopy(list(public_records.db.harbinger_drafts or [])),
+    "harbinger_editions": copy.deepcopy(list(public_records.db.harbinger_editions or [])),
+    "chronicle_entries": copy.deepcopy(list(public_records.db.chronicle_entries or [])),
+    "depositions": copy.deepcopy(list(public_records.db.depositions or [])),
+    "next_story_id": public_records.db.next_story_id,
+    "next_edition_id": public_records.db.next_edition_id,
+    "next_chronicle_id": public_records.db.next_chronicle_id,
+    "next_deposition_id": public_records.db.next_deposition_id,
+    "last_harbinger_day": public_records.db.last_harbinger_day,
+}
 qa_event = publish_world_event(
     "qa_rumor",
     actor=magda,
@@ -671,6 +683,8 @@ for npc in search.search_tag("participant", category="rumor"):
     beliefs = dict(npc.db.rumor_beliefs or {})
     beliefs.pop(str(qa_rumor_id), None)
     npc.db.rumor_beliefs = beliefs
+for key, value in qa_public_snapshot.items():
+    setattr(public_records.db, key, copy.deepcopy(value))
 
 # Moderation lifecycle is tested on an isolated temporary script so running
 # these assertions against a real development world cannot pollute its queue.
