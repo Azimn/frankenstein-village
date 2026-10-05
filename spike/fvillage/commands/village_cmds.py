@@ -13,7 +13,14 @@ from pathlib import Path
 
 from evennia import Command
 from evennia.commands.default.muxcommand import MuxCommand
-from evennia.commands.default.general import CmdLook
+from evennia.commands.default.general import CmdGet, CmdLook
+
+
+class CmdTake(CmdGet):
+    """Natural-language alias for Evennia's default get command."""
+
+    key = "take"
+    aliases = ["grab"]
 
 
 class CmdExamine(CmdLook):
