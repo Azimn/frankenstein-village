@@ -586,6 +586,196 @@ class CmdRetell(Command):
             self.caller.msg(f"{target.key} hears you out, but looks unconvinced.")
 
 
+def _require_ic(caller):
+    loc = caller.location
+    if loc and loc.tags.has("ooc", category="side"):
+        caller.msg(
+            "That is an in-character village record. Cross the front door "
+            "before consulting it."
+        )
+        return False
+    return True
+
+
+def _parse_record_id(token, prefix):
+    raw = (token or "").strip().upper()
+    if raw.startswith(prefix):
+        raw = raw[len(prefix):]
+    return int(raw) if raw.isdigit() else None
+
+
+class CmdHarbinger(Command):
+    """Read the latest Harbinger issue or inspect one printed story.
+
+    Usage:
+        harbinger
+        harbinger archive
+        harbinger H<number>
+    """
+
+    key = "harbinger"
+    aliases = ["newspaper", "paper"]
+    help_category = "Village"
+
+    def func(self):
+        if not _require_ic(self.caller):
+            return
+
+        from world.publications import (
+            edition_stories,
+            get_public_record_registry,
+            get_story,
+            latest_edition,
+        )
+
+        arg = (self.args or "").strip()
+        if arg.lower() == "archive":
+            editions = list(
+                get_public_record_registry().db.harbinger_editions or []
+            )
+            if not editions:
+                self.caller.msg("No Harbinger issues have reached the village yet.")
+                return
+            lines = ["|yThe Harbinger archive:|n"]
+            for edition in editions[-8:]:
+                label = "special edition" if edition.get("special") else "morning issue"
+                lines.append(
+                    f"Issue #{edition['id']}, day {edition['day']}: "
+                    f"{label}, {len(edition.get('story_ids') or [])} stories."
+                )
+            self.caller.msg("\n".join(lines))
+            return
+
+        if arg:
+            story_id = _parse_record_id(arg, "H")
+            story = get_story(story_id) if story_id is not None else None
+            if not story or story.get("status") != "published":
+                self.caller.msg("That Harbinger story is not in the public archive.")
+                return
+            basis = {
+                "objective": "filed from a recorded event",
+                "reported": "printed as a report, not settled fact",
+                "correction": "printed correction",
+            }.get(story.get("basis"), "published account")
+            lines = [
+                f"|yH{story['id']}: {story['headline']}|n",
+                story["body"],
+                f"|xEditorial basis: {basis}.|n",
+            ]
+            for correction in story.get("corrections") or []:
+                lines.append(
+                    f"|wCorrection {correction['id']}:|n {correction['text']}"
+                )
+            self.caller.msg("\n".join(lines))
+            return
+
+        edition = latest_edition()
+        if not edition:
+            self.caller.msg(
+                "No printed issue of The Harbinger has reached the village yet."
+            )
+            return
+        label = "SPECIAL EDITION" if edition.get("special") else "MORNING ISSUE"
+        lines = [
+            f"|yTHE HARBINGER — {label}, DAY {edition['day']}|n",
+        ]
+        stories = edition_stories(edition)
+        for story in stories:
+            lines.append(f"\n|w[H{story['id']}] {story['headline']}|n")
+            lines.append(story["body"])
+        lines.append("\nUse |wharbinger H<number>|n for source status and corrections.")
+        self.caller.msg("\n".join(lines))
+
+
+class CmdChronicle(Command):
+    """Consult the Chronicle or submit a rumor as attributed testimony.
+
+    Usage:
+        chronicle
+        chronicle C<number>
+        chronicle submit R<number>
+
+    A deposition records that you gave an account. It does not turn that
+    account into objective truth.
+    """
+
+    key = "chronicle"
+    aliases = ["records"]
+    help_category = "Village"
+
+    def func(self):
+        if not _require_ic(self.caller):
+            return
+
+        from world.publications import (
+            chronicle_entries,
+            get_chronicle_entry,
+            submit_deposition,
+        )
+
+        arg = (self.args or "").strip()
+        if arg.lower().startswith("submit "):
+            token = arg.split(None, 1)[1]
+            rumor_id = _parse_rumor_id(token)
+            if rumor_id is None:
+                self.caller.msg("Use: chronicle submit R<number>")
+                return
+            entry, error = submit_deposition(self.caller, rumor_id)
+            if error:
+                self.caller.msg(error)
+                return
+            self.caller.msg(
+                f"Your account is entered as Chronicle C{entry['id']}. "
+                "The record preserves that you said it; it does not certify "
+                "the claim as true."
+            )
+            return
+
+        if arg:
+            entry_id = _parse_record_id(arg, "C")
+            entry = get_chronicle_entry(entry_id) if entry_id is not None else None
+            if not entry:
+                self.caller.msg("No such Chronicle entry is in the public index.")
+                return
+            status = (
+                "verified event"
+                if entry.get("claim_status") == "verified_event"
+                else "attributed account"
+            )
+            lines = [
+                f"|yC{entry['id']}: {entry['title']}|n",
+                entry["text"],
+                f"|xRecord status: {status}. Original entry preserved.|n",
+            ]
+            for annotation in entry.get("annotations") or []:
+                lines.append(
+                    f"|wAnnotation {annotation['id']} "
+                    f"({annotation['author']}):|n {annotation['text']}"
+                )
+            self.caller.msg("\n".join(lines))
+            return
+
+        entries = chronicle_entries()
+        if not entries:
+            self.caller.msg("The public Chronicle has no entries yet.")
+            return
+        lines = ["|yThe public Chronicle index:|n"]
+        for entry in entries[-10:]:
+            status = (
+                "verified"
+                if entry.get("claim_status") == "verified_event"
+                else "account"
+            )
+            lines.append(
+                f"[C{entry['id']}] {entry['title']} ({status})"
+            )
+        lines.append(
+            "Use |wchronicle C<number>|n to read an entry, or "
+            "|wchronicle submit R<number>|n to submit a rumor you actually heard."
+        )
+        self.caller.msg("\n".join(lines))
+
+
 class CmdTalk(Command):
     """
     Talk to someone.
