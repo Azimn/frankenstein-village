@@ -52,12 +52,13 @@ feels imported.
 
 Source rule: ordinary canon and generated content are grounded in the public-domain Source Shelf; Dr. Septimius Pretorius is the single explicit film-bridge exception, and that exception does not authorize other adaptation-specific material.
 
-## 6. The keeper is not in the RP world (Jay, 2026-10-03)
+## 6. The keeper is a named role-function (Jay, 2026-10-03; updated 2026-10-04)
 
-The tavern keeper stays a role, never a person. No name, no backstory, no
-plot entanglement. He is a player-facing function — recognition, games,
-memory — not a character in the village's fiction. M. is the named soul;
-the keeper is the furniture that remembers you.
+The tavern keeper remains a player-facing role-function: recognition, games,
+memory, and witnessing. Jay's later canon ruling names him **Bram V.**; nobody
+knows what the V stands for, and Magda claims she does. The name does not make
+him a load-bearing mystery authority, and it does not authorize invented
+biography. His depth should come from what he remembers players doing.
 
 **M. is the dual-ontology exception:** M. is a named in-fiction soul operating
 inside the Inn's dual-ontology space. Players are OOC there; M. remains M.
