@@ -1,0 +1,701 @@
+"""Persistent multiplayer situation and incident engine.
+
+Situations are shared world state. They do not belong to one player and they do
+not freeze while nobody is looking. Per-player knowledge is stored separately
+from objective state so several players can discover different evidence, arrive
+late, disagree, or act on the same situation.
+
+The first production template is canon incident #6, "The tithe strongbox."
+"""
+
+from __future__ import annotations
+
+import copy
+import time
+from collections.abc import Mapping
+
+from evennia import create_script
+from evennia.scripts.models import ScriptDB
+from evennia.utils import search
+
+
+REGISTRY_KEY = "situation_registry"
+TITHE_ID = "INC-0006-TITHE-STRONGBOX"
+
+STATE_ORDER = {
+    "dormant": 0,
+    "surfaced": 1,
+    "investigating": 2,
+    "changing": 3,
+    "resolved_locally": 4,
+    "aftermath": 5,
+    "dormant_recurrence": 6,
+}
+
+TEMPLATES = {
+    TITHE_ID: {
+        "template_id": "canon-incident-006",
+        "working_title": "The Tithe Strongbox",
+        "content_family": "incident",
+        "canonical_status": "canon template instantiated",
+        "spoiler_tier": 1,
+        "primary_location": "St. Lazarus Church",
+        "secondary_locations": ["The Blood of the Vine"],
+        "involved_npcs": ["father_andrei"],
+        "factions": ["St. Lazarus"],
+        "calling_relevance": ["chronicler", "detective", "hound"],
+        "repeatability": "one-shot",
+        "hook": (
+            "The church tithe strongbox stands open and light. "
+            "The lock is unforced; the vestry key is where it normally hangs."
+        ),
+        "autonomy": {
+            "initial_deadline_days": 7,
+            "quiet_deadline_days": 7,
+            "left_alone": (
+                "Giving dries up. The church roof repair is delayed another winter, "
+                "and the parish finally adopts a two-key rule after trust is already lost."
+            ),
+            "quiet_outcome": (
+                "The church keeps the inquiry private for a week. No culprit is named. "
+                "The strongbox returns under a two-key rule, but the trail is cold."
+            ),
+        },
+        "choices": {
+            "openly": {
+                "label": "raise the accusation openly",
+                "minimum_evidence": 2,
+                "closes": "quiet investigation",
+            },
+            "quietly": {
+                "label": "investigate quietly for a week",
+                "minimum_evidence": 2,
+                "closes": "public accusation",
+            },
+        },
+        "evidence": {
+            "lock": {
+                "label": "the unforced lock",
+                "provenance": "physical",
+                "summary": (
+                    "The lock is unforced. Fresh oil and key-scratches sit around "
+                    "the ward: somebody opened it with a key or a very good copy."
+                ),
+            },
+            "roll": {
+                "label": "the tithe roll",
+                "provenance": "documentary",
+                "summary": (
+                    "The tithe roll was balanced the previous evening and records "
+                    "enough coin that the present lightness cannot be bookkeeping."
+                ),
+            },
+            "andrei": {
+                "label": "Father Andrei's account",
+                "provenance": "witness",
+                "summary": (
+                    "Andrei says the vestry key was on its usual hook when the loss "
+                    "was found. He will not accuse anyone merely for having entered church."
+                ),
+            },
+        },
+        "inheritance": (
+            "The churchwardens hold duplicate keys and the tithe roll; "
+            "the Harbinger files preserve the later public account."
+        ),
+        "legend": "The two-key rule is cited whenever anything later goes missing.",
+    },
+}
+
+
+def _clock():
+    try:
+        clock = ScriptDB.objects.get(db_key="village_time")
+        return int(clock.db.day or 1), int(
+            clock.db.hour if clock.db.hour is not None else 21
+        )
+    except ScriptDB.DoesNotExist:
+        return 1, 21
+
+
+def _registry():
+    try:
+        return ScriptDB.objects.get(db_key=REGISTRY_KEY)
+    except ScriptDB.DoesNotExist:
+        return create_script(
+            "typeclasses.scripts.SituationRegistry",
+            key=REGISTRY_KEY,
+            persistent=True,
+        )
+
+
+def get_situation_registry():
+    return _registry()
+
+
+def _player_key(player):
+    return str(getattr(player, "id", ""))
+
+
+def _new_situation(stable_id, *, day, hour):
+    template = TEMPLATES[stable_id]
+    deadline_day = int(day) + int(template["autonomy"]["initial_deadline_days"])
+    return {
+        "id": stable_id,
+        "template_id": template["template_id"],
+        "working_title": template["working_title"],
+        "content_family": template["content_family"],
+        "canonical_status": template["canonical_status"],
+        "spoiler_tier": template["spoiler_tier"],
+        "primary_location": template["primary_location"],
+        "secondary_locations": list(template["secondary_locations"]),
+        "involved_npcs": list(template["involved_npcs"]),
+        "factions": list(template["factions"]),
+        "calling_relevance": list(template["calling_relevance"]),
+        "repeatability": template["repeatability"],
+        "state": "surfaced",
+        "surfaced_day": int(day),
+        "surfaced_hour": int(hour),
+        "deadline_day": deadline_day,
+        "deadline_hour": int(hour),
+        "branch": None,
+        "resolved_day": None,
+        "resolved_hour": None,
+        "objective_mutations": {},
+        "player_knowledge": {},
+        "choice_history": [],
+        "event_ids": [],
+        "rumor_ids": [],
+        "publications": [],
+        "aftermath": None,
+        "version": 1,
+    }
+
+
+def ensure_situations():
+    registry = _registry()
+    situations = copy.deepcopy(dict(registry.db.situations or {}))
+    day, hour = _clock()
+    created = 0
+    for stable_id in TEMPLATES:
+        if stable_id not in situations:
+            situations[stable_id] = _new_situation(
+                stable_id,
+                day=day,
+                hour=hour,
+            )
+            created += 1
+    registry.db.situations = situations
+    return {"created": created, "count": len(situations)}
+
+
+def get_situation(stable_id=TITHE_ID):
+    situation = dict((_registry().db.situations or {}).get(stable_id) or {})
+    return copy.deepcopy(situation) if situation else None
+
+
+def _save(situation):
+    registry = _registry()
+    situations = copy.deepcopy(dict(registry.db.situations or {}))
+    situations[situation["id"]] = copy.deepcopy(situation)
+    registry.db.situations = situations
+    return copy.deepcopy(situation)
+
+
+def _metrics(**deltas):
+    registry = _registry()
+    metrics = copy.deepcopy(dict(registry.db.metrics or {}))
+    for key, value in deltas.items():
+        metrics[key] = int(metrics.get(key) or 0) + int(value)
+    registry.db.metrics = metrics
+
+
+def _knowledge(situation, player):
+    key = _player_key(player)
+    current = dict((situation.get("player_knowledge") or {}).get(key) or {})
+    return {
+        "player_id": getattr(player, "id", None),
+        "player_name": getattr(player, "key", None),
+        "discovered": bool(current.get("discovered")),
+        "evidence": list(current.get("evidence") or []),
+        "first_day": current.get("first_day"),
+        "first_hour": current.get("first_hour"),
+        "last_day": current.get("last_day"),
+        "last_hour": current.get("last_hour"),
+        "developments": list(current.get("developments") or []),
+    }
+
+
+def discover_situation(player, stable_id=TITHE_ID, *, note=None):
+    situation = get_situation(stable_id)
+    if not situation:
+        return None
+    day, hour = _clock()
+    knowledge = _knowledge(situation, player)
+    first = not knowledge["discovered"]
+    if first:
+        knowledge["discovered"] = True
+        knowledge["first_day"] = day
+        knowledge["first_hour"] = hour
+        knowledge["developments"].append(
+            "You discovered that the church tithe strongbox is open and light."
+        )
+    if note and note not in knowledge["developments"]:
+        knowledge["developments"].append(str(note))
+    knowledge["last_day"] = day
+    knowledge["last_hour"] = hour
+    all_knowledge = dict(situation.get("player_knowledge") or {})
+    all_knowledge[_player_key(player)] = knowledge
+    situation["player_knowledge"] = all_knowledge
+    _save(situation)
+    if first:
+        _metrics(discoveries=1)
+    return copy.deepcopy(knowledge)
+
+
+def discover_evidence(player, evidence_id, stable_id=TITHE_ID):
+    situation = get_situation(stable_id)
+    template = TEMPLATES.get(stable_id)
+    if not situation or not template or evidence_id not in template["evidence"]:
+        return None
+    if STATE_ORDER.get(situation["state"], 0) < STATE_ORDER["surfaced"]:
+        return None
+
+    knowledge = discover_situation(player, stable_id)
+    if evidence_id not in knowledge["evidence"]:
+        knowledge["evidence"].append(evidence_id)
+        evidence = template["evidence"][evidence_id]
+        knowledge["developments"].append(
+            f"Evidence: {evidence['label']}. {evidence['summary']}"
+        )
+        day, hour = _clock()
+        knowledge["last_day"] = day
+        knowledge["last_hour"] = hour
+        all_knowledge = dict(situation.get("player_knowledge") or {})
+        all_knowledge[_player_key(player)] = knowledge
+        situation["player_knowledge"] = all_knowledge
+        if situation["state"] == "surfaced":
+            situation["state"] = "investigating"
+        _save(situation)
+        _metrics(discoveries=1)
+    return copy.deepcopy(template["evidence"][evidence_id])
+
+
+def known_situations(player):
+    result = []
+    for stable_id, raw in (_registry().db.situations or {}).items():
+        situation = dict(raw)
+        knowledge = _knowledge(situation, player)
+        if knowledge["discovered"]:
+            result.append((copy.deepcopy(situation), knowledge))
+    return sorted(
+        result,
+        key=lambda pair: (
+            int(pair[1].get("last_day") or 0),
+            int(pair[1].get("last_hour") or 0),
+            pair[0]["id"],
+        ),
+        reverse=True,
+    )
+
+
+def _church():
+    found = [
+        obj for obj in search.search_object("St. Lazarus Church")
+        if obj.key == "St. Lazarus Church"
+    ]
+    return found[0] if found else None
+
+
+def _record_event(situation, event):
+    if not event:
+        return situation
+    ids = list(situation.get("event_ids") or [])
+    if event["id"] not in ids:
+        ids.append(event["id"])
+    situation["event_ids"] = ids
+    rumor = event.get("rumor") or {}
+    if isinstance(rumor, Mapping) and rumor.get("rumor_id"):
+        rumor_ids = list(situation.get("rumor_ids") or [])
+        if rumor["rumor_id"] not in rumor_ids:
+            rumor_ids.append(rumor["rumor_id"])
+        situation["rumor_ids"] = rumor_ids
+    pubs = event.get("publications") or {}
+    if isinstance(pubs, Mapping) and any(v is not None for v in pubs.values()):
+        publications = list(situation.get("publications") or [])
+        publications.append(dict(pubs))
+        situation["publications"] = publications
+    return situation
+
+
+def _apply_two_key_rule():
+    church = _church()
+    if not church:
+        return {"church_found": False}
+    church.db.tithe_strongbox_policy = "two_key"
+    return {
+        "church_found": True,
+        "tithe_strongbox_policy": "two_key",
+    }
+
+
+def _apply_open_aftermath(situation, player):
+    from world.events import publish_world_event
+
+    day, hour = _clock()
+
+    def consequence(_event):
+        result = _apply_two_key_rule()
+        church = _church()
+        if church:
+            church.db.tithe_confidence = "divided"
+        result["tithe_confidence"] = "divided"
+        return result
+
+    event = publish_world_event(
+        "incident.tithe_strongbox.open_accusation",
+        actor=player,
+        payload={
+            "situation_id": situation["id"],
+            "headline": "Church Strongbox Loss Made Public",
+            "public_summary": (
+                "The missing tithe money has been raised openly before the village. "
+                "The lock showed no force, and St. Lazarus has adopted a two-key rule."
+            ),
+            "chronicle_eligible": True,
+            "publication_priority": "special",
+            "resident_ids": ["father_andrei"],
+        },
+        rumor=(
+            "St. Lazarus keeps two keys to the tithe box now. Someone opened the old "
+            "lock without forcing it, and the whole village heard about it."
+        ),
+        consequence=consequence,
+    )
+    situation = _record_event(situation, event)
+    situation["state"] = "aftermath"
+    situation["branch"] = "openly"
+    situation["resolved_day"] = day
+    situation["resolved_hour"] = hour
+    situation["objective_mutations"] = {
+        "tithe_strongbox_policy": "two_key",
+        "tithe_confidence": "divided",
+    }
+    situation["aftermath"] = (
+        "The accusation is public. St. Lazarus now uses two keys; the missing "
+        "money remains an open wound rather than a solved theft."
+    )
+    return situation
+
+
+def _begin_quiet_investigation(situation, player):
+    from world.events import publish_world_event
+
+    day, hour = _clock()
+    event = publish_world_event(
+        "incident.tithe_strongbox.quiet_inquiry",
+        actor=player,
+        payload={
+            "situation_id": situation["id"],
+            "publicity": "private",
+            "resident_ids": ["father_andrei"],
+        },
+    )
+    situation = _record_event(situation, event)
+    situation["state"] = "changing"
+    situation["branch"] = "quietly"
+    situation["deadline_day"] = day + int(
+        TEMPLATES[situation["id"]]["autonomy"]["quiet_deadline_days"]
+    )
+    situation["deadline_hour"] = hour
+    situation["aftermath"] = None
+    return situation
+
+
+def choose(player, choice, stable_id=TITHE_ID):
+    """Make the first canonical door-closing choice for a shared situation."""
+    situation = get_situation(stable_id)
+    template = TEMPLATES.get(stable_id)
+    if not situation or not template:
+        return None, "That situation is not present in the village."
+
+    normalized = str(choice or "").strip().lower()
+    aliases = {
+        "open": "openly",
+        "public": "openly",
+        "publicly": "openly",
+        "accuse": "openly",
+        "openly": "openly",
+        "quiet": "quietly",
+        "private": "quietly",
+        "privately": "quietly",
+        "quietly": "quietly",
+    }
+    normalized = aliases.get(normalized)
+    if normalized not in template["choices"]:
+        return None, "Choose either openly or quietly."
+
+    if situation.get("branch") or STATE_ORDER.get(
+        situation.get("state"), 0
+    ) >= STATE_ORDER["changing"]:
+        return None, (
+            "That door has already closed. The situation has changed for everyone."
+        )
+
+    knowledge = _knowledge(situation, player)
+    required = int(template["choices"][normalized]["minimum_evidence"])
+    if len(set(knowledge["evidence"])) < required:
+        return None, (
+            f"You have {len(set(knowledge['evidence']))} useful evidence source(s). "
+            f"You need at least {required} before making that choice."
+        )
+
+    day, hour = _clock()
+    history = list(situation.get("choice_history") or [])
+    history.append({
+        "choice": normalized,
+        "player_id": getattr(player, "id", None),
+        "player_name": getattr(player, "key", None),
+        "day": day,
+        "hour": hour,
+        "evidence_ids": list(knowledge["evidence"]),
+    })
+    situation["choice_history"] = history
+
+    if normalized == "openly":
+        situation = _apply_open_aftermath(situation, player)
+    else:
+        situation = _begin_quiet_investigation(situation, player)
+
+    _save(situation)
+    _metrics(choices=1)
+    discover_situation(
+        player,
+        stable_id,
+        note=(
+            "You chose to raise the loss openly."
+            if normalized == "openly"
+            else "You chose to keep the inquiry quiet for a week."
+        ),
+    )
+    return get_situation(stable_id), None
+
+
+def _left_alone(situation):
+    from world.events import publish_world_event
+
+    day, hour = _clock()
+
+    def consequence(_event):
+        result = _apply_two_key_rule()
+        church = _church()
+        if church:
+            church.db.tithe_confidence = "low"
+            church.db.roof_repair_delay_winters = int(
+                church.db.roof_repair_delay_winters or 0
+            ) + 1
+        result.update({
+            "tithe_confidence": "low",
+            "roof_repair_delay_winters": (
+                int(church.db.roof_repair_delay_winters or 0) if church else 1
+            ),
+        })
+        return result
+
+    event = publish_world_event(
+        "incident.tithe_strongbox.left_alone",
+        payload={
+            "situation_id": situation["id"],
+            "headline": "Church Giving Falls After Unresolved Loss",
+            "public_summary": (
+                "The tithe loss was never publicly settled. Giving has fallen, "
+                "the roof repair has slipped another winter, and the strongbox "
+                "now requires two keys."
+            ),
+            "chronicle_eligible": True,
+            "resident_ids": ["father_andrei"],
+        },
+        rumor=(
+            "Nobody ever settled what happened to the church money. People give "
+            "less now, and two different hands are needed to open the box."
+        ),
+        consequence=consequence,
+    )
+    situation = _record_event(situation, event)
+    situation["state"] = "aftermath"
+    situation["branch"] = "left_alone"
+    situation["resolved_day"] = day
+    situation["resolved_hour"] = hour
+    situation["objective_mutations"] = {
+        "tithe_strongbox_policy": "two_key",
+        "tithe_confidence": "low",
+        "roof_repair_delay_winters": int(
+            getattr(_church().db, "roof_repair_delay_winters", 1) or 1
+        ) if _church() else 1,
+    }
+    situation["aftermath"] = TEMPLATES[situation["id"]]["autonomy"]["left_alone"]
+    return situation
+
+
+def _finish_quiet(situation):
+    from world.events import publish_world_event
+
+    day, hour = _clock()
+
+    def consequence(_event):
+        result = _apply_two_key_rule()
+        church = _church()
+        if church:
+            church.db.tithe_confidence = "guarded"
+        result["tithe_confidence"] = "guarded"
+        return result
+
+    event = publish_world_event(
+        "incident.tithe_strongbox.quiet_aftermath",
+        payload={
+            "situation_id": situation["id"],
+            "headline": "St. Lazarus Changes Strongbox Procedure",
+            "public_summary": (
+                "After a private week-long inquiry, St. Lazarus has placed the "
+                "tithe strongbox under a two-key rule. No culprit has been named."
+            ),
+            "chronicle_eligible": True,
+            "resident_ids": ["father_andrei"],
+        },
+        rumor=(
+            "The church changed the tithe-box locks after a week of quiet questions. "
+            "No one was named, which has not stopped the naming."
+        ),
+        consequence=consequence,
+    )
+    situation = _record_event(situation, event)
+    situation["state"] = "aftermath"
+    situation["resolved_day"] = day
+    situation["resolved_hour"] = hour
+    situation["objective_mutations"] = {
+        "tithe_strongbox_policy": "two_key",
+        "tithe_confidence": "guarded",
+    }
+    situation["aftermath"] = TEMPLATES[situation["id"]]["autonomy"]["quiet_outcome"]
+    return situation
+
+
+def advance_situations(*, day=None, hour=None):
+    """Advance due situations directly to current time.
+
+    Cost depends on active situation count, not elapsed world time.
+    """
+    if day is None or hour is None:
+        now_day, now_hour = _clock()
+        day = now_day if day is None else int(day)
+        hour = now_hour if hour is None else int(hour)
+
+    registry = _registry()
+    situations = copy.deepcopy(dict(registry.db.situations or {}))
+    advanced = 0
+    for stable_id, raw in list(situations.items()):
+        situation = dict(raw)
+        if situation.get("state") in {
+            "aftermath", "resolved_locally", "dormant_recurrence"
+        }:
+            continue
+        due = (
+            int(situation.get("deadline_day") or 10**9),
+            int(situation.get("deadline_hour") or 0),
+        )
+        if (int(day), int(hour)) < due:
+            continue
+
+        if situation.get("branch") == "quietly":
+            situation = _finish_quiet(situation)
+        elif not situation.get("branch"):
+            situation = _left_alone(situation)
+        else:
+            continue
+        situations[stable_id] = situation
+        advanced += 1
+
+    if advanced:
+        registry.db.situations = situations
+        _metrics(autonomous_advances=advanced)
+    return advanced
+
+
+def situation_status_for_player(player, stable_id=TITHE_ID):
+    situation = get_situation(stable_id)
+    if not situation:
+        return None
+    knowledge = _knowledge(situation, player)
+    if not knowledge["discovered"]:
+        return None
+    template = TEMPLATES[stable_id]
+    evidence = [
+        {
+            "id": evidence_id,
+            **template["evidence"][evidence_id],
+        }
+        for evidence_id in knowledge["evidence"]
+        if evidence_id in template["evidence"]
+    ]
+    return {
+        "id": stable_id,
+        "title": situation["working_title"],
+        "state": situation["state"],
+        "branch": situation.get("branch"),
+        "deadline_day": situation.get("deadline_day"),
+        "deadline_hour": situation.get("deadline_hour"),
+        "evidence": evidence,
+        "developments": list(knowledge["developments"]),
+        "aftermath": situation.get("aftermath"),
+        "inheritance": template["inheritance"],
+    }
+
+
+def strongbox_description(looker=None):
+    situation = get_situation(TITHE_ID)
+    if not situation:
+        return (
+            "A small iron parish strongbox sits under the vestry table, "
+            "closed and unremarkable."
+        )
+    state = situation.get("state")
+    branch = situation.get("branch")
+    if state == "aftermath":
+        if branch == "openly":
+            return (
+                "The tithe strongbox sits shut beneath the vestry table. Two "
+                "different keyholes now govern the lid. The new hardware is "
+                "practical; the silence around it is not."
+            )
+        if branch == "quietly":
+            return (
+                "The tithe strongbox is shut again. A second lock has been fitted "
+                "beside the first, new brass against old iron. Nobody in church "
+                "volunteers a name."
+            )
+        return (
+            "The tithe strongbox is shut under two locks now. The roof above it "
+            "still wants repair, and the collection plate has grown quieter."
+        )
+
+    return (
+        "The church tithe strongbox stands open beneath the vestry table and is "
+        "much too light. The lock is not forced. Around the ward, fresh oil and "
+        "fine key-scratches catch the candlelight. The vestry key itself hangs "
+        "on its ordinary hook."
+    )
+
+
+def tithe_roll_description(looker=None):
+    situation = get_situation(TITHE_ID)
+    if situation and situation.get("state") == "aftermath":
+        return (
+            "The tithe roll remains in its ruled columns. A later note in another "
+            "hand records the new two-key strongbox procedure. The missing sum is "
+            "still not crossed out."
+        )
+    return (
+        "The parish tithe roll is ruled in ink and balanced through the previous "
+        "evening. Its recorded total is too large to fit the nearly empty box now "
+        "sitting open nearby. Whatever is missing was not an accounting error."
+    )

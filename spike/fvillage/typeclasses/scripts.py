@@ -605,6 +605,31 @@ class ModerationQueue(DefaultScript):
         return dict(selected), None
 
 
+class SituationRegistry(DefaultScript):
+    """Persistent multiplayer situations and per-player investigation state.
+
+    A situation is shared world state, not a private quest instance. Player
+    knowledge is stored separately inside each situation so two masks may know
+    different evidence while acting on the same underlying problem.
+    """
+
+    def at_script_creation(self):
+        self.key = "situation_registry"
+        self.desc = "Persistent multiplayer situation and incident registry."
+        self.interval = -1
+        self.persistent = True
+        if self.db.situations is None:
+            self.db.situations = {}
+        if self.db.metrics is None:
+            self.db.metrics = {
+                "discoveries": 0,
+                "choices": 0,
+                "autonomous_advances": 0,
+            }
+
+
+
+
 class PublicRecordRegistry(DefaultScript):
     """Persistent Harbinger and Chronicle state.
 
@@ -1206,6 +1231,15 @@ class VillageTime(SpikeScript):
         self.db.hour = hour
         if hour == 0:
             self.db.day = (self.db.day or 1) + 1
+
+        # Shared situations advance on the same coarse village clock. This
+        # keeps autonomous content cheap: one boundary check per situation,
+        # never one high-frequency ticker per quest or player.
+        try:
+            from world.situations import advance_situations
+            advance_situations(day=self.db.day or 1, hour=hour)
+        except Exception:
+            pass
 
         # The Harbinger prints on a fixed morning cadence. Special editions
         # are handled immediately by the publication pipeline and do not

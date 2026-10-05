@@ -3,6 +3,7 @@
 from evennia.utils import search
 
 from world.residents import facts_known_by_player, resident_state
+from world.situations import TITHE_ID, get_situation, situation_status_for_player
 from world.publications import (
     chronicle_entries,
     edition_stories,
@@ -49,5 +50,18 @@ assert any(
     for entry in entries
 ), "player Chronicle deposition did not survive restart"
 
+incident = get_situation(TITHE_ID)
+assert incident["state"] == "aftermath"
+assert incident["branch"] == "openly"
+status = situation_status_for_player(smoke, TITHE_ID)
+assert status
+assert {entry["id"] for entry in status["evidence"]} == {
+    "lock", "roll"
+}
+church = one("St. Lazarus Church")
+assert church.db.tithe_strongbox_policy == "two_key"
+assert church.db.tithe_confidence == "divided"
+
 print("POST_RESTART_RESIDENT_ASSERTIONS_GREEN")
 print("POST_RESTART_PUBLIC_RECORD_ASSERTIONS_GREEN")
+print("POST_RESTART_SITUATION_ASSERTIONS_GREEN")

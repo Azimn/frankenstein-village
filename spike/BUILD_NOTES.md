@@ -340,3 +340,22 @@ The clean-checkout regression now verifies:
 - Room Six special edition and verified Chronicle record over real telnet;
 - player rumor deposition over real telnet;
 - persistence of the edition, objective entry, and deposition across a real server restart.
+
+## 2026-10-05 - Shared situation and incident feed
+
+`world/situations.py` is the first production quest-feed layer. It stores shared situations in the persistent `situation_registry` script and keeps per-player evidence knowledge inside the shared record.
+
+The first live situation is accepted canon incident #6, The Tithe Strongbox. It exercises the repository's full quest grammar without a quest marker or acceptance button:
+
+`environmental hook -> independent evidence -> shared choice -> persistent mutation -> event -> Harbinger/Chronicle -> rumor -> aftermath`
+
+Evidence channels:
+- physical: inspect the unforced tithe strongbox lock;
+- documentary: read the balanced tithe roll;
+- witness: ask Father Andrei about the key and discovery.
+
+A player needs at least two independent evidence sources before `decide strongbox openly` or `decide strongbox quietly` is accepted. This is a gating floor, not automatic deduction. The game still does not identify a thief.
+
+The open branch is immediate and public. The quiet branch runs for seven game days before its autonomous aftermath. With no player intervention, the situation advances after seven game days to the accepted left-alone consequence. All three outcomes mutate shared church state and emit structured events. Latecomers inherit the changed world rather than receiving a fresh private copy.
+
+Regression coverage verifies player-knowledge isolation, insufficient-evidence rejection, shared branch locking, quiet autonomous progression, open publication and rumor provenance, unattended progression, idempotent situation creation, real telnet investigation and decision, and persistence of the shared aftermath and player evidence through a real server restart.

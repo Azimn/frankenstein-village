@@ -122,6 +122,29 @@ def main() -> int:
         out = c.command("south")
         require(out, "village square")
 
+        # Canon incident #6 is discovered through the physical world, not a
+        # quest marker. Evidence remains mask-specific until somebody makes a
+        # shared door-closing choice.
+        out = c.command("west")
+        require(out, "st. lazarus church")
+
+        out = c.command("look strongbox")
+        require(out, "open beneath the vestry table", "lock is not forced")
+
+        out = c.command("journal strongbox")
+        require(out, "tithe strongbox", "unforced lock")
+        if "tithe roll" in out.lower():
+            raise AssertionError("journal leaked undiscovered documentary evidence")
+
+        out = c.command("read tithe roll")
+        require(out, "balanced through the previous evening", "not an accounting error")
+
+        out = c.command("journal strongbox")
+        require(out, "unforced lock", "tithe roll", "decide strongbox")
+
+        out = c.command("east")
+        require(out, "village square")
+
         # A generic background resident uses the same player-facing interface
         # as authored NPCs. Miklós is scheduled in the square at this hour, so
         # the network playtest follows world state instead of teleporting a QA
@@ -140,6 +163,21 @@ def main() -> int:
 
         out = c.command("east")
         require(out, "blood of the vine")
+
+        out = c.command("journal strongbox")
+        require(out, "tithe roll", "unforced lock")
+
+        out = c.command("decide strongbox openly", wait=3.0)
+        require(out, "accusation is now public", "quiet road is closed")
+
+        out = c.command("journal strongbox")
+        require(out, "aftermath", "two keys")
+
+        out = c.command("harbinger")
+        require(out, "special edition", "church strongbox loss made public")
+
+        out = c.command("chronicle")
+        require(out, "church strongbox loss made public", "verified")
 
         out = c.command("purse")
         require(out, "2 ft")
