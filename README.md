@@ -4,6 +4,12 @@ Working title: **"Frankenstein Village"** (what outsiders call it; the village's
 
 Everything for building this game lives in this folder.
 
+## The playable spike (yes, it runs)
+
+`spike/fvillage/` is a live Evennia game, in active development since 2026-10-01. What's playable right now: the Inn Between (OOC hub + front door), the village square, the Blood of the Vine tavern (coin economy, sideboard, regulars with schedules), St. Lazarus Church (1890 liturgical calendar, Sunday mass, confession), the Lamp Shop, villager daily routines, the rumor→ledger pipeline, hunger/drunkenness, and the Room Six mystery.
+
+To run it: `cd spike/fvillage && ../venv/bin/evennia start`, then telnet to `localhost:4000` (web client: `localhost:4001`). The venv builds from `spike/requirements.txt`. `world/build_spike.py` (via `evennia shell`) idempotently syncs world state.
+
 ## Start here (reading order)
 
 1. **`hidden_files/design-doctrine.md`**: Governing design doctrine: USP, emic-first measurement, one-loop principle, Tarn rule, keeper rule, third-place model, and reliability rule. Read this before designing or reviewing systems.
@@ -25,11 +31,11 @@ Everything for building this game lives in this folder.
 - **`research/social-text-worlds-survey-2026-09-30.md`** — Survey of social text worlds (MUDs/MOOs) and what makes them live.
 - **`research/mud-survey-2026-09-30.md`** — Evennia and MUD tech research (copied from calibos-mind research; the game-dev copy lives here).
 
-## Source materials (kept where they are, referenced here)
+## Source materials (originals live outside this repo, referenced here)
 
-- `~/workspace/user/files/Darkmoor_Quest_Handoff.docx` — Original ChatGPT handoff document; superseded by `files/frankenstein-village-quest-handoff-v0.3.md`.
-- `~/workspace/user/files/ready_detective_one/` — Jay's Game Boy Color Sherlock Holmes game archive. Its mystery systems (evidence + hypotheses, moving world, Watson's developments ledger, rival investigators, travel costs time, no inert social variables) are design inputs — see bible §7 and §10.
-- `~/workspace/user/files/Frankenstein_Village_NPC_Simulation_Handoff_v0.1.txt` — Original ChatGPT NPC simulation handoff (2026-10-01); archived byte-identical as `research/npc-simulation-handoff-v0.1.md`, reviewed in `research/npc-simulation-review-2026-10-01.md`.
+- The original ChatGPT quest handoff (`.docx`) — superseded by `files/frankenstein-village-quest-handoff-v0.3.md`.
+- Jay's Game Boy Color Sherlock Holmes game archive — its mystery systems (evidence + hypotheses, moving world, Watson's developments ledger, rival investigators, travel costs time, no inert social variables) are design inputs; see bible §7 and §10.
+- The original ChatGPT NPC simulation handoff (2026-10-01) — archived byte-identical as `research/npc-simulation-handoff-v0.1.md`, reviewed in `research/npc-simulation-review-2026-10-01.md`.
 - `hidden_files/`: Internal working state, except the tracked public `design-doctrine.md` named above.
 
 ## Version history (superseded versions, recoverable from trash for 30 days)
