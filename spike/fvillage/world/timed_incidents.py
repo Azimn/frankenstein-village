@@ -480,6 +480,23 @@ def status_for_player(player, stable_id=WELL_BOILS_ID):
     }
 
 
+def known_timed_incidents(player):
+    known = []
+    for stable_id in TEMPLATES:
+        status = status_for_player(player, stable_id)
+        if status:
+            known.append(status)
+    return sorted(
+        known,
+        key=lambda entry: (
+            int(entry.get("started_day") or 0),
+            int(entry.get("started_hour") or 0),
+            entry["id"],
+        ),
+        reverse=True,
+    )
+
+
 def resolve_timed_subject(subject):
     raw = str(subject or "").strip().lower()
     aliases = {
