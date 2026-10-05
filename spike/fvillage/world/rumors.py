@@ -284,10 +284,12 @@ def propagate_colocated_npcs(*, announce=False, max_per_room=1):
     """Run bounded rumor traffic among truly co-located participating NPCs."""
     registry = get_rumor_registry()
     try:
-        from world.residents import is_resident, resident_state
+        from world.residents import is_resident, resident_logical_location
     except Exception:
         is_resident = lambda _obj: False
-        resident_state = lambda _obj: {}
+        resident_logical_location = lambda obj: getattr(
+            getattr(obj, "location", None), "key", None
+        )
 
     by_room = defaultdict(list)
     for npc in _participants():
@@ -297,10 +299,8 @@ def propagate_colocated_npcs(*, announce=False, max_per_room=1):
         # occupying different logical homes/workplaces. Gossip follows logical
         # co-location so projection never creates impossible conversations.
         if is_resident(npc):
-            logical = (resident_state(npc).get("routine") or {}).get(
-                "logical_location"
-            )
-            by_room[("logical", logical or npc.location.id)].append(npc)
+            logical = resident_logical_location(npc)
+            by_room[("resident", logical or npc.location.id)].append(npc)
         else:
             by_room[("physical", npc.location.id)].append(npc)
 
@@ -323,9 +323,7 @@ def propagate_colocated_npcs(*, announce=False, max_per_room=1):
                 break
             belief = random.choice(beliefs)
             location = (
-                (resident_state(speaker).get("routine") or {}).get(
-                    "logical_location"
-                )
+                resident_logical_location(speaker)
                 if is_resident(speaker)
                 else getattr(speaker.location, "key", None)
             )
