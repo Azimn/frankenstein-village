@@ -1095,8 +1095,8 @@ def chronicle_gap_description(looker=None):
             return (
                 "The numbered stubs are still visible, but a replacement sequence has "
                 "been inserted after them. Every reconstructed page is marked in the "
-                "margin: DERIVED FROM HARBINGER FILES. The gap is filled; the source "
-                "difference is not hidden."
+                "margin: DERIVED FROM HARBINGER FILES. The replacement is press-derived, "
+                "not recovered original text; the source difference is not hidden."
             )
         if branch == "preserve":
             return (
