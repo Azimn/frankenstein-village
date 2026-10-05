@@ -59,8 +59,8 @@ assert "lavender" in (confessional.db.desc or "").lower(), (
     "confessional rumor has no inspectable evidence"
 )
 
-strongbox = one("the tithe strongbox")
-tithe_roll = one("the tithe roll")
+strongbox = one("tithe strongbox")
+tithe_roll = one("tithe roll")
 assert strongbox.typeclass_path == "typeclasses.objects.TitheStrongbox"
 assert tithe_roll.typeclass_path == "typeclasses.objects.TitheRoll"
 
