@@ -58,13 +58,19 @@ RUMOR_FILE = REPO_ROOT / "files" / "rumor-seeds-v0.1.md"
 
 _SEED_RE = re.compile(r"^\*\*(\d+)\.\*\*\s*(.+?)\s*[—–-]\s*\*Heard from:\*", re.M)
 
+# Static canon rumors are player-facing promises. Only surface hooks that can
+# currently be inspected in the live map. Dynamic event rumors are separate.
+PLAYABLE_RUMOR_IDS = frozenset({151, 201, 236})
 
-def load_rumor_seeds():
-    """Parse numbered rumor seeds out of the canon markdown file."""
+
+def load_rumor_seeds(*, playable_only=True):
+    """Parse canon rumor seeds, optionally limiting them to live hooks."""
     text = RUMOR_FILE.read_text(encoding="utf-8")
     seeds = []
     for match in _SEED_RE.finditer(text):
         num, body = match.group(1), match.group(2).strip()
+        if playable_only and int(num) not in PLAYABLE_RUMOR_IDS:
+            continue
         seeds.append((num, body))
     return seeds
 
@@ -724,7 +730,7 @@ class CmdRoll(Command):
             return
         if target not in (
             "keeper", "the keeper", "the tavern keeper",
-            "barkeep", "barkeeper",
+            "barkeep", "barkeeper", "bram", "bram v", "bram v.",
         ):
             self.caller.msg(
                 "The keeper raises an eyebrow. 'Dice is a two-hand "
