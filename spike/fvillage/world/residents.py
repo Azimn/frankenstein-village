@@ -261,6 +261,23 @@ def ensure_population():
     }
 
 
+def resident_logical_location(npc):
+    """Return the location used for social co-location and provenance.
+
+    Population-managed residents keep a logical location separate from their
+    physical Offstage projection. Authored legacy residents already have real
+    room movement, so their physical room remains authoritative.
+    """
+    definition = resident_definition(npc)
+    if not definition:
+        return getattr(getattr(npc, "location", None), "key", None)
+    if definition.get("schedule_engine") == "population":
+        return (resident_state(npc).get("routine") or {}).get(
+            "logical_location"
+        )
+    return getattr(getattr(npc, "location", None), "key", None)
+
+
 def seed_background_rumors():
     """Give a sparse deterministic subset of residents each canon rumor.
 
@@ -299,9 +316,7 @@ def seed_background_rumors():
                 npc,
                 source_label=root.get("source_actor") or "village talk",
                 source_type=root.get("source_type") or "canon_teller",
-                location=(resident_state(npc).get("routine") or {}).get(
-                    "logical_location"
-                ),
+                location=resident_logical_location(npc),
             )
             seeded += 1
     return seeded
