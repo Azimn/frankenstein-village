@@ -541,9 +541,9 @@ class ModerationQueue(DefaultScript):
         if not action:
             return None, "The appealed moderation action no longer exists."
 
+        target = self._account(action.get("target_account_id"))
         if outcome == "overturn":
             self._set_action_active(action["id"], False)
-            target = self._account(action.get("target_account_id"))
             if target:
                 if action.get("kind") == "warning":
                     target.db.compact_warning_actions = [
@@ -557,19 +557,35 @@ class ModerationQueue(DefaultScript):
                         for action_id in (target.db.compact_ban_actions or [])
                         if action_id != action["id"]
                     ]
-                notices = list(target.db.moderation_notices or [])
-                notices.append(
-                    {
-                        "action_id": action["id"],
-                        "kind": "appeal_overturned",
-                        "text": note.strip() or "A human moderator overturned the action on appeal.",
-                        "seen": False,
-                    }
-                )
-                target.db.moderation_notices = notices[-50:]
+
+        if target:
+            notices = list(target.db.moderation_notices or [])
+            notice_kind = (
+                "appeal_overturned" if outcome == "overturn" else "appeal_upheld"
+            )
+            default_text = (
+                "A human moderator overturned the action on appeal."
+                if outcome == "overturn"
+                else "A human moderator upheld the action on appeal."
+            )
+            notices.append(
+                {
+                    "action_id": action["id"],
+                    "kind": notice_kind,
+                    "text": note.strip() or default_text,
+                    "seen": False,
+                }
+            )
+            target.db.moderation_notices = notices[-50:]
+            if outcome == "overturn":
                 target.msg(
                     f"Appeal #{appeal_id} was granted. Moderation action "
                     f"#{action['id']} was overturned."
+                )
+            else:
+                target.msg(
+                    f"Appeal #{appeal_id} was reviewed and the moderation "
+                    f"action #{action['id']} was upheld."
                 )
 
         selected["status"] = "resolved"
