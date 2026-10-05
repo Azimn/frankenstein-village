@@ -11,16 +11,16 @@ def one(key):
     return found[0]
 
 
-silas = one("Silas Crowe")
+miklos = one("Miklós Farkas")
 smoke = one("SmokeTester")
-state = resident_state(silas)
+state = resident_state(miklos)
 relation = (state.get("relationships") or {}).get(str(smoke.id))
 assert relation, "telnet interactions did not persist a Miklós relationship"
 assert relation["familiarity"] >= 8
 assert state["character_depth"] in {"C", "B", "A"}
 assert state["simulation_resolution"] in {"reactive", "engaged", "focused"}
 assert state["facts"], "history question did not persist progressive characterization"
-known = facts_known_by_player(silas, smoke)
+known = facts_known_by_player(miklos, smoke)
 assert known, "revealed fact was not recorded for the player mask"
 
 population = list(search.search_tag("resident", category="system"))
