@@ -845,10 +845,13 @@ class RumorRegistry(DefaultScript):
         location=None,
         force_accept=False,
         force_variant_index=None,
+        allow_private=False,
     ):
         """Retell a known rumor and append an immutable transmission."""
         rumor = self.get_rumor(rumor_id)
         if not rumor or speaker is None or listener is None:
+            return None
+        if rumor.get("privacy") != "public" and not allow_private:
             return None
         source_belief = self.belief_for(speaker, rumor_id)
         if not source_belief:
