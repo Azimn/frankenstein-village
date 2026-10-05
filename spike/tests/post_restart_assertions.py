@@ -15,7 +15,7 @@ silas = one("Silas Crowe")
 smoke = one("SmokeTester")
 state = resident_state(silas)
 relation = (state.get("relationships") or {}).get(str(smoke.id))
-assert relation, "telnet interactions did not persist a Silas relationship"
+assert relation, "telnet interactions did not persist a Miklós relationship"
 assert relation["familiarity"] >= 8
 assert state["character_depth"] in {"C", "B", "A"}
 assert state["simulation_resolution"] in {"reactive", "engaged", "focused"}
