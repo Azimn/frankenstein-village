@@ -208,7 +208,6 @@ assert wstate["metrics"]["decision_evaluations"] == 0, (
 from world.events import publish_world_event
 ledger = ScriptDB.objects.get(db_key="world_event_ledger")
 ledger_events_snapshot = copy.deepcopy(list(ledger.db.events or []))
-ledger_next_event_snapshot = ledger.db.next_event_id
 school_destroyed = publish_world_event(
     "building_destroyed",
     payload={"location_id": "schoolhouse", "cause": "school_destroyed"},
@@ -433,7 +432,6 @@ church.db.roof_repair_delay_winters = church_state_original[
     "roof_repair_delay_winters"
 ]
 ledger.db.events = copy.deepcopy(ledger_events_snapshot)
-ledger.db.next_event_id = ledger_next_event_snapshot
 for key, value in public_records_snapshot.items():
     setattr(public_records.db, key, copy.deepcopy(value))
 rumor_registry.db.rumors = copy.deepcopy(rumor_snapshot["rumors"])
