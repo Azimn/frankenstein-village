@@ -68,6 +68,15 @@ def _publish_tavern_rumor(body, *, event_id, actor, kind):
     )
 
 
+def _notify_resident_population(event):
+    try:
+        from world.residents import consume_world_event
+        consume_world_event(event)
+    except Exception:
+        pass
+    return event
+
+
 def publish_world_event(
     kind,
     *,
@@ -106,7 +115,8 @@ def publish_world_event(
         )
 
     if consequence is None:
-        return ledger.update_event(event["id"], status="complete")
+        completed = ledger.update_event(event["id"], status="complete")
+        return _notify_resident_population(completed)
 
     try:
         consequence_result = consequence(event)
@@ -118,9 +128,10 @@ def publish_world_event(
         )
         raise
 
-    return ledger.update_event(
+    completed = ledger.update_event(
         event["id"],
         status="complete",
         consequence=consequence_result,
         completed_at=time.time(),
     )
+    return _notify_resident_population(completed)
