@@ -443,9 +443,9 @@ class Innkeeper(SpikeCharacter):
 class TavernKeeper(SpikeCharacter):
     """Bram V., keeper of the Blood of the Vine.
 
-    A role-function growing into a person. Recognition, games, memory, and
-    witnessing are intentional; the biography is still arriving. Nobody
-    knows what the V stands for.
+    A named role-function: recognition, games, memory, and witnessing are
+    intentional. The V is deliberately unexplained. Do not add biography or
+    plot-load-bearing knowledge without a canon ruling.
     """
 
     def at_object_creation(self):
@@ -617,6 +617,19 @@ class TavernKeeper(SpikeCharacter):
         return f"Back again, {name}. {' '.join(parts)}"
 
     def talk_to(self, char):
+        debts = int(char.db.dice_debts or 0)
+        if debts:
+            rounds = "round" if debts == 1 else "rounds"
+            char.msg(
+                f'Bram taps a chalk mark under the bar. "{debts} house '
+                f'{rounds} carried for you. Next paid loss at the dice cup '
+                'squares one. I remember favors, friend; I also let them end."'
+            )
+            self.location.msg_contents(
+                f"Bram taps the underside of the bar while talking to {char.key}.",
+                exclude=[char],
+            )
+            return
         line = self._next_line("talk")
         char.msg(f'Bram says: "{line}"')
         self.location.msg_contents(
