@@ -862,6 +862,9 @@ else:
 
 # Only IC residents who can actually exchange gossip join the rumor network.
 # M. is deliberately absent: NPCs must never perceive the OOC layer.
+for _ooc_m in [o for o in search.search_object("M.") if o.key == "M."]:
+    _ooc_m.tags.remove("participant", category="rumor")
+
 _rumor_profiles = {
     "Bram": (0.65, 0.45),
     "Old Vasile": (0.35, 0.30),
