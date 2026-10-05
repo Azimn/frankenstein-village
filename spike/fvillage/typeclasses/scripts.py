@@ -1206,6 +1206,27 @@ class VillageTime(SpikeScript):
         self.db.hour = hour
         if hour == 0:
             self.db.day = (self.db.day or 1) + 1
+
+        # The Harbinger prints on a fixed morning cadence. Special editions
+        # are handled immediately by the publication pipeline and do not
+        # consume the regular daily issue.
+        try:
+            from world.publications import publish_due_harbinger
+            edition = publish_due_harbinger(self.db.day or 1, hour)
+            if edition:
+                for public_key in ("Village Square", "The Blood of the Vine"):
+                    for room in [
+                        o for o in search.search_object(public_key)
+                        if o.key == public_key
+                    ]:
+                        if any(o.has_account for o in room.contents):
+                            room.msg_contents(
+                                "A newspaper runner calls out the new issue of "
+                                "The Harbinger."
+                            )
+        except Exception:
+            pass
+
         name = village_hour_name(hour)
         for key in ("Village Square", "The Blood of the Vine", "Inn Common Room",
                     "Inn Hallway", "Private Room", "Tavern Back Hall"):
