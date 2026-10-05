@@ -132,6 +132,10 @@ known_ids = {entry.get("id") for entry in known}
 assert {magda.id, vasile.id, janos.id}.issubset(known_ids)
 assert len(rumor_registry.current_claims(root["id"])) >= 2
 
+from world.rumors import propagate_colocated_npcs
+autonomous = propagate_colocated_npcs(announce=False, max_per_room=1)
+assert autonomous, "routine-scale NPC rumor propagation produced no retelling"
+
 # Event-generated rumors enter the same registry and retain their event link.
 from world.events import publish_world_event
 qa_event = publish_world_event(
