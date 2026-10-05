@@ -32,16 +32,46 @@ def _bin(name: str) -> Path:
     return directory / f"{name}{suffix}"
 
 
-def _run(args, *, cwd=None, env=None, stdin=None):
+def _run(args, *, cwd=None, env=None, stdin=None, input_text=None):
     printable = " ".join(str(arg) for arg in args)
     print(f"+ {printable}")
-    subprocess.run(
-        [str(arg) for arg in args],
-        cwd=cwd,
-        env=env,
-        stdin=stdin,
-        check=True,
+    kwargs = {
+        "cwd": cwd,
+        "env": env,
+        "check": True,
+    }
+    if input_text is not None:
+        kwargs["input"] = input_text
+        kwargs["text"] = True
+    else:
+        kwargs["stdin"] = stdin
+    subprocess.run([str(arg) for arg in args], **kwargs)
+
+
+def _ensure_twistd_launcher(python: Path) -> None:
+    """Create the Twisted launcher Evennia expects when pip omits it."""
+    bindir = python.parent
+    if os.name == "nt":
+        exe = bindir / "twistd.exe"
+        cmd = bindir / "twistd.cmd"
+        if exe.exists() or cmd.exists():
+            return
+        cmd.write_text(
+            f'@"{python}" -c "from twisted.scripts.twistd import run; run()" %*\\n',
+            encoding="utf-8",
+        )
+        print(f"Created Twisted launcher: {cmd}")
+        return
+
+    launcher = bindir / "twistd"
+    if launcher.exists():
+        return
+    launcher.write_text(
+        f"#!{python}\\nfrom twisted.scripts.twistd import run\\nrun()\\n",
+        encoding="utf-8",
     )
+    launcher.chmod(0o755)
+    print(f"Created Twisted launcher: {launcher}")
 
 
 def main() -> int:
@@ -70,11 +100,25 @@ def main() -> int:
     evennia = _bin("evennia")
     _run([python, "-m", "pip", "install", "--upgrade", "pip"])
     _run([python, "-m", "pip", "install", "-r", REQUIREMENTS])
+    _ensure_twistd_launcher(python)
 
     env = os.environ.copy()
     env["PATH"] = str(_bin("python").parent) + os.pathsep + env.get("PATH", "")
+    (GAME / "server" / "logs").mkdir(parents=True, exist_ok=True)
 
     _run([evennia, "migrate"], cwd=GAME, env=env)
+
+    # The launcher creates Account #1 from the supplied environment variables
+    # before opening the Django shell. Run Evennia's own initial-setup sequence
+    # synchronously here so Limbo #2 exists before our world builder runs.
+    initial_setup = """
+from evennia.server import initial_setup
+initial_setup.reset_server = lambda: None
+initial_setup.handle_setup(None)
+print("INITIAL_SETUP_GREEN")
+"""
+    _run([evennia, "shell"], cwd=GAME, env=env, input_text=initial_setup)
+
     with (GAME / "world" / "build_spike.py").open("rb") as build_script:
         _run([evennia, "shell"], cwd=GAME, env=env, stdin=build_script)
 
