@@ -59,27 +59,22 @@ class CmdPurse(Command):
             f"The price board in the Blood of the Vine lists the rest.)"
         )
 
-# Canon lives in this repository, not in a particular worker's home directory.
-REPO_ROOT = Path(__file__).resolve().parents[3]
-RUMOR_FILE = REPO_ROOT / "files" / "rumor-seeds-v0.1.md"
-
-_SEED_RE = re.compile(r"^\*\*(\d+)\.\*\*\s*(.+?)\s*[—–-]\s*\*Heard from:\*", re.M)
-
-# Static canon rumors are player-facing promises. Only surface hooks that can
-# currently be inspected in the live map. Dynamic event rumors are separate.
-PLAYABLE_RUMOR_IDS = frozenset({151, 201, 236})
+from world.rumors import PLAYABLE_RUMOR_IDS, load_canon_rumors
 
 
 def load_rumor_seeds(*, playable_only=True):
-    """Parse canon rumor seeds, optionally limiting them to live hooks."""
-    text = RUMOR_FILE.read_text(encoding="utf-8")
-    seeds = []
-    for match in _SEED_RE.finditer(text):
-        num, body = match.group(1), match.group(2).strip()
-        if playable_only and int(num) not in PLAYABLE_RUMOR_IDS:
-            continue
-        seeds.append((num, body))
-    return seeds
+    """Compatibility projection of the structured canon rumor corpus."""
+    return [
+        (str(seed["canonical_seed_id"]), seed["claim"])
+        for seed in load_canon_rumors(playable_only=playable_only)
+    ]
+
+
+def _parse_rumor_id(token):
+    token = (token or "").strip().upper()
+    if token.startswith("R"):
+        token = token[1:]
+    return int(token) if token.isdigit() else None
 
 
 def _moderation_queue():
@@ -354,33 +349,94 @@ class CmdReport(MuxCommand):
 
 
 class CmdRumors(Command):
-    """
-    Hear what the village is talking about.
+    """Hear public talk or inspect the provenance of a rumor you know.
 
     Usage:
         rumors
+        rumors R<number>
 
-    Only works in the Tavern. Shows the talk currently going around —
-    the same for everyone present, rotating every few minutes. If you
-    want to know what someone else heard, ask them: you were listening
-    to the same room.
+    The Tavern exposes public talk. Hearing a rumor records it on your current
+    mask. The numbered handle lets you inspect what you heard and retell it.
     """
 
     key = "rumors"
     aliases = ["rumour", "gossip"]
     help_category = "Village"
-
-    # How long one "talk of the tavern" lasts before the conversation
-    # moves on (seconds).
     ROTATION_SECS = 600
+
+    def _detail(self, token):
+        from world.rumors import get_rumor_registry
+
+        rumor_id = _parse_rumor_id(token)
+        if rumor_id is None:
+            self.caller.msg("Which rumor? Try: rumors R1")
+            return
+        registry = get_rumor_registry()
+        belief = registry.belief_for(self.caller, rumor_id)
+        if not belief:
+            self.caller.msg(
+                f"You do not remember hearing R{rumor_id}. Listen first, or "
+                "have someone tell it to you."
+            )
+            return
+        root = registry.get_rumor(rumor_id)
+        chain = registry.provenance(belief["transmission_id"])
+        certainty = float(belief.get("confidence") or 0.0)
+        if certainty < 0.45:
+            band = "uncertain"
+        elif certainty < 0.70:
+            band = "plausible"
+        elif certainty < 0.90:
+            band = "confident"
+        else:
+            band = "very sure"
+
+        names = []
+        for transmission in chain:
+            speaker = transmission.get("speaker") or {}
+            name = speaker.get("key")
+            if name and (not names or names[-1] != name):
+                names.append(name)
+        if names:
+            trail = " -> ".join(names + [self.caller.key])
+        else:
+            trail = root.get("source_actor") or "unknown"
+
+        self.caller.msg(
+            f"|wR{rumor_id}|n: {belief['claim']}\n"
+            f"You heard it from {belief.get('heard_from') or 'someone'}. "
+            f"Your reconstructable telling trail is {trail}. "
+            f"You are {band} of it. "
+            f"Retell it with: tell <person> R{rumor_id}"
+        )
 
     def func(self):
         import time
 
+        if self.args:
+            self._detail(self.args.strip())
+            return
+
         loc = self.caller.location
         if not loc or not loc.tags.has("tavern", category="place"):
-            self.caller.msg("There are no rumors here. Try the Tavern, across the square.")
+            self.caller.msg(
+                "There are no public rumors here. Try the Tavern, across the square."
+            )
             return
+
+        from world.rumors import (
+            hear_public,
+            public_dynamic_rumors,
+            seed_playable_rumors,
+        )
+
+        roots = seed_playable_rumors()
+        root_by_seed = {
+            int(root["canonical_seed_id"]): root
+            for root in roots
+            if root.get("canonical_seed_id") is not None
+        }
+
         seeds = load_rumor_seeds()
         if not seeds:
             self.caller.msg("The Tavern is strangely quiet tonight.")
@@ -389,9 +445,6 @@ class CmdRumors(Command):
         current = loc.db.current_rumors
         drawn_at = loc.db.rumors_drawn_at or 0
 
-        # Existing worlds may have cached static rumors from before the
-        # reachability gate. Retire that cache immediately rather than waiting
-        # up to ten minutes for unsupported hooks to rotate away.
         if current:
             try:
                 current_ids = {int(entry[0]) for entry in current}
@@ -405,10 +458,8 @@ class CmdRumors(Command):
 
         if not current or (now - drawn_at) > self.ROTATION_SECS:
             picks = random.sample(seeds, min(3, len(seeds)))
-            # store as plain lists; the DB round-trips tuples into lists
             loc.db.current_rumors = [[num, body] for num, body in picks]
             loc.db.rumors_drawn_at = now
-            # log the turnover for "while you were away" catch-ups
             rots = loc.db.rumor_rotations or []
             rots.append(now)
             loc.db.rumor_rotations = rots[-100:]
@@ -417,21 +468,117 @@ class CmdRumors(Command):
                 "|yThe talk at the bar turns to new tidings.|n",
                 exclude=[],
             )
+
         self.caller.msg("|yYou listen to the talk at the bar...|n")
+        shown = set()
         for num, body in current:
-            # The canon file is markdown; Evennia clients render raw
-            # asterisks, so strip single-asterisk emphasis for display.
+            root = root_by_seed.get(int(num))
+            if not root:
+                continue
+            hear_public(self.caller, root["id"], loc)
+            shown.add(root["id"])
             body = re.sub(r"\*([^*]+?)\*", r"\1", body)
-            self.caller.msg(f"\n|w—|n {body}")
-        # Player-seeded talk: things travelers brought to the bar, with
-        # provenance. Newest last, so the freshest gossip lands hardest.
-        for pr in (loc.db.player_rumors or [])[-5:]:
-            body = re.sub(r"\*([^*]+?)\*", r"\1", pr)
-            self.caller.msg(f"\n|w—|n {body}")
+            self.caller.msg(f"\n|w[R{root['id']}]|n {body}")
+
+        for root in public_dynamic_rumors(loc)[-5:]:
+            if root["id"] in shown or root.get("canonical_seed_id") is not None:
+                continue
+            hear_public(self.caller, root["id"], loc)
+            body = re.sub(r"\*([^*]+?)\*", r"\1", root["claim"])
+            self.caller.msg(f"\n|w[R{root['id']}]|n {body}")
+
+        self.caller.msg(
+            "\nUse |wrumors R<number>|n to inspect where a story came from, "
+            "or |wtell <person> R<number>|n to pass it on."
+        )
         self.caller.location.msg_contents(
             f"{self.caller.key} listens to the rumors going around.",
             exclude=[self.caller],
         )
+
+
+class CmdTell(Command):
+    """Retell a rumor your current mask has actually heard.
+
+    Usage:
+        tell <person> R<number>
+        tell <person> = R<number>
+    """
+
+    key = "tell"
+    aliases = ["retell"]
+    help_category = "Village"
+
+    def func(self):
+        raw = (self.args or "").strip()
+        if not raw:
+            self.caller.msg("Tell whom which rumor? Try: tell Magda R1")
+            return
+
+        if "=" in raw:
+            target_name, token = (part.strip() for part in raw.split("=", 1))
+        else:
+            parts = raw.rsplit(None, 1)
+            if len(parts) != 2:
+                self.caller.msg("Tell whom which rumor? Try: tell Magda R1")
+                return
+            target_name, token = parts
+
+        rumor_id = _parse_rumor_id(token)
+        if not target_name or rumor_id is None:
+            self.caller.msg("Use: tell <person> R<number>")
+            return
+
+        target = self.caller.search(target_name, quiet=True)
+        if isinstance(target, list):
+            target = target[0] if len(target) == 1 else None
+        if not target or target == self.caller:
+            self.caller.msg(f"You do not see '{target_name}' here.")
+            return
+        if not target.has_account and not target.tags.has(
+            "participant", category="rumor"
+        ):
+            self.caller.msg(f"{target.key} is not someone who trades in talk.")
+            return
+
+        from world.rumors import get_rumor_registry
+
+        registry = get_rumor_registry()
+        if not registry.belief_for(self.caller, rumor_id):
+            self.caller.msg(
+                f"You cannot retell R{rumor_id}; this mask has not heard it."
+            )
+            return
+
+        result = registry.transmit(
+            rumor_id,
+            self.caller,
+            target,
+            location=self.caller.location.key if self.caller.location else None,
+            force_accept=bool(target.has_account),
+        )
+        if not result:
+            self.caller.msg("The story slips away before you can tell it.")
+            return
+
+        self.caller.msg(
+            f"You tell {target.key} R{rumor_id}: \"{result['claim']}\""
+        )
+        if self.caller.location:
+            self.caller.location.msg_contents(
+                f"{self.caller.key} lowers their voice and tells "
+                f"{target.key} something going around.",
+                exclude=[self.caller, target],
+            )
+        if target.has_account:
+            target.msg(
+                f"{self.caller.key} tells you rumor R{rumor_id}: "
+                f'\"{result["claim"]}\"'
+            )
+        elif result.get("accepted"):
+            self.caller.msg(f"{target.key} seems to file the story away.")
+        else:
+            self.caller.msg(f"{target.key} hears you out, but looks unconvinced.")
 
 
 class CmdTalk(Command):
