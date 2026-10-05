@@ -64,6 +64,7 @@ def main():
                     resident,
                     hour,
                     availability=availability,
+                    day=day,
                 )
                 assert resolved["logical_location"]
                 assert resolved["activity"]
@@ -90,6 +91,12 @@ def main():
     assert definitions_before == repr(resident_data.RESIDENTS), (
         "schedule resolution mutated process-wide definitions"
     )
+
+    wren = resident_data.RESIDENT_BY_ID["wren_vessey"]
+    sunday = resident_data.resolve_schedule(wren, 12, day=1)
+    monday = resident_data.resolve_schedule(wren, 10, day=2)
+    assert sunday["logical_location"] == wren["home_id"]
+    assert monday["logical_location"] == "schoolhouse"
 
     butcher = resident_data.RESIDENT_BY_ID["otto_kessler"]
     at_work = resident_data.resolve_schedule(butcher, 10)
