@@ -35,6 +35,7 @@ for script_key in (
     "rumor_registry",
     "resident_population",
     "public_records",
+    "situation_registry",
     "room_six",
     "moderation_queue",
     "ambient_life",
@@ -57,6 +58,11 @@ confessional = one("a confessional box")
 assert "lavender" in (confessional.db.desc or "").lower(), (
     "confessional rumor has no inspectable evidence"
 )
+
+strongbox = one("the tithe strongbox")
+tithe_roll = one("the tithe roll")
+assert strongbox.typeclass_path == "typeclasses.objects.TitheStrongbox"
+assert tithe_roll.typeclass_path == "typeclasses.objects.TitheRoll"
 
 register = one("register")
 register_desc = (register.db.desc or "").lower()
@@ -201,6 +207,8 @@ assert wstate["metrics"]["decision_evaluations"] == 0, (
 
 from world.events import publish_world_event
 ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+ledger_events_snapshot = copy.deepcopy(list(ledger.db.events or []))
+ledger_next_event_snapshot = ledger.db.next_event_id
 school_destroyed = publish_world_event(
     "building_destroyed",
     payload={"location_id": "schoolhouse", "cause": "school_destroyed"},
@@ -303,6 +311,144 @@ assert len(harbinger_roots) == 1
 ilona = by_resident_id["ilona_szabo"]
 assert rumor_registry.belief_for(ilona, harbinger_roots[0]["id"]), (
     "printed Harbinger story did not feed knowledge back into the Chronicler"
+)
+
+# Shared situation engine: players may know different evidence, but there is
+# one canonical incident state and one door-closing world outcome.
+from world.situations import (
+    TITHE_ID,
+    advance_situations,
+    choose,
+    discover_evidence,
+    get_situation,
+    get_situation_registry,
+    situation_status_for_player,
+)
+
+situation_registry = get_situation_registry()
+assert set((situation_registry.db.situations or {}).keys()) == {TITHE_ID}
+situation_original = copy.deepcopy(dict(situation_registry.db.situations or {}))
+situation_metrics_original = copy.deepcopy(dict(situation_registry.db.metrics or {}))
+church = one("St. Lazarus Church")
+church_state_original = {
+    "tithe_strongbox_policy": church.db.tithe_strongbox_policy,
+    "tithe_confidence": church.db.tithe_confidence,
+    "roof_repair_delay_winters": church.db.roof_repair_delay_winters,
+}
+
+inc_alice = SimpleNamespace(id=910001, key="incident_alice", has_account=True)
+inc_bob = SimpleNamespace(id=910002, key="incident_bob", has_account=True)
+
+assert get_situation(TITHE_ID)["state"] == "surfaced"
+discover_evidence(inc_alice, "lock", TITHE_ID)
+discover_evidence(inc_bob, "roll", TITHE_ID)
+alice_status = situation_status_for_player(inc_alice, TITHE_ID)
+bob_status = situation_status_for_player(inc_bob, TITHE_ID)
+assert [entry["id"] for entry in alice_status["evidence"]] == ["lock"]
+assert [entry["id"] for entry in bob_status["evidence"]] == ["roll"]
+assert "roll" not in {entry["id"] for entry in alice_status["evidence"]}
+assert "lock" not in {entry["id"] for entry in bob_status["evidence"]}
+
+failed_choice, choice_error = choose(inc_alice, "openly", TITHE_ID)
+assert failed_choice is None and "at least 2" in choice_error
+
+# Quiet branch consumes the public-accusation road and advances on its own.
+discover_evidence(inc_alice, "roll", TITHE_ID)
+quiet, choice_error = choose(inc_alice, "quietly", TITHE_ID)
+assert not choice_error
+assert quiet["state"] == "changing"
+assert quiet["branch"] == "quietly"
+quiet_event = ledger.get_event(quiet["event_ids"][-1])
+assert quiet_event["kind"] == "incident.tithe_strongbox.quiet_inquiry"
+assert not quiet_event.get("publications"), (
+    "private inquiry leaked into the public-record pipeline"
+)
+assert advance_situations(
+    day=quiet["deadline_day"],
+    hour=quiet["deadline_hour"],
+) == 1
+quiet_done = get_situation(TITHE_ID)
+assert quiet_done["state"] == "aftermath"
+assert quiet_done["branch"] == "quietly"
+assert church.db.tithe_strongbox_policy == "two_key"
+assert church.db.tithe_confidence == "guarded"
+late_choice, late_error = choose(inc_bob, "openly", TITHE_ID)
+assert late_choice is None and "door has already closed" in late_error
+
+# Reset the shared incident only for the next adversarial branch.
+situation_registry.db.situations = copy.deepcopy(situation_original)
+situation_registry.db.metrics = copy.deepcopy(situation_metrics_original)
+church.db.tithe_strongbox_policy = church_state_original["tithe_strongbox_policy"]
+church.db.tithe_confidence = church_state_original["tithe_confidence"]
+church.db.roof_repair_delay_winters = church_state_original[
+    "roof_repair_delay_winters"
+]
+
+# Open branch is immediate, public, provenance-bearing, and globally shared.
+discover_evidence(inc_alice, "lock", TITHE_ID)
+discover_evidence(inc_alice, "roll", TITHE_ID)
+opened, choice_error = choose(inc_alice, "openly", TITHE_ID)
+assert not choice_error
+assert opened["state"] == "aftermath"
+assert opened["branch"] == "openly"
+assert church.db.tithe_strongbox_policy == "two_key"
+assert church.db.tithe_confidence == "divided"
+open_event = ledger.get_event(opened["event_ids"][-1])
+assert open_event["kind"] == "incident.tithe_strongbox.open_accusation"
+assert open_event["rumor"]["rumor_id"] in opened["rumor_ids"]
+assert open_event["publications"]["harbinger_story_id"]
+assert open_event["publications"]["chronicle_entry_id"]
+assert open_event["publications"]["special_edition_id"]
+assert get_story(
+    open_event["publications"]["harbinger_story_id"]
+)["status"] == "published"
+
+# Reset again and prove unattended content progresses without a player.
+situation_registry.db.situations = copy.deepcopy(situation_original)
+situation_registry.db.metrics = copy.deepcopy(situation_metrics_original)
+church.db.tithe_strongbox_policy = church_state_original["tithe_strongbox_policy"]
+church.db.tithe_confidence = church_state_original["tithe_confidence"]
+church.db.roof_repair_delay_winters = church_state_original[
+    "roof_repair_delay_winters"
+]
+untouched = get_situation(TITHE_ID)
+assert advance_situations(
+    day=untouched["deadline_day"],
+    hour=untouched["deadline_hour"],
+) == 1
+left_alone = get_situation(TITHE_ID)
+assert left_alone["state"] == "aftermath"
+assert left_alone["branch"] == "left_alone"
+assert church.db.tithe_strongbox_policy == "two_key"
+assert church.db.tithe_confidence == "low"
+assert int(church.db.roof_repair_delay_winters or 0) >= 1
+
+# QA branches must leave the actual playtest world in the untouched surfaced
+# state. Restore canonical event/publication/rumor registries and readership.
+situation_registry.db.situations = copy.deepcopy(situation_original)
+situation_registry.db.metrics = copy.deepcopy(situation_metrics_original)
+church.db.tithe_strongbox_policy = church_state_original["tithe_strongbox_policy"]
+church.db.tithe_confidence = church_state_original["tithe_confidence"]
+church.db.roof_repair_delay_winters = church_state_original[
+    "roof_repair_delay_winters"
+]
+ledger.db.events = copy.deepcopy(ledger_events_snapshot)
+ledger.db.next_event_id = ledger_next_event_snapshot
+for key, value in public_records_snapshot.items():
+    setattr(public_records.db, key, copy.deepcopy(value))
+rumor_registry.db.rumors = copy.deepcopy(rumor_snapshot["rumors"])
+rumor_registry.db.transmissions = copy.deepcopy(rumor_snapshot["transmissions"])
+rumor_registry.db.next_rumor_id = rumor_snapshot["next_rumor_id"]
+rumor_registry.db.next_transmission_id = rumor_snapshot["next_transmission_id"]
+for npc in population:
+    npc.db.rumor_beliefs = copy.deepcopy(
+        rumor_belief_snapshot.get(npc.id, {})
+    )
+tavern_for_snapshot.db.public_rumor_ids = copy.deepcopy(
+    tavern_public_ids_snapshot
+)
+tavern_for_snapshot.db.player_rumors = copy.deepcopy(
+    tavern_player_rumors_snapshot
 )
 
 # The butcher resolves directly to the correct current state. Skipped hours
