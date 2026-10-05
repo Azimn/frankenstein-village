@@ -8,7 +8,7 @@ Everything for building this game lives in this folder.
 
 `spike/fvillage/` is a live Evennia game, in active development since 2026-10-01. What's playable right now: the Inn Between (OOC hub + front door), the village square, the Blood of the Vine tavern (coin economy, sideboard, regulars with schedules), St. Lazarus Church (1890 liturgical calendar, Sunday mass, confession), the Lamp Shop, villager daily routines, the rumor→ledger pipeline, hunger/drunkenness, and the Room Six mystery.
 
-To run it: `cd spike/fvillage && ../venv/bin/evennia start`, then telnet to `localhost:4000` (web client: `localhost:4001`). The venv builds from `spike/requirements.txt`. `world/build_spike.py` (via `evennia shell`) idempotently syncs world state.
+Fresh checkout: set `EVENNIA_SUPERUSER_USERNAME`, `EVENNIA_SUPERUSER_EMAIL`, and `EVENNIA_SUPERUSER_PASSWORD`, then run `python3.12 spike/bootstrap.py`. Start with `cd spike/fvillage && ../venv/bin/evennia start`; telnet is `localhost:4000` and the web client is `localhost:4001`. Bootstrap installs the root `requirements.txt`, runs Evennia's first-database setup, repairs the Twisted launcher if needed, and idempotently builds the world. Run the clean-checkout regression suite with `python3.12 spike/tests/run_all.py`.
 
 ## Start here (reading order)
 
