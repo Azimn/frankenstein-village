@@ -275,3 +275,15 @@ The Torn Chronicle uses three independent evidence channels: the physical number
 The two door-closing approaches are reconstruction from Harbinger files or preservation of the gap. Reconstruction does not silently convert newspaper copy into recovered truth. The replacement sequence is explicitly marked as press-derived, while the objective Chronicle record records the decision to reconstruct. Preserving the gap leaves an attributable absence. If nobody acts, the gap remains long enough to become a public and scholarly attraction.
 
 The general journal and decision commands now resolve situation topics through the registry rather than branching on one hard-coded incident. Chronicle and Harbinger archive commands can become evidence surfaces only when an eligible situation has actually surfaced.
+
+## 2026-10-05 - Timed incident windows implemented
+
+Timed incidents are a separate world layer from the major shared incident feed. They do not consume a major situation slot. They are brief, persistent world-state windows triggered by the village clock and resolved by a low-frequency persistent registry.
+
+The first production timed incident is The Well Boils. It is scheduled on a weekly village cadence and remains active for a short real-time window. Players who encounter the well while the window is active can retain firsthand evidence. Players who arrive afterward can still inspect persistent residue and receive lower-quality aftermath evidence. Later evidence never downgrades an already retained firsthand observation.
+
+The event does not require a player to be present. If nobody witnesses it directly, the window still resolves, emits a structured aftermath event, creates a rumor, queues a Harbinger account, leaves inspectable residue, and remains absent from the Chronicle unless a later event makes it Chronicle-worthy.
+
+Timed incident state persists through restart. Expired windows are resolved directly from current time rather than replaying every missed sub-tick. Historical occurrences are bounded so recurring incidents cannot create unbounded storage growth.
+
+The thin journal records whether a timed-event observation is firsthand or aftermath evidence. It does not reveal a timed event to a player who never encountered either the active window or its traces.
