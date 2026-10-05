@@ -680,6 +680,11 @@ class RumorRegistry(DefaultScript):
             for key, _value in oldest:
                 beliefs.pop(key, None)
         actor.db.rumor_beliefs = beliefs
+        try:
+            from world.residents import note_rumor_exposure
+            note_rumor_exposure(actor, rumor_id)
+        except Exception:
+            pass
         return dict(belief)
 
     def beliefs_for(self, actor):
