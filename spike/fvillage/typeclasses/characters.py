@@ -1142,6 +1142,32 @@ class FatherAndrei(TavernRegular):
                 "that's the whole of the sacrament and the whole of the "
                 "burden. Say the word and I'll hear you."
             )
+        if has("strongbox", "tithe", "tithes", "church money", "poor box"):
+            from world.situations import (
+                TITHE_ID,
+                discover_evidence,
+                get_situation,
+            )
+
+            situation = get_situation(TITHE_ID)
+            if situation and situation.get("state") != "aftermath":
+                discover_evidence(char, "andrei", TITHE_ID)
+                return (
+                    "The key was hanging where it belongs when I found the box "
+                    "light. I will tell you that much. I will not turn every "
+                    "person who entered a church into a thief because suspicion "
+                    "is convenient."
+                )
+            if situation and situation.get("branch") == "openly":
+                return (
+                    "We made the loss public. The box takes two keys now. "
+                    "Public certainty did not put the money back."
+                )
+            if situation:
+                return (
+                    "The box takes two keys now. We changed the procedure. "
+                    "A procedure is not the same thing as an answer."
+                )
         if has("janos", "hound", "hunter"):
             return (
                 "János hunts monsters. I bury what they leave. Between us "
