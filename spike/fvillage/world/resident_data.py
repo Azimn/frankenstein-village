@@ -445,9 +445,22 @@ FACT_POOL = (
 FACT_BY_ID = {fact["id"]: fact for fact in FACT_POOL}
 
 
-def schedule_block(resident, hour):
+def schedule_block(resident, hour, day=None):
     """Pure schedule lookup used by production and offline simulation."""
     schedule_id = resident.get("schedule_id")
+    # Game day 1 is Sunday in the current village calendar. Children and the
+    # schoolteacher do not report to ordinary lessons on Sundays.
+    if (
+        day is not None
+        and (int(day) - 1) % 7 == 0
+        and schedule_id in {"child_school", "schoolteacher"}
+    ):
+        return {
+            "start": 0,
+            "end": 24,
+            "desired_location": resident["home_id"],
+            "activity": "keeps Sunday away from ordinary lessons",
+        }
     blocks = SCHEDULES.get(schedule_id) or ()
     for start, end, location, activity in blocks:
         if int(start) <= int(hour) < int(end):
@@ -475,14 +488,20 @@ def location_available(location_id, availability):
     return bool(state.get("available", True))
 
 
-def resolve_schedule(resident, hour, availability=None, current_location=None):
+def resolve_schedule(
+    resident,
+    hour,
+    availability=None,
+    current_location=None,
+    day=None,
+):
     """Resolve one hour without replaying skipped time.
 
     The return value is consequential state only. No ambient action is
     generated here. If a desired location is unavailable, home is the first
     fallback, then the current valid location, then the generic Offstage sink.
     """
-    block = schedule_block(resident, hour)
+    block = schedule_block(resident, hour, day=day)
     desired = block["desired_location"]
     if location_available(desired, availability):
         return {
