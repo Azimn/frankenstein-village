@@ -718,6 +718,37 @@ _fixture(
     "whole of the burden. (Try: confess <words>.)",
 )
 
+# Canon incident #6 is a live environmental hook, not a quest marker. The
+# strongbox and roll expose separate evidence channels through ordinary look.
+def _incident_fixture(key, aliases, typeclass):
+    found = [o for o in _church.contents if o.key == key]
+    if found:
+        obj = found[0]
+    else:
+        obj = create.create_object(
+            typeclass,
+            key=key,
+            location=_church,
+            aliases=list(aliases),
+        )
+        print(f"incident fixture created: {key}")
+    for alias in aliases:
+        if alias not in (obj.aliases.all() or []):
+            obj.aliases.add(alias)
+    return obj
+
+
+_incident_fixture(
+    "the tithe strongbox",
+    ["strongbox", "tithe box", "church strongbox"],
+    "typeclasses.objects.TitheStrongbox",
+)
+_incident_fixture(
+    "the tithe roll",
+    ["roll", "tithe ledger", "parish roll"],
+    "typeclasses.objects.TitheRoll",
+)
+
 # --- Father Andrei --------------------------------------------------------------
 # The priest of St. Lazarus. A TavernRegular by machinery — schedule,
 # greet/talk rotation, tavern beats — though his seat is the church.
@@ -1018,6 +1049,7 @@ for _skey, _sclass in (
     ("village_weather", "typeclasses.scripts.VillageWeather"),
     ("resident_population", "typeclasses.scripts.ResidentPopulationRegistry"),
     ("public_records", "typeclasses.scripts.PublicRecordRegistry"),
+    ("situation_registry", "typeclasses.scripts.SituationRegistry"),
     ("warmth_watch", "typeclasses.scripts.WarmthWatch"),
     ("tavern_life", "typeclasses.scripts.TavernLife"),
     ("village_routine", "typeclasses.scripts.VillageRoutine"),
@@ -1035,6 +1067,14 @@ print(
     "resident population ready: "
     f"{_population['population_size']} residents "
     f"({_population['created']} created, {_population['registered']} registered)."
+)
+
+from world.situations import ensure_situations
+_situations = ensure_situations()
+print(
+    "situation registry ready: "
+    f"{_situations['count']} situations "
+    f"({_situations['created']} created)."
 )
 
 # The square starts under fog, as it has always been.
