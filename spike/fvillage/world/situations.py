@@ -283,6 +283,174 @@ def ensure_situations():
     return {"created": created, "count": len(situations)}
 
 
+ACTIVE_STATES = {"surfaced", "investigating", "changing"}
+
+
+def _feed_eligible(stable_id, situations, *, day, hour):
+    situation = dict(situations.get(stable_id) or {})
+    template = TEMPLATES[stable_id]
+    feed = dict(template.get("feed") or {})
+    if situation.get("state") not in {"dormant", "dormant_recurrence"}:
+        return False
+
+    for dependency in feed.get("after") or []:
+        prior = dict(situations.get(dependency) or {})
+        if prior.get("state") not in {"aftermath", "resolved_locally"}:
+            return False
+
+    not_before_day = feed.get("not_before_day")
+    if not_before_day is not None and int(day) < int(not_before_day):
+        return False
+
+    cooldown_until = situation.get("cooldown_until_day")
+    if cooldown_until is not None and int(day) < int(cooldown_until):
+        return False
+
+    required_weather = feed.get("weather")
+    if required_weather:
+        try:
+            weather = ScriptDB.objects.get(db_key="village_weather")
+            if str(weather.db.current or "").lower() not in {
+                str(value).lower() for value in required_weather
+            }:
+                return False
+        except ScriptDB.DoesNotExist:
+            return False
+
+    return True
+
+
+def incident_feed_candidates(*, day=None, hour=None):
+    """Return deterministic eligible incident candidates in feed order."""
+    if day is None or hour is None:
+        now_day, now_hour = _clock()
+        day = now_day if day is None else int(day)
+        hour = now_hour if hour is None else int(hour)
+
+    situations = copy.deepcopy(dict(_registry().db.situations or {}))
+    candidates = []
+    for stable_id, template in TEMPLATES.items():
+        if not _feed_eligible(
+            stable_id,
+            situations,
+            day=int(day),
+            hour=int(hour),
+        ):
+            continue
+        feed = dict(template.get("feed") or {})
+        score = int(feed.get("weight") or 0)
+        preferred_hours = list(feed.get("preferred_hours") or [])
+        if preferred_hours and int(hour) in preferred_hours:
+            score += 15
+        candidates.append({
+            "id": stable_id,
+            "score": score,
+            "title": template["working_title"],
+        })
+    return sorted(
+        candidates,
+        key=lambda entry: (-entry["score"], entry["id"]),
+    )
+
+
+def _surface_side_effects(stable_id):
+    if stable_id == TORN_CHRONICLE_ID:
+        try:
+            from world.publications import get_public_record_registry
+            public_records = get_public_record_registry()
+            public_records.db.chronicle_gap_policy = "open_gap"
+            public_records.db.chronicle_gap_source = None
+        except Exception:
+            pass
+
+
+def surface_incident_feed(*, day=None, hour=None, max_active=1):
+    """Fill available incident slots without player ownership or acceptance."""
+    if day is None or hour is None:
+        now_day, now_hour = _clock()
+        day = now_day if day is None else int(day)
+        hour = now_hour if hour is None else int(hour)
+
+    registry = _registry()
+    situations = copy.deepcopy(dict(registry.db.situations or {}))
+    active = sum(
+        1 for situation in situations.values()
+        if dict(situation).get("state") in ACTIVE_STATES
+    )
+    slots = max(0, int(max_active) - active)
+    if not slots:
+        return []
+
+    surfaced = []
+    candidates = incident_feed_candidates(day=day, hour=hour)
+    for candidate in candidates[:slots]:
+        stable_id = candidate["id"]
+        situation = dict(situations[stable_id])
+        template = TEMPLATES[stable_id]
+        situation["state"] = "surfaced"
+        situation["surfaced_day"] = int(day)
+        situation["surfaced_hour"] = int(hour)
+        situation["deadline_day"] = int(day) + int(
+            template["autonomy"]["initial_deadline_days"]
+        )
+        situation["deadline_hour"] = int(hour)
+        situation["surface_count"] = int(situation.get("surface_count") or 0) + 1
+        situations[stable_id] = situation
+        surfaced.append(stable_id)
+
+    if surfaced:
+        registry.db.situations = situations
+        for stable_id in surfaced:
+            _surface_side_effects(stable_id)
+        _metrics(feed_surfaces=len(surfaced))
+    _metrics(feed_checks=1)
+    return surfaced
+
+
+SUBJECT_ALIASES = {
+    "strongbox": TITHE_ID,
+    "tithe": TITHE_ID,
+    "tithe strongbox": TITHE_ID,
+    "church strongbox": TITHE_ID,
+    TITHE_ID.lower(): TITHE_ID,
+    "chronicle": TORN_CHRONICLE_ID,
+    "torn chronicle": TORN_CHRONICLE_ID,
+    "chronicle gap": TORN_CHRONICLE_ID,
+    "missing pages": TORN_CHRONICLE_ID,
+    TORN_CHRONICLE_ID.lower(): TORN_CHRONICLE_ID,
+}
+
+
+def resolve_situation_subject(subject):
+    return SUBJECT_ALIASES.get(str(subject or "").strip().lower())
+
+
+def _normalize_choice(stable_id, choice):
+    raw = str(choice or "").strip().lower()
+    template = TEMPLATES.get(stable_id) or {}
+    for canonical, definition in (template.get("choices") or {}).items():
+        aliases = set(definition.get("aliases") or [])
+        aliases.add(canonical)
+        if raw in aliases:
+            return canonical
+    if stable_id == TITHE_ID:
+        legacy = {
+            "open": "openly",
+            "public": "openly",
+            "publicly": "openly",
+            "accuse": "openly",
+            "quiet": "quietly",
+            "private": "quietly",
+            "privately": "quietly",
+        }
+        return legacy.get(raw, raw if raw in {"openly", "quietly"} else None)
+    return None
+
+
+def choice_names(stable_id):
+    return list((TEMPLATES.get(stable_id) or {}).get("choices") or {})
+
+
 def get_situation(stable_id=TITHE_ID):
     situation = dict((_registry().db.situations or {}).get(stable_id) or {})
     return copy.deepcopy(situation) if situation else None
