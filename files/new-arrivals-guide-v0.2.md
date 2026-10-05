@@ -34,6 +34,7 @@ These work now:
 - `rumors`: hear the talk currently circulating in the Tavern. `rumors R<number>` traces a story you know; `retell <person> R<number>` passes it on.
 - `harbinger`: read the latest printed issue. `harbinger archive` lists recent issues and can reveal documentary evidence when an active situation makes old files relevant; `harbinger H<number>` shows a story's editorial basis and corrections.
 - `chronicle`: browse the public Chronicle. `chronicle C<number>` reads an entry; `chronicle gap` examines an active gap when one exists; `chronicle submit R<number>` records your version of a rumor as attributed testimony without certifying it as true.
+- `calendar` (or `schedule`): see predictable public village rhythms such as the daily Harbinger, Saturday market, and Sunday Mass. This also works in the Inn Between so groups can plan before going IC.
 - `journal`: read the deliberately thin record of village situations your current mask has actually encountered. `journal <topic>` shows only evidence you discovered, including whether a short-lived event was witnessed firsthand or only through its aftermath. It never exposes hidden objectives or answers.
 - `decide <situation> <choice>`: make a consequential choice when an investigated situation offers one. The choice changes the shared world, so another player does not get a private alternate outcome.
 - `diary`: read your private persistent notes. `diary <text>` writes; `diary/delete <number>` tears out an entry.
