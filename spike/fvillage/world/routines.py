@@ -399,7 +399,6 @@ def tick():
         day = clock.db.day or 1
         hour = clock.db.hour if clock.db.hour is not None else 21
         _apply_feast(day)
-        _apply_mass(day, hour)
         routine = ScriptDB.objects.get(db_key="village_routine")
         if day and day % 30 == 0 and routine.db.last_monthly_day != day:
             routine.db.last_monthly_day = day
