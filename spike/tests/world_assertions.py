@@ -1203,4 +1203,23 @@ finally:
     target.db.moderation_notices = old_notices
     moderation.delete()
 
+# Leave one fresh real window active for the network playtest. The start event
+# is intentionally private; the telnet player must earn firsthand evidence by
+# entering the square and observing the well while the window is still open.
+import time as _time
+_telnet_clock = ScriptDB.objects.get(db_key="village_time")
+_telnet_window = start_timed_incident(
+    WELL_BOILS_ID,
+    day=_telnet_clock.db.day or 1,
+    hour=(
+        _telnet_clock.db.hour
+        if _telnet_clock.db.hour is not None
+        else 21
+    ),
+    now=_time.time(),
+    force=True,
+)
+assert _telnet_window and _telnet_window["state"] == "active"
+assert not _telnet_window["current"]["player_observations"]
+
 print("WORLD_ASSERTIONS_GREEN")
