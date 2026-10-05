@@ -327,8 +327,17 @@ class Account(DefaultAccount):
         return result
 
     def at_post_create_character(self, character, **kwargs):
-        """Start every mask in the owning account's private OOC room."""
+        """Start every player mask in the owning account's private OOC room."""
         super().at_post_create_character(character, **kwargs)
+
+        # Evennia creates its special Account #1 character before it creates
+        # Limbo #2 during first-database setup. Creating a normal room at that
+        # instant fails because DEFAULT_HOME does not exist yet. Defer only
+        # this framework bootstrap character; the first login repairs its room.
+        from evennia.objects.models import ObjectDB
+        if not ObjectDB.objects.filter(id=2).exists():
+            return
+
         room = ensure_private_room(self)
         character.db.new_arrival = True
         character.home = room
