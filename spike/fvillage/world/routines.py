@@ -387,6 +387,12 @@ def tick():
     from evennia.scripts.models import ScriptDB
 
     moves = advance()
+    try:
+        from world.residents import population_tick
+        population_result = population_tick()
+        moves += int(population_result.get("moved") or 0)
+    except Exception:
+        population_result = None
     restock_sideboard()
     try:
         clock = ScriptDB.objects.get(db_key="village_time")
