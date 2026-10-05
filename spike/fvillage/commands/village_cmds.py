@@ -228,6 +228,21 @@ class CmdRumors(Command):
         now = time.time()
         current = loc.db.current_rumors
         drawn_at = loc.db.rumors_drawn_at or 0
+
+        # Existing worlds may have cached static rumors from before the
+        # reachability gate. Retire that cache immediately rather than waiting
+        # up to ten minutes for unsupported hooks to rotate away.
+        if current:
+            try:
+                current_ids = {int(entry[0]) for entry in current}
+            except (TypeError, ValueError, IndexError):
+                current_ids = set()
+            if not current_ids or not current_ids.issubset(PLAYABLE_RUMOR_IDS):
+                current = None
+                loc.db.current_rumors = None
+                loc.db.rumors_drawn_at = 0
+                drawn_at = 0
+
         if not current or (now - drawn_at) > self.ROTATION_SECS:
             picks = random.sample(seeds, min(3, len(seeds)))
             # store as plain lists; the DB round-trips tuples into lists
