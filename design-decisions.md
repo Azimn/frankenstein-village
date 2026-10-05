@@ -204,3 +204,17 @@ Three sweeps: TopMUDSites review mining, 15 r/MUD threads + 2 HN threads, MUD po
 7. **AI-disclosure design kept prominent** (r/MUD norm: "a writing game must be human-written"; actual fear is deception, not AI): account-level disclosure + auditor-gated AI content already compliant; the Wyrmbarrow (AI-only MUD, Mar 2026) note confirms we're ahead of the curve.
 Rejected/deferred: sound layer (MSP/MCMP) — reviewers barely mention audio, text carries the load; post-launch.
 Confirmed: the AI population floor is the survival mechanic (anti-retention-spiral); tone-as-community-filter (mystery over horror attracts the community it deserves); non-combat callings first-class at launch (UL merchant/bookkeeper pattern).
+
+
+## 2026-10-05 - Compact moderation lifecycle implemented
+
+The launch moderation promise is now executable rather than documentary.
+
+- Player reports remain allegations only. Submitting a report cannot warn, suspend, move, mute, or otherwise punish another player.
+- Human staff review is mandatory for sanctions. Staff accounts must themselves be declared human before they can dismiss a report, issue a warning, suspend world entry, or resolve an appeal.
+- The sequence is warnings first, suspension second. A world-entry suspension cannot be issued unless the target account already has an active human-issued warning.
+- Sanctions bind to account identity, not a character mask. A suspended account may still log in to OOC account space but cannot create or enter a mask while the suspension is active.
+- Appeals remain available from OOC account space through the `appeal` command, including while world entry is suspended.
+- Staff actions and appeal resolutions are append-only in the persistent moderation audit trail. Overturning an appeal deactivates the sanction without deleting its history.
+- Staff surfaces: `report/review`, `report/warn`, `report/ban`, `report/dismiss`, `report/appeals`, `report/resolve`, and `report/audit`.
+- Regression coverage explicitly proves that a raw report cannot sanction, a ban cannot precede a warning, a warning does not block entry, a reviewed ban does block entry, and a successful appeal restores entry.
