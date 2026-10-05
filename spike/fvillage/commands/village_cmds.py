@@ -736,21 +736,50 @@ class CmdRoll(Command):
             "other. 'Two dice, high hand wins. Losers buy the round.'"
         )
         if mine > his:
+            # The copper is real: 2 kr from Bram's till to the player's purse.
+            # No inert variables — the dice game touches the economy.
+            stake = 2
+            till = keeper.db.till_kr or 0
+            paid = min(stake, till)
+            keeper.db.till_kr = till - paid
+            purse = purse_of(self.caller)
+            self.caller.db.coins_kr = purse + paid
             outcome = (
                 f"The dice settle — {self.caller.key} shows {mine}, "
                 "the keeper shows "
                 f"{his}. The keeper counts the bones twice, then "
-                "slides a copper across the bar. 'Take it. I'd sooner "
+                f"slides {fmt_coins(paid)} across the bar. 'Take it. I'd sooner "
                 "lose to you than to the dice.'"
             )
         elif his > mine:
-            outcome = (
-                f"The dice settle — {self.caller.key} shows {mine}, "
-                "the keeper shows "
-                f"{his}. The keeper holds out his palm, unhurried. "
-                "'Losers buy the round. You knew the rule — it's in "
-                "the smell of the place.'"
-            )
+            # Losers buy the round: 5 kr, the price of an ale. If the
+            # player's purse can't cover it, Bram covers it and remembers.
+            price = TAVERN_PRICES["ale"]
+            purse = purse_of(self.caller)
+            if purse >= price:
+                self.caller.db.coins_kr = purse - price
+                keeper.db.till_kr = (keeper.db.till_kr or 0) + price
+                outcome = (
+                    f"The dice settle — {self.caller.key} shows {mine}, "
+                    "the keeper shows "
+                    f"{his}. The keeper holds out his palm, unhurried, and "
+                    f"{fmt_coins(price)} leaves your purse for his till. "
+                    "'Losers buy the round. You knew the rule — it's in "
+                    "the smell of the place.'"
+                )
+            else:
+                outcome = (
+                    f"The dice settle — {self.caller.key} shows {mine}, "
+                    "the keeper shows "
+                    f"{his}. The keeper holds out his palm, unhurried — then "
+                    "sees your purse and closes his hand again. 'Losers buy "
+                    "the round. But a broke loser buys nothing, and I won't "
+                    "take a man's last copper. This one's on the house. "
+                    "Don't make a habit of it.'"
+                )
+                # Bram remembers the debt of honor, observably.
+                debts = self.caller.db.dice_debts or 0
+                self.caller.db.dice_debts = debts + 1
         else:
             outcome = (
                 f"The dice settle — both show {mine}. The keeper bares "

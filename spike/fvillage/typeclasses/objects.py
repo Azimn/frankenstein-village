@@ -175,10 +175,8 @@ class MysteryNote(DefaultObject):
         "'Tell M. the room is paid for. — V.'\n\n"
         "The paper is good paper — too good for this village. It smells "
         "faintly of chemicals: sharp, clean, wrong for paper.\n\n"
-        "Three roads, and the note won't walk them for you: give it to "
-        "M. (give note to M.), keep it in your pocket and say nothing, "
-        "or let the Tavern hear it — talk travels fastest where the "
-        "beer flows."
+        "Someone paid for a room and wanted M. to know. The question is "
+        "who gets to know next."
     )
     PINNED_TEXT = (
         "The folded note, pinned behind the Tavern bar where everyone "

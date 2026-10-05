@@ -43,7 +43,15 @@ def _actor_ref(actor):
 
 
 def _publish_tavern_rumor(body):
-    """Publish through the existing player-rumor surface."""
+    """Publish through the existing player-rumor surface.
+
+    Rumor-family collapse: schedule-shift rumors ("keeping different
+    hours" / "old hours") are near-identical across regulars. Only the
+    freshest one survives — otherwise the tavern sounds like a database
+    report when several land together.
+    """
+    import re as _re
+
     found = [
         obj for obj in search.search_object("The Blood of the Vine")
         if obj.key == "The Blood of the Vine"
@@ -52,6 +60,9 @@ def _publish_tavern_rumor(body):
         return {"published": False, "reason": "tavern_missing", "body": body}
     tavern = found[0]
     rumors = list(tavern.db.player_rumors or [])
+    _SCHEDULE_RE = _re.compile(r"keeping (different|their old) hours")
+    if _SCHEDULE_RE.search(body):
+        rumors = [r for r in rumors if not _SCHEDULE_RE.search(r)]
     if body not in rumors:
         rumors.append(body)
         tavern.db.player_rumors = rumors[-50:]

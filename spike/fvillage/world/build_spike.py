@@ -624,13 +624,16 @@ _curio(
     "a silver pocket watch", ["pocket watch", "watch", "silver watch"],
     "A silver pocket watch, cool to the touch. The hands don't keep the "
     "hour — they keep the hour you most need. The price tag, in Lucian's "
-    "careful hand, reads only: 'One truth about your neighbor.'",
+    "careful hand, reads only: 'One truth about your neighbor.' No one "
+    "has yet settled what a truth is worth here, or to whom it would "
+    "be told. Lucian is in no hurry to decide.",
 )
 _curio(
     "a black candle", ["black candle", "candle"],
-    "A black candle, never lit. The tag reads: 'Light this, and hear what "
+    "A black candle, never lit, and not for lighting — ask Lucian and "
+    "he only smiles. The tag reads: 'Light this, and hear what "
     "the village says about you when you leave the room.' Below, in smaller "
-    "script: 'Price on application.'",
+    "script: 'Not for sale. Not yet.'",
 )
 
 # --- the regulars: the room's memory ------------------------------------------

@@ -58,6 +58,7 @@ INNKEEPER_TALKS = [
     "Travel takes time. Choices close doors. Asking everyone everything is not a strategy — deciding is.",
     "What happens at the inn stays at the inn. That's not a rule — it's the foundation the rules stand on.",
     "You want to know the village? Sit at the bar for an hour. Everyone tells the truth after the second ale — it's the first one that's all lies.",
+    "My register sits on Bram's bar because this building and that tavern are one house with two faces — mine looks out, his looks in. The rooms upstairs are mine. The bar is his. Don't mix them up.",
 ]
 KEEPER_GREETS = [
     "Evening! The night's young and the beer's old — perfect combination. Take a table, any table.",
@@ -75,7 +76,7 @@ KEEPER_DESC = (
 KEEPER_TALKS = [
     # Role-function only. The keeper has no biography, private wound, family,
     # or plot life; his depth is recognition and functional witnessing.
-    "Ale's tuppence the pint. The best ale's fourpence — you'll know the difference by the third one.",
+    "Ale's five the pint — krajczár, copper, honest coin. The board's got the rest; coin first, always.",
     "I don't water the beer. Ask anyone — my beer's honest, which is more than I can say for my customers.",
     "The stew's whatever went in the pot. It's always good and I never say what's in it — house rule.",
     "Darts in the corner, cards at the back table. Losers buy the round — that's the other house rule.",
