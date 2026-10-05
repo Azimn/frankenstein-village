@@ -625,6 +625,8 @@ class SituationRegistry(DefaultScript):
                 "discoveries": 0,
                 "choices": 0,
                 "autonomous_advances": 0,
+                "feed_checks": 0,
+                "feed_surfaces": 0,
             }
 
 
@@ -654,6 +656,8 @@ class PublicRecordRegistry(DefaultScript):
             "next_chronicle_id": 1,
             "next_deposition_id": 1,
             "last_harbinger_day": None,
+            "chronicle_gap_policy": None,
+            "chronicle_gap_source": None,
         }
         for key, value in defaults.items():
             if getattr(self.db, key) is None:
