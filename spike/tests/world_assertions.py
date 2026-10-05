@@ -166,6 +166,8 @@ public_records_snapshot = {
     "next_chronicle_id": public_records.db.next_chronicle_id,
     "next_deposition_id": public_records.db.next_deposition_id,
     "last_harbinger_day": public_records.db.last_harbinger_day,
+    "chronicle_gap_policy": public_records.db.chronicle_gap_policy,
+    "chronicle_gap_source": public_records.db.chronicle_gap_source,
 }
 rumor_snapshot = {
     "rumors": copy.deepcopy(list(rumor_registry.db.rumors or [])),
