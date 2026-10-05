@@ -51,6 +51,25 @@ REGISTER_DESC = (
 )
 
 
+class VillageWell(DefaultObject):
+    """The village well, with state rendered from timed world incidents."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.aliases.add(["village well"])
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.timed_incidents import well_description
+        return well_description(looker)
+
+    def at_desc(self, looker=None, **kwargs):
+        # get_display_desc records the observation so the exact prose the
+        # player received and the retained evidence cannot diverge.
+        return super().at_desc(looker, **kwargs)
+
+
+
+
 class Register(DefaultObject):
     """M.'s register, open on the bar of the Tavern.
 
