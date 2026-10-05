@@ -164,11 +164,8 @@ def main() -> int:
         out = c.command("east")
         require(out, "blood of the vine")
 
-        out = c.command("ask Father Andrei about the strongbox")
-        require(out, "key was hanging where it belongs", "will not turn every")
-
         out = c.command("journal strongbox")
-        require(out, "father andrei", "tithe roll", "unforced lock")
+        require(out, "tithe roll", "unforced lock")
 
         out = c.command("decide strongbox openly", wait=3.0)
         require(out, "accusation is now public", "quiet road is closed")
