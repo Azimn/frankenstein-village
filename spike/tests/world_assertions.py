@@ -36,6 +36,7 @@ for script_key in (
     "resident_population",
     "public_records",
     "situation_registry",
+    "scheduled_event_registry",
     "timed_incident_registry",
     "room_six",
     "moderation_queue",
