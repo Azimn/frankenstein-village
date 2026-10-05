@@ -677,7 +677,7 @@ class CmdHarbinger(Command):
             return
         label = "SPECIAL EDITION" if edition.get("special") else "MORNING ISSUE"
         lines = [
-            f"|yTHE HARBINGER — {label}, DAY {edition['day']}|n",
+            f"|yTHE HARBINGER: {label}, DAY {edition['day']}|n",
         ]
         stories = edition_stories(edition)
         for story in stories:
