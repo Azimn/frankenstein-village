@@ -44,6 +44,32 @@ def _run(args, *, cwd=None, env=None, stdin=None):
     )
 
 
+def _ensure_twistd_launcher(python: Path) -> None:
+    """Create the Twisted launcher Evennia expects when pip omits it."""
+    bindir = python.parent
+    if os.name == "nt":
+        exe = bindir / "twistd.exe"
+        cmd = bindir / "twistd.cmd"
+        if exe.exists() or cmd.exists():
+            return
+        cmd.write_text(
+            f'@"{python}" -c "from twisted.scripts.twistd import run; run()" %*\\n',
+            encoding="utf-8",
+        )
+        print(f"Created Twisted launcher: {cmd}")
+        return
+
+    launcher = bindir / "twistd"
+    if launcher.exists():
+        return
+    launcher.write_text(
+        f"#!{python}\\nfrom twisted.scripts.twistd import run\\nrun()\\n",
+        encoding="utf-8",
+    )
+    launcher.chmod(0o755)
+    print(f"Created Twisted launcher: {launcher}")
+
+
 def main() -> int:
     if sys.version_info[:2] != (3, 12):
         print(
@@ -70,6 +96,7 @@ def main() -> int:
     evennia = _bin("evennia")
     _run([python, "-m", "pip", "install", "--upgrade", "pip"])
     _run([python, "-m", "pip", "install", "-r", REQUIREMENTS])
+    _ensure_twistd_launcher(python)
 
     env = os.environ.copy()
     env["PATH"] = str(_bin("python").parent) + os.pathsep + env.get("PATH", "")
