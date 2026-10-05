@@ -99,6 +99,18 @@ root_before = dict(root)
 magda_belief = rumor_registry.belief_for(magda, root["id"])
 assert magda_belief, "seeded NPC lacks canon rumor belief"
 
+# Tavern life may already have changed Magda's current version before this
+# assertion shell starts. Reset only her current belief to a new direct hearing
+# so the controlled provenance chain below has a deterministic three links.
+rumor_registry.hear_direct(
+    root["id"],
+    magda,
+    source_label=root["source_actor"],
+    source_type=root["source_type"],
+    location="The Blood of the Vine",
+    force_new=True,
+)
+
 first = rumor_registry.transmit(
     root["id"],
     magda,
