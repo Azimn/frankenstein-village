@@ -432,6 +432,20 @@ church.db.roof_repair_delay_winters = church_state_original[
     "roof_repair_delay_winters"
 ]
 ledger.db.events = copy.deepcopy(ledger_events_snapshot)
+# Synthetic school and situation events above are deliberately erased from the
+# canonical ledger before later isolation tests. Erase their resident-side
+# flags too so a reused QA identifier cannot masquerade as a new exposure.
+_baseline_event_ids = {
+    str(event["id"]) for event in ledger_events_snapshot
+}
+for npc in population:
+    _state = resident_state(npc)
+    _state["event_flags"] = {
+        key: value
+        for key, value in (_state.get("event_flags") or {}).items()
+        if str(key) in _baseline_event_ids
+    }
+    save_state(npc, _state)
 for key, value in public_records_snapshot.items():
     setattr(public_records.db, key, copy.deepcopy(value))
 rumor_registry.db.rumors = copy.deepcopy(rumor_snapshot["rumors"])
