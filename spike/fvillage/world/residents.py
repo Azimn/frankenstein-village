@@ -118,6 +118,10 @@ def _fresh_state(definition):
             "reason": None,
             "changed_day": None,
         },
+        "relationship_constraints": {
+            "eligible_by_age": definition.get("age_band") not in {"child", "teen"},
+            "constraints": [],
+        },
         "needs": {
             "fatigue": 20.0,
             "hunger": 25.0,
@@ -206,7 +210,7 @@ def _generic_desc(definition, state):
     activity = routine.get("activity") or "goes about ordinary village business"
     return (
         f"{definition['display_name']} is a village resident who works as "
-        f"{definition['occupation']}. Right now, {activity}."
+        f"{definition['occupation']}. At present: {activity}."
     )
 
 
@@ -557,9 +561,16 @@ def _tier_after_decay(current, score, floor):
     return tier
 
 
-def _on_role_shift(definition, hour):
+def _on_role_shift(definition, hour, npc=None):
     if not definition.get("role_bound"):
         return False
+    if definition.get("schedule_engine") == "legacy":
+        if npc is None or npc.location is None:
+            return False
+        work_room = {
+            "bram_v": "The Blood of the Vine",
+        }.get(definition["stable_id"])
+        return bool(work_room and npc.location.key == work_room)
     block = schedule_block(definition, hour)
     return block["desired_location"] != definition["home_id"]
 
@@ -608,7 +619,7 @@ def record_player_interaction(npc, player, *, kind="talk", depth=1.0):
         "help": 3.0,
     }
     amount = float(depth) * weights.get(kind, 1.0)
-    if _on_role_shift(definition, hour):
+    if _on_role_shift(definition, hour, npc=npc):
         amount *= 0.25
 
     relationships = dict(state.get("relationships") or {})
@@ -892,10 +903,10 @@ def generic_talk_line(npc, player):
     if rel["familiarity"] >= 8:
         return (
             f"Back again, {player.key}. You know how it is. "
-            f"I am {routine.get('activity') or 'keeping busy'}."
+            f"At present: {routine.get('activity') or 'keeping busy'}."
         )
-    if _on_role_shift(definition, _clock()[1]):
-        return f"Good day. I am working just now, but I can spare a word."
+    if _on_role_shift(definition, _clock()[1], npc=npc):
+        return "Good day. I am working just now, but I can spare a word."
     return f"Good day. I am {definition['display_name']}. I work as {definition['occupation']}."
 
 
@@ -1089,6 +1100,58 @@ def note_rumor_exposure(actor, rumor_id):
         f"rumor:{rumor_id}",
         importance_delta=0.05,
     )
+
+
+MASS_ALWAYS = {
+    "mother_bell",
+    "bess_bell",
+    "young_tam_bell",
+    "wren_vessey",
+    "marta_kovacs",
+}
+MASS_NEVER = {
+    "bram_v",
+    "janos",
+    "lucian_deville",
+    "miklos_farkas",
+    "elias_dorn",
+    "sorin_dragomir",
+}
+
+
+def attends_sunday_mass(npc):
+    """Deterministic household-aware attendance for background residents."""
+    definition = resident_definition(npc)
+    if not definition:
+        return False
+    stable_id = definition["stable_id"]
+    if stable_id in MASS_ALWAYS:
+        return True
+    if stable_id in MASS_NEVER:
+        return False
+    if definition.get("schedule_engine") != "population":
+        return False
+    household = definition["household_id"]
+    # Households tend to attend together. Work and authored exceptions above
+    # can override this inexpensive default.
+    return _stable_index(household, "sunday-mass", 100) < 58
+
+
+def gather_population_for_mass(day):
+    moved = []
+    for npc in all_residents():
+        if not attends_sunday_mass(npc):
+            continue
+        set_resident_deviation(
+            npc,
+            "church",
+            until_day=day,
+            until_hour=11,
+            reason="Sunday mass",
+        )
+        moved.append(npc.db.resident_id)
+    advance_population(day=day, hour=10, emit=True)
+    return moved
 
 
 def population_tick(*, day=None, hour=None):
