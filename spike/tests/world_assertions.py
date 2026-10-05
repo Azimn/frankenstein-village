@@ -121,6 +121,7 @@ for stable_id, npc in by_resident_id.items():
     }
 
 population_registry = get_population_registry()
+rumor_registry = ScriptDB.objects.get(db_key="rumor_registry")
 assert population_registry.db.metrics["population_size"] == 36
 
 # The clean-checkout runner assigned a fact and closed the school before this
@@ -381,6 +382,10 @@ if exposed_root:
         body for body in (tavern.db.player_rumors or [])
         if body != exposed_root["claim"]
     ]
+for npc in population:
+    beliefs = dict(npc.db.rumor_beliefs or {})
+    beliefs.pop(str(exposed_id), None)
+    npc.db.rumor_beliefs = beliefs
 for stable_id, old_state in state_snapshot.items():
     by_resident_id[stable_id].db.resident_state = old_state
 population_registry.db.fact_claims = claims_snapshot
