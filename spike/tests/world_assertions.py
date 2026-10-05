@@ -218,6 +218,18 @@ assert resident_state(otto)["routine"] == night_routine, (
     "dead resident continued following a schedule"
 )
 
+# Social graph edges are consequential. An event targeting the butcher reaches
+# his assistant through the explicit employer relation without becoming global.
+rada = by_resident_id["rada_petrescu"]
+employment_event = publish_world_event(
+    "qa_employer_incident",
+    payload={"target_resident_id": "otto_kessler", "cause": "shop_accident"},
+)
+assert str(employment_event["id"]) in resident_state(rada)["event_flags"]
+assert str(employment_event["id"]) not in resident_state(
+    by_resident_id["wren_vessey"]
+)["event_flags"]
+
 # Sunday Mass gathers a deterministic subset of background households and
 # releases them back into their routines afterward. A structured incident can
 # mark only the explicit witnesses without simulating everyone present.
@@ -358,6 +370,7 @@ assert exposed_root["subject"] == f"resident_fact:{shared_fact_id}"
 qa_event_ids = {
     school_destroyed["id"],
     school_restored["id"],
+    employment_event["id"],
     mass_event["id"],
 }
 ledger.db.events = [
