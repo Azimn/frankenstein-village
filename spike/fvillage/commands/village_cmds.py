@@ -619,6 +619,11 @@ class CmdTalk(Command):
             self.caller.msg(f"You don't see '{self.args.strip()}' here.")
             return
         target = targets[0]
+        try:
+            from world.residents import record_player_interaction
+            record_player_interaction(target, self.caller, kind="talk")
+        except Exception:
+            pass
         if hasattr(target, "talk_to"):
             target.talk_to(self.caller)
         elif target.has_account:
@@ -661,6 +666,11 @@ class CmdAsk(Command):
         if not target or target == self.caller:
             self.caller.msg(f"You don't see '{target_name}' here.")
             return
+        try:
+            from world.residents import record_player_interaction
+            record_player_interaction(target, self.caller, kind="ask")
+        except Exception:
+            pass
         if hasattr(target, "ask_about"):
             line = target.ask_about(self.caller, topic)
             if line:

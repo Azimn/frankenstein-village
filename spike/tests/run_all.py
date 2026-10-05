@@ -106,6 +106,11 @@ def main() -> int:
 
         game = checkout / "spike" / "fvillage"
         try:
+            run(
+                [sys.executable, "spike/tests/resident_population_sim.py"],
+                cwd=checkout,
+                env=env,
+            )
             run([sys.executable, "spike/bootstrap.py"], cwd=checkout, env=env)
 
             evennia = venv_bin(checkout, "evennia")
@@ -114,11 +119,16 @@ def main() -> int:
 
             mutate = (
                 "from evennia.utils import search\n"
+                "from world.residents import assign_fact, set_location_availability\n"
                 "bram = [o for o in search.search_object('Bram') if o.key == 'Bram'][0]\n"
                 "bread = [o for o in search.search_object('a loaf of bread') "
                 "if o.key == 'a loaf of bread'][0]\n"
+                "lark = [o for o in search.search_object('Lark Vessey') if o.key == 'Lark Vessey'][0]\n"
                 "bram.db.till_kr = 37\n"
                 "bread.db.servings = 2\n"
+                "fact = assign_fact(lark, class_hint='ordinary')\n"
+                "lark.db.qa_fact_id = fact['fact_id']\n"
+                "set_location_availability('schoolhouse', False, reason='school_destroyed')\n"
                 "print('IDEMPOTENCE_SENTINELS_SET')\n"
             )
             run([evennia, "shell"], cwd=game, env=env, input_text=mutate)
@@ -164,6 +174,21 @@ def main() -> int:
                         text=True,
                         timeout=60,
                     )
+
+            # Restart the actual server once after player-created resident state
+            # exists, then inspect the database through a fresh process.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            post_restart = (
+                checkout / "spike" / "tests" / "post_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run(
+                [evennia, "shell"],
+                cwd=game,
+                env=env,
+                input_text=post_restart,
+            )
         except Exception:
             dump_logs(game)
             raise

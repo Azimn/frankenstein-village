@@ -387,6 +387,12 @@ def tick():
     from evennia.scripts.models import ScriptDB
 
     moves = advance()
+    try:
+        from world.residents import population_tick
+        population_result = population_tick()
+        moves += int(population_result.get("moved") or 0)
+    except Exception:
+        population_result = None
     restock_sideboard()
     try:
         clock = ScriptDB.objects.get(db_key="village_time")
@@ -466,11 +472,20 @@ def hold_mass(day):
         routine.db.last_mass_day = day
     except ScriptDB.DoesNotExist:
         return 0
-    # Gather the congregation.
+    # Gather the authored congregation.
     for regular_key, _role in MASS_CONGREGATION:
         set_deviation(regular_key, "St. Lazarus Church", 11,
                       "Sunday mass", day=day)
-    advance(day=day)  # move them now; the liturgy shouldn't wait
+    advance(day=day)
+
+    # Gather the background population through the same persistent routine
+    # machinery. Household attendance is deterministic and work exceptions are
+    # explicit; no resident receives a per-NPC ticker.
+    try:
+        from world.residents import gather_population_for_mass
+        gather_population_for_mass(day)
+    except Exception:
+        pass
     church.msg_contents("The church bell rings a full peal over the square.")
     # The 1890 ordo: this Sunday's name and Gospel, transcribed from the
     # Directory. Andrei preaches the text first, then the week's events.
@@ -490,7 +505,16 @@ def hold_mass(day):
     # Only the living get blessed — not the pews, not the exits.
     attendees = []
     for o in church.contents:
-        is_person = o.has_account or getattr(o.db, "regular_key", None)
+        try:
+            from world.residents import is_resident
+            resident_person = is_resident(o)
+        except Exception:
+            resident_person = False
+        is_person = (
+            o.has_account
+            or getattr(o.db, "regular_key", None)
+            or resident_person
+        )
         if is_person:
             o.db.blessed_day = day
             attendees.append(o.key)

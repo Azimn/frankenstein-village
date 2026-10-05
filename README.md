@@ -6,7 +6,7 @@ Everything for building this game lives in this folder.
 
 ## The playable spike (yes, it runs)
 
-`spike/fvillage/` is a live Evennia game, in active development since 2026-10-01. What's playable right now: the Inn Between (OOC hub + front door), the village square, the Blood of the Vine tavern (coin economy, sideboard, regulars with schedules), St. Lazarus Church (1890 liturgical calendar, Sunday mass, confession), the Lamp Shop, villager daily routines, the rumor→ledger pipeline, hunger/drunkenness, and the Room Six mystery.
+`spike/fvillage/` is a live Evennia game, in active development since 2026-10-01. What's playable right now: the Inn Between (OOC hub + front door), the village square, the Blood of the Vine tavern (coin economy, sideboard, regulars with schedules), St. Lazarus Church (1890 liturgical calendar, Sunday mass, confession), the Lamp Shop, a 36-person persistent resident population with households, jobs, schedules, event-aware fallback behavior, progressive player familiarity, persistent generated facts, and low-cost engagement-based simulation resolution, the structured rumor and event ledger pipeline, hunger/drunkenness, and the Room Six mystery.
 
 Fresh checkout: set `EVENNIA_SUPERUSER_USERNAME`, `EVENNIA_SUPERUSER_EMAIL`, and `EVENNIA_SUPERUSER_PASSWORD`, then run `python3.12 spike/bootstrap.py`. Start with `cd spike/fvillage && ../venv/bin/evennia start`; telnet is `localhost:4000` and the web client is `localhost:4001`. Bootstrap installs the root `requirements.txt`, runs Evennia's first-database setup, repairs the Twisted launcher if needed, and idempotently builds the world. Run the clean-checkout regression suite with `python3.12 spike/tests/run_all.py`.
 
@@ -26,6 +26,7 @@ Fresh checkout: set `EVENNIA_SUPERUSER_USERNAME`, `EVENNIA_SUPERUSER_EMAIL`, and
 ## Research
 
 - **`research/npc-simulation-handoff-v0.1.md`** — ChatGPT's NPC simulation architecture handoff (2026-10-01), filed as received: layered world-truth/perception/belief design, utility AI, LOD tiers, rumor data model, phased build sequence.
+- **`research/emergent-npc-population-plan-2026-10-05.md`**: Production reconciliation and dependency graph for the live resident system. It records repository precedence, state ownership, logical location projection, promotion/demotion semantics, persistence, fact claiming, event wakeups, and the no-model execution contract.
 - **`research/npc-simulation-review-2026-10-01.md`** — Calibos's review: adopted architecture, corrections (Pretorius is the licensed film-bridge exception; Septimius spelling; NPCs must never perceive the OOC layer), gaps (NPC departure lifecycle, Chronicler ledger feed, interdependence hooks), tool verification (npc-sim Apache-2.0, openNPC too young), open decisions.
 - **`research/source-shelf-phrasebook-v0.1.md`** — Period-diction phrasebook mined from the Source Shelf novels (16 Gutenberg texts): ~234 phrases organized by use (greetings, deflections, oaths, polite menace, grief...), speech-rhythm table, anachronism section. Direct input to the voice guide and prose auditor. Standout finds: Moreau's "of a sort" (the village pattern for talking about the Mists), "hullo" as the period "hey."
 - **`research/social-text-worlds-survey-2026-09-30.md`** — Survey of social text worlds (MUDs/MOOs) and what makes them live.

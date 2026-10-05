@@ -284,3 +284,31 @@ step 1 both `evennia start` on refused socket), so a rebooted box recovers
 on the next loop run at the latest. Also retracted: the day's frequent
 restarts were our own tooling reloads (build loop, playtest cron, live
 sessions), not an external killer — see build-loop-log 2026-10-04 ~20:35.
+
+## 2026-10-05 - Emergent resident population production layer
+
+The production NPC layer now follows the repository doctrine that continuity is persistent while expensive cognition is conditional.
+
+The launch-scale roster is 36 named residents. Six existing authored NPCs keep their specialized typeclasses and behavior. Thirty background residents use `ResidentNPC`, with stable resident IDs, household and kin links, occupations, explicit employer edges where applicable, deterministic starter interests, logical homes and workplaces, and coarse schedules. The roster is defined in `world/resident_data.py`; mutable state never lives in that module.
+
+Unbuilt homes, the schoolhouse, bakery, forge, fields, woods, butcher shop, and similar places are logical locations projected into the single physical `Offstage` room. This avoids building rooms merely to justify population. Resident state retains the logical location, so two people physically projected Offstage are not considered co-located unless their logical location also matches. Rumor propagation follows this rule.
+
+Each resident owns persistent `db.resident_state`. The state separates active simulation resolution, accumulated character depth, and narrative importance. Engagement may decay from focused back to automaton resolution, but established facts, player relationships, important memories, interests, event flags, and the character-depth high-water mark remain. Role-bound residents earn reduced engagement from routine counter interactions.
+
+Routine advancement is coarse and direct. The village's existing global routine ticker resolves the current schedule boundary for all population-managed residents. It does not replay skipped hours and does not create one ticker per NPC. A successful automaton schedule performs no utility evaluation. Need-based choice is consulted only for awake or actively engaged residents.
+
+Location availability is structured persistent state on the `resident_population` script. A closed or destroyed scheduled destination falls back to home, then the current valid location, then Offstage, while preserving the reason. Structured world events feed the population directly. Events can wake witnesses, relatives, employers, and employees without converting event prose back into NLP.
+
+Player interaction writes a relationship record keyed to the player mask. Familiarity, affinity, trust, respect, fear, grievance, debt, attraction, interaction count, and revealed fact IDs are independent per player. Resident-global facts remain shared reality. One player learning a fact does not make another player know it.
+
+The fact repository supports reusable, limited-count, and unique claims. Default assignment strongly favors ordinary irregularities, with serious and Gothic truths rare. Assignment itself never publishes a secret. Explicit exposure is required to create a provenance-bearing rumor.
+
+Sunday Mass now gathers a deterministic background congregation through the population scheduler in addition to the authored Andrei, Magda, and Vasile congregation. The Sunday schedule also prevents children and the schoolteacher from returning to ordinary lessons after Mass.
+
+Tests:
+- `spike/tests/resident_population_sim.py` runs 180 days of pure schedule resolution, including school destruction and restoration, butcher closing time, night work, Sunday school closure, stable definitions, and runtime measurement.
+- `spike/tests/world_assertions.py` covers clean-build identity, idempotent persistence, school fallback, lifecycle stopping, family and employment wakeups, Mass gathering and release, two-player relationship isolation, engagement promotion and demotion, depth retention, fact distribution, unique Gothic claims, and explicit fact-to-rumor publication.
+- `spike/tests/telnet_playthrough.py` interacts with a generic background resident through the actual game interface until recognition and progressive history appear.
+- `spike/tests/post_restart_assertions.py` verifies that the telnet-created relationship and revealed fact survive a real server stop and restart.
+
+The full acceptance command remains `python3.12 spike/tests/run_all.py`.

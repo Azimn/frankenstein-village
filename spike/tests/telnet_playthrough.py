@@ -119,6 +119,22 @@ def main() -> int:
         out = c.command("south")
         require(out, "village square")
 
+        # A generic background resident uses the same player-facing interface
+        # as authored NPCs. Miklós is scheduled in the square at this hour, so
+        # the network playtest follows world state instead of teleporting a QA
+        # subject into place.
+        first_miklos = c.command("talk Miklós Farkas")
+        require(first_miklos, "miklós farkas says", "work as lamplighter")
+        last_miklos = first_miklos
+        for _ in range(7):
+            last_miklos = c.command("talk Miklós Farkas")
+        require(last_miklos, "back again")
+
+        out = c.command("ask Miklós Farkas about interests")
+        require(out, "weakness for")
+        out = c.command("ask Miklós Farkas about history")
+        require(out, "since you keep asking")
+
         out = c.command("east")
         require(out, "blood of the vine")
 

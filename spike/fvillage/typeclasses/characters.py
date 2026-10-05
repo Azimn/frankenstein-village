@@ -473,6 +473,32 @@ class Innkeeper(SpikeCharacter):
         return False
 
 
+class ResidentNPC(Character):
+    """Generic persistent villager driven by the resident population layer.
+
+    This is intentionally a thin renderer. Identity, schedules, relationships,
+    facts, memories, and event state belong to world.residents.
+    """
+
+    def talk_to(self, char):
+        from world.residents import generic_talk_line
+
+        line = generic_talk_line(self, char)
+        char.msg(f'{self.key} says: "{line}"')
+        if self.location:
+            self.location.msg_contents(
+                f"{self.key} pauses to speak with {char.key}.",
+                exclude=[char],
+            )
+
+    def ask_about(self, char, topic):
+        from world.residents import generic_ask_line
+
+        return generic_ask_line(self, char, topic)
+
+
+
+
 class TavernKeeper(SpikeCharacter):
     """Bram V., keeper of the Blood of the Vine.
 

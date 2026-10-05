@@ -281,12 +281,28 @@ def _participants():
 
 
 def propagate_colocated_npcs(*, announce=False, max_per_room=1):
-    """Run bounded rumor traffic among co-located participating NPCs."""
+    """Run bounded rumor traffic among truly co-located participating NPCs."""
     registry = get_rumor_registry()
+    try:
+        from world.residents import is_resident, resident_logical_location
+    except Exception:
+        is_resident = lambda _obj: False
+        resident_logical_location = lambda obj: getattr(
+            getattr(obj, "location", None), "key", None
+        )
+
     by_room = defaultdict(list)
     for npc in _participants():
-        if npc.location:
-            by_room[npc.location.id].append(npc)
+        if not npc.location:
+            continue
+        # Background residents can share the physical Offstage room while
+        # occupying different logical homes/workplaces. Gossip follows logical
+        # co-location so projection never creates impossible conversations.
+        if is_resident(npc):
+            logical = resident_logical_location(npc)
+            by_room[("resident", logical or npc.location.id)].append(npc)
+        else:
+            by_room[("physical", npc.location.id)].append(npc)
 
     results = []
     for group in by_room.values():
@@ -306,18 +322,26 @@ def propagate_colocated_npcs(*, announce=False, max_per_room=1):
             if not beliefs:
                 break
             belief = random.choice(beliefs)
+            location = (
+                resident_logical_location(speaker)
+                if is_resident(speaker)
+                else getattr(speaker.location, "key", None)
+            )
             result = registry.transmit(
                 belief["rumor_id"],
                 speaker,
                 listener,
-                location=getattr(speaker.location, "key", None),
+                location=location,
             )
             if result:
                 results.append(result)
                 if announce and speaker.location:
-                    speaker.location.msg_contents(
-                        f"{speaker.key} lowers their voice to {listener.key}. "
-                        f'\"{result["claim"]}\"'
-                    )
+                    # Offstage projections never emit ambient gossip because
+                    # nobody in another logical home can witness it.
+                    if speaker.location.key != "Offstage":
+                        speaker.location.msg_contents(
+                            f"{speaker.key} lowers their voice to {listener.key}. "
+                            f'\"{result["claim"]}\"'
+                        )
             attempts += 1
     return results
