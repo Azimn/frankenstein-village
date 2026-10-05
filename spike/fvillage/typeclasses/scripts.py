@@ -1232,6 +1232,15 @@ class VillageTime(SpikeScript):
         if hour == 0:
             self.db.day = (self.db.day or 1) + 1
 
+        # Shared situations advance on the same coarse village clock. This
+        # keeps autonomous content cheap: one boundary check per situation,
+        # never one high-frequency ticker per quest or player.
+        try:
+            from world.situations import advance_situations
+            advance_situations(day=self.db.day or 1, hour=hour)
+        except Exception:
+            pass
+
         # The Harbinger prints on a fixed morning cadence. Special editions
         # are handled immediately by the publication pipeline and do not
         # consume the regular daily issue.
