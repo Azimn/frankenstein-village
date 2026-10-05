@@ -6,6 +6,8 @@ be exercised by offline simulation. Mutable state never belongs here.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 
 SCHEMA_VERSION = 1
 
@@ -521,7 +523,7 @@ def resolve_schedule(
         }
 
     reason_state = (availability or {}).get(desired) or {}
-    if isinstance(reason_state, dict):
+    if isinstance(reason_state, Mapping):
         why = reason_state.get("reason") or f"{desired}_unavailable"
     else:
         why = f"{desired}_unavailable"
