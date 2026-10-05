@@ -377,6 +377,7 @@ def _resolve_target(definition, state, day, hour, availability):
         hour,
         availability=availability,
         current_location=current,
+        day=day,
     )
 
 
@@ -1049,7 +1050,8 @@ def consume_world_event(event):
             state = resident_state(npc)
             definition = resident_definition(npc)
             routine = state.get("routine") or {}
-            block = schedule_block(definition, _clock()[1])
+            current_day, current_hour = _clock()
+            block = schedule_block(definition, current_hour, day=current_day)
             if (
                 routine.get("logical_location") == location_id
                 or block.get("desired_location") == location_id
