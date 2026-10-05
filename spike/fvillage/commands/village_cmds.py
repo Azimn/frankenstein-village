@@ -1569,7 +1569,7 @@ class CmdDuet(Command):
             )
             return
         if arg in ("keeper", "the keeper", "the tavern keeper", "barkeep",
-                   "barkeeper"):
+                   "barkeeper", "bram", "bram v", "bram v."):
             keeper = self._find_keeper()
             if keeper is None:
                 me.msg("The keeper isn't about — ask someone else.")
