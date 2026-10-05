@@ -35,6 +35,22 @@ def _set_stage(char, **kwargs):
     char.db.room_six = stage
 
 
+REGISTER_DESC = (
+    "A heavy leather register, cracked at the spine, open on the bar. It "
+    "smells faintly of iron and lamp oil. M.'s hand throughout: neat, "
+    "impatient, the hand of someone who'd rather be polishing:\n\n"
+    "'T. Okafor; Rm 2; one night.'\n"
+    "'The Widow Hessel; Rm 4; three nights, paid.'\n"
+    "'J. Marlowe; Rm 1; one night, left before dawn.'\n\n"
+    "On the page for last Michaelmas, one name is crossed out with three "
+    "hard strokes. The ink beneath is unreadable.\n\n"
+    "And then, three nights past, in a hand like nothing else on the page: "
+    "tall, hurried, the ink pressed hard enough to scar the paper:\n\n"
+    "'Rm 6; V. [smudge]; ...'\n\n"
+    "The surname is a smudge. Or a kindness."
+)
+
+
 class Register(DefaultObject):
     """M.'s register, open on the bar of the Tavern.
 
@@ -45,21 +61,8 @@ class Register(DefaultObject):
 
     def at_object_creation(self):
         super().at_object_creation()
-        self.db.desc = (
-            "A heavy leather register, cracked at the spine, open on the "
-            "bar. It smells faintly of iron and lamp oil. M.'s hand "
-            "throughout — neat, impatient, the hand of someone who'd "
-            "rather be polishing:\n\n"
-            "'T. Okafor — Rm 2 — one night.'\n"
-            "'The Widow Hessel — Rm 4 — three nights, paid.'\n"
-            "'J. Marlowe — Rm 1 — one night, left before dawn.'\n\n"
-            "And then, three nights past, in a hand like nothing else on "
-            "the page — tall, hurried, the ink pressed hard enough to "
-            "scar the paper:\n\n"
-            "'Rm 6 — V. [smudge] — — —.'\n\n"
-            "The surname is a smudge. Or a kindness."
-        )
-        self.aliases.add("guest book", "guestbook", "book")
+        self.db.desc = REGISTER_DESC
+        self.aliases.add(["guest book", "guestbook", "book"])
 
     def at_desc(self, looker=None):
         desc = self.db.desc or ""
