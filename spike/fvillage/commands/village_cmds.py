@@ -58,13 +58,20 @@ RUMOR_FILE = REPO_ROOT / "files" / "rumor-seeds-v0.1.md"
 
 _SEED_RE = re.compile(r"^\*\*(\d+)\.\*\*\s*(.+?)\s*[—–-]\s*\*Heard from:\*", re.M)
 
+# Only surface static canon rumors whose hook is currently inspectable in the
+# live map. Add an id here only when the corresponding evidence has an actual
+# player-reachable surface. Dynamic event rumors are not filtered by this set.
+PLAYABLE_RUMOR_IDS = frozenset({151, 201, 236})
 
-def load_rumor_seeds():
-    """Parse numbered rumor seeds out of the canon markdown file."""
+
+def load_rumor_seeds(*, playable_only=True):
+    """Parse canon rumor seeds, optionally limiting them to live hooks."""
     text = RUMOR_FILE.read_text(encoding="utf-8")
     seeds = []
     for match in _SEED_RE.finditer(text):
         num, body = match.group(1), match.group(2).strip()
+        if playable_only and int(num) not in PLAYABLE_RUMOR_IDS:
+            continue
         seeds.append((num, body))
     return seeds
 
@@ -716,7 +723,7 @@ class CmdRoll(Command):
             return
         if target not in (
             "keeper", "the keeper", "the tavern keeper",
-            "barkeep", "barkeeper",
+            "barkeep", "barkeeper", "bram", "bram v", "bram v.",
         ):
             self.caller.msg(
                 "The keeper raises an eyebrow. 'Dice is a two-hand "
@@ -724,6 +731,14 @@ class CmdRoll(Command):
                 "Against me, or on your own.'"
             )
             return
+        # A wager is only offered when the house can honor a win.
+        if (keeper.db.till_kr or 0) < 2:
+            self.caller.msg(
+                "Bram turns the cup upside down. \"House till is dry. "
+                "Roll for pride, not coin, until the bar fills it again.\""
+            )
+            return
+
         from evennia.contrib.rpg.dice import roll as roll_bones
 
         _, _, _, pbones = roll_bones(2, 6, return_tuple=True)
@@ -764,9 +779,16 @@ class CmdRoll(Command):
                     "the keeper shows "
                     f"{his}. The keeper holds out his palm, unhurried, and "
                     f"{fmt_coins(price)} leaves your purse for his till. "
-                    "'Losers buy the round. You knew the rule — it's in "
+                    "'Losers buy the round. You knew the rule; it's in "
                     "the smell of the place.'"
                 )
+                debts = int(self.caller.db.dice_debts or 0)
+                if debts:
+                    self.caller.db.dice_debts = debts - 1
+                    outcome += (
+                        " Bram taps the old chalk mark once. "
+                        "'Call one of the house rounds square.'"
+                    )
             else:
                 outcome = (
                     f"The dice settle — {self.caller.key} shows {mine}, "
