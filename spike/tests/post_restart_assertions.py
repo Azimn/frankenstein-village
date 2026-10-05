@@ -14,6 +14,12 @@ from world.publications import (
     edition_stories,
     latest_edition,
 )
+from world.timed_incidents import (
+    WELL_BOILS_ID,
+    advance_timed_incidents,
+    get_timed_incident,
+    status_for_player as timed_status_for_player,
+)
 
 
 def one(key):
@@ -80,7 +86,25 @@ public_records = get_public_record_registry()
 assert public_records.db.chronicle_gap_policy == "reconstructed_from_harbinger"
 assert public_records.db.chronicle_gap_source == "Harbinger archive"
 
+# A real restart must preserve the timed window and the exact evidence quality
+# earned by the player. If enough wall-clock time elapsed during CI, direct
+# catch-up may resolve the window, but it must never downgrade firsthand proof.
+advance_timed_incidents()
+timed = get_timed_incident(WELL_BOILS_ID)
+assert timed["state"] in {"active", "aftermath"}
+timed_status = timed_status_for_player(smoke, WELL_BOILS_ID)
+assert timed_status, "telnet well observation did not survive restart"
+assert timed_status["observation"]["quality"] == "firsthand"
+assert "rope trembled" in timed_status["observation"]["summary"].lower()
+assert timed["occurrence_count"] == 1
+if timed["state"] == "aftermath":
+    assert timed["current"]["aftermath_event_id"]
+    assert timed["current"]["rumor_id"]
+    assert timed["current"]["publications"]["harbinger_story_id"]
+    assert timed["current"]["publications"].get("chronicle_entry_id") is None
+
 print("POST_RESTART_RESIDENT_ASSERTIONS_GREEN")
 print("POST_RESTART_PUBLIC_RECORD_ASSERTIONS_GREEN")
 print("POST_RESTART_SITUATION_ASSERTIONS_GREEN")
 print("POST_RESTART_INCIDENT_FEED_ASSERTIONS_GREEN")
+print("POST_RESTART_TIMED_INCIDENT_ASSERTIONS_GREEN")

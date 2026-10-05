@@ -605,6 +605,40 @@ class ModerationQueue(DefaultScript):
         return dict(selected), None
 
 
+class TimedIncidentRegistry(DefaultScript):
+    """Persistent short-lived world windows and their witness records.
+
+    The ticker only resolves real-time expirations. Scheduled starts are
+    triggered by the coarse village clock, so there is still only one village
+    time authority and no per-incident high-frequency simulation.
+    """
+
+    def at_script_creation(self):
+        self.key = "timed_incident_registry"
+        self.desc = "Persistent timed world-window registry."
+        self.interval = 30
+        self.persistent = True
+        if self.db.incidents is None:
+            self.db.incidents = {}
+        if self.db.metrics is None:
+            self.db.metrics = {
+                "starts": 0,
+                "resolutions": 0,
+                "firsthand_witnesses": 0,
+                "aftermath_discoveries": 0,
+                "schedule_checks": 0,
+            }
+
+    def at_repeat(self):
+        try:
+            from world.timed_incidents import advance_timed_incidents
+            advance_timed_incidents()
+        except Exception:
+            pass
+
+
+
+
 class SituationRegistry(DefaultScript):
     """Persistent multiplayer situations and per-player investigation state.
 
@@ -1242,6 +1276,18 @@ class VillageTime(SpikeScript):
         try:
             from world.situations import advance_situations
             advance_situations(day=self.db.day or 1, hour=hour)
+        except Exception:
+            pass
+
+        # Timed incidents are brief shared world windows layered over the
+        # ordinary schedule. The village clock only decides whether a window
+        # starts; the persistent timed registry resolves its real-time expiry.
+        try:
+            from world.timed_incidents import maybe_start_timed_incidents
+            maybe_start_timed_incidents(
+                day=self.db.day or 1,
+                hour=hour,
+            )
         except Exception:
             pass
 

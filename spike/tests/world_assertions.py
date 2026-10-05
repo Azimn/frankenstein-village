@@ -36,6 +36,7 @@ for script_key in (
     "resident_population",
     "public_records",
     "situation_registry",
+    "timed_incident_registry",
     "room_six",
     "moderation_queue",
     "ambient_life",
@@ -52,6 +53,7 @@ bread = one("a loaf of bread")
 assert bread.db.servings == 2, "rebuild reset live sideboard servings"
 
 well = one("well")
+assert well.typeclass_path == "typeclasses.objects.VillageWell"
 assert "straight" in (well.db.desc or "").lower(), "well rumor has no inspectable evidence"
 
 confessional = one("a confessional box")
@@ -156,6 +158,13 @@ locations_snapshot = copy.deepcopy(
     dict(population_registry.db.location_states or {})
 )
 public_records = ScriptDB.objects.get(db_key="public_records")
+timed_registry = ScriptDB.objects.get(db_key="timed_incident_registry")
+timed_incident_snapshot = copy.deepcopy(
+    dict(timed_registry.db.incidents or {})
+)
+timed_metrics_snapshot = copy.deepcopy(
+    dict(timed_registry.db.metrics or {})
+)
 public_records_snapshot = {
     "harbinger_drafts": copy.deepcopy(list(public_records.db.harbinger_drafts or [])),
     "harbinger_editions": copy.deepcopy(list(public_records.db.harbinger_editions or [])),
@@ -570,6 +579,143 @@ ledger.db.events = copy.deepcopy(ledger_events_snapshot)
 _baseline_event_ids = {
     str(event["id"]) for event in ledger_events_snapshot
 }
+for npc in population:
+    _state = resident_state(npc)
+    _state["event_flags"] = {
+        key: value
+        for key, value in (_state.get("event_flags") or {}).items()
+        if str(key) in _baseline_event_ids
+    }
+    save_state(npc, _state)
+for key, value in public_records_snapshot.items():
+    setattr(public_records.db, key, copy.deepcopy(value))
+rumor_registry.db.rumors = copy.deepcopy(rumor_snapshot["rumors"])
+rumor_registry.db.transmissions = copy.deepcopy(rumor_snapshot["transmissions"])
+rumor_registry.db.next_rumor_id = rumor_snapshot["next_rumor_id"]
+rumor_registry.db.next_transmission_id = rumor_snapshot["next_transmission_id"]
+for npc in population:
+    npc.db.rumor_beliefs = copy.deepcopy(
+        rumor_belief_snapshot.get(npc.id, {})
+    )
+tavern_for_snapshot.db.public_rumor_ids = copy.deepcopy(
+    tavern_public_ids_snapshot
+)
+tavern_for_snapshot.db.player_rumors = copy.deepcopy(
+    tavern_player_rumors_snapshot
+)
+
+# Timed incident windows reward presence without erasing content for absence.
+# They are independent of the major situation feed and use direct current-time
+# expiry rather than replaying every elapsed tick.
+from world.timed_incidents import (
+    WELL_BOILS_ID,
+    advance_timed_incidents,
+    get_timed_incident,
+    maybe_start_timed_incidents,
+    record_observation,
+    start_timed_incident,
+    status_for_player as timed_status_for_player,
+)
+
+assert set((timed_registry.db.incidents or {}).keys()) == {WELL_BOILS_ID}
+assert get_timed_incident(WELL_BOILS_ID)["state"] == "dormant"
+
+timed_alice = SimpleNamespace(id=920001, key="timed_alice", has_account=True)
+timed_bob = SimpleNamespace(id=920002, key="timed_bob", has_account=True)
+
+started = start_timed_incident(
+    WELL_BOILS_ID,
+    day=1,
+    hour=22,
+    now=1000.0,
+    force=True,
+)
+assert started["state"] == "active"
+assert started["current"]["expires_at"] == 1600.0
+start_event = ledger.get_event(started["current"]["start_event_id"])
+assert start_event["kind"] == "timed.well_boils.started"
+assert not start_event.get("publications"), (
+    "private live window was prematurely published"
+)
+
+firsthand = record_observation(
+    timed_alice,
+    WELL_BOILS_ID,
+    source="qa_live_window",
+)
+assert firsthand["quality"] == "firsthand"
+assert "rope trembled" in firsthand["summary"].lower()
+assert timed_status_for_player(timed_bob, WELL_BOILS_ID) is None
+
+assert advance_timed_incidents(now=1599.0) == 0
+assert advance_timed_incidents(now=1601.0) == 1
+resolved = get_timed_incident(WELL_BOILS_ID)
+assert resolved["state"] == "aftermath"
+aftermath_event = ledger.get_event(resolved["current"]["aftermath_event_id"])
+assert aftermath_event["kind"] == "timed.well_boils.aftermath"
+assert aftermath_event["rumor"]["rumor_id"] == resolved["current"]["rumor_id"]
+assert aftermath_event["publications"]["harbinger_story_id"]
+assert aftermath_event["publications"]["chronicle_entry_id"] is None, (
+    "brief well disturbance was promoted into Chronicle truth"
+)
+
+late = record_observation(
+    timed_bob,
+    WELL_BOILS_ID,
+    source="qa_after_window",
+)
+assert late["quality"] == "aftermath"
+assert "mineral ring" in late["summary"].lower()
+record_observation(
+    timed_alice,
+    WELL_BOILS_ID,
+    source="qa_return_visit",
+)
+assert timed_status_for_player(
+    timed_alice,
+    WELL_BOILS_ID,
+)["observation"]["quality"] == "firsthand", (
+    "later residue downgraded retained firsthand evidence"
+)
+
+# A fully unwitnessed occurrence still resolves into traces, rumor, and press.
+unwitnessed = start_timed_incident(
+    WELL_BOILS_ID,
+    day=2,
+    hour=3,
+    now=2000.0,
+    force=True,
+)
+assert unwitnessed["state"] == "active"
+assert not unwitnessed["current"]["player_observations"]
+assert advance_timed_incidents(now=2601.0) == 1
+unwitnessed_done = get_timed_incident(WELL_BOILS_ID)
+assert unwitnessed_done["state"] == "aftermath"
+assert unwitnessed_done["current"]["rumor_id"]
+assert unwitnessed_done["current"]["publications"]["harbinger_story_id"]
+
+# Recurrence obeys the authored weekly cadence and archives bounded history.
+assert maybe_start_timed_incidents(
+    day=8,
+    hour=22,
+    now=3000.0,
+) == [], "cooldown allowed the well window back too early"
+scheduled = maybe_start_timed_incidents(
+    day=15,
+    hour=22,
+    now=3000.0,
+)
+assert scheduled == [WELL_BOILS_ID]
+recurred = get_timed_incident(WELL_BOILS_ID)
+assert recurred["state"] == "active"
+assert recurred["occurrence_count"] == 3
+assert len(recurred["history"]) == 2
+assert len(recurred["history"]) <= 12
+
+# Remove synthetic timed-window effects before the remainder of regression.
+timed_registry.db.incidents = copy.deepcopy(timed_incident_snapshot)
+timed_registry.db.metrics = copy.deepcopy(timed_metrics_snapshot)
+ledger.db.events = copy.deepcopy(ledger_events_snapshot)
 for npc in population:
     _state = resident_state(npc)
     _state["event_flags"] = {
@@ -1056,5 +1202,24 @@ finally:
     target.db.compact_ban_actions = old_bans
     target.db.moderation_notices = old_notices
     moderation.delete()
+
+# Leave one fresh real window active for the network playtest. The start event
+# is intentionally private; the telnet player must earn firsthand evidence by
+# entering the square and observing the well while the window is still open.
+import time as _time
+_telnet_clock = ScriptDB.objects.get(db_key="village_time")
+_telnet_window = start_timed_incident(
+    WELL_BOILS_ID,
+    day=_telnet_clock.db.day or 1,
+    hour=(
+        _telnet_clock.db.hour
+        if _telnet_clock.db.hour is not None
+        else 21
+    ),
+    now=_time.time(),
+    force=True,
+)
+assert _telnet_window and _telnet_window["state"] == "active"
+assert not _telnet_window["current"]["player_observations"]
 
 print("WORLD_ASSERTIONS_GREEN")

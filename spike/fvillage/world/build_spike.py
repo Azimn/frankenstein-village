@@ -302,7 +302,7 @@ get_or_create_scenery(
 )
 
 
-get_or_create_scenery(
+well = get_or_create_scenery(
     "well", square,
     "The village well at the square's heart. It steams faintly, though "
     "the night is cool. When the air falls still, the vapor rises in a "
@@ -310,6 +310,12 @@ get_or_create_scenery(
     "you can't quite see.",
     aliases=["village well"],
 )
+if not well.is_typeclass("typeclasses.objects.VillageWell", exact=True):
+    well.swap_typeclass(
+        "typeclasses.objects.VillageWell",
+        clean_attributes=False,
+    )
+    print("well upgraded to VillageWell.")
 
 # mushrooms by the well: the spike's standing poison item. The `toxic`
 # magnitude path in _consume is proven by the bad-stew surprise, but no
@@ -1062,6 +1068,7 @@ for _skey, _sclass in (
     ("resident_population", "typeclasses.scripts.ResidentPopulationRegistry"),
     ("public_records", "typeclasses.scripts.PublicRecordRegistry"),
     ("situation_registry", "typeclasses.scripts.SituationRegistry"),
+    ("timed_incident_registry", "typeclasses.scripts.TimedIncidentRegistry"),
     ("warmth_watch", "typeclasses.scripts.WarmthWatch"),
     ("tavern_life", "typeclasses.scripts.TavernLife"),
     ("village_routine", "typeclasses.scripts.VillageRoutine"),
@@ -1087,6 +1094,15 @@ print(
     "situation registry ready: "
     f"{_situations['count']} situations "
     f"({_situations['created']} created)."
+)
+
+
+from world.timed_incidents import ensure_timed_incidents
+_timed_incidents = ensure_timed_incidents()
+print(
+    "timed incident registry ready: "
+    f"{_timed_incidents['count']} windows "
+    f"({_timed_incidents['created']} created)."
 )
 
 # The square starts under fog, as it has always been.
