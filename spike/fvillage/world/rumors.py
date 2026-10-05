@@ -55,7 +55,7 @@ def _parse_seed_line(number, line):
 
     return {
         "canonical_seed_id": int(number),
-        "claim": claim.strip(),
+        "claim": _strip_markup(claim.strip()),
         "source_actor": _strip_markup(source),
         "variants": variants,
     }
@@ -147,7 +147,7 @@ def publish_public_rumor(
     tavern = _find_tavern()
     rumor = registry.ensure_rumor(
         subject=subject,
-        claim=_dynamic_claim(body),
+        claim=_strip_markup(_dynamic_claim(body)),
         source_actor=source_actor or "village event",
         source_type=source_type,
         original_event_id=original_event_id,
@@ -210,7 +210,7 @@ def migrate_legacy_public_rumors(tavern):
     registry = get_rumor_registry()
     public_ids = list(tavern.db.public_rumor_ids or [])
     for body in list(tavern.db.player_rumors or []):
-        claim = _dynamic_claim(body)
+        claim = _strip_markup(_dynamic_claim(body))
         if not claim:
             continue
         existing = next(
