@@ -422,9 +422,17 @@ def hold_mass(day):
                       "Sunday mass", day=day)
     advance(day=day)  # move them now; the liturgy shouldn't wait
     church.msg_contents("The church bell rings a full peal over the square.")
+    # The 1890 ordo: this Sunday's name and Gospel, transcribed from the
+    # Directory. Andrei preaches the text first, then the week's events.
+    season, n, sunday_name, gospel_ref, gospel_topic, homily = (
+        liturgical.sunday_ordo(day)
+    )
     church.msg_contents(
-        'Father Andrei takes the altar. "In nomine Patris, et Filii, '
-        'et Spiritus Sancti."'
+        f'Father Andrei takes the altar. "In nomine Patris, et Filii, '
+        f'et Spiritus Sancti. Today is the {sunday_name}."'
+    )
+    church.msg_contents(
+        f'Andrei: "The Gospel is {gospel_ref}: {gospel_topic}. {homily}"'
     )
     for line in _homily_lines():
         church.msg_contents(f'Andrei: "{line}"')
@@ -464,8 +472,7 @@ def _apply_feast(day):
     """Feast-day observances: deviations with liturgical reasons."""
     from world import liturgical
 
-    month, daynum = liturgical.game_date(day)
-    info = liturgical.feast_on(month, daynum)
+    info = liturgical.feast_on_gameday(day)
     if not info or not info.get("observance"):
         return
     try:
@@ -486,9 +493,10 @@ def _apply_feast(day):
     try:
         from world.events import publish_world_event
 
+        m, dn = liturgical.game_date(day)
         publish_world_event(
             "feast",
-            payload={"feast": info["name"], "date": f"{month}/{daynum}"},
+            payload={"feast": info["name"], "date": f"{m}/{dn}"},
             rumor=f"Today is {info['name']}. {info['note']}",
         )
     except Exception:

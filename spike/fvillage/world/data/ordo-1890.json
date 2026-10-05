@@ -1,0 +1,237 @@
+{
+ "source": "The official Catholic directory for the year of Our Lord 1890 (P.J. Kenedy, New York)",
+ "archive_url": "https://archive.org/details/officialcatholic1890unse",
+ "ocr_file": "officialcatholic1890unse_djvu.txt",
+ "extracted": "2026-10-04",
+ "note": "Sunday lectionary entries as OCR'd. Gaps from OCR noise filled from the Tridentine lectionary, which the legible entries match exactly.",
+ "sundays": [
+  {
+   "sunday": "Second Sunday after the Epiphany.",
+   "gospel": "St. John ii, 1-11",
+   "topic": "The Marriage of Cana. ~ oy oe",
+   "line": 4608
+  },
+  {
+   "sunday": "Third Sunday after the Epiphany.",
+   "gospel": "St. Matt viii. 1-13",
+   "topic": "Christ heals the Centurion’s Servant. »D heh",
+   "line": 4638
+  },
+  {
+   "sunday": "First Sunday of Lent. ee",
+   "gospel": "St. Matt 1-11",
+   "topic": "Jesus is tempted by the Devil. Q ",
+   "line": 4825
+  },
+  {
+   "sunday": "Second Sunday of Lent. >",
+   "gospel": "St. Matt xvii. 1-9",
+   "topic": "Transfiguration of Our Lord",
+   "line": 4887
+  },
+  {
+   "sunday": "Third Sunday of Lent. es ‘~",
+   "gospel": "St. Luke xi, 14-28",
+   "topic": "Jesus casts out a Devil. ..:",
+   "line": 4942
+  },
+  {
+   "sunday": "Fourth Sunday of Lent. he",
+   "gospel": "St. John vi. 1-15",
+   "topic": "The Miracle of the Loaves and Fishes. @ ae",
+   "line": 4952
+  },
+  {
+   "sunday": "Pmassion. Sunday. 62 8 eee “e",
+   "gospel": "St. John viii. 46-69",
+   "topic": "The Jews try to stone Jesus, St. John viii. 46-69: The Jews try to stone Jesus. ",
+   "line": 4962
+  },
+  {
+   "sunday": "Second Sunday after Easter.",
+   "gospel": "St. John x. 11-16",
+   "topic": "The Good Shepherd",
+   "line": 5084
+  },
+  {
+   "sunday": "hird Sunday after Easter.",
+   "gospel": "St. John xvi. 16-22",
+   "topic": "Joy after Sorrow",
+   "line": 5098
+  },
+  {
+   "sunday": "Fourth Sunday after Easter. @ ee:",
+   "gospel": "St. John xvi. 5-14",
+   "topic": "Christ promises the Comforter, bie",
+   "line": 5417
+  },
+  {
+   "sunday": "S Fifth Sunday after Easter. q Cae",
+   "gospel": "St. John xvi. 23-30",
+   "topic": "Ask in the name of Jesus and it shall be granted. ms",
+   "line": 5427
+  },
+  {
+   "sunday": "Second Sunday after Pentecost. €",
+   "gospel": "St. Luke xiv. 16-24",
+   "topic": "The Parable of the Supper",
+   "line": 5555
+  },
+  {
+   "sunday": "ich Sunday after Pentecost.",
+   "gospel": "St. Luke xv. 1-10",
+   "topic": "The Parable of the Lost Sheep. ",
+   "line": 5569
+  },
+  {
+   "sunday": "Fifth Sunday after Pentecost.",
+   "gospel": "St. Matt v. 20-24",
+   "topic": "The Justice of the Pharisees,",
+   "line": 5612
+  },
+  {
+   "sunday": "Sixth Sunday after Pentecost. G",
+   "gospel": "St. Mark viii, 1-9",
+   "topic": "Jesus feeds the Multitude",
+   "line": 5726
+  },
+  {
+   "sunday": "Seventh Sunday after Pentecost. a",
+   "gospel": "St. Matt vii. 15-21",
+   "topic": "The False Prophets, ",
+   "line": 5736
+  },
+  {
+   "sunday": "a Eighth Sunday after Pentecost.",
+   "gospel": "St. Luke xvi. 1-9",
+   "topic": "The Parable of the Unjust Steward. ",
+   "line": 5746
+  },
+  {
+   "sunday": "Ninth Sunday after Pentecost. ae",
+   "gospel": "St. Luke xix. 41-47",
+   "topic": "Jesus weeps over Jerusalem. es",
+   "line": 5756
+  },
+  {
+   "sunday": "Tenth Sunday after Pentecost. re",
+   "gospel": "St. Luke xviii. 9-14",
+   "topic": "The Pharisee and the Publican",
+   "line": 5817
+  },
+  {
+   "sunday": "Eleventh Sunday after Pentecost. aR . i?",
+   "gospel": "St. Mark vii. 31-37",
+   "topic": "Jesus cures the Dumb Man. w ae",
+   "line": 5921
+  },
+  {
+   "sunday": "Twelfth Sunday after Pentecost. | )",
+   "gospel": "St. Luke x. 23-37",
+   "topic": "The good Samaritan. LY",
+   "line": 5931
+  },
+  {
+   "sunday": "i Thirteenth Sunday after Pentecost. on G2",
+   "gospel": "St. Luke xvii. 11-19",
+   "topic": "The cure of the Leper. Ce) ‘",
+   "line": 5941
+  },
+  {
+   "sunday": "Fourteenth Sunday after Pentecost.",
+   "gospel": "St. Matt vi. 24-33",
+   "topic": "The Mammon of Iniquity,",
+   "line": 5955
+  },
+  {
+   "sunday": "Sixteenth Sunday after Pentecost.",
+   "gospel": "St. Luke xiv. 1-11",
+   "topic": "Christ heals the Dropsicai Man",
+   "line": 6096
+  },
+  {
+   "sunday": "Seventeenth Sunday after Pentetost.",
+   "gospel": "St. Matt xxii, 35-46",
+   "topic": "The First and Greatest Commandment",
+   "line": 6105
+  },
+  {
+   "sunday": "g Eighteenth Sunday after Pentecost.",
+   "gospel": "St. Matt ix. 1-8",
+   "topic": "Jesus cures the Man sick of the Palsy",
+   "line": 6114
+  },
+  {
+   "sunday": "Nineteenth Sunday after Pentecost. g",
+   "gospel": "St. Matt xxii. 1-14",
+   "topic": "The Parable of the Marriage-feast. s",
+   "line": 6317
+  },
+  {
+   "sunday": "Twentieth Sunday after Pentecost. ;",
+   "gospel": "St. John iv. 46-53",
+   "topic": "Healing of the Son of the Ruler of Capharnaum",
+   "line": 6327
+  },
+  {
+   "sunday": "Twenty-first Sunday after Pentecost.",
+   "gospel": "St. Matt xviii. 23-35",
+   "topic": "The Kitg’s Account, %",
+   "line": 6351
+  },
+  {
+   "sunday": "Twenty-second Sunday after Pentecost. cn",
+   "gospel": "St. Matt xxii. 15-21",
+   "topic": "The Coin of Tribute. =",
+   "line": 6396
+  },
+  {
+   "sunday": "Twenty-fourth Sunday after Pentecost.",
+   "gospel": "St. Matt xiii. 24-30",
+   "topic": "The Parable of the Cockle",
+   "line": 6505
+  },
+  {
+   "sunday": "Twenty-fifth Sunday after Pentecost.",
+   "gospel": "St. Matt xiii, 31-35",
+   "topic": "",
+   "line": 6527
+  },
+  {
+   "sunday": "Twenty-sixth & Last Sunday after Pentecost.",
+   "gospel": "St. Matt xxiv. 156-35",
+   "topic": "The Abomination of Desolation",
+   "line": 6604
+  },
+  {
+   "sunday": "First Sunday of Advent. |",
+   "gospel": "St. Luke xxi. 25-33",
+   "topic": "Signs foretelling the destruction of the world,",
+   "line": 6630
+  },
+  {
+   "sunday": "Second Sunday of Advent. eo",
+   "gospel": "St. Matt xi. 2-10",
+   "topic": "John sends his Disciples to Christ. @ fe",
+   "line": 6868
+  },
+  {
+   "sunday": "Third Sunday of Advent. . ‘ €",
+   "gospel": "St. John i. 19-28",
+   "topic": "John bears Witness of Christ. »D \"S",
+   "line": 6878
+  },
+  {
+   "sunday": "Fourth Sunday of Advent, -, eh",
+   "gospel": "St. Luke iii, 1-16",
+   "topic": "John’s Mission and Preaching, ; &) Fig",
+   "line": 6890
+  },
+  {
+   "sunday": "re _ Sunday in the Octave of Christmas. Ee.",
+   "gospel": "St. Luke ii. 33-40",
+   "topic": "The Prophecy of Simeon. ue",
+   "line": 6916
+  }
+ ]
+}
