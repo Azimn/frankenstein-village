@@ -36,6 +36,7 @@ for script_key in (
     "resident_population",
     "public_records",
     "situation_registry",
+    "scheduled_event_registry",
     "timed_incident_registry",
     "room_six",
     "moderation_queue",
@@ -733,6 +734,223 @@ rumor_registry.db.next_transmission_id = rumor_snapshot["next_transmission_id"]
 for npc in population:
     npc.db.rumor_beliefs = copy.deepcopy(
         rumor_belief_snapshot.get(npc.id, {})
+    )
+tavern_for_snapshot.db.public_rumor_ids = copy.deepcopy(
+    tavern_public_ids_snapshot
+)
+tavern_for_snapshot.db.player_rumors = copy.deepcopy(
+    tavern_player_rumors_snapshot
+)
+
+# Recurring scheduled events share one persistent calendar registry. This
+# section proves three different behaviors: a publication pulse, a civic
+# activity window, and a social convergence window.
+from world.scheduled_events import (
+    HARBINGER_PUBLICATION_ID,
+    MARKET_MORNING_ID,
+    SUNDAY_SERVICE_ID,
+    advance_scheduled_events,
+    calendar_lines,
+    day_name,
+    get_scheduled_event,
+)
+
+scheduled_registry = ScriptDB.objects.get(db_key="scheduled_event_registry")
+assert set((scheduled_registry.db.events or {}).keys()) == {
+    HARBINGER_PUBLICATION_ID,
+    MARKET_MORNING_ID,
+    SUNDAY_SERVICE_ID,
+}
+for _scheduled_id in (
+    HARBINGER_PUBLICATION_ID,
+    MARKET_MORNING_ID,
+    SUNDAY_SERVICE_ID,
+):
+    assert get_scheduled_event(_scheduled_id)["state"] == "idle"
+
+scheduled_registry_snapshot = copy.deepcopy(
+    dict(scheduled_registry.db.events or {})
+)
+scheduled_metrics_snapshot = copy.deepcopy(
+    dict(scheduled_registry.db.metrics or {})
+)
+scheduled_resident_states = {
+    npc.db.resident_id: copy.deepcopy(npc.db.resident_state)
+    for npc in population
+}
+scheduled_resident_locations = {
+    npc.db.resident_id: npc.location
+    for npc in population
+}
+scheduled_resident_blessings = {
+    npc.db.resident_id: npc.db.blessed_day
+    for npc in population
+}
+scheduled_regulars = {
+    obj.key: {
+        "object": obj,
+        "location": obj.location,
+        "override": copy.deepcopy(obj.db.routine_override),
+        "blessed_day": obj.db.blessed_day,
+    }
+    for obj in (
+        one("Father Andrei"),
+        one("Magda"),
+        one("Old Vasile"),
+    )
+}
+square = one("Village Square")
+church_room = one("St. Lazarus Church")
+square_overlays_snapshot = copy.deepcopy(
+    dict(square.db.scheduled_overlays or {})
+)
+church_overlays_snapshot = copy.deepcopy(
+    dict(church_room.db.scheduled_overlays or {})
+)
+routine_script = ScriptDB.objects.get(db_key="village_routine")
+last_mass_snapshot = routine_script.db.last_mass_day
+scheduled_ledger_snapshot = copy.deepcopy(list(ledger.db.events or []))
+scheduled_public_snapshot = {
+    key: copy.deepcopy(value)
+    for key, value in public_records_snapshot.items()
+}
+scheduled_rumor_snapshot = {
+    "rumors": copy.deepcopy(list(rumor_registry.db.rumors or [])),
+    "transmissions": copy.deepcopy(list(rumor_registry.db.transmissions or [])),
+    "next_rumor_id": rumor_registry.db.next_rumor_id,
+    "next_transmission_id": rumor_registry.db.next_transmission_id,
+}
+scheduled_belief_snapshot = {
+    npc.id: copy.deepcopy(dict(npc.db.rumor_beliefs or {}))
+    for npc in population
+}
+
+assert day_name(7) == "Saturday"
+assert day_name(8) == "Sunday"
+
+# Daily Harbinger publication is now a calendar pulse rather than hard-coded
+# clock logic. One pending article prints exactly once at the 08:00 boundary.
+calendar_notice = publish_world_event(
+    "qa_scheduled_notice",
+    payload={
+        "headline": "QA Calendar Notice",
+        "public_summary": "A harmless notice exists only to test the calendar press pulse.",
+    },
+    rumor="A harmless QA notice is waiting for the morning paper.",
+)
+pending_story_id = calendar_notice["publications"]["harbinger_story_id"]
+assert pending_story_id
+edition_count_before = len(public_records.db.harbinger_editions or [])
+pulse = advance_scheduled_events(day=3, hour=8)
+assert pulse["pulsed"] == [HARBINGER_PUBLICATION_ID]
+paper_event = get_scheduled_event(HARBINGER_PUBLICATION_ID)
+assert paper_event["run_count"] == 1
+assert paper_event["history"][-1]["result"]["published"]
+assert public_records.db.last_harbinger_day == 3
+assert len(public_records.db.harbinger_editions or []) == edition_count_before + 1
+duplicate_pulse = advance_scheduled_events(day=3, hour=8)
+assert duplicate_pulse["pulsed"] == []
+assert get_scheduled_event(HARBINGER_PUBLICATION_ID)["run_count"] == 1
+assert len(public_records.db.harbinger_editions or []) == edition_count_before + 1
+
+# Saturday market morning temporarily concentrates useful professions in the
+# square. It is a routine civic event, so it does not generate a world-event
+# ledger entry merely for happening.
+ledger_count_before_market = len(ledger.db.events or [])
+market_start = advance_scheduled_events(day=7, hour=7)
+assert market_start["started"] == [MARKET_MORNING_ID]
+market_event = get_scheduled_event(MARKET_MORNING_ID)
+assert market_event["state"] == "active"
+market_ids = market_event["current"]["result"]["participant_ids"]
+assert len(market_ids) >= 6
+assert "Market morning fills the square" in (
+    square.db.scheduled_overlays or {}
+)[MARKET_MORNING_ID]
+for stable_id in market_ids:
+    market_state = resident_state(by_resident_id[stable_id])
+    assert market_state["routine"]["logical_location"] == "square"
+    assert market_state["routine"]["source"] == "deviation"
+assert len(ledger.db.events or []) == ledger_count_before_market, (
+    "ordinary market recurrence polluted the canonical event ledger"
+)
+calendar_now = "\n".join(calendar_lines(7, 7))
+assert "Underway now: Market Morning." in calendar_now
+assert "Next Sunday Mass: day 8 at 10:00." in calendar_now
+duplicate_market = advance_scheduled_events(day=7, hour=7)
+assert duplicate_market["started"] == []
+assert get_scheduled_event(MARKET_MORNING_ID)["run_count"] == 1
+market_end = advance_scheduled_events(day=7, hour=12)
+assert market_end["ended"] == [MARKET_MORNING_ID]
+assert MARKET_MORNING_ID not in (square.db.scheduled_overlays or {})
+for stable_id in market_ids:
+    market_state = resident_state(by_resident_id[stable_id])
+    assert (market_state.get("routine_override") or {}).get("reason") != (
+        "Saturday market morning"
+    )
+assert len(get_scheduled_event(MARKET_MORNING_ID)["history"]) == 1
+
+# Sunday service is now started and ended by the same calendar. The existing
+# liturgical Mass implementation remains the behavior engine.
+routine_script.db.last_mass_day = None
+service_start = advance_scheduled_events(day=8, hour=10)
+assert service_start["started"] == [SUNDAY_SERVICE_ID]
+service_event = get_scheduled_event(SUNDAY_SERVICE_ID)
+assert service_event["state"] == "active"
+assert service_event["current"]["result"]["attendee_count"] >= 5
+assert "Sunday Mass is underway" in (
+    church_room.db.scheduled_overlays or {}
+)[SUNDAY_SERVICE_ID]
+assert resident_state(wren)["routine"]["logical_location"] == "church"
+mass_events = [
+    event for event in (ledger.db.events or [])
+    if event.get("kind") == "mass"
+    and (event.get("payload") or {}).get("day") == 8
+]
+assert len(mass_events) == 1
+duplicate_service = advance_scheduled_events(day=8, hour=10)
+assert duplicate_service["started"] == []
+assert get_scheduled_event(SUNDAY_SERVICE_ID)["run_count"] == 1
+service_end = advance_scheduled_events(day=8, hour=11)
+assert service_end["ended"] == [SUNDAY_SERVICE_ID]
+assert SUNDAY_SERVICE_ID not in (church_room.db.scheduled_overlays or {})
+assert (resident_state(wren).get("routine_override") or {}).get("reason") != (
+    "Sunday mass"
+)
+assert len(get_scheduled_event(SUNDAY_SERVICE_ID)["history"]) == 1
+
+# Restore the test world before lifecycle, relationship, and telnet scenarios.
+scheduled_registry.db.events = copy.deepcopy(scheduled_registry_snapshot)
+scheduled_registry.db.metrics = copy.deepcopy(scheduled_metrics_snapshot)
+square.db.scheduled_overlays = copy.deepcopy(square_overlays_snapshot)
+church_room.db.scheduled_overlays = copy.deepcopy(church_overlays_snapshot)
+routine_script.db.last_mass_day = last_mass_snapshot
+for stable_id, old_state in scheduled_resident_states.items():
+    npc = by_resident_id[stable_id]
+    npc.db.resident_state = copy.deepcopy(old_state)
+    npc.db.blessed_day = scheduled_resident_blessings[stable_id]
+    old_location = scheduled_resident_locations[stable_id]
+    if old_location and npc.location != old_location:
+        npc.move_to(old_location, quiet=True)
+for data in scheduled_regulars.values():
+    obj = data["object"]
+    obj.db.routine_override = copy.deepcopy(data["override"])
+    obj.db.blessed_day = data["blessed_day"]
+    if data["location"] and obj.location != data["location"]:
+        obj.move_to(data["location"], quiet=True)
+ledger.db.events = copy.deepcopy(scheduled_ledger_snapshot)
+for key, value in scheduled_public_snapshot.items():
+    setattr(public_records.db, key, copy.deepcopy(value))
+rumor_registry.db.rumors = copy.deepcopy(scheduled_rumor_snapshot["rumors"])
+rumor_registry.db.transmissions = copy.deepcopy(
+    scheduled_rumor_snapshot["transmissions"]
+)
+rumor_registry.db.next_rumor_id = scheduled_rumor_snapshot["next_rumor_id"]
+rumor_registry.db.next_transmission_id = scheduled_rumor_snapshot[
+    "next_transmission_id"
+]
+for npc in population:
+    npc.db.rumor_beliefs = copy.deepcopy(
+        scheduled_belief_snapshot.get(npc.id, {})
     )
 tavern_for_snapshot.db.public_rumor_ids = copy.deepcopy(
     tavern_public_ids_snapshot

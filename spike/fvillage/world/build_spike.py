@@ -1068,6 +1068,7 @@ for _skey, _sclass in (
     ("resident_population", "typeclasses.scripts.ResidentPopulationRegistry"),
     ("public_records", "typeclasses.scripts.PublicRecordRegistry"),
     ("situation_registry", "typeclasses.scripts.SituationRegistry"),
+    ("scheduled_event_registry", "typeclasses.scripts.ScheduledEventRegistry"),
     ("timed_incident_registry", "typeclasses.scripts.TimedIncidentRegistry"),
     ("warmth_watch", "typeclasses.scripts.WarmthWatch"),
     ("tavern_life", "typeclasses.scripts.TavernLife"),
@@ -1096,6 +1097,14 @@ print(
     f"({_situations['created']} created)."
 )
 
+
+from world.scheduled_events import ensure_scheduled_events
+_scheduled_events = ensure_scheduled_events()
+print(
+    "scheduled event registry ready: "
+    f"{_scheduled_events['count']} events "
+    f"({_scheduled_events['created']} created)."
+)
 
 from world.timed_incidents import ensure_timed_incidents
 _timed_incidents = ensure_timed_incidents()

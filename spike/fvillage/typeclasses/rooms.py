@@ -56,6 +56,11 @@ class SpikeRoom(DefaultRoom):
         weather = self.db.weather_sense
         if weather:
             desc = f"{desc} {weather}"
+        overlays = dict(self.db.scheduled_overlays or {})
+        for _key in sorted(overlays):
+            line = overlays[_key]
+            if line:
+                desc = f"{desc}\n{line}"
         return desc
 
 

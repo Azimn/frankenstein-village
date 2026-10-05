@@ -1,5 +1,6 @@
 """Assertions run after the player telnet pass and a real server restart."""
 
+from evennia.scripts.models import ScriptDB
 from evennia.utils import search
 
 from world.residents import facts_known_by_player, resident_state
@@ -19,6 +20,12 @@ from world.timed_incidents import (
     advance_timed_incidents,
     get_timed_incident,
     status_for_player as timed_status_for_player,
+)
+from world.scheduled_events import (
+    HARBINGER_PUBLICATION_ID,
+    MARKET_MORNING_ID,
+    SUNDAY_SERVICE_ID,
+    get_scheduled_event_registry,
 )
 
 
@@ -106,5 +113,17 @@ if timed["state"] == "aftermath":
 print("POST_RESTART_RESIDENT_ASSERTIONS_GREEN")
 print("POST_RESTART_PUBLIC_RECORD_ASSERTIONS_GREEN")
 print("POST_RESTART_SITUATION_ASSERTIONS_GREEN")
+scheduled = get_scheduled_event_registry()
+assert set((scheduled.db.events or {}).keys()) == {
+    HARBINGER_PUBLICATION_ID,
+    MARKET_MORNING_ID,
+    SUNDAY_SERVICE_ID,
+}
+assert ScriptDB.objects.filter(db_key="scheduled_event_registry").count() == 1
+assert set((scheduled.db.metrics or {}).keys()).issuperset({
+    "checks", "starts", "ends", "pulses",
+})
+
 print("POST_RESTART_INCIDENT_FEED_ASSERTIONS_GREEN")
 print("POST_RESTART_TIMED_INCIDENT_ASSERTIONS_GREEN")
+print("POST_RESTART_SCHEDULED_EVENT_ASSERTIONS_GREEN")
