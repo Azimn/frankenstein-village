@@ -721,7 +721,19 @@ _fixture(
 # Canon incident #6 is a live environmental hook, not a quest marker. The
 # strongbox and roll expose separate evidence channels through ordinary look.
 def _incident_fixture(key, aliases, typeclass):
+    legacy_keys = {
+        "tithe strongbox": "the tithe strongbox",
+        "tithe roll": "the tithe roll",
+    }
     found = [o for o in _church.contents if o.key == key]
+    if not found and legacy_keys.get(key):
+        found = [
+            o for o in _church.contents
+            if o.key == legacy_keys[key]
+        ]
+        if found:
+            found[0].key = key
+            print(f"incident fixture renamed: {key}")
     if found:
         obj = found[0]
     else:
@@ -739,13 +751,13 @@ def _incident_fixture(key, aliases, typeclass):
 
 
 _incident_fixture(
-    "the tithe strongbox",
-    ["strongbox", "tithe box", "church strongbox"],
+    "tithe strongbox",
+    ["the tithe strongbox", "strongbox", "tithe box", "church strongbox"],
     "typeclasses.objects.TitheStrongbox",
 )
 _incident_fixture(
-    "the tithe roll",
-    ["roll", "tithe ledger", "parish roll"],
+    "tithe roll",
+    ["the tithe roll", "roll", "tithe ledger", "parish roll"],
     "typeclasses.objects.TitheRoll",
 )
 
