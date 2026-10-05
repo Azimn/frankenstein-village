@@ -1132,6 +1132,41 @@ class CmdTime(Command):
         self.caller.msg(f"It is {name} in the village.")
 
 
+class CmdCalendar(Command):
+    """Read the village's predictable public calendar.
+
+    Usage:
+        calendar
+        schedule
+
+    This lists stable civic rhythms, not hidden incidents or quest timers.
+    """
+
+    key = "calendar"
+    aliases = ["schedule"]
+    help_category = "Village"
+
+    def func(self):
+        try:
+            from evennia.scripts.models import ScriptDB
+            from world.scheduled_events import calendar_lines
+
+            clock = ScriptDB.objects.get(db_key="village_time")
+            day = int(clock.db.day or 1)
+            hour = int(
+                clock.db.hour if clock.db.hour is not None else 21
+            )
+        except Exception:
+            self.caller.msg("The village calendar is not available.")
+            return
+
+        self.caller.msg("|yVillage calendar:|n\n" + "\n".join(
+            calendar_lines(day, hour)
+        ))
+
+
+
+
 class CmdListen(Command):
     """
     Listen to the room — or to something in it.
