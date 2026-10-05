@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import time
+from collections.abc import Mapping
 
 from evennia import create_script
 from evennia.scripts.models import ScriptDB
@@ -314,13 +315,13 @@ def _record_event(situation, event):
         ids.append(event["id"])
     situation["event_ids"] = ids
     rumor = event.get("rumor") or {}
-    if isinstance(rumor, dict) and rumor.get("rumor_id"):
+    if isinstance(rumor, Mapping) and rumor.get("rumor_id"):
         rumor_ids = list(situation.get("rumor_ids") or [])
         if rumor["rumor_id"] not in rumor_ids:
             rumor_ids.append(rumor["rumor_id"])
         situation["rumor_ids"] = rumor_ids
     pubs = event.get("publications") or {}
-    if isinstance(pubs, dict) and any(v is not None for v in pubs.values()):
+    if isinstance(pubs, Mapping) and any(v is not None for v in pubs.values()):
         publications = list(situation.get("publications") or [])
         publications.append(dict(pubs))
         situation["publications"] = publications
