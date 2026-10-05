@@ -605,6 +605,38 @@ class ModerationQueue(DefaultScript):
         return dict(selected), None
 
 
+class PublicRecordRegistry(DefaultScript):
+    """Persistent Harbinger and Chronicle state.
+
+    The world-event ledger remains canonical truth. This registry stores
+    publication artifacts about that truth: newspaper drafts and editions,
+    Chronicle entries, annotations, corrections, and player depositions.
+    Original publication records are never silently rewritten.
+    """
+
+    def at_script_creation(self):
+        self.key = "public_records"
+        self.desc = "Persistent Harbinger and Chronicle publication registry."
+        self.interval = -1
+        self.persistent = True
+        defaults = {
+            "harbinger_drafts": [],
+            "harbinger_editions": [],
+            "chronicle_entries": [],
+            "depositions": [],
+            "next_story_id": 1,
+            "next_edition_id": 1,
+            "next_chronicle_id": 1,
+            "next_deposition_id": 1,
+            "last_harbinger_day": None,
+        }
+        for key, value in defaults.items():
+            if getattr(self.db, key) is None:
+                setattr(self.db, key, value)
+
+
+
+
 class ResidentPopulationRegistry(DefaultScript):
     """Shared coordination state for the resident population.
 
