@@ -823,46 +823,80 @@ class CmdJournal(Command):
             resolve_situation_subject,
             situation_status_for_player,
         )
+        from world.timed_incidents import (
+            known_timed_incidents,
+            resolve_timed_subject,
+            status_for_player as timed_status_for_player,
+        )
 
         arg = (self.args or "").strip().lower()
         if arg:
             stable_id = resolve_situation_subject(arg)
-            if not stable_id:
-                self.caller.msg("That situation is not in your journal.")
-                return
-            status = situation_status_for_player(self.caller, stable_id)
-            if not status:
-                self.caller.msg(
-                    "Nothing about that situation is in your journal."
-                )
+            if stable_id:
+                status = situation_status_for_player(self.caller, stable_id)
+                if not status:
+                    self.caller.msg(
+                        "Nothing about that situation is in your journal."
+                    )
+                    return
+
+                lines = [
+                    f"|y{status['title']}|n",
+                    f"State: {status['state'].replace('_', ' ')}.",
+                ]
+                if status["evidence"]:
+                    lines.append("Evidence you have actually encountered:")
+                    for evidence in status["evidence"]:
+                        lines.append(
+                            f"  * {evidence['label']}: {evidence['summary']}"
+                        )
+                if status.get("aftermath"):
+                    lines.append(f"Aftermath: {status['aftermath']}")
+                elif status.get("branch") == "quietly":
+                    lines.append(
+                        "The inquiry is being kept quiet. Time is still moving."
+                    )
+                elif len(status["evidence"]) >= 2 and status.get("choices"):
+                    choices = " or ".join(status["choices"])
+                    lines.append(
+                        f"You know enough to make a consequential choice: {choices}."
+                    )
+                self.caller.msg("\n".join(lines))
                 return
 
-            lines = [
-                f"|y{status['title']}|n",
-                f"State: {status['state'].replace('_', ' ')}.",
-            ]
-            if status["evidence"]:
-                lines.append("Evidence you have actually encountered:")
-                for evidence in status["evidence"]:
-                    lines.append(
-                        f"  * {evidence['label']}: {evidence['summary']}"
+            timed_id = resolve_timed_subject(arg)
+            if timed_id:
+                status = timed_status_for_player(self.caller, timed_id)
+                if not status:
+                    self.caller.msg(
+                        "Nothing about that timed event is in your journal."
                     )
-            if status.get("aftermath"):
-                lines.append(f"Aftermath: {status['aftermath']}")
-            elif status.get("branch") == "quietly":
-                lines.append(
-                    "The inquiry is being kept quiet. Time is still moving."
+                    return
+                observation = status["observation"]
+                quality = (
+                    "firsthand witness"
+                    if observation.get("quality") == "firsthand"
+                    else "aftermath evidence"
                 )
-            elif len(status["evidence"]) >= 2 and status.get("choices"):
-                choices = " or ".join(status["choices"])
-                lines.append(
-                    f"You know enough to make a consequential choice: {choices}."
-                )
-            self.caller.msg("\n".join(lines))
+                lines = [
+                    f"|y{status['title']}|n",
+                    f"State: {status['state'].replace('_', ' ')}.",
+                    f"Evidence quality: {quality}.",
+                    f"* {observation['label']}: {observation['summary']}",
+                ]
+                if status.get("rumor_id"):
+                    lines.append(
+                        f"A later public rumor is traceable as R{status['rumor_id']}."
+                    )
+                self.caller.msg("\n".join(lines))
+                return
+
+            self.caller.msg("That situation is not in your journal.")
             return
 
         known = known_situations(self.caller)
-        if not known:
+        timed = known_timed_incidents(self.caller)
+        if not known and not timed:
             self.caller.msg(
                 "Your journal has no village developments yet. It only records "
                 "situations you have actually encountered."
@@ -876,6 +910,17 @@ class CmdJournal(Command):
                 f"* {situation['working_title']}: "
                 f"{situation['state'].replace('_', ' ')}; "
                 f"{evidence_count} evidence source(s) encountered."
+            )
+        for status in timed:
+            observation = status["observation"]
+            quality = (
+                "firsthand"
+                if observation.get("quality") == "firsthand"
+                else "aftermath"
+            )
+            lines.append(
+                f"* {status['title']}: {status['state'].replace('_', ' ')}; "
+                f"{quality} evidence."
             )
         lines.append("Use journal <topic> for what your mask actually knows.")
         self.caller.msg("\n".join(lines))
