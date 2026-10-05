@@ -1017,6 +1017,7 @@ for _skey, _sclass in (
     ("village_time", "typeclasses.scripts.VillageTime"),
     ("village_weather", "typeclasses.scripts.VillageWeather"),
     ("resident_population", "typeclasses.scripts.ResidentPopulationRegistry"),
+    ("public_records", "typeclasses.scripts.PublicRecordRegistry"),
     ("warmth_watch", "typeclasses.scripts.WarmthWatch"),
     ("tavern_life", "typeclasses.scripts.TavernLife"),
     ("village_routine", "typeclasses.scripts.VillageRoutine"),

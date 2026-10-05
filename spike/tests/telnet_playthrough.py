@@ -107,6 +107,9 @@ def main() -> int:
         out = c.command("ic SmokeTester", wait=4.0)
         require(out, "private room")
 
+        out = c.command("chronicle")
+        require(out, "in-character village record", "cross the front door")
+
         out = c.command("down")
         require(out, "inn common room")
 
@@ -181,8 +184,38 @@ def main() -> int:
         out = c.command("drop note", wait=3.0)
         require(out, "pins the note behind", "pinned behind")
 
+        out = c.command("harbinger")
+        require(out, "special edition", "folded note posted")
+        story_match = re.search(r"\[H(\d+)\].*Folded Note", out, re.I)
+        if not story_match:
+            raise AssertionError("Room Six special edition had no stable H handle")
+        story_id = story_match.group(1)
+
+        out = c.command(f"harbinger H{story_id}")
+        require(out, "filed from a recorded event")
+        require(out, "folded note")
+
+        out = c.command("chronicle")
+        require(out, "public chronicle index")
+        require(out, "folded note", "verified")
+
         out = c.command("rumors")
         require(out, "room six behind the tavern")
+        room_six_rumor_id = None
+        for match in re.finditer(r"\[R(\d+)\]\s+([^\n]+)", out, re.I):
+            if "room six" in match.group(2).lower():
+                room_six_rumor_id = match.group(1)
+                break
+        if not room_six_rumor_id:
+            raise AssertionError("Room Six rumor had no provenance handle")
+
+        out = c.command(f"chronicle submit R{room_six_rumor_id}")
+        require(out, "the record preserves that you said it")
+        require(out, "does not certify", "not certify")
+
+        out = c.command("chronicle")
+        require(out, "deposition from smoketester")
+        require(out, "account")
 
         out = c.command("west")
         require(out, "village square")

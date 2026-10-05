@@ -312,3 +312,31 @@ Tests:
 - `spike/tests/post_restart_assertions.py` verifies that the telnet-created relationship and revealed fact survive a real server stop and restart.
 
 The full acceptance command remains `python3.12 spike/tests/run_all.py`.
+
+## 2026-10-05 - Harbinger and Chronicle public records
+
+`world/publications.py` and the persistent `public_records` script bridge canonical events into diegetic public memory.
+
+The event transaction is now:
+
+`event -> canonical ledger -> optional rumor -> consequence -> public-record projection -> resident event wakeups`
+
+This ordering is deliberate. Publication can report what happened or what people claim happened, but it cannot alter the canonical event that already exists.
+
+Harbinger drafts retain source event and rumor IDs, editorial basis, confidence, correction history, and publication status. Regular editions print at 08:00 through `VillageTime`; special editions can print immediately. Printed stories are fed to a deterministic subset of residents as belief records sourced from The Harbinger.
+
+Chronicle entries are provenance-first. Verified world changes may be entered automatically. Rumor-only events are not silently promoted. Player rumor submissions create attributed deposition entries with `claim_status=reported_account`. Chronicle annotations append new evidence without changing the original text.
+
+The clean-checkout regression now verifies:
+- objective event to special Harbinger edition;
+- objective event to verified Chronicle entry;
+- fixed morning publication cadence and one-issue-per-day guard;
+- rumor-only Harbinger reporting without Chronicle promotion;
+- sealed/private event exclusion;
+- append-only Harbinger correction;
+- append-only Chronicle annotation;
+- resident knowledge acquisition from printed news;
+- OOC command rejection;
+- Room Six special edition and verified Chronicle record over real telnet;
+- player rumor deposition over real telnet;
+- persistence of the edition, objective entry, and deposition across a real server restart.

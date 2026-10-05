@@ -34,6 +34,7 @@ for script_key in (
     "world_event_ledger",
     "rumor_registry",
     "resident_population",
+    "public_records",
     "room_six",
     "moderation_queue",
     "ambient_life",
@@ -148,6 +149,35 @@ claims_snapshot = copy.deepcopy(dict(population_registry.db.fact_claims or {}))
 locations_snapshot = copy.deepcopy(
     dict(population_registry.db.location_states or {})
 )
+public_records = ScriptDB.objects.get(db_key="public_records")
+public_records_snapshot = {
+    "harbinger_drafts": copy.deepcopy(list(public_records.db.harbinger_drafts or [])),
+    "harbinger_editions": copy.deepcopy(list(public_records.db.harbinger_editions or [])),
+    "chronicle_entries": copy.deepcopy(list(public_records.db.chronicle_entries or [])),
+    "depositions": copy.deepcopy(list(public_records.db.depositions or [])),
+    "next_story_id": public_records.db.next_story_id,
+    "next_edition_id": public_records.db.next_edition_id,
+    "next_chronicle_id": public_records.db.next_chronicle_id,
+    "next_deposition_id": public_records.db.next_deposition_id,
+    "last_harbinger_day": public_records.db.last_harbinger_day,
+}
+rumor_snapshot = {
+    "rumors": copy.deepcopy(list(rumor_registry.db.rumors or [])),
+    "transmissions": copy.deepcopy(list(rumor_registry.db.transmissions or [])),
+    "next_rumor_id": rumor_registry.db.next_rumor_id,
+    "next_transmission_id": rumor_registry.db.next_transmission_id,
+}
+rumor_belief_snapshot = {
+    npc.id: copy.deepcopy(dict(npc.db.rumor_beliefs or {}))
+    for npc in population
+}
+tavern_for_snapshot = one("The Blood of the Vine")
+tavern_public_ids_snapshot = copy.deepcopy(
+    list(tavern_for_snapshot.db.public_rumor_ids or [])
+)
+tavern_player_rumors_snapshot = copy.deepcopy(
+    list(tavern_for_snapshot.db.player_rumors or [])
+)
 
 # Acceptance scenario: Wren follows school without cognition when the routine
 # is valid, falls back home with an attributable cause when the school is
@@ -193,6 +223,87 @@ school_restored = publish_world_event(
 )
 advance_population(day=2, hour=10, emit=False)
 assert resident_state(wren)["routine"]["logical_location"] == "schoolhouse"
+
+# Public-record bridge: objective destruction creates a special Harbinger
+# edition and a verified Chronicle entry. Restoration waits for the fixed
+# morning issue. Corrections and Chronicle annotations append without erasing.
+from world.publications import (
+    annotate_chronicle,
+    correct_harbinger_story,
+    get_chronicle_entry,
+    get_story,
+    latest_edition,
+    publish_due_harbinger,
+)
+destroy_refs = school_destroyed.get("publications") or {}
+assert destroy_refs["harbinger_story_id"]
+assert destroy_refs["chronicle_entry_id"]
+assert destroy_refs["special_edition_id"]
+destroy_story = get_story(destroy_refs["harbinger_story_id"])
+assert destroy_story["basis"] == "objective"
+assert destroy_story["status"] == "published"
+assert "schoolhouse" in destroy_story["body"].lower()
+destroy_entry = get_chronicle_entry(destroy_refs["chronicle_entry_id"])
+original_chronicle_text = destroy_entry["text"]
+annotated = annotate_chronicle(
+    destroy_entry["id"],
+    "Repairs began after the closure; this note does not alter the original entry.",
+    source_event_ids=[school_restored["id"]],
+    author="QA Chronicler",
+)
+assert annotated["text"] == original_chronicle_text
+assert len(annotated["annotations"]) == 1
+
+original_story_body = destroy_story["body"]
+correction = correct_harbinger_story(
+    destroy_story["id"],
+    "Correction: the closure was confirmed before the cause was fully understood.",
+    source_event_id=school_restored["id"],
+)
+assert correction and correction["basis"] == "correction"
+assert get_story(destroy_story["id"])["body"] == original_story_body
+
+morning = publish_due_harbinger(2, 8)
+assert morning and not morning["special"]
+assert correction["id"] in morning["story_ids"]
+assert publish_due_harbinger(2, 8) is None, (
+    "fixed Harbinger cadence printed twice on one game day"
+)
+
+# A rumor may be news without becoming Chronicle truth.
+reported = publish_world_event(
+    "qa_reported_only",
+    actor=magda if "magda" in globals() else None,
+    payload={"harbinger": True},
+    rumor="Someone claims a bell rang under the well.",
+)
+reported_refs = reported.get("publications") or {}
+assert reported_refs["harbinger_story_id"]
+assert reported_refs["chronicle_entry_id"] is None
+assert get_story(reported_refs["harbinger_story_id"])["basis"] == "reported"
+
+# Sealed/private events are never promoted into public records even when a
+# content-free social rumor exists around the event.
+private_event = publish_world_event(
+    "confession",
+    payload={"sealed": True},
+    rumor="Someone was a long time in the box today.",
+)
+assert not private_event.get("publications")
+
+# Printed stories feed public knowledge back into residents with explicit
+# Harbinger provenance. Ilona reads institutional news deterministically.
+harbinger_roots = [
+    dict(root)
+    for root in (rumor_registry.db.rumors or [])
+    if root.get("source_type") == "harbinger"
+    and root.get("original_event_id") == school_destroyed["id"]
+]
+assert len(harbinger_roots) == 1
+ilona = by_resident_id["ilona_szabo"]
+assert rumor_registry.belief_for(ilona, harbinger_roots[0]["id"]), (
+    "printed Harbinger story did not feed knowledge back into the Chronicler"
+)
 
 # The butcher resolves directly to the correct current state. Skipped hours
 # are not replayed, and a dead resident stops following schedules.
@@ -370,6 +481,8 @@ assert exposed_root["subject"] == f"resident_fact:{shared_fact_id}"
 qa_event_ids = {
     school_destroyed["id"],
     school_restored["id"],
+    reported["id"],
+    private_event["id"],
     employment_event["id"],
     mass_event["id"],
 }
@@ -399,6 +512,27 @@ for npc in population:
     beliefs = dict(npc.db.rumor_beliefs or {})
     beliefs.pop(str(exposed_id), None)
     npc.db.rumor_beliefs = beliefs
+
+# Restore all publication and rumor state changed by synthetic population QA.
+# This prevents special editions, confession chatter, corrections, and article
+# readership from leaking into the real telnet transcript that follows.
+for key, value in public_records_snapshot.items():
+    setattr(public_records.db, key, copy.deepcopy(value))
+rumor_registry.db.rumors = copy.deepcopy(rumor_snapshot["rumors"])
+rumor_registry.db.transmissions = copy.deepcopy(rumor_snapshot["transmissions"])
+rumor_registry.db.next_rumor_id = rumor_snapshot["next_rumor_id"]
+rumor_registry.db.next_transmission_id = rumor_snapshot["next_transmission_id"]
+for npc in population:
+    npc.db.rumor_beliefs = copy.deepcopy(
+        rumor_belief_snapshot.get(npc.id, {})
+    )
+tavern_for_snapshot.db.public_rumor_ids = copy.deepcopy(
+    tavern_public_ids_snapshot
+)
+tavern_for_snapshot.db.player_rumors = copy.deepcopy(
+    tavern_player_rumors_snapshot
+)
+
 for stable_id, old_state in state_snapshot.items():
     by_resident_id[stable_id].db.resident_state = old_state
 population_registry.db.fact_claims = claims_snapshot
@@ -496,6 +630,17 @@ assert autonomous, "routine-scale NPC rumor propagation produced no retelling"
 
 # Event-generated rumors enter the same registry and retain their event link.
 from world.events import publish_world_event
+qa_public_snapshot = {
+    "harbinger_drafts": copy.deepcopy(list(public_records.db.harbinger_drafts or [])),
+    "harbinger_editions": copy.deepcopy(list(public_records.db.harbinger_editions or [])),
+    "chronicle_entries": copy.deepcopy(list(public_records.db.chronicle_entries or [])),
+    "depositions": copy.deepcopy(list(public_records.db.depositions or [])),
+    "next_story_id": public_records.db.next_story_id,
+    "next_edition_id": public_records.db.next_edition_id,
+    "next_chronicle_id": public_records.db.next_chronicle_id,
+    "next_deposition_id": public_records.db.next_deposition_id,
+    "last_harbinger_day": public_records.db.last_harbinger_day,
+}
 qa_event = publish_world_event(
     "qa_rumor",
     actor=magda,
@@ -538,6 +683,8 @@ for npc in search.search_tag("participant", category="rumor"):
     beliefs = dict(npc.db.rumor_beliefs or {})
     beliefs.pop(str(qa_rumor_id), None)
     npc.db.rumor_beliefs = beliefs
+for key, value in qa_public_snapshot.items():
+    setattr(public_records.db, key, copy.deepcopy(value))
 
 # Moderation lifecycle is tested on an isolated temporary script so running
 # these assertions against a real development world cannot pollute its queue.

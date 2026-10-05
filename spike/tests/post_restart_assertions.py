@@ -3,6 +3,11 @@
 from evennia.utils import search
 
 from world.residents import facts_known_by_player, resident_state
+from world.publications import (
+    chronicle_entries,
+    edition_stories,
+    latest_edition,
+)
 
 
 def one(key):
@@ -26,4 +31,23 @@ assert known, "revealed fact was not recorded for the player mask"
 population = list(search.search_tag("resident", category="system"))
 assert len(population) == 36, "resident population changed across restart"
 
+edition = latest_edition()
+assert edition and edition["special"], "Room Six special edition did not survive restart"
+stories = edition_stories(edition)
+assert any("Folded Note" in story["headline"] for story in stories)
+
+entries = chronicle_entries()
+assert any(
+    entry["entry_type"] == "objective_record"
+    and "Folded Note" in entry["title"]
+    for entry in entries
+), "objective Room Six Chronicle entry did not survive restart"
+assert any(
+    entry["entry_type"] == "deposition"
+    and entry.get("source_mask_id") == smoke.id
+    and entry.get("claim_status") == "reported_account"
+    for entry in entries
+), "player Chronicle deposition did not survive restart"
+
 print("POST_RESTART_RESIDENT_ASSERTIONS_GREEN")
+print("POST_RESTART_PUBLIC_RECORD_ASSERTIONS_GREEN")

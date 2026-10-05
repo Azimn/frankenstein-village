@@ -233,3 +233,19 @@ The rumor system is now structured simulation state rather than Tavern display t
 - Asking a Tavern regular about rumors now transmits one of that NPC's actual beliefs to the player, including whatever distortion that NPC currently holds.
 - World-event rumors enter the same registry and retain the causal link to the canonical world-event ledger. Existing pre-registry Tavern rumor strings are migrated idempotently instead of discarded.
 - Regression coverage verifies root immutability, three-generation provenance, authored distortion, NPC belief seeding, OOC exclusion, event linkage, stable rebuild identity, and the player retell path over real telnet.
+
+## 2026-10-05 - Harbinger and Chronicle public-record pipeline implemented
+
+The world-event ledger remains the canonical record of objective server events. Public records are projections of that ledger, not replacements for it.
+
+The Harbinger is the fast public-memory layer. Eligible completed events become story drafts with stable story IDs, source event IDs, optional source rumor IDs, confidence, editorial basis, corrections, and publication status. Ordinary copy prints on the fixed 08:00 village cadence. High-salience events may trigger a special edition immediately. A correction appends to the original story and also becomes new copy; the original article is never silently rewritten.
+
+The Chronicle is the slower epistemic layer. Only explicitly eligible or structurally verified event kinds become objective Chronicle entries automatically. A Chronicle entry stores the event IDs that justify it. Later evidence is added as annotations without erasing the original record.
+
+Player testimony is intentionally separate from verified Chronicle history. A player may use `chronicle submit R<number>` only for a rumor that the current mask actually knows. The resulting entry canonizes that the player submitted that account, not that the account is objectively true. It retains the rumor and transmission lineage.
+
+Private and sealed event classes do not enter the public-record pipeline. A confession may still create the existing content-free social rumor, but neither the Harbinger nor the Chronicle receives the sealed event as public history.
+
+Printed Harbinger stories feed back into resident belief state with `source_type=harbinger`. Readership is sparse and deterministic. This gives published information social consequences without making every resident omniscient.
+
+Player-facing commands are `harbinger`, `harbinger archive`, `harbinger H<number>`, `chronicle`, `chronicle C<number>`, and `chronicle submit R<number>`. These records are IC-only and are blocked from the Inn Between.

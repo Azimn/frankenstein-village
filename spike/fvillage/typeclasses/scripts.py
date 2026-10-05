@@ -605,6 +605,38 @@ class ModerationQueue(DefaultScript):
         return dict(selected), None
 
 
+class PublicRecordRegistry(DefaultScript):
+    """Persistent Harbinger and Chronicle state.
+
+    The world-event ledger remains canonical truth. This registry stores
+    publication artifacts about that truth: newspaper drafts and editions,
+    Chronicle entries, annotations, corrections, and player depositions.
+    Original publication records are never silently rewritten.
+    """
+
+    def at_script_creation(self):
+        self.key = "public_records"
+        self.desc = "Persistent Harbinger and Chronicle publication registry."
+        self.interval = -1
+        self.persistent = True
+        defaults = {
+            "harbinger_drafts": [],
+            "harbinger_editions": [],
+            "chronicle_entries": [],
+            "depositions": [],
+            "next_story_id": 1,
+            "next_edition_id": 1,
+            "next_chronicle_id": 1,
+            "next_deposition_id": 1,
+            "last_harbinger_day": None,
+        }
+        for key, value in defaults.items():
+            if getattr(self.db, key) is None:
+                setattr(self.db, key, value)
+
+
+
+
 class ResidentPopulationRegistry(DefaultScript):
     """Shared coordination state for the resident population.
 
@@ -1174,6 +1206,27 @@ class VillageTime(SpikeScript):
         self.db.hour = hour
         if hour == 0:
             self.db.day = (self.db.day or 1) + 1
+
+        # The Harbinger prints on a fixed morning cadence. Special editions
+        # are handled immediately by the publication pipeline and do not
+        # consume the regular daily issue.
+        try:
+            from world.publications import publish_due_harbinger
+            edition = publish_due_harbinger(self.db.day or 1, hour)
+            if edition:
+                for public_key in ("Village Square", "The Blood of the Vine"):
+                    for room in [
+                        o for o in search.search_object(public_key)
+                        if o.key == public_key
+                    ]:
+                        if any(o.has_account for o in room.contents):
+                            room.msg_contents(
+                                "A newspaper runner calls out the new issue of "
+                                "The Harbinger."
+                            )
+        except Exception:
+            pass
+
         name = village_hour_name(hour)
         for key in ("Village Square", "The Blood of the Vine", "Inn Common Room",
                     "Inn Hallway", "Private Room", "Tavern Back Hall"):
