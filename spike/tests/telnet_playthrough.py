@@ -122,6 +122,18 @@ def main() -> int:
         out = c.command("south")
         require(out, "village square")
 
+        # A timed world window is already live. Firsthand evidence is earned by
+        # being present during the window and observing the physical world.
+        out = c.command("look well")
+        require(out, "white vapor", "rope shiver", "slick and warm")
+
+        out = c.command("journal well")
+        require(out, "the well boils", "firsthand witness", "live steam surge")
+        require(out, "rope trembled")
+
+        out = c.command("journal")
+        require(out, "the well boils", "firsthand evidence")
+
         # Canon incident #6 is discovered through the physical world, not a
         # quest marker. Evidence remains mask-specific until somebody makes a
         # shared door-closing choice.
