@@ -229,22 +229,103 @@ class RoomSixMystery(DefaultScript):
 
 
 class ModerationQueue(DefaultScript):
-    """Persistent, human-reviewed report queue.
+    """Persistent, human-reviewed compact moderation.
 
-    Reports create records only. They never warn, mute, move, or punish a
-    player automatically. A human staff account must explicitly review and
-    close each record.
+    A player report is only an allegation. Reports never punish anyone by
+    themselves. A human staff account must explicitly dismiss, warn, or ban.
+    Every staff action is append-only and appealable from the account layer.
     """
 
     def at_script_creation(self):
         self.key = "moderation_queue"
-        self.desc = "Human-reviewed compact reports."
+        self.desc = "Human-reviewed compact reports and moderation audit trail."
         self.interval = -1
         self.persistent = True
         if self.db.reports is None:
             self.db.reports = []
         if self.db.next_report_id is None:
             self.db.next_report_id = 1
+        if self.db.actions is None:
+            self.db.actions = []
+        if self.db.next_action_id is None:
+            self.db.next_action_id = 1
+        if self.db.appeals is None:
+            self.db.appeals = []
+        if self.db.next_appeal_id is None:
+            self.db.next_appeal_id = 1
+
+    @staticmethod
+    def _account(account_id):
+        if not account_id:
+            return None
+        from evennia.accounts.models import AccountDB
+
+        try:
+            return AccountDB.objects.get(id=account_id)
+        except AccountDB.DoesNotExist:
+            return None
+
+    @staticmethod
+    def _reviewer_fields(reviewer_account):
+        return {
+            "reviewed_by": reviewer_account.key,
+            "reviewed_by_id": reviewer_account.id,
+        }
+
+    def _save_report(self, report):
+        reports = list(self.db.reports or [])
+        for index, current in enumerate(reports):
+            if current.get("id") == report.get("id"):
+                reports[index] = dict(report)
+                self.db.reports = reports
+                return dict(report)
+        return None
+
+    def _record_action(
+        self,
+        kind,
+        reviewer_account,
+        *,
+        report_id=None,
+        target_account_id=None,
+        note="",
+        related_action_id=None,
+        appeal_id=None,
+    ):
+        import time
+
+        actions = list(self.db.actions or [])
+        action = {
+            "id": int(self.db.next_action_id or 1),
+            "kind": kind,
+            "created_at": time.time(),
+            "report_id": report_id,
+            "target_account_id": target_account_id,
+            "note": (note or "").strip(),
+            "related_action_id": related_action_id,
+            "appeal_id": appeal_id,
+            "active": kind in {"warning", "ban"},
+        }
+        action.update(self._reviewer_fields(reviewer_account))
+        self.db.next_action_id = action["id"] + 1
+        actions.append(action)
+        self.db.actions = actions
+        return dict(action)
+
+    def _action(self, action_id):
+        for action in self.db.actions or []:
+            if action.get("id") == action_id:
+                return dict(action)
+        return None
+
+    def _set_action_active(self, action_id, active):
+        actions = list(self.db.actions or [])
+        for action in actions:
+            if action.get("id") == action_id:
+                action["active"] = bool(active)
+                self.db.actions = actions
+                return dict(action)
+        return None
 
     def submit(self, report):
         reports = list(self.db.reports or [])
@@ -254,7 +335,13 @@ class ModerationQueue(DefaultScript):
         self.db.next_report_id = report["id"] + 1
         reports.append(report)
         self.db.reports = reports
-        return report
+        return dict(report)
+
+    def get_report(self, report_id):
+        for report in self.db.reports or []:
+            if report.get("id") == report_id:
+                return dict(report)
+        return None
 
     def open_reports(self):
         return [
@@ -263,19 +350,243 @@ class ModerationQueue(DefaultScript):
             if report.get("status") == "open"
         ]
 
-    def close_report(self, report_id, reviewer_account):
+    def audit_actions(self, limit=20):
+        return [dict(action) for action in (self.db.actions or [])[-limit:]]
+
+    def _resolve_report(self, report_id, reviewer_account, status, note=""):
         import time
 
-        reports = list(self.db.reports or [])
-        for report in reports:
-            if report.get("id") == report_id and report.get("status") == "open":
-                report["status"] = "closed"
-                report["reviewed_at"] = time.time()
-                report["reviewed_by"] = reviewer_account.key
-                report["reviewed_by_id"] = reviewer_account.id
-                self.db.reports = reports
-                return dict(report)
-        return None
+        report = self.get_report(report_id)
+        if not report or report.get("status") != "open":
+            return None
+        report["status"] = status
+        report["reviewed_at"] = time.time()
+        report.update(self._reviewer_fields(reviewer_account))
+        if note:
+            report["review_note"] = note.strip()
+        return self._save_report(report)
+
+    def dismiss_report(self, report_id, reviewer_account, note=""):
+        report = self._resolve_report(
+            report_id, reviewer_account, "dismissed", note=note
+        )
+        if not report:
+            return None
+        self._record_action(
+            "dismissal",
+            reviewer_account,
+            report_id=report_id,
+            target_account_id=report.get("target_account_id"),
+            note=note,
+        )
+        return report
+
+    def close_report(self, report_id, reviewer_account):
+        """Backward-compatible alias for a reviewed dismissal."""
+        return self.dismiss_report(report_id, reviewer_account)
+
+    def warn_report(self, report_id, reviewer_account, note=""):
+        report = self.get_report(report_id)
+        if not report or report.get("status") != "open":
+            return None, "No open report has that id."
+        target = self._account(report.get("target_account_id"))
+        if not target:
+            return None, "That report is not linked to a player account."
+
+        action = self._record_action(
+            "warning",
+            reviewer_account,
+            report_id=report_id,
+            target_account_id=target.id,
+            note=note,
+        )
+        warnings = list(target.db.compact_warning_actions or [])
+        if action["id"] not in warnings:
+            warnings.append(action["id"])
+            target.db.compact_warning_actions = warnings
+        notices = list(target.db.moderation_notices or [])
+        notices.append(
+            {
+                "action_id": action["id"],
+                "kind": "warning",
+                "text": note.strip() or "A human moderator issued a compact warning.",
+                "seen": False,
+            }
+        )
+        target.db.moderation_notices = notices[-50:]
+        self._resolve_report(report_id, reviewer_account, "warned", note=note)
+        target.msg(
+            f"Compact warning #{action['id']}: "
+            f"{note.strip() or 'A human moderator issued a warning.'} "
+            f"You may appeal with: appeal {action['id']} <reason>"
+        )
+        return action, None
+
+    def ban_report(self, report_id, reviewer_account, note=""):
+        report = self.get_report(report_id)
+        if not report or report.get("status") != "open":
+            return None, "No open report has that id."
+        target = self._account(report.get("target_account_id"))
+        if not target:
+            return None, "That report is not linked to a player account."
+        active_warnings = [
+            action_id
+            for action_id in (target.db.compact_warning_actions or [])
+            if (self._action(action_id) or {}).get("active")
+        ]
+        if not active_warnings:
+            return None, "A compact ban requires at least one active human-issued warning first."
+
+        action = self._record_action(
+            "ban",
+            reviewer_account,
+            report_id=report_id,
+            target_account_id=target.id,
+            note=note,
+        )
+        bans = list(target.db.compact_ban_actions or [])
+        if action["id"] not in bans:
+            bans.append(action["id"])
+            target.db.compact_ban_actions = bans
+        notices = list(target.db.moderation_notices or [])
+        notices.append(
+            {
+                "action_id": action["id"],
+                "kind": "ban",
+                "text": note.strip() or "World entry was suspended after human review.",
+                "seen": False,
+            }
+        )
+        target.db.moderation_notices = notices[-50:]
+        self._resolve_report(report_id, reviewer_account, "banned", note=note)
+        target.msg(
+            f"World entry suspended by human review, action #{action['id']}. "
+            f"You may remain OOC and appeal with: appeal {action['id']} <reason>"
+        )
+        target.unpuppet_all()
+        return action, None
+
+    def active_actions_for(self, account_id):
+        return [
+            dict(action)
+            for action in (self.db.actions or [])
+            if action.get("target_account_id") == account_id
+            and action.get("kind") in {"warning", "ban"}
+            and action.get("active")
+        ]
+
+    def appeals_for(self, account_id):
+        return [
+            dict(appeal)
+            for appeal in (self.db.appeals or [])
+            if appeal.get("account_id") == account_id
+        ]
+
+    def submit_appeal(self, account, action_id, reason):
+        import time
+
+        action = self._action(action_id)
+        if (
+            not action
+            or action.get("target_account_id") != account.id
+            or action.get("kind") not in {"warning", "ban"}
+            or not action.get("active")
+        ):
+            return None, "That is not an active moderation action on this account."
+        for appeal in self.db.appeals or []:
+            if (
+                appeal.get("action_id") == action_id
+                and appeal.get("account_id") == account.id
+                and appeal.get("status") == "open"
+            ):
+                return None, f"Appeal #{appeal['id']} is already open for that action."
+
+        appeals = list(self.db.appeals or [])
+        appeal = {
+            "id": int(self.db.next_appeal_id or 1),
+            "created_at": time.time(),
+            "account_id": account.id,
+            "account_key": account.key,
+            "action_id": action_id,
+            "reason": reason.strip(),
+            "status": "open",
+        }
+        self.db.next_appeal_id = appeal["id"] + 1
+        appeals.append(appeal)
+        self.db.appeals = appeals
+        return dict(appeal), None
+
+    def open_appeals(self):
+        return [
+            dict(appeal)
+            for appeal in (self.db.appeals or [])
+            if appeal.get("status") == "open"
+        ]
+
+    def resolve_appeal(self, appeal_id, reviewer_account, outcome, note=""):
+        import time
+
+        if outcome not in {"uphold", "overturn"}:
+            return None, "Appeal outcome must be uphold or overturn."
+        appeals = list(self.db.appeals or [])
+        selected = None
+        for appeal in appeals:
+            if appeal.get("id") == appeal_id and appeal.get("status") == "open":
+                selected = appeal
+                break
+        if not selected:
+            return None, "No open appeal has that id."
+
+        action = self._action(selected.get("action_id"))
+        if not action:
+            return None, "The appealed moderation action no longer exists."
+
+        if outcome == "overturn":
+            self._set_action_active(action["id"], False)
+            target = self._account(action.get("target_account_id"))
+            if target:
+                if action.get("kind") == "warning":
+                    target.db.compact_warning_actions = [
+                        action_id
+                        for action_id in (target.db.compact_warning_actions or [])
+                        if action_id != action["id"]
+                    ]
+                elif action.get("kind") == "ban":
+                    target.db.compact_ban_actions = [
+                        action_id
+                        for action_id in (target.db.compact_ban_actions or [])
+                        if action_id != action["id"]
+                    ]
+                notices = list(target.db.moderation_notices or [])
+                notices.append(
+                    {
+                        "action_id": action["id"],
+                        "kind": "appeal_overturned",
+                        "text": note.strip() or "A human moderator overturned the action on appeal.",
+                        "seen": False,
+                    }
+                )
+                target.db.moderation_notices = notices[-50:]
+                target.msg(
+                    f"Appeal #{appeal_id} was granted. Moderation action "
+                    f"#{action['id']} was overturned."
+                )
+
+        selected["status"] = "resolved"
+        selected["outcome"] = outcome
+        selected["resolved_at"] = time.time()
+        selected["resolution_note"] = note.strip()
+        selected.update(self._reviewer_fields(reviewer_account))
+        self.db.appeals = appeals
+        self._record_action(
+            f"appeal_{outcome}",
+            reviewer_account,
+            target_account_id=action.get("target_account_id"),
+            note=note,
+            related_action_id=action.get("id"),
+            appeal_id=appeal_id,
+        )
+        return dict(selected), None
 
 
 class WorldEventLedger(DefaultScript):
