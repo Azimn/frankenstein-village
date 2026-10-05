@@ -174,6 +174,21 @@ def main() -> int:
                         text=True,
                         timeout=60,
                     )
+
+            # Restart the actual server once after player-created resident state
+            # exists, then inspect the database through a fresh process.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            post_restart = (
+                checkout / "spike" / "tests" / "post_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run(
+                [evennia, "shell"],
+                cwd=game,
+                env=env,
+                input_text=post_restart,
+            )
         except Exception:
             dump_logs(game)
             raise
