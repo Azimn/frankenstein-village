@@ -249,3 +249,15 @@ Private and sealed event classes do not enter the public-record pipeline. A conf
 Printed Harbinger stories feed back into resident belief state with `source_type=harbinger`. Readership is sparse and deterministic. This gives published information social consequences without making every resident omniscient.
 
 Player-facing commands are `harbinger`, `harbinger archive`, `harbinger H<number>`, `chronicle`, `chronicle C<number>`, and `chronicle submit R<number>`. These records are IC-only and are blocked from the Inn Between.
+
+## 2026-10-05 - Shared autonomous situation engine implemented
+
+The quest-feed layer begins with a shared situation object, not a per-player accepted quest. A situation has one canonical world state, separate per-mask knowledge, autonomous deadlines, evidence provenance, player choices, persistent mutations, emitted events, rumor IDs, publication references, and aftermath.
+
+Canon incident #6, The Tithe Strongbox, is the first production vertical slice. It is discovered through ordinary world verbs: inspect the strongbox, read the tithe roll, and question Father Andrei. These are separate physical, documentary, and witness evidence channels. The journal records only evidence the current mask actually encountered.
+
+The first player who makes a valid door-closing decision changes the shared situation for everyone. Public accusation immediately closes the quiet route, creates a two-key church procedure, and feeds the event, Harbinger, Chronicle, and rumor systems. Quiet investigation closes the public route and advances autonomously after a week. If nobody intervenes, the original incident template's unattended consequence occurs: giving falls, the roof repair slips, and the church eventually adopts the two-key rule after trust is already damaged.
+
+Situation advancement is attached to the coarse village clock. There is no per-player quest ticker and no high-frequency incident loop. Cost depends on the number of active shared situations rather than elapsed game time or player count.
+
+The live `journal` is deliberately not a conventional quest checklist. It is prosthetic memory for discovered developments. `decide` is a world action, not a private branching-dialogue choice.
