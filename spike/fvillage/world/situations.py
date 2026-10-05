@@ -21,6 +21,7 @@ from evennia.utils import search
 
 REGISTRY_KEY = "situation_registry"
 TITHE_ID = "INC-0006-TITHE-STRONGBOX"
+TORN_CHRONICLE_ID = "INC-0008-TORN-CHRONICLE"
 
 STATE_ORDER = {
     "dormant": 0,
@@ -104,6 +105,90 @@ TEMPLATES = {
             "the Harbinger files preserve the later public account."
         ),
         "legend": "The two-key rule is cited whenever anything later goes missing.",
+        "feed": {
+            "initial_state": "surfaced",
+            "weight": 100,
+            "after": [],
+        },
+    },
+    TORN_CHRONICLE_ID: {
+        "template_id": "canon-incident-008",
+        "working_title": "The Torn Chronicle",
+        "content_family": "incident",
+        "canonical_status": "canon template instantiated",
+        "spoiler_tier": 1,
+        "primary_location": "Chronicle",
+        "secondary_locations": ["The Blood of the Vine"],
+        "involved_npcs": ["ilona_szabo"],
+        "factions": ["Chronicler"],
+        "calling_relevance": ["chronicler", "detective"],
+        "repeatability": "one-shot",
+        "hook": (
+            "A numbered sequence of Chronicle pages has been cut out cleanly. "
+            "The stubs remain, and the Harbinger archive still covers the missing dates."
+        ),
+        "autonomy": {
+            "initial_deadline_days": 10,
+            "left_alone": (
+                "The gap remains untouched long enough to become famous in its own right. "
+                "Visitors begin coming to see what the village chose not to rewrite."
+            ),
+        },
+        "choices": {
+            "reconstruct": {
+                "label": "reconstruct the missing sequence from Harbinger files",
+                "minimum_evidence": 2,
+                "closes": "preserve the gap",
+                "aliases": ["rewrite", "restore", "reconstruct"],
+            },
+            "preserve": {
+                "label": "preserve the numbered gap as an honest wound",
+                "minimum_evidence": 2,
+                "closes": "reconstruct from the newspaper",
+                "aliases": ["leave", "gap", "preserve"],
+            },
+        },
+        "evidence": {
+            "gap": {
+                "label": "the numbered page stubs",
+                "provenance": "physical",
+                "summary": (
+                    "The pages were cut out cleanly rather than torn. Numbered stubs "
+                    "show exactly which sequence is missing, but not what those pages said."
+                ),
+            },
+            "harbinger_archive": {
+                "label": "the surviving Harbinger files",
+                "provenance": "documentary",
+                "summary": (
+                    "Printed issues survive for the missing dates. They can supply an "
+                    "account, but their own source notes and corrections show why newspaper "
+                    "copy cannot be treated as recovered server truth."
+                ),
+            },
+            "ilona": {
+                "label": "Ilona Szabó's assessment",
+                "provenance": "witness",
+                "summary": (
+                    "Ilona confirms that the cut was deliberate and the numbering is genuine. "
+                    "She refuses to pretend that surviving newspaper copy is the same thing as "
+                    "the missing Chronicle pages."
+                ),
+            },
+        },
+        "inheritance": (
+            "The numbered stubs, Harbinger files, and public record itself carry the thread "
+            "even if the current Chronicler dies or leaves."
+        ),
+        "legend": (
+            "The missing sequence becomes a standing example whenever later generations "
+            "argue over whether uncertainty should be repaired or preserved."
+        ),
+        "feed": {
+            "initial_state": "dormant",
+            "weight": 70,
+            "after": [TITHE_ID],
+        },
     },
 }
 
@@ -139,7 +224,15 @@ def _player_key(player):
 
 def _new_situation(stable_id, *, day, hour):
     template = TEMPLATES[stable_id]
-    deadline_day = int(day) + int(template["autonomy"]["initial_deadline_days"])
+    initial_state = (template.get("feed") or {}).get(
+        "initial_state", "dormant"
+    )
+    surfaced = initial_state == "surfaced"
+    deadline_day = (
+        int(day) + int(template["autonomy"]["initial_deadline_days"])
+        if surfaced
+        else None
+    )
     return {
         "id": stable_id,
         "template_id": template["template_id"],
@@ -153,11 +246,12 @@ def _new_situation(stable_id, *, day, hour):
         "factions": list(template["factions"]),
         "calling_relevance": list(template["calling_relevance"]),
         "repeatability": template["repeatability"],
-        "state": "surfaced",
-        "surfaced_day": int(day),
-        "surfaced_hour": int(hour),
+        "state": initial_state,
+        "surfaced_day": int(day) if surfaced else None,
+        "surfaced_hour": int(hour) if surfaced else None,
         "deadline_day": deadline_day,
-        "deadline_hour": int(hour),
+        "deadline_hour": int(hour) if surfaced else None,
+        "surface_count": 1 if surfaced else 0,
         "branch": None,
         "resolved_day": None,
         "resolved_hour": None,
