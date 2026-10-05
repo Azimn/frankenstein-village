@@ -459,6 +459,15 @@ def calendar_lines(day, hour):
         "Sunday Mass is held at St. Lazarus from 10:00 to 11:00.",
     ]
 
+    events = dict(_registry().db.events or {})
+    active = [
+        DEFINITIONS[stable_id]["title"]
+        for stable_id, raw in events.items()
+        if stable_id in DEFINITIONS and dict(raw).get("state") == "active"
+    ]
+    if active:
+        lines.append("Underway now: " + ", ".join(sorted(active)) + ".")
+
     next_market_day = _next_day_for_weekday(day, "Saturday")
     if next_market_day == day and hour >= 12:
         next_market_day += 7
