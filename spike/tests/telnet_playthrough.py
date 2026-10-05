@@ -178,6 +178,41 @@ def main() -> int:
 
         out = c.command("chronicle")
         require(out, "church strongbox loss made public", "verified")
+        require(out, "numbered sequence is missing", "chronicle gap")
+
+        out = c.command("journal chronicle")
+        require(out, "nothing about that situation")
+
+        out = c.command("chronicle gap")
+        require(out, "cut out cleanly", "numbered run")
+
+        out = c.command("journal chronicle")
+        require(out, "numbered page stubs")
+        if "surviving harbinger files" in out.lower():
+            raise AssertionError(
+                "journal leaked undiscovered Harbinger archive evidence"
+            )
+
+        out = c.command("harbinger archive")
+        require(out, "older bound harbinger files", "newspaper records")
+
+        out = c.command("journal chronicle")
+        require(out, "numbered page stubs", "surviving harbinger files")
+        require(out, "reconstruct or preserve")
+
+        out = c.command("decide chronicle reconstruct", wait=3.0)
+        require(out, "reconstruction from the harbinger archive")
+        require(out, "press-derived")
+
+        out = c.command("chronicle gap")
+        require(out, "derived from harbinger files")
+        require(out, "source difference is not hidden")
+
+        out = c.command("harbinger")
+        require(out, "special edition", "missing chronicle sequence reconstructed")
+
+        out = c.command("chronicle")
+        require(out, "missing chronicle sequence reconstructed", "verified")
 
         out = c.command("purse")
         require(out, "2 ft")
