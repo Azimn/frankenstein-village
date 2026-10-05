@@ -1279,6 +1279,18 @@ class VillageTime(SpikeScript):
         except Exception:
             pass
 
+        # Timed incidents are brief shared world windows layered over the
+        # ordinary schedule. The village clock only decides whether a window
+        # starts; the persistent timed registry resolves its real-time expiry.
+        try:
+            from world.timed_incidents import maybe_start_timed_incidents
+            maybe_start_timed_incidents(
+                day=self.db.day or 1,
+                hour=hour,
+            )
+        except Exception:
+            pass
+
         # The Harbinger prints on a fixed morning cadence. Special editions
         # are handled immediately by the publication pipeline and do not
         # consume the regular daily issue.
