@@ -554,6 +554,7 @@ class CmdRetell(Command):
             target,
             location=self.caller.location.key if self.caller.location else None,
             force_accept=bool(target.has_account),
+            allow_private=True,
         )
         if not result:
             self.caller.msg("The story slips away before you can tell it.")
