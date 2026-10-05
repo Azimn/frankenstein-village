@@ -213,6 +213,18 @@ def migrate_legacy_public_rumors(tavern):
         claim = _dynamic_claim(body)
         if not claim:
             continue
+        existing = next(
+            (
+                dict(rumor)
+                for rumor in (registry.db.rumors or [])
+                if rumor.get("claim") == claim and rumor.get("privacy") == "public"
+            ),
+            None,
+        )
+        if existing:
+            if existing["id"] not in public_ids:
+                public_ids.append(existing["id"])
+            continue
         rumor = registry.ensure_rumor(
             subject="legacy_tavern",
             claim=claim,
