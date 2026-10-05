@@ -425,3 +425,33 @@ Regression coverage verifies:
 - bounded occurrence history;
 - real telnet observation and journal display;
 - evidence persistence across a real server restart.
+
+## 2026-10-05 - Scheduled village events
+
+`world/scheduled_events.py` consolidates recurring public rhythms under one persistent `scheduled_event_registry`.
+
+The village clock remains the sole time authority. At each game-hour boundary it now advances:
+1. major shared situations;
+2. short timed windows;
+3. recurring scheduled events.
+
+The first scheduled-event set is:
+- daily Harbinger Publication at 08:00;
+- Saturday Market Morning from 07:00 through 12:00;
+- Sunday Service from 10:00 through 11:00.
+
+Harbinger publication and Sunday Mass retain their existing behavior engines. Their old independent scheduling calls were removed so one calendar owns idempotence.
+
+Market Morning selects existing background residents by useful market occupations, applies attributable routine deviations to the square, displays a generic room-state overlay, and releases participants back to their schedules at noon. Ordinary market recurrence does not write a world-event ledger record.
+
+Each scheduled event stores run count, current active record when applicable, last start identity, and a bounded sixteen-run history. Repeated checks at the same clock boundary cannot start or publish the same event twice.
+
+`calendar` and its `schedule` alias expose stable public rhythm and upcoming occurrences. They deliberately do not reveal hidden incident eligibility or timers and remain usable from the OOC Inn for party planning.
+
+Regression coverage verifies:
+- one persistent registry with the three expected event definitions;
+- daily Harbinger pulse and same-boundary idempotence;
+- market participant convergence, active overlay, no routine-event ledger spam, noon release, and bounded history;
+- Sunday Mass convergence through the existing liturgical behavior, exactly one Mass event, active overlay, idempotence, and post-service release;
+- player-facing calendar access through real telnet;
+- scheduled registry structure across a real server restart.
