@@ -13,6 +13,44 @@ from pathlib import Path
 
 from evennia import Command
 from evennia.commands.default.muxcommand import MuxCommand
+from evennia.commands.default.general import CmdLook
+
+
+class CmdExamine(CmdLook):
+    """ExamiLook at something closely. (An alias for look, for travelers
+    whose fingers type it first.)
+
+    Usage:
+        examine <thing>
+    """
+
+    key = "examine"
+    aliases = ["exam", "ex"]
+
+
+class CmdPurse(Command):
+    """
+    Count your coin.
+
+    Usage:
+        purse
+
+    The village runs on 1890 money: forint and krajczár, 100 krajczár
+    to the forint. Copper krajczár are the everyday coin — the kind that
+    comes worn smooth.
+    """
+
+    key = "purse"
+    aliases = ["coins", "money", "coin"]
+    help_category = "Village"
+
+    def func(self):
+        kr = purse_of(self.caller)
+        self.caller.msg(
+            f"Your purse holds {fmt_coins(kr)}. "
+            f"(100 krajczár to the forint; copper krajczár buy bread and ale. "
+            f"The price board in the Blood of the Vine lists the rest.)"
+        )
 
 # Canon lives in this repository, not in a particular worker's home directory.
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -469,6 +507,12 @@ class CmdDiary(MuxCommand):
             import time
 
             text = self.args.strip()
+            # Travelers from other MUDs type "diary add ..."; forgive it.
+            if text.lower().startswith("add ") or text.lower() == "add":
+                text = text[3:].strip()
+            if not text:
+                self.caller.msg("Write what? Give the entry some words: diary <text>.")
+                return
             stamp = time.strftime("%b %d, %H:%M", time.localtime())
             entries.append({"time": stamp, "text": text})
             self.caller.db.diary = entries

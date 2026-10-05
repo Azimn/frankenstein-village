@@ -648,8 +648,9 @@ class TavernKeeper(SpikeCharacter):
                     "weep — or drink. Drinking's better."
                 )
             return (
-                "Six? That's M.'s side of the square, friend. We don't "
-                "get ghosts in here — we get drunks, which are worse."
+                "Six? ...The back hall's got doors, friend. Doors stay "
+                "shut. That's the whole of my wisdom on the subject — "
+                "and wisdom's cheaper than ale, so drink up."
             )
         if has("note", "folded note", "letter", "paper"):
             self.note_interest(char, "room six")

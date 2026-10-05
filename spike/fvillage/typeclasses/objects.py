@@ -122,36 +122,42 @@ class RoomSixDoor(DefaultObject):
         return desc
 
     def at_desc(self, looker=None, **kwargs):
-        # Finding the note is the first persistent Room Six event. Record it
-        # before creating inventory state so the causal order is durable.
+        # Look reveals; it never grants. A bare look must not change state —
+        # the note becomes a real takeable object in the hallway, and
+        # `take note` is the player's explicit choice (see MysteryNote.at_get).
         if looker and looker.has_account:
             if not _player_stage(looker).get("found_note"):
-                def apply_consequence(_event):
-                    note = _create.create_object(
-                        "typeclasses.objects.MysteryNote",
-                        key="a folded note",
-                        location=looker,
-                    )
-                    note.aliases.add("note")
-                    note.db.owner_character_id = looker.id
-                    note.locks.add(
-                        f"get:id({looker.id}) or perm(Admin);"
-                        f"give:id({looker.id}) or perm(Admin);"
-                        f"drop:id({looker.id}) or perm(Admin);"
-                        f"search:id({looker.id}) or perm(Admin);"
-                        f"control:id({looker.id}) or perm(Admin)"
-                    )
-                    _set_stage(looker, found_note=True)
-                    looker.msg("You take the folded note before anyone else can.")
-                    return {"found_note": True, "note_id": note.id}
-
-                publish_world_event(
-                    "room_six.note_found",
-                    actor=looker,
-                    payload={"door_id": self.id},
-                    consequence=apply_consequence,
-                )
+                self._spawn_note_for(looker)
         return super().at_desc(looker, **kwargs)
+
+    def _spawn_note_for(self, looker):
+        """Place a takeable note in the hallway for this player, once."""
+        import evennia as _evennia
+
+        hall = self.location
+        if not hall:
+            return
+        already = [
+            o for o in hall.contents
+            if o.typeclass_path == "typeclasses.objects.MysteryNote"
+            and o.db.owner_character_id == looker.id
+        ]
+        if already:
+            return
+        note = _evennia.create_object(
+            "typeclasses.objects.MysteryNote",
+            key="a folded note",
+            location=hall,
+        )
+        note.aliases.add("note")
+        note.db.owner_character_id = looker.id
+        note.locks.add(
+            f"get:id({looker.id}) or perm(Admin);"
+            f"give:id({looker.id}) or perm(Admin);"
+            f"drop:id({looker.id}) or perm(Admin);"
+            f"search:id({looker.id}) or perm(Admin);"
+            f"control:id({looker.id}) or perm(Admin)"
+        )
 
 
 class MysteryNote(DefaultObject):
@@ -183,6 +189,23 @@ class MysteryNote(DefaultObject):
     def at_object_creation(self):
         super().at_object_creation()
         self.db.desc = self.NOTE_TEXT
+
+    def at_get(self, getter, **kwargs):
+        # Taking the note is the explicit choice — look only revealed it.
+        # This is the first persistent Room Six event for this player.
+        from world.events import publish_world_event
+
+        super().at_get(getter, **kwargs)
+        if getter and getter.has_account:
+            if not _player_stage(getter).get("found_note"):
+                _set_stage(getter, found_note=True)
+                publish_world_event(
+                    "room_six.note_found",
+                    actor=getter,
+                    payload={"door_id": self.location.id if self.location else None,
+                             "note_id": self.id},
+                )
+                getter.msg("You take the folded note before anyone else can.")
 
     # -- the M. road --------------------------------------------------------
 

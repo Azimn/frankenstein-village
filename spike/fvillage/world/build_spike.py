@@ -59,7 +59,7 @@ hallway = get_or_create_room(
 )
 square = get_or_create_room(
     "Village Square", ROOM,
-    "Cobbles, gaslight, and the smell of rain that hasn't fallen. At the "
+    "Cobbles, gaslight, and the smell of wet stone. At the "
     "square's heart a well steams faintly, though the night is cool. The "
     "manor looms on the hill above; the Inn Between stands behind you, "
     "its windows warm. The Blood of the Vine's sign creaks to the east.",
@@ -209,6 +209,7 @@ found = [o for o in tavern.contents if o.key == "Bram"]
 if found:
     found[0].db.desc = KEEPER_DESC
     print("Bram already keeps the bar (desc re-synced).")
+    keeper = found[0]
 else:
     keeper = create.create_object(
         "typeclasses.characters.TavernKeeper",
@@ -216,9 +217,14 @@ else:
         location=tavern,
     )
     keeper.db.desc = KEEPER_DESC
-    keeper.aliases.add("keeper", "the keeper", "tavern keeper",
-                        "the tavern keeper", "barkeep", "barkeeper", "bram")
     print("Bram created in the Blood of the Vine.")
+# Aliases are set on every run, not just on create — a partial-failure
+# rerun must not leave Bram alias-less. (Evennia 6.1: add() takes one
+# alias or a list, not multiple args.)
+for _a in ["keeper", "the keeper", "tavern keeper",
+            "the tavern keeper", "barkeep", "barkeeper", "bram"]:
+    if _a not in keeper.aliases.all():
+        keeper.aliases.add(_a)
 
 # --- the tavern cat -----------------------------------------------------------
 found = [o for o in tavern.contents if o.key == "the tavern cat"]
@@ -236,8 +242,10 @@ else:
         "whichever spot currently suits her. She does not speak, which has "
         "never stopped her from having opinions."
     )
-    cat.aliases.add("cat", "kitty")
     print("Tavern cat created in The Tavern.")
+for _a in ["cat", "kitty"]:
+    if _a not in cat.aliases.all():
+        cat.aliases.add(_a)
 
 from evennia.scripts.models import ScriptDB as _ScriptDB
 if _ScriptDB.objects.filter(db_key="cat_life").exists():
@@ -578,16 +586,18 @@ _LUCIAN_DESC = (
 if _luc:
     _luc[0].db.desc = _LUCIAN_DESC
     print("Lucian DeVille already minds the shop (desc re-synced).")
+    lucian = _luc[0]
 else:
     lucian = create.create_object(
         "typeclasses.characters.LucianDeVille",
         key="Lucian DeVille",
         location=lamp_shop,
     )
-    lucian.aliases.add("lucian", "deville", "shopkeeper", "lamp seller",
-                       "lampseller")
     lucian.db.desc = _LUCIAN_DESC
     print("Lucian DeVille created in The Lamp Shop.")
+for _a in ["lucian", "deville", "shopkeeper", "lamp seller", "lampseller"]:
+    if _a not in lucian.aliases.all():
+        lucian.aliases.add(_a)
 
 
 def _curio(key, aliases, desc):
