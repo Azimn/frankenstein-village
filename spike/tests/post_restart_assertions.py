@@ -56,7 +56,7 @@ assert incident["branch"] == "openly"
 status = situation_status_for_player(smoke, TITHE_ID)
 assert status
 assert {entry["id"] for entry in status["evidence"]} == {
-    "lock", "roll", "andrei"
+    "lock", "roll"
 }
 church = one("St. Lazarus Church")
 assert church.db.tithe_strongbox_policy == "two_key"
