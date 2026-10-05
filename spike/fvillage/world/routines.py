@@ -151,7 +151,11 @@ def where_should_be(regular_key, hour, deltas=None):
 
 
 def doing_now(regular_key, hour):
+    deltas = _deltas()
+    shift = deltas.get(regular_key, {}).get("tavern_shift", 0)
     for start, end, _room, doing in SCHEDULES.get(regular_key, []):
+        if _room == "The Blood of the Vine":
+            start, end = start + shift, end + shift
         if start <= hour < end:
             return doing
     return "keeps his own counsel"
@@ -300,34 +304,39 @@ def monthly_shift(day):
     idx = (routine.db.monthly_index or 0) % len(keys)
     routine.db.monthly_index = idx + 1
     key = keys[idx]
-    name = {"vasile": "Vasile", "magda": "Magda", "janos": "János"}[key]
-    pron = {"vasile": "he", "magda": "she", "janos": "he"}[key]
+    name = {"vasile": "Vasile", "magda": "Magda", "janos": "János",
+            "andrei": "Father Andrei"}[key]
+    pron = {"vasile": "he", "magda": "she", "janos": "he",
+            "andrei": "he"}[key]
     # Push their tavern arrival one hour later. The shift is stored on the
-    # routine script, not the module dict, so it survives restarts.
+    # routine script, not the module dict, so it survives restarts. Bounded
+    # mod 4: without a bound the block drifts past midnight and they stop
+    # coming at all (2026-10-04).
     deltas = routine.db.schedule_deltas or {}
     entry = deltas.get(key, {})
-    entry["tavern_shift"] = entry.get("tavern_shift", 0) + 1
+    entry["tavern_shift"] = (entry.get("tavern_shift", 0) + 1) % 4
     deltas[key] = entry
     routine.db.schedule_deltas = deltas
-    new_start = (
-        [s for s in SCHEDULES[key] if s[2] == "The Blood of the Vine"][0][0]
-        + entry["tavern_shift"]
-    )
+    old_start = [s for s in SCHEDULES[key]
+                 if s[2] == "The Blood of the Vine"][0][0]
+    new_start = old_start + entry["tavern_shift"]
+    if entry["tavern_shift"] == 0:
+        rumor = f"{name}'s back to keeping their old hours, by all accounts."
+    else:
+        rumor = (f"{name}'s been keeping different hours — in later than "
+                 f"{pron} used to be.")
     try:
         from world.events import publish_world_event
 
         publish_world_event(
             "routine",
             actor=None,
-            payload={"regular": key, "old_start": changed[0],
-                     "new_start": changed[1]},
-            rumor=(f"{name}'s been keeping different hours — in an hour "
-                   f"later than {pron} used to be."),
+            payload={"regular": key, "old_start": old_start,
+                     "new_start": new_start},
+            rumor=rumor,
         )
     except Exception:
         pass
-    old_start = [s for s in SCHEDULES[key]
-                 if s[2] == "The Blood of the Vine"][0][0]
     return {"regular": key, "old_start": old_start,
             "new_start": new_start}
 
