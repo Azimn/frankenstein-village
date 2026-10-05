@@ -31,7 +31,9 @@ These work now:
 - `say <words>` — speak to the room.
 - `whisper <person> = <words>`: speak privately to someone nearby.
 - `inventory` (or `i`) — what you're carrying.
-- `rumors`: hear the talk currently circulating in the Tavern.
+- `rumors`: hear the talk currently circulating in the Tavern. `rumors R<number>` traces a story you know; `retell <person> R<number>` passes it on.
+- `harbinger`: read the latest printed issue. `harbinger archive` lists recent issues; `harbinger H<number>` shows a story's editorial basis and corrections.
+- `chronicle`: browse the public Chronicle. `chronicle C<number>` reads an entry; `chronicle submit R<number>` records your version of a rumor as attributed testimony without certifying it as true.
 - `diary`: read your private persistent notes. `diary <text>` writes; `diary/delete <number>` tears out an entry.
 - `help <topic>` — help on anything. `report <person> <reason>` — if someone breaks the compact (see below).
 
