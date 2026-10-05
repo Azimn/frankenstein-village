@@ -129,6 +129,17 @@ def main() -> int:
         require(out, "confessional")
         require(out, "well steams")
         require(out, "arrivals register", "register")
+        handles = re.findall(r"\[R(\d+)\]", out)
+        if not handles:
+            raise AssertionError("rumor output did not expose a retellable handle")
+        rumor_id = handles[0]
+
+        out = c.command(f"rumors R{rumor_id}")
+        require(out, "telling trail", "reconstructable")
+        require(out, "retell it with")
+
+        out = c.command(f"tell Bram R{rumor_id}")
+        require(out, "you tell bram")
 
         out = c.command("roll dice vs Bram")
         require(out, "dice settle")
