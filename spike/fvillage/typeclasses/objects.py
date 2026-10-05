@@ -365,6 +365,50 @@ class MysteryNote(DefaultObject):
         )
 
 
+class TitheStrongbox(DefaultObject):
+    """Physical hook for canon incident #6, the tithe strongbox."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.aliases.add(["strongbox", "tithe box", "church strongbox"])
+        self.locks.add(
+            "get:false();give:false();drop:false();control:perm(Admin)"
+        )
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.situations import strongbox_description
+        return strongbox_description(looker)
+
+    def at_desc(self, looker=None, **kwargs):
+        if looker and looker.has_account:
+            from world.situations import discover_evidence
+            discover_evidence(looker, "lock")
+        return super().at_desc(looker, **kwargs)
+
+
+class TitheRoll(DefaultObject):
+    """Documentary evidence for canon incident #6."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.aliases.add(["roll", "tithe ledger", "parish roll"])
+        self.locks.add(
+            "get:false();give:false();drop:false();control:perm(Admin)"
+        )
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.situations import tithe_roll_description
+        return tithe_roll_description(looker)
+
+    def at_desc(self, looker=None, **kwargs):
+        if looker and looker.has_account:
+            from world.situations import discover_evidence
+            discover_evidence(looker, "roll")
+        return super().at_desc(looker, **kwargs)
+
+
+
+
 class Seat(DefaultObject):
     """Something you can sit on / at / by.
 
