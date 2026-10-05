@@ -285,8 +285,22 @@ def propagate_colocated_npcs(*, announce=False, max_per_room=1):
     registry = get_rumor_registry()
     by_room = defaultdict(list)
     for npc in _participants():
-        if npc.location:
-            by_room[npc.location.id].append(npc)
+        if not npc.location:
+            continue
+        # Background residents can share the physical Offstage room while
+        # occupying different logical homes/workplaces. Gossip follows logical
+        # co-location so projection never creates impossible conversations.
+        try:
+            from world.residents import is_resident, resident_state
+            if is_resident(npc):
+                logical = (resident_state(npc).get("routine") or {}).get(
+                    "logical_location"
+                )
+                by_room[("logical", logical or npc.location.id)].append(npc)
+                continue
+        except Exception:
+            pass
+        by_room[("physical", npc.location.id)].append(npc)
 
     results = []
     for group in by_room.values():
@@ -310,7 +324,13 @@ def propagate_colocated_npcs(*, announce=False, max_per_room=1):
                 belief["rumor_id"],
                 speaker,
                 listener,
-                location=getattr(speaker.location, "key", None),
+                location=(
+                    (resident_state(speaker).get("routine") or {}).get(
+                        "logical_location"
+                    )
+                    if is_resident(speaker)
+                    else getattr(speaker.location, "key", None)
+                ),
             )
             if result:
                 results.append(result)
