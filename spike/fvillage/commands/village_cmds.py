@@ -776,6 +776,150 @@ class CmdChronicle(Command):
         self.caller.msg("\n".join(lines))
 
 
+class CmdJournal(Command):
+    """Read the thin persistent record of situations you have discovered.
+
+    Usage:
+        journal
+        journal strongbox
+
+    This is not a quest checklist. It records what your current mask has
+    actually encountered and leaves undiscovered evidence undisclosed.
+    """
+
+    key = "journal"
+    aliases = ["developments"]
+    help_category = "Village"
+
+    def func(self):
+        if not _require_ic(self.caller):
+            return
+
+        from world.situations import (
+            TITHE_ID,
+            known_situations,
+            situation_status_for_player,
+        )
+
+        arg = (self.args or "").strip().lower()
+        if arg:
+            if arg in {
+                "strongbox", "tithe", "tithe strongbox", "church strongbox",
+                TITHE_ID.lower(),
+            }:
+                status = situation_status_for_player(self.caller, TITHE_ID)
+                if not status:
+                    self.caller.msg(
+                        "Nothing about the church strongbox is in your journal."
+                    )
+                    return
+                lines = [
+                    f"|y{status['title']}|n",
+                    f"State: {status['state'].replace('_', ' ')}.",
+                ]
+                if status["evidence"]:
+                    lines.append("Evidence you have actually encountered:")
+                    for evidence in status["evidence"]:
+                        lines.append(
+                            f"  * {evidence['label']}: {evidence['summary']}"
+                        )
+                if status.get("aftermath"):
+                    lines.append(f"Aftermath: {status['aftermath']}")
+                elif status.get("branch") == "quietly":
+                    lines.append(
+                        "The inquiry is being kept quiet. Time is still moving."
+                    )
+                elif len(status["evidence"]) >= 2:
+                    lines.append(
+                        "You know enough to make a consequential choice with "
+                        "decide strongbox openly or decide strongbox quietly."
+                    )
+                self.caller.msg("\n".join(lines))
+                return
+            self.caller.msg("That situation is not in your journal.")
+            return
+
+        known = known_situations(self.caller)
+        if not known:
+            self.caller.msg(
+                "Your journal has no village developments yet. It only records "
+                "situations you have actually encountered."
+            )
+            return
+
+        lines = ["|yYour journal of developments:|n"]
+        for situation, knowledge in known:
+            evidence_count = len(knowledge.get("evidence") or [])
+            lines.append(
+                f"* {situation['working_title']}: "
+                f"{situation['state'].replace('_', ' ')}; "
+                f"{evidence_count} evidence source(s) encountered."
+            )
+        lines.append("Use journal <topic> for what your mask actually knows.")
+        self.caller.msg("\n".join(lines))
+
+
+class CmdDecide(Command):
+    """Make a door-closing decision in a shared village situation.
+
+    Usage:
+        decide strongbox openly
+        decide strongbox quietly
+
+    Decisions affect the shared world. They are not private quest branches.
+    """
+
+    key = "decide"
+    aliases = ["resolve"]
+    help_category = "Village"
+
+    def func(self):
+        if not _require_ic(self.caller):
+            return
+        raw = (self.args or "").strip()
+        if not raw:
+            self.caller.msg(
+                "Decide what, and how? Try: decide strongbox openly"
+            )
+            return
+
+        raw = raw.replace("=", " ")
+        parts = raw.split()
+        if len(parts) < 2:
+            self.caller.msg(
+                "Try: decide strongbox openly, or decide strongbox quietly"
+            )
+            return
+        subject = " ".join(parts[:-1]).lower()
+        choice = parts[-1].lower()
+        if subject not in {
+            "strongbox", "tithe", "tithe strongbox", "church strongbox",
+        }:
+            self.caller.msg("You do not have a decision framed that way.")
+            return
+
+        from world.situations import TITHE_ID, choose
+
+        situation, error = choose(self.caller, choice, TITHE_ID)
+        if error:
+            self.caller.msg(error)
+            return
+
+        if situation.get("branch") == "openly":
+            self.caller.msg(
+                "You raise the missing tithe openly. The accusation is now "
+                "public, the church changes its strongbox procedure, and the "
+                "quiet road is closed."
+            )
+        else:
+            self.caller.msg(
+                "You ask that the inquiry stay quiet for a week. The public "
+                "accusation road is closed, and the village clock keeps moving."
+            )
+
+
+
+
 class CmdTalk(Command):
     """
     Talk to someone.
