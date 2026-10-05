@@ -161,7 +161,7 @@ def main() -> int:
         require(out, "village square")
         out = c.command("north")
         require(out, "inn hallway")
-        out = c.command("north")
+        out = c.command("west")
         require(out, "inn common room")
 
         out = c.command("talk M.")
