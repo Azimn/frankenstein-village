@@ -243,6 +243,8 @@ def ensure_population():
     day, hour = _clock()
     advance_population(day=day, hour=hour, emit=False)
 
+    seed_background_rumors()
+
     metrics = dict(registry.db.metrics or {})
     metrics["population_size"] = len(RESIDENTS)
     metrics["last_build_created"] = created
@@ -253,6 +255,52 @@ def ensure_population():
         "created": created,
         "registered": registered,
     }
+
+
+def seed_background_rumors():
+    """Give a sparse deterministic subset of residents each canon rumor.
+
+    Residents all participate in the rumor network, but they do not begin with
+    omniscient village gossip. The initial exposure is sparse and reproducible.
+    """
+    try:
+        from world.rumors import get_rumor_registry
+        registry = get_rumor_registry()
+    except Exception:
+        return 0
+
+    roots = [
+        dict(rumor)
+        for rumor in (registry.db.rumors or [])
+        if rumor.get("canonical_seed_id") is not None
+    ]
+    seeded = 0
+    for npc in all_residents():
+        npc.tags.add("participant", category="rumor")
+        definition = resident_definition(npc)
+        if not definition:
+            continue
+        for root in roots:
+            gate = _stable_index(
+                definition["stable_id"],
+                f"rumor-seed:{root['canonical_seed_id']}",
+                100,
+            )
+            if gate >= 30:
+                continue
+            if registry.belief_for(npc, root["id"]):
+                continue
+            registry.hear_direct(
+                root["id"],
+                npc,
+                source_label=root.get("source_actor") or "village talk",
+                source_type=root.get("source_type") or "canon_teller",
+                location=(resident_state(npc).get("routine") or {}).get(
+                    "logical_location"
+                ),
+            )
+            seeded += 1
+    return seeded
 
 
 def _availability():
