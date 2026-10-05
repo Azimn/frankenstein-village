@@ -138,7 +138,7 @@ def main() -> int:
         require(out, "telling trail", "reconstructable")
         require(out, "retell it with")
 
-        out = c.command(f"tell Bram R{rumor_id}")
+        out = c.command(f"retell Bram R{rumor_id}")
         require(out, "you tell bram")
 
         out = c.command("roll dice vs Bram")
