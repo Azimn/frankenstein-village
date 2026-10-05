@@ -9,8 +9,6 @@ Frankenstein Village spike — custom commands.
 import random
 import re
 import shlex
-from pathlib import Path
-
 from evennia import Command
 from evennia.commands.default.muxcommand import MuxCommand
 from evennia.commands.default.general import CmdGet, CmdLook
@@ -407,7 +405,7 @@ class CmdRumors(Command):
             f"You heard it from {belief.get('heard_from') or 'someone'}. "
             f"Your reconstructable telling trail is {trail}. "
             f"You are {band} of it. "
-            f"Retell it with: tell <person> R{rumor_id}"
+            f"Retell it with: retell <person> R{rumor_id}"
         )
 
     def func(self):
@@ -489,7 +487,7 @@ class CmdRumors(Command):
 
         self.caller.msg(
             "\nUse |wrumors R<number>|n to inspect where a story came from, "
-            "or |wtell <person> R<number>|n to pass it on."
+            "or |wretell <person> R<number>|n to pass it on."
         )
         self.caller.location.msg_contents(
             f"{self.caller.key} listens to the rumors going around.",
@@ -497,22 +495,22 @@ class CmdRumors(Command):
         )
 
 
-class CmdTell(Command):
+class CmdRetell(Command):
     """Retell a rumor your current mask has actually heard.
 
     Usage:
-        tell <person> R<number>
-        tell <person> = R<number>
+        retell <person> R<number>
+        retell <person> = R<number>
     """
 
-    key = "tell"
-    aliases = ["retell"]
+    key = "retell"
+    aliases = ["tellrumor"]
     help_category = "Village"
 
     def func(self):
         raw = (self.args or "").strip()
         if not raw:
-            self.caller.msg("Tell whom which rumor? Try: tell Magda R1")
+            self.caller.msg("Retell to whom? Try: retell Magda R1")
             return
 
         if "=" in raw:
@@ -526,7 +524,7 @@ class CmdTell(Command):
 
         rumor_id = _parse_rumor_id(token)
         if not target_name or rumor_id is None:
-            self.caller.msg("Use: tell <person> R<number>")
+            self.caller.msg("Use: retell <person> R<number>")
             return
 
         target = self.caller.search(target_name, quiet=True)
