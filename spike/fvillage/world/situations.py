@@ -1078,7 +1078,114 @@ def situation_status_for_player(player, stable_id=TITHE_ID):
         "developments": list(knowledge["developments"]),
         "aftermath": situation.get("aftermath"),
         "inheritance": template["inheritance"],
+        "choices": list(template.get("choices") or {}),
     }
+
+
+def chronicle_gap_description(looker=None):
+    situation = get_situation(TORN_CHRONICLE_ID)
+    if not situation or situation.get("state") == "dormant":
+        return None
+    if looker is not None:
+        discover_evidence(looker, "gap", TORN_CHRONICLE_ID)
+
+    branch = situation.get("branch")
+    if situation.get("state") == "aftermath":
+        if branch == "reconstruct":
+            return (
+                "The numbered stubs are still visible, but a replacement sequence has "
+                "been inserted after them. Every reconstructed page is marked in the "
+                "margin: DERIVED FROM HARBINGER FILES. The gap is filled; the source "
+                "difference is not hidden."
+            )
+        if branch == "preserve":
+            return (
+                "The numbered stubs remain between blank guard leaves. A note records "
+                "that the missing sequence was deliberately left unreconstructed. "
+                "Nothing pretends to know what the cut pages said."
+            )
+        return (
+            "The numbered stubs remain under a protective guard sheet. Visitors have "
+            "begun asking to see the famous gap, which the Chronicle still refuses to fill."
+        )
+
+    return (
+        "A numbered run of Chronicle pages is missing. The leaves were cut out cleanly, "
+        "not torn; the narrow stubs remain bound in sequence. Their numbers establish "
+        "exactly where the absence begins and ends, but the surviving paper does not "
+        "tell you what the pages said."
+    )
+
+
+def harbinger_archive_evidence(looker=None):
+    situation = get_situation(TORN_CHRONICLE_ID)
+    if not situation or situation.get("state") == "dormant":
+        return None
+    if looker is not None:
+        discover_evidence(looker, "harbinger_archive", TORN_CHRONICLE_ID)
+    return (
+        "Older bound Harbinger files cover the Chronicle's missing dates. They preserve "
+        "printable accounts, source language, and later corrections, but they are still "
+        "newspaper records rather than the missing Chronicle originals."
+    )
+
+
+def resident_situation_ask(npc, player, topic):
+    if getattr(npc.db, "resident_id", None) != "ilona_szabo":
+        return None
+    lowered = str(topic or "").lower()
+    if not any(
+        token in lowered
+        for token in ("chronicle", "missing page", "missing pages", "gap", "torn")
+    ):
+        return None
+    situation = get_situation(TORN_CHRONICLE_ID)
+    if not situation or situation.get("state") == "dormant":
+        return None
+    discover_evidence(player, "ilona", TORN_CHRONICLE_ID)
+    if situation.get("state") == "aftermath":
+        if situation.get("branch") == "reconstruct":
+            return (
+                "We reconstructed it from the Harbinger, and marked every line for "
+                "what it is. A copied account is not a recovered page."
+            )
+        if situation.get("branch") == "preserve":
+            return (
+                "I left the gap visible. An honest absence is better than a confident "
+                "invention wearing archival ink."
+            )
+        return (
+            "The gap has become famous enough to attract visitors. Fame has not made "
+            "the missing pages any less missing."
+        )
+    return (
+        "The cut was clean, and the numbering is genuine. The Harbinger files survive, "
+        "but I will not call newspaper copy the same thing as the pages we lost."
+    )
+
+
+def decision_message(stable_id, branch):
+    if stable_id == TITHE_ID:
+        if branch == "openly":
+            return (
+                "You raise the missing tithe openly. The accusation is now public, "
+                "the church changes its strongbox procedure, and the quiet road is closed."
+            )
+        return (
+            "You ask that the inquiry stay quiet for a week. The public accusation road "
+            "is closed, and the village clock keeps moving."
+        )
+    if stable_id == TORN_CHRONICLE_ID:
+        if branch == "reconstruct":
+            return (
+                "You authorize a reconstruction from the Harbinger archive. The replacement "
+                "pages are marked as press-derived, and the choice is now part of village history."
+            )
+        return (
+            "You preserve the numbered gap instead of reconstructing it. The absence remains "
+            "visible, documented, and shared by every later reader."
+        )
+    return "The shared situation changes."
 
 
 def strongbox_description(looker=None):
