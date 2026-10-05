@@ -35,6 +35,22 @@ def _set_stage(char, **kwargs):
     char.db.room_six = stage
 
 
+REGISTER_DESC = (
+    "A heavy leather register, cracked at the spine, open on the bar. It "
+    "smells faintly of iron and lamp oil. M.'s hand throughout: neat, "
+    "impatient, the hand of someone who'd rather be polishing:\n\n"
+    "'T. Okafor - Rm 2 - one night.'\n"
+    "'The Widow Hessel - Rm 4 - three nights, paid.'\n"
+    "'J. Marlowe - Rm 1 - one night, left before dawn.'\n\n"
+    "On the page for last Michaelmas, one name is crossed out with three "
+    "hard strokes. The ink beneath is unreadable.\n\n"
+    "And then, three nights past, in a hand like nothing else on the page: "
+    "tall, hurried, the ink pressed hard enough to scar the paper:\n\n"
+    "'Rm 6 - V. [smudge] - - -.'\n\n"
+    "The surname is a smudge. Or a kindness."
+)
+
+
 class Register(DefaultObject):
     """M.'s register, open on the bar of the Tavern.
 
@@ -45,20 +61,7 @@ class Register(DefaultObject):
 
     def at_object_creation(self):
         super().at_object_creation()
-        self.db.desc = (
-            "A heavy leather register, cracked at the spine, open on the "
-            "bar. It smells faintly of iron and lamp oil. M.'s hand "
-            "throughout — neat, impatient, the hand of someone who'd "
-            "rather be polishing:\n\n"
-            "'T. Okafor — Rm 2 — one night.'\n"
-            "'The Widow Hessel — Rm 4 — three nights, paid.'\n"
-            "'J. Marlowe — Rm 1 — one night, left before dawn.'\n\n"
-            "And then, three nights past, in a hand like nothing else on "
-            "the page — tall, hurried, the ink pressed hard enough to "
-            "scar the paper:\n\n"
-            "'Rm 6 — V. [smudge] — — —.'\n\n"
-            "The surname is a smudge. Or a kindness."
-        )
+        self.db.desc = REGISTER_DESC
         self.aliases.add("guest book", "guestbook", "book")
 
     def at_desc(self, looker=None):
@@ -151,6 +154,7 @@ class RoomSixDoor(DefaultObject):
         )
         note.aliases.add("note")
         note.db.owner_character_id = looker.id
+        note.db.source_door_id = self.id
         note.locks.add(
             f"get:id({looker.id}) or perm(Admin);"
             f"give:id({looker.id}) or perm(Admin);"
@@ -193,6 +197,7 @@ class MysteryNote(DefaultObject):
         # This is the first persistent Room Six event for this player.
         from world.events import publish_world_event
 
+        source_door_id = self.db.source_door_id
         super().at_get(getter, **kwargs)
         if getter and getter.has_account:
             if not _player_stage(getter).get("found_note"):
@@ -200,8 +205,7 @@ class MysteryNote(DefaultObject):
                 publish_world_event(
                     "room_six.note_found",
                     actor=getter,
-                    payload={"door_id": self.location.id if self.location else None,
-                             "note_id": self.id},
+                    payload={"door_id": source_door_id, "note_id": self.id},
                 )
                 getter.msg("You take the folded note before anyone else can.")
 
