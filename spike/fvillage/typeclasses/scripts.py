@@ -674,6 +674,7 @@ class RumorRegistry(DefaultScript):
         source_actor,
         source_type,
         original_event_id,
+        origin_location,
         confidence,
         emotional_charge,
         privacy,
@@ -694,6 +695,14 @@ class RumorRegistry(DefaultScript):
                 and rumor.get("subject") == subject
             ):
                 return dict(rumor)
+            if (
+                canonical_seed_id is None
+                and original_event_id is None
+                and rumor.get("claim") == claim
+                and rumor.get("source_type") == source_type
+                and rumor.get("family") == (family or subject)
+            ):
+                return dict(rumor)
 
         import time
 
@@ -704,7 +713,8 @@ class RumorRegistry(DefaultScript):
             "source_actor": source_actor,
             "source_type": source_type,
             "original_event_id": original_event_id,
-            "created_at": time.time(),
+            "heard_at": time.time(),
+            "heard_location": origin_location,
             "confidence": float(confidence),
             "emotional_charge": float(emotional_charge),
             "privacy": privacy,
