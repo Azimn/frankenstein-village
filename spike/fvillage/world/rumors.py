@@ -31,7 +31,7 @@ def _strip_markup(text):
 
 
 def _parse_seed_line(number, line):
-    heard_marker = " \\u2014 *Heard from:* "
+    heard_marker = f" {chr(0x2014)} *Heard from:* "
     if heard_marker not in line:
         heard_marker = " - *Heard from:* "
     if heard_marker not in line:
