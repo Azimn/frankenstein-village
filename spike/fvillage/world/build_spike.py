@@ -225,6 +225,11 @@ for _a in ["keeper", "the keeper", "tavern keeper",
             "the tavern keeper", "barkeep", "barkeeper", "bram"]:
     if _a not in keeper.aliases.all():
         keeper.aliases.add(_a)
+# A fresh house needs enough float to honor its advertised dice wager.
+# Initialize once only; rebuilds must never refill a live till.
+if keeper.db.till_kr is None:
+    keeper.db.till_kr = 50
+    print("Bram's till seeded with 50 kr house float.")
 
 # --- the tavern cat -----------------------------------------------------------
 found = [o for o in tavern.contents if o.key == "the tavern cat"]
@@ -276,12 +281,19 @@ else:
 def get_or_create_scenery(key, location, desc, aliases=()):
     found = [o for o in location.contents if o.key == key]
     if found:
-        return found[0]
-    obj = create.create_object("evennia.objects.objects.DefaultObject",
-                               key=key, location=location,
-                               aliases=list(aliases))
+        obj = found[0]
+    else:
+        obj = create.create_object(
+            "evennia.objects.objects.DefaultObject",
+            key=key, location=location, aliases=list(aliases),
+        )
+        print(f"scenery created: {key} in {location.key}")
+    # Static scenery converges on every build. Runtime counters and mutable
+    # state live elsewhere and are intentionally preserved.
     obj.db.desc = desc
-    print(f"scenery created: {key} in {location.key}")
+    for alias in aliases:
+        if alias not in (obj.aliases.all() or []):
+            obj.aliases.add(alias)
     return obj
 
 
@@ -298,8 +310,9 @@ get_or_create_scenery(
 get_or_create_scenery(
     "well", square,
     "The village well at the square's heart. It steams faintly, though "
-    "the night is cool. The rope vanishes down into dark water you "
-    "can't quite see.",
+    "the night is cool. When the air falls still, the vapor rises in a "
+    "strangely straight thread. The rope vanishes down into dark water "
+    "you can't quite see.",
     aliases=["village well"],
 )
 
@@ -704,9 +717,10 @@ _fixture(
     "a confessional box", ["confessional", "box"],
     _church,
     "A wooden confessional box in the corner, curtain drawn. The kneeler "
-    "is worn down the middle by generations of knees. What's said in there "
-    "stays in there — that's the whole of the sacrament and the whole of "
-    "the burden. (Try: confess <words>.)",
+    "is worn down the middle by generations of knees. The left panel smells "
+    "faintly of lavender, though there is no lavender in the church. What's "
+    "said in there stays in there; that's the whole of the sacrament and "
+    "the whole of the burden. (Try: confess <words>.)",
 )
 
 # --- Father Andrei --------------------------------------------------------------
@@ -833,6 +847,8 @@ def relocate_or_create_typed(key, location, typeclass, aliases=()):
 register = relocate_or_create_typed(
     "register", tavern, "typeclasses.objects.Register", aliases=["guest book"]
 )
+from typeclasses.objects import REGISTER_DESC
+register.db.desc = REGISTER_DESC
 room_six_door = relocate_or_create_typed(
     "Room Six door", back_hall, "typeclasses.objects.RoomSixDoor",
     aliases=["sixth door"],
