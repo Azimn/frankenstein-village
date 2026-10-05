@@ -152,6 +152,35 @@ assert qa_root["source_actor"] == "Magda"
 assert qa_root["source_type"] == "npc"
 assert qa_root["claim"] == "The QA bell rang twice."
 
+# Remove the synthetic event from the same temporary world used by the telnet
+# pass. The assertion proves integration without making QA chatter player-facing.
+ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+ledger.db.events = [
+    event for event in (ledger.db.events or [])
+    if event.get("id") != qa_event["id"]
+]
+rumor_registry.db.rumors = [
+    rumor for rumor in (rumor_registry.db.rumors or [])
+    if rumor.get("id") != qa_rumor_id
+]
+rumor_registry.db.transmissions = [
+    transmission for transmission in (rumor_registry.db.transmissions or [])
+    if transmission.get("rumor_id") != qa_rumor_id
+]
+tavern = one("The Blood of the Vine")
+tavern.db.public_rumor_ids = [
+    rid for rid in (tavern.db.public_rumor_ids or [])
+    if rid != qa_rumor_id
+]
+tavern.db.player_rumors = [
+    body for body in (tavern.db.player_rumors or [])
+    if body != "The QA bell rang twice."
+]
+for npc in search.search_tag("participant", category="rumor"):
+    beliefs = dict(npc.db.rumor_beliefs or {})
+    beliefs.pop(str(qa_rumor_id), None)
+    npc.db.rumor_beliefs = beliefs
+
 # Moderation lifecycle is tested on an isolated temporary script so running
 # these assertions against a real development world cannot pollute its queue.
 moderation = create_script(
