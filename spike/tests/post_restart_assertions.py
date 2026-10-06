@@ -21,6 +21,11 @@ from world.timed_incidents import (
     get_timed_incident,
     status_for_player as timed_status_for_player,
 )
+from world.random_incidents import (
+    EXTINGUISHED_LAMP_ID,
+    current_random_incident,
+    recent_random_incidents,
+)
 from world.scheduled_events import (
     HARBINGER_PUBLICATION_ID,
     MARKET_MORNING_ID,
@@ -110,6 +115,23 @@ if timed["state"] == "aftermath":
     assert timed["current"]["publications"]["harbinger_story_id"]
     assert timed["current"]["publications"].get("chronicle_entry_id") is None
 
+# Random texture persists independently of the timed-window and quest layers.
+# If a clock boundary happened during CI, it may already be archived; either
+# way the same occurrence must survive and remain private.
+random_current = current_random_incident()
+random_records = (
+    [random_current]
+    if random_current and random_current.get("id") == EXTINGUISHED_LAMP_ID
+    else [
+        record for record in recent_random_incidents(5)
+        if record.get("id") == EXTINGUISHED_LAMP_ID
+    ]
+)
+assert random_records, "telnet random incident did not survive restart"
+random_record = random_records[-1]
+assert random_record["tone"] == "odd"
+assert random_record["location"] == "Village Square"
+
 print("POST_RESTART_RESIDENT_ASSERTIONS_GREEN")
 print("POST_RESTART_PUBLIC_RECORD_ASSERTIONS_GREEN")
 print("POST_RESTART_SITUATION_ASSERTIONS_GREEN")
@@ -126,4 +148,5 @@ assert set((scheduled.db.metrics or {}).keys()).issuperset({
 
 print("POST_RESTART_INCIDENT_FEED_ASSERTIONS_GREEN")
 print("POST_RESTART_TIMED_INCIDENT_ASSERTIONS_GREEN")
+print("POST_RESTART_RANDOM_INCIDENT_ASSERTIONS_GREEN")
 print("POST_RESTART_SCHEDULED_EVENT_ASSERTIONS_GREEN")
