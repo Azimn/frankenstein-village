@@ -533,3 +533,35 @@ Regression coverage proves:
 - overlay reconstruction after process boundaries;
 - real telnet discovery and contribution;
 - persistence of that contribution through a real server restart.
+
+## 2026-10-06 - Public mystery layer
+
+`world/public_mysteries.py` stores community-scale observations separately from player theories.
+
+First framework: `PUBLIC-MANOR-LIGHTS`.
+
+Observation contract:
+- The hilltop Manor is a real `ManorView` object in the Village Square.
+- `look manor` derives the visible state from current village day, hour, and weather.
+- The derived state is deterministic across restart.
+- One day/hour/weather/pattern tuple creates one shared observation.
+- Additional viewers become named witnesses on that observation.
+- Dark observations are retained as evidence as well as lit observations.
+- The first visible-light signal may create a reported rumor and Harbinger item.
+- No observation certifies an explanation.
+
+Theory contract:
+- `mystery manor` shows shared observations and public theories.
+- `theory manor = <text>` records a provisional interpretation.
+- Theories store authorship but never receive an automatic truth value.
+- There is no generic public-mystery solve operation.
+
+Regression coverage proves:
+- idempotent registry and Manor object construction;
+- deterministic lit and dark states;
+- observation deduplication;
+- multi-witness provenance;
+- first-signal rumor and Harbinger projection without Chronicle promotion;
+- theory persistence with `truth_status = None`;
+- real telnet discovery through `look manor`;
+- public evidence and theory persistence across a real server restart.
