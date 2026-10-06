@@ -70,6 +70,24 @@ class VillageWell(DefaultObject):
 
 
 
+class ManorView(DefaultObject):
+    """The distant Manor as an observable public-mystery target."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.aliases.add(["manor", "manor house", "hilltop manor"])
+        self.locks.add("get:false()")
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.public_mysteries import manor_description
+        return manor_description(looker)
+
+    def at_desc(self, looker=None, **kwargs):
+        return super().at_desc(looker, **kwargs)
+
+
+
+
 class Register(DefaultObject):
     """M.'s register, open on the bar of the Tavern.
 
