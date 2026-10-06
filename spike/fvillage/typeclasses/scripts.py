@@ -1393,6 +1393,17 @@ class VillageTime(SpikeScript):
         except Exception:
             pass
 
+        # Village-scale conditions use the same clock without owning a ticker.
+        # They update before random texture so broad world state is authoritative.
+        try:
+            from world.server_events import advance_server_events
+            advance_server_events(
+                day=self.db.day or 1,
+                hour=hour,
+            )
+        except Exception:
+            pass
+
         # Low-cost random incidents use this same authoritative hourly boundary.
         # They may add temporary overlays or social texture, but own no scheduler.
         try:
