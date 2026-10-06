@@ -352,9 +352,11 @@ def monthly_shift(day):
 def restock_sideboard():
     """Refill depleted sideboard fare if Bram is in the tavern.
 
-    Returns the list of refilled fare short names (for logs/tests). Fires
-    only when something was actually refilled — quiet when the board's full.
+    Returns the list of refilled fare short names for logs and tests. Fires
+    only when something was actually refilled.
     """
+    from world.object_properties import mechanical_value
+
     tavern = _room("The Blood of the Vine")
     if not tavern:
         return []
@@ -364,9 +366,12 @@ def restock_sideboard():
     refilled = []
     for obj in tavern.contents:
         data = obj.db.consume or {}
-        max_s = data.get("servings_max")
+        max_s = mechanical_value(obj, "uses", None)
+        if max_s is None:
+            max_s = data.get("servings_max")
         if not max_s:
-            continue  # water and the well mushrooms aren't the keeper's board
+            continue
+        max_s = int(max_s)
         left = obj.db.servings
         if left is None:
             left = max_s
