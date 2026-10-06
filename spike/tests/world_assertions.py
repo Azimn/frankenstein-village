@@ -1090,9 +1090,12 @@ assert "neighboring lamps burn steadily" in (
 lamp_event = ledger.get_event(lamp["event_id"])
 assert not lamp_event.get("publications")
 assert not lamp_event.get("rumor")
+# The lamp template lasts two game hours because its authored premise is a
+# repeatedly failing lamp, not an instantaneous flicker.
+assert current_random_incident()["id"] == EXTINGUISHED_LAMP_ID
 advance_random_incidents(
     day=15,
-    hour=22,
+    hour=23,
     force_id="NO-SUCH-RANDOM-INCIDENT",
 )
 assert EXTINGUISHED_LAMP_ID not in (square.db.scheduled_overlays or {})
@@ -1110,7 +1113,7 @@ advance_random_incidents(
 )
 advance_random_incidents(
     day=17,
-    hour=22,
+    hour=23,
     force_id="NO-SUCH-RANDOM-INCIDENT",
 )
 assert len(random_registry.db.history or []) == 24
