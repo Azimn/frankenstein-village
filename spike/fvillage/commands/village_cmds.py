@@ -69,6 +69,7 @@ class CmdCalling(Command):
         calling relations
         calling apprentice <player>
         calling release <player>
+        calling withdraw
 
     Callings are social professions, not combat classes. A new profession
     begins at Apprentice. Master promotion comes from authored world work,
@@ -99,6 +100,7 @@ class CmdCalling(Command):
             choose_calling,
             create_apprenticeship,
             end_apprenticeship,
+            withdraw_apprenticeship,
         )
 
         raw = (self.args or "").strip()
@@ -210,6 +212,17 @@ class CmdCalling(Command):
             )
             return
 
+        if lower == "withdraw":
+            relation, error = withdraw_apprenticeship(self.caller)
+            if error:
+                self.caller.msg(error)
+                return
+            self.caller.msg(
+                "You withdraw from the active apprenticeship. The ended "
+                "relationship remains in your professional history."
+            )
+            return
+
         if lower.startswith("release "):
             if not _require_ic(self.caller):
                 return
@@ -241,7 +254,7 @@ class CmdCalling(Command):
             self.caller.msg(
                 "Use: calling | calling list | calling choose <calling|none> | "
                 "calling history | calling relations | calling apprentice <player> | "
-                "calling release <player>"
+                "calling release <player> | calling withdraw"
             )
             return
 
