@@ -332,11 +332,10 @@ if not well.is_typeclass("typeclasses.objects.VillageWell", exact=True):
     )
     print("well upgraded to VillageWell.")
 
-# mushrooms by the well: the spike's standing poison item. The `toxic`
-# magnitude path in _consume is proven by the bad-stew surprise, but no
-# item has used it directly until now. These mushrooms always bite back
-# a little — that is the honest deal the damp stones offer. The folklore
-# warning is in the desc, so a queasy player has only themselves to blame.
+# Mushrooms by the well are the first hidden-property production object.
+# Toxin remains authoritative simulation truth, but ordinary description does
+# not label the mechanical property. A mask can learn it from direct effects
+# and later recall that knowledge through examine.
 # A bad cap seeds the ledger -> rumor pipeline (consumable-surprise with
 # provenance), the same way the stew's bad night does.
 found = [o for o in square.contents if o.key == "a cluster of mushrooms"]
@@ -357,7 +356,11 @@ mushrooms.db.desc = (
 )
 mushrooms.tags.add("consumable")
 mushrooms.tags.add("food")  # the eat gate
-configure_mechanical_properties(mushrooms, {"toxin": 25})
+configure_mechanical_properties(
+    mushrooms,
+    {},
+    hidden_properties={"toxin": 25},
+)
 mushrooms.db.consume = {
     "nourish": 5,
     "flavor": "You eat a cap. Earthy at first, peppery after — and then "
