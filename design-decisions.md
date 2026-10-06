@@ -456,6 +456,6 @@ A calling is the mask's active social profession. The production core uses Appre
 
 Participation is recorded from real professional actions but is not itself a hidden XP meter. Promotion to Master must be authored by world or institutional logic that can examine participation, responsibility, relationships, and current state. There is no free player promotion command.
 
-Respecialization preserves prior calling records and rank history. Only one calling is active at a time, so a character cannot simultaneously exercise every mastered profession. Returning to an earlier profession restores its historical record rather than erasing biography.
+Respecialization preserves prior calling records and rank history, but it is an authored transition rather than a free player command. Only one calling is active at a time, so a character cannot simultaneously exercise every mastered profession or bypass specialization by swapping roles on demand. Returning to an earlier profession restores its historical record rather than erasing biography.
 
 Apprenticeship is persistent bilateral state. Master and Apprentice must currently share a calling. Either party can end the obligation, and a live apprenticeship blocks silent respecialization until it is resolved. This is the first interdependence primitive; later professional jobs should build on it rather than inventing temporary role flags.
