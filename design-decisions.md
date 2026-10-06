@@ -354,3 +354,31 @@ The first visible-light observation may enter the rumor and Harbinger pipelines 
 Players may inspect the shared public record with `mystery manor` and submit interpretations with `theory manor = <text>`. Every theory stores author and timestamp, remains marked `proposed`, and has `truth_status = None`. There is intentionally no solve command and no mechanism that silently promotes a theory into canon.
 
 This is the epistemic contract for future public mysteries: establish local facts, retain witnesses and provenance, permit public interpretation, and preserve intentionally unresolved Bible questions.
+
+## 2026-10-06 - Seasonal and chapter framework implemented
+
+Seasonal chapters are slow modifiers over the persistent village, not replacement maps or linear expansions. The exact civil year remains unresolved. Chapter state is tracked against the internal village day counter, so the game can be in The Weeks of Long Shadows without claiming a specific Gregorian date or year.
+
+The canonical chapter cycle is:
+- The Weeks of Long Shadows, 30 village days.
+- The Reckoning of Accounts, 30 village days.
+- The Empty Places at Table, 31 village days.
+- The Frozen Roads, 90 village days.
+- The Thaw Below, 90 village days.
+- The Visitors, 94 village days.
+
+The durations form a 365-day seasonal cycle without settling the setting's exact year.
+
+The active chapter modifies existing systems rather than owning its own ticker:
+- weather transitions consume chapter-specific weights;
+- random incidents receive chapter-specific tone and template bonuses;
+- optional evening public routines may close earlier while essential night roles remain exempt;
+- economy and content tags are exposed as structured modifiers for systems that opt into them;
+- situation templates may require seasonal tags before they become feed-eligible;
+- the public calendar reports the active chapter and its remaining chapter days.
+
+The Weeks of Long Shadows is the initial production chapter. It favors fog, slightly increases odd evening texture while leaving mundane incidents dominant, and sends nonessential evening social routines home earlier. Its Village Square overlay is a projection of persistent chapter state and is rebuilt after restart.
+
+Chapter transitions are evaluated by the authoritative village clock and can catch up across long offline gaps without replaying individual days. A chapter transition creates a structured world event, a Harbinger account, and a Chronicle entry so late arrivals inherit the public history of prior chapters.
+
+The chapter system intentionally modifies probability and availability. It does not declare a singular seasonal villain, force every player through a storyline, or erase ordinary village life.

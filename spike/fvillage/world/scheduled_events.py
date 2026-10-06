@@ -452,12 +452,22 @@ def calendar_lines(day, hour):
     """Player-facing stable calendar facts and the next occurrence."""
     day = int(day)
     hour = int(hour)
+    try:
+        from world.seasonal_frameworks import calendar_line
+        seasonal = calendar_line(day)
+    except Exception:
+        seasonal = None
+
     lines = [
         f"Today is game day {day}, {day_name(day)}.",
+    ]
+    if seasonal:
+        lines.append(seasonal)
+    lines.extend([
         "The Harbinger normally appears daily at 08:00.",
         "Market morning is Saturday from 07:00 to 12:00 in the Village Square.",
         "Sunday Mass is held at St. Lazarus from 10:00 to 11:00.",
-    ]
+    ])
 
     events = dict(_registry().db.events or {})
     active = [

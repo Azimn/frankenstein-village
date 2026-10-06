@@ -691,6 +691,31 @@ class RandomIncidentRegistry(DefaultScript):
 
 
 
+class SeasonalFrameworkRegistry(DefaultScript):
+    """Persistent chapter state for slow seasonal world modulation."""
+
+    def at_script_creation(self):
+        self.key = "seasonal_framework_registry"
+        self.desc = "Persistent seasonal and chapter framework state."
+        self.interval = -1
+        self.persistent = True
+        if self.db.active_id is None:
+            self.db.active_id = None
+        if self.db.started_day is None:
+            self.db.started_day = None
+        if self.db.cycle_started_day is None:
+            self.db.cycle_started_day = None
+        if self.db.history is None:
+            self.db.history = []
+        if self.db.metrics is None:
+            self.db.metrics = {
+                "checks": 0,
+                "transitions": 0,
+            }
+
+
+
+
 class ScheduledEventRegistry(DefaultScript):
     """Persistent calendar state for recurring village events.
 
@@ -1382,6 +1407,17 @@ class VillageTime(SpikeScript):
         if hour == 0:
             self.db.day = (self.db.day or 1) + 1
 
+        # Seasonal chapters are slow modifiers over the existing world. They
+        # share this clock and own no separate ticker.
+        try:
+            from world.seasonal_frameworks import advance_seasonal_framework
+            advance_seasonal_framework(
+                day=self.db.day or 1,
+                hour=hour,
+            )
+        except Exception:
+            pass
+
         # Shared situations advance on the same coarse village clock. This
         # keeps autonomous content cheap: one boundary check per situation,
         # never one high-frequency ticker per quest or player.
@@ -1502,8 +1538,16 @@ class VillageWeather(SpikeScript):
         # Weather lingers: half the time nothing changes.
         if random.random() < 0.5:
             return
+
         choices = [s for s in self.WEATHER_SENSE if s != old]
-        self.set_weather(random.choice(choices))
+        try:
+            from world.seasonal_frameworks import weather_weights
+            seasonal = weather_weights()
+            weights = [float(seasonal.get(state, 1.0)) for state in choices]
+            selected = random.choices(choices, weights=weights, k=1)[0]
+        except Exception:
+            selected = random.choice(choices)
+        self.set_weather(selected)
 
 
 class CatLife(SpikeScript):

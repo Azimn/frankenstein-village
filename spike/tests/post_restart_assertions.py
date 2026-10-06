@@ -26,6 +26,12 @@ from world.random_incidents import (
     current_random_incident,
     recent_random_incidents,
 )
+from world.seasonal_frameworks import (
+    LONG_SHADOWS_ID,
+    OVERLAY_KEY as SEASONAL_OVERLAY_KEY,
+    current_chapter,
+    get_seasonal_framework_registry,
+)
 from world.scheduled_events import (
     HARBINGER_PUBLICATION_ID,
     MARKET_MORNING_ID,
@@ -201,7 +207,17 @@ assert set((scheduled.db.metrics or {}).keys()).issuperset({
 
 print("POST_RESTART_INCIDENT_FEED_ASSERTIONS_GREEN")
 print("POST_RESTART_TIMED_INCIDENT_ASSERTIONS_GREEN")
+seasonal_registry = get_seasonal_framework_registry()
+assert seasonal_registry.db.active_id == LONG_SHADOWS_ID
+assert current_chapter()["id"] == LONG_SHADOWS_ID
+square = one("Village Square")
+assert SEASONAL_OVERLAY_KEY in (square.db.scheduled_overlays or {})
+assert "long shadows" in (
+    square.db.scheduled_overlays or {}
+)[SEASONAL_OVERLAY_KEY].lower()
+
 print("POST_RESTART_RANDOM_INCIDENT_ASSERTIONS_GREEN")
+print("POST_RESTART_SEASONAL_ASSERTIONS_GREEN")
 print("POST_RESTART_SERVER_EVENT_ASSERTIONS_GREEN")
 print("POST_RESTART_PUBLIC_MYSTERY_ASSERTIONS_GREEN")
 print("POST_RESTART_SCHEDULED_EVENT_ASSERTIONS_GREEN")

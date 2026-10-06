@@ -117,6 +117,7 @@ def main() -> int:
         require(out, "harbinger normally appears daily at 08:00")
         require(out, "market morning is saturday")
         require(out, "sunday mass is held at st. lazarus")
+        require(out, "seasonal chapter", "weeks of long shadows")
 
         out = c.command("down")
         require(out, "inn common room")
@@ -131,6 +132,7 @@ def main() -> int:
         require(out, "village square")
         require(out, "one gas lamp", "neighboring lamps burn steadily")
         require(out, "blackout has swallowed", "dark gas standards")
+        require(out, "season of long shadows", "fog gathers early")
 
         out = c.command("event")
         require(out, "the long blackout", "0 of 4", "event lamps")
