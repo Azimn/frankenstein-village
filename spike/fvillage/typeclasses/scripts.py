@@ -619,8 +619,8 @@ class RandomIncidentRegistry(DefaultScript):
             self.db.history = []
         if self.db.last_check_key is None:
             self.db.last_check_key = None
-        if self.db.run_counts is None:
-            self.db.run_counts = {}
+        if self.db.last_runs is None:
+            self.db.last_runs = {}
         if self.db.metrics is None:
             self.db.metrics = {
                 "checks": 0,
