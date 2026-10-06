@@ -515,6 +515,14 @@ duplicate_revision, duplicate_error = submit_evidence_revision(
     "roll",
 )
 assert duplicate_revision is None and "already cited" in duplicate_error.lower()
+unrelated_revision, unrelated_error = submit_evidence_revision(
+    inc_alice,
+    destroy_entry["id"],
+    "strongbox",
+    "lock",
+)
+assert unrelated_revision is None
+assert "no situation-linked event provenance" in unrelated_error.lower()
 unseen_revision, unseen_error = submit_evidence_revision(
     inc_bob,
     open_entry_id,
