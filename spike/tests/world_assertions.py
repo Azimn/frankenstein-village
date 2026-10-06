@@ -1054,8 +1054,9 @@ assert mundane["started"] == PUBLIC_SNEEZE_ID
 current = current_random_incident()
 assert current["tone"] == "mundane"
 assert current["subject"]["resident_id"]
-assert current["location"] == "Village Square"
-assert PUBLIC_SNEEZE_ID in (square.db.scheduled_overlays or {})
+assert current["location"] in {"Village Square", "The Blood of the Vine"}
+mundane_room = one(current["location"])
+assert PUBLIC_SNEEZE_ID in (mundane_room.db.scheduled_overlays or {})
 mundane_event = ledger.get_event(current["event_id"])
 assert mundane_event["kind"] == "random.random-public-sneeze"
 assert not mundane_event.get("publications")
@@ -1069,7 +1070,7 @@ ended = advance_random_incidents(
 )
 assert ended["ended"] == PUBLIC_SNEEZE_ID
 assert current_random_incident() is None
-assert PUBLIC_SNEEZE_ID not in (square.db.scheduled_overlays or {})
+assert PUBLIC_SNEEZE_ID not in (mundane_room.db.scheduled_overlays or {})
 assert recent_random_incidents(1)[0]["id"] == PUBLIC_SNEEZE_ID
 
 # The odd template is separately executable and still remains private texture.
