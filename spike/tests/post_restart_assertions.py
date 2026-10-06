@@ -23,6 +23,7 @@ from world.publications import (
 from world.harbinger_content import (
     correction_disputes_for_story,
     harbinger_conflicts,
+    harbinger_obituary_cases,
 )
 from world.timed_incidents import (
     WELL_BOILS_ID,
@@ -159,6 +160,47 @@ response_edition = next(
     if item.get("id") == correction_response_story["published_edition_id"]
 )
 assert correction_response_story["id"] in response_edition["story_ids"]
+
+# Tomorrow's Obituary must survive restart as an editorial decision while the
+# subject remains alive. The investigation story may be pending or already
+# printed depending on the publication boundary reached later in the playtest.
+smoke_obituary_cases = [
+    case
+    for case in harbinger_obituary_cases()
+    if (
+        case.get("submitted_by_mask_id") == smoke.id
+        and case.get("subject_resident_id") == "miklos_farkas"
+    )
+]
+assert len(smoke_obituary_cases) == 1
+smoke_obituary = smoke_obituary_cases[0]
+assert smoke_obituary["status"] == "closed"
+assert smoke_obituary["decision"] == "investigate"
+assert smoke_obituary["lifecycle_at_submission"] == "active"
+assert smoke_obituary["lifecycle_at_decision"] == "active"
+assert smoke_obituary["story_id"]
+obituary_story = get_story(smoke_obituary["story_id"])
+assert obituary_story
+assert obituary_story["basis"] == "obituary_investigation"
+assert obituary_story["obituary_case_id"] == smoke_obituary["id"]
+assert obituary_story["obituary_subject_resident_id"] == "miklos_farkas"
+assert "found alive" in obituary_story["headline"].lower()
+assert obituary_story["status"] in {"pending", "published"}
+assert (resident_state(miklos).get("lifecycle") or {}).get("status") == "active"
+obituary_flag = resident_state(miklos)["event_flags"].get(
+    str(smoke_obituary["event_id"])
+)
+assert obituary_flag
+assert obituary_flag["payload"]["decision"] == "investigate"
+assert obituary_flag["payload"]["reaction"] == (
+    "relieved_by_obituary_investigation"
+)
+obituary_event = ScriptDB.objects.get(db_key="world_event_ledger").get_event(
+    smoke_obituary["event_id"]
+)
+assert obituary_event["kind"] == "harbinger.tomorrows_obituary_decision"
+assert obituary_event["payload"]["chronicle_eligible"] is False
+assert obituary_event["payload"]["lifecycle_status"] == "active"
 
 # Revision by Evidence must survive a real process restart without rewriting
 # the original Chronicle claim status. The telnet player cited documentary
