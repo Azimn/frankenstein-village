@@ -949,7 +949,7 @@ class CmdChronicle(Command):
                 )
                 return
             lines = [
-                f"|yTwo versions survive for R{rumor_id}:|n",
+                f"|yConflicting versions survive for R{rumor_id}:|n",
             ]
             for deposition in versions:
                 source = deposition.get("source_mask") or "Unknown witness"
