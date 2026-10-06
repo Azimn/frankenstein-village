@@ -100,6 +100,7 @@ from world.residents import (
     generic_ask_line,
     get_population_registry,
     record_player_interaction,
+    resident_definition,
     resident_state,
     save_state,
     set_lifecycle,
@@ -868,6 +869,9 @@ assert len(chapter_history()) == 3
 
 # A real boundary writes durable public history with provenance. Restore it
 # afterward so synthetic season QA cannot leak into later network playtests.
+seasonal_ilona_state = copy.deepcopy(
+    by_resident_id["ilona_szabo"].db.resident_state
+)
 seasonal_registry.db.active_id = LONG_SHADOWS_ID
 seasonal_registry.db.started_day = 1
 seasonal_registry.db.cycle_started_day = 1
@@ -894,6 +898,9 @@ seasonal_registry.db.history = copy.deepcopy(seasonal_snapshot["history"])
 seasonal_registry.db.metrics = copy.deepcopy(seasonal_snapshot["metrics"])
 seasonal_square.db.scheduled_overlays = copy.deepcopy(
     seasonal_overlay_snapshot
+)
+by_resident_id["ilona_szabo"].db.resident_state = copy.deepcopy(
+    seasonal_ilona_state
 )
 ledger.db.events = copy.deepcopy(ledger_events_snapshot)
 for key, value in public_records_snapshot.items():
