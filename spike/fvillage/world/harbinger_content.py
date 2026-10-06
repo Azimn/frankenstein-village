@@ -458,3 +458,297 @@ def submit_correction_dispute(player, story_id, claimed_text):
         "response_story": dict(response_story),
         "created": True,
     }, None
+
+
+OBITUARY_ACTIONS = frozenset({"print", "investigate", "suppress", "mock"})
+
+
+def _ensure_obituary_state():
+    registry = get_public_record_registry()
+    if registry.db.harbinger_obituary_cases is None:
+        registry.db.harbinger_obituary_cases = []
+    if registry.db.next_harbinger_obituary_case_id is None:
+        registry.db.next_harbinger_obituary_case_id = 1
+    return registry
+
+
+def harbinger_obituary_cases():
+    registry = _ensure_obituary_state()
+    return [
+        dict(item)
+        for item in (registry.db.harbinger_obituary_cases or [])
+    ]
+
+
+def get_harbinger_obituary_case(case_id):
+    try:
+        case_id = int(case_id)
+    except (TypeError, ValueError):
+        return None
+    for case in harbinger_obituary_cases():
+        if case.get("id") == case_id:
+            return case
+    return None
+
+
+def open_harbinger_obituary_cases():
+    return [
+        case
+        for case in harbinger_obituary_cases()
+        if case.get("status") == "open"
+    ]
+
+
+def _resident_subject(subject):
+    from world.residents import all_residents, resident_definition, resident_state
+
+    wanted = str(subject or "").strip().casefold()
+    if not wanted:
+        return None, "Name the living resident whose obituary was submitted."
+
+    matches = []
+    for npc in all_residents():
+        definition = resident_definition(npc) or {}
+        candidates = {
+            str(getattr(npc, "key", "") or "").casefold(),
+            str(definition.get("stable_id") or "").casefold(),
+            str(definition.get("stable_id") or "").replace("_", " ").casefold(),
+            str(definition.get("display_name") or "").casefold(),
+        }
+        if wanted in candidates:
+            matches.append(npc)
+
+    if not matches:
+        return None, "No current village resident matches that obituary subject."
+    if len(matches) > 1:
+        return None, "That obituary subject is ambiguous."
+
+    npc = matches[0]
+    lifecycle = (resident_state(npc).get("lifecycle") or {}).get("status")
+    if lifecycle != "active":
+        return (
+            None,
+            f"{npc.key} is recorded as {lifecycle or 'not active'}. Tomorrow's "
+            "Obituary only opens for a resident currently recorded as living "
+            "and active.",
+        )
+    return npc, None
+
+
+def submit_tomorrows_obituary(player, subject):
+    """Open one editorial dilemma around an obituary for a living resident."""
+    from world.residents import resident_definition, resident_state
+
+    npc, error = _resident_subject(subject)
+    if error:
+        return None, error
+
+    definition = resident_definition(npc)
+    state = resident_state(npc)
+    registry = _ensure_obituary_state()
+    for existing in registry.db.harbinger_obituary_cases or []:
+        if existing.get("subject_resident_id") == definition["stable_id"]:
+            return {
+                "case": dict(existing),
+                "created": False,
+            }, None
+
+    day, hour = _clock()
+    deadline_day, deadline_hour = _deadline_after(day, hour)
+    case = {
+        "id": int(registry.db.next_harbinger_obituary_case_id or 1),
+        "subject_resident_id": definition["stable_id"],
+        "subject_object_id": npc.id,
+        "subject_name": npc.key,
+        "lifecycle_at_submission": (
+            (state.get("lifecycle") or {}).get("status") or "active"
+        ),
+        "submitted_by_mask_id": getattr(player, "id", None),
+        "submitted_by_mask": getattr(player, "key", None),
+        "submitted_day": int(day),
+        "submitted_hour": int(hour),
+        "deadline_day": int(deadline_day),
+        "deadline_hour": int(deadline_hour),
+        "status": "open",
+        "decision": None,
+        "decided_by_mask_id": None,
+        "decided_by_mask": None,
+        "decided_day": None,
+        "decided_hour": None,
+        "lifecycle_at_decision": None,
+        "event_id": None,
+        "story_id": None,
+    }
+    registry.db.next_harbinger_obituary_case_id = case["id"] + 1
+    cases = list(registry.db.harbinger_obituary_cases or [])
+    cases.append(case)
+    registry.db.harbinger_obituary_cases = cases
+    return {
+        "case": dict(case),
+        "created": True,
+    }, None
+
+
+def _replace_obituary_case(replacement):
+    registry = _ensure_obituary_state()
+    cases = [dict(item) for item in (registry.db.harbinger_obituary_cases or [])]
+    for index, case in enumerate(cases):
+        if case.get("id") == replacement.get("id"):
+            cases[index] = dict(replacement)
+            registry.db.harbinger_obituary_cases = cases
+            return dict(replacement)
+    return None
+
+
+def _obituary_subject(case):
+    from world.residents import all_residents
+
+    stable_id = case.get("subject_resident_id")
+    for npc in all_residents():
+        if npc.db.resident_id == stable_id:
+            return npc
+    return None
+
+
+def _queue_obituary_story(case, action, event_id):
+    if action == "suppress":
+        return None
+
+    registry = _ensure_obituary_state()
+    day, hour = _clock()
+    name = case.get("subject_name") or "a village resident"
+
+    if action == "print":
+        headline = f"Obituary Submitted for {name}"
+        body = (
+            f"An obituary for {name} was submitted before any verified death "
+            "appeared in the village record. The Harbinger prints the submitted "
+            "notice as an editorial choice, not as a certified death record. "
+            f"{name} was still recorded as living and active when the copy desk "
+            "made this decision."
+        )
+        basis = "premature_obituary"
+        confidence = 0.20
+    elif action == "investigate":
+        headline = f"Premature Obituary Withheld: {name} Found Alive"
+        body = (
+            f"The Harbinger investigated a submitted obituary for {name} before "
+            "printing it. The current village record and direct editorial check "
+            f"both found {name} living and active, so the death notice was "
+            "withheld. The paper records the failed obituary submission rather "
+            "than inventing a death."
+        )
+        basis = "obituary_investigation"
+        confidence = 0.95
+    else:
+        headline = f"The Harbinger Declines to Bury {name} Early"
+        body = (
+            f"An obituary was submitted for the living {name}. The copy desk "
+            "rejected the notice and answered it with mockery rather than "
+            "printing a death claim. This item records the editorial response, "
+            "not a death."
+        )
+        basis = "editorial_mockery"
+        confidence = 0.90
+
+    story = {
+        "id": int(registry.db.next_story_id or 1),
+        "source_event_id": int(event_id),
+        "source_rumor_id": None,
+        "headline": headline,
+        "body": body,
+        "basis": basis,
+        "confidence": confidence,
+        "status": "pending",
+        "created_day": int(day),
+        "created_hour": int(hour),
+        "published_edition_id": None,
+        "corrections": [],
+        "obituary_case_id": int(case["id"]),
+        "obituary_subject_resident_id": case.get("subject_resident_id"),
+    }
+    registry.db.next_story_id = story["id"] + 1
+    drafts = list(registry.db.harbinger_drafts or [])
+    drafts.append(story)
+    registry.db.harbinger_drafts = drafts
+    return dict(story)
+
+
+def decide_tomorrows_obituary(player, case_id, action):
+    """Resolve a living-person obituary through one explicit editorial choice."""
+    from world.events import publish_world_event
+    from world.residents import resident_state
+
+    case = get_harbinger_obituary_case(case_id)
+    if not case:
+        return None, None, "No such Tomorrow's Obituary item is on the copy desk."
+    if case.get("status") != "open":
+        story = get_story(case.get("story_id")) if case.get("story_id") else None
+        return (
+            case,
+            story,
+            "That obituary decision is already closed. The original editorial "
+            "record remains preserved.",
+        )
+
+    action = str(action or "").strip().lower()
+    if action not in OBITUARY_ACTIONS:
+        return (
+            case,
+            None,
+            "Choose print, investigate, suppress, or mock.",
+        )
+
+    npc = _obituary_subject(case)
+    if not npc:
+        return case, None, "The obituary subject is no longer in the resident registry."
+
+    lifecycle = (resident_state(npc).get("lifecycle") or {}).get("status")
+    if lifecycle != "active":
+        return (
+            case,
+            None,
+            f"{npc.key} is now recorded as {lifecycle or 'not active'}. This "
+            "living-person editorial dilemma must be re-evaluated rather than "
+            "printing a stale decision.",
+        )
+
+    reaction = {
+        "print": "angered_by_premature_obituary",
+        "investigate": "relieved_by_obituary_investigation",
+        "mock": "embarrassed_by_obituary_mockery",
+        "suppress": "obituary_suppressed",
+    }[action]
+    payload = {
+        "harbinger": False,
+        "chronicle_eligible": False,
+        "obituary_case_id": int(case["id"]),
+        "subject_resident_id": case.get("subject_resident_id"),
+        "subject_name": case.get("subject_name"),
+        "decision": action,
+        "lifecycle_status": lifecycle,
+        "reaction": reaction,
+    }
+    if action != "suppress":
+        payload["resident_ids"] = [case.get("subject_resident_id")]
+
+    event = publish_world_event(
+        "harbinger.tomorrows_obituary_decision",
+        actor=player,
+        payload=payload,
+    )
+    story = _queue_obituary_story(case, action, event["id"])
+
+    day, hour = _clock()
+    replacement = dict(case)
+    replacement["status"] = "closed"
+    replacement["decision"] = action
+    replacement["decided_by_mask_id"] = getattr(player, "id", None)
+    replacement["decided_by_mask"] = getattr(player, "key", None)
+    replacement["decided_day"] = int(day)
+    replacement["decided_hour"] = int(hour)
+    replacement["lifecycle_at_decision"] = lifecycle
+    replacement["event_id"] = event["id"]
+    replacement["story_id"] = story["id"] if story else None
+    closed = _replace_obituary_case(replacement)
+    return closed, story, None
