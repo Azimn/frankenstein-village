@@ -319,7 +319,13 @@ def main() -> int:
             raise AssertionError("well rumor had no public provenance handle")
 
         out = c.command(f"chronicle compare R{well_rumor_id}")
-        require(out, "two versions survive", "old vasile", "jános")
+        require(
+            out,
+            "conflicting versions survive",
+            "old vasile",
+            "jános",
+            "magda",
+        )
         require(out, "no version is certified as truth")
 
         out = c.command(f"rumors R{rumor_id}")
