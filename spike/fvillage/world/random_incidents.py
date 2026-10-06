@@ -88,10 +88,36 @@ def ensure_random_incidents():
         registry.db.last_check_key = None
     if registry.db.last_runs is None:
         registry.db.last_runs = {}
+    reconcile_random_incident_overlay()
     return {
         "definition_count": len(DEFINITIONS),
         "history_count": len(registry.db.history or []),
     }
+
+
+def reconcile_random_incident_overlay():
+    """Rebuild transient room projection from canonical registry state."""
+    from world.scheduled_events import clear_room_overlay, set_room_overlay
+
+    current = copy.deepcopy(dict(_registry().db.current or {}))
+    for stable_id, definition in DEFINITIONS.items():
+        for room_key in definition.get("locations") or []:
+            if (
+                current
+                and current.get("state") == "active"
+                and current.get("id") == stable_id
+                and current.get("location") == room_key
+            ):
+                continue
+            clear_room_overlay(room_key, stable_id)
+
+    if current and current.get("state") == "active":
+        location = current.get("location")
+        text = current.get("overlay_text")
+        if location and text:
+            set_room_overlay(location, current["id"], text)
+            return True
+    return False
 
 
 def _room(key):
