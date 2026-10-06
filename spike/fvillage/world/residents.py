@@ -387,13 +387,24 @@ def _resolve_target(definition, state, day, hour, availability):
         state["routine_override"] = None
 
     current = (state.get("routine") or {}).get("logical_location")
-    return resolve_schedule(
+    target = resolve_schedule(
         definition,
         hour,
         availability=availability,
         current_location=current,
         day=day,
     )
+    try:
+        from world.seasonal_frameworks import apply_resident_target
+        target = apply_resident_target(
+            definition,
+            target,
+            day=day,
+            hour=hour,
+        )
+    except Exception:
+        pass
+    return target
 
 
 def apply_need_delta(npc, **deltas):
