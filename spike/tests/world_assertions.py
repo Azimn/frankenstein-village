@@ -96,6 +96,7 @@ from world.object_properties import (
     mechanical_value,
 )
 from world.resident_data import FACT_BY_ID, RESIDENTS
+from world.routines import restock_sideboard
 
 # Systemic object foundation: mechanical properties are definition data while
 # mutable state remains independent. The migrated live consumables exercise
@@ -151,6 +152,16 @@ bread.db.consume = bread_consume
 bread.db.servings = bread_servings
 assert bread.db.servings == 2
 assert mechanical_value(bread, "uses") == 6
+
+# The keeper restock path is also property-driven. Deliberately poison the
+# legacy capacity with a wrong value and prove the live refill stops at uses.
+bread.db.consume["servings_max"] = 99
+bread.db.servings = 2
+refilled = restock_sideboard()
+assert "bread" in refilled
+assert bread.db.servings == 6
+bread.db.consume = copy.deepcopy(bread_consume)
+bread.db.servings = bread_servings
 
 # Upgrade safety: a persistent pre-migration fare object with no mechanical
 # tags still obeys its legacy price and capacity data until the next build
