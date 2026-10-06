@@ -1014,6 +1014,8 @@ class CmdChronicle(Command):
         chronicle C<number>
         chronicle compare R<number>
         chronicle submit R<number>
+        chronicle evidence C<number>
+        chronicle revise C<number> = <situation>/<evidence>
 
     A deposition records that you gave an account. It does not turn that
     account into objective truth.
@@ -1051,6 +1053,84 @@ class CmdChronicle(Command):
                 return
             self.caller.msg(description)
             return
+        if arg.lower().startswith("evidence "):
+            from world.chronicle_content import revision_evidence_for_player
+
+            token = arg.split(None, 1)[1]
+            entry_id = _parse_record_id(token, "C")
+            entry = get_chronicle_entry(entry_id) if entry_id is not None else None
+            if not entry:
+                self.caller.msg("No such Chronicle entry is in the public index.")
+                return
+            evidence_refs = revision_evidence_for_player(self.caller)
+            lines = [
+                f"|yEvidence your mask can cite on C{entry['id']}:|n",
+            ]
+            if not evidence_refs:
+                lines.append(
+                    "You have not discovered any situation evidence that can be "
+                    "submitted to the Chronicle."
+                )
+            else:
+                for ref in evidence_refs:
+                    lines.append(
+                        f"{ref['situation_id']}/{ref['evidence_id']}: "
+                        f"{ref['label']} ({ref['provenance']})"
+                    )
+                lines.append(
+                    "Use |wchronicle revise C<number> = "
+                    "<situation>/<evidence>|n. The Chronicle appends the "
+                    "evidence; it does not rewrite the original entry."
+                )
+            self.caller.msg("\n".join(lines))
+            return
+
+        if arg.lower().startswith("revise "):
+            from world.chronicle_content import submit_evidence_revision
+
+            raw = arg.split(None, 1)[1].strip()
+            if "=" in raw:
+                target, evidence_token = [
+                    part.strip() for part in raw.split("=", 1)
+                ]
+            else:
+                parts = raw.split(None, 1)
+                if len(parts) != 2:
+                    self.caller.msg(
+                        "Use: chronicle revise C<number> = "
+                        "<situation>/<evidence>"
+                    )
+                    return
+                target, evidence_token = parts
+            entry_id = _parse_record_id(target, "C")
+            if entry_id is None or "/" not in evidence_token:
+                self.caller.msg(
+                    "Use: chronicle revise C<number> = "
+                    "<situation>/<evidence>"
+                )
+                return
+            subject, evidence_id = [
+                part.strip() for part in evidence_token.split("/", 1)
+            ]
+            updated, error = submit_evidence_revision(
+                self.caller,
+                entry_id,
+                subject,
+                evidence_id,
+            )
+            if error:
+                self.caller.msg(error)
+                return
+            annotation = updated["annotations"][-1]
+            refs = list(annotation.get("source_evidence_refs") or [])
+            label = refs[0]["label"] if refs else "submitted evidence"
+            self.caller.msg(
+                f"Chronicle C{updated['id']} receives Annotation "
+                f"{annotation['id']} citing {label}. The original entry and "
+                "its prior claim status are preserved."
+            )
+            return
+
         if arg.lower().startswith("compare "):
             token = arg.split(None, 1)[1]
             rumor_id = _parse_rumor_id(token)
@@ -1128,6 +1208,12 @@ class CmdChronicle(Command):
                     f"|wAnnotation {annotation['id']} "
                     f"({annotation['author']}):|n {annotation['text']}"
                 )
+                for ref in annotation.get("source_evidence_refs") or []:
+                    lines.append(
+                        f"|xEvidence source: {ref.get('label')} "
+                        f"({ref.get('provenance')}); "
+                        f"{ref.get('situation_id')}/{ref.get('evidence_id')}.|n"
+                    )
             self.caller.msg("\n".join(lines))
             return
 
@@ -1156,7 +1242,9 @@ class CmdChronicle(Command):
         lines.append(
             "Use |wchronicle C<number>|n to read an entry, "
             "|wchronicle compare R<number>|n to inspect preserved disagreement, "
-            "or |wchronicle submit R<number>|n to submit a rumor you actually heard."
+            "|wchronicle submit R<number>|n to submit a rumor you actually heard, "
+            "or |wchronicle evidence C<number>|n to see evidence your mask can "
+            "append to an older entry."
         )
         self.caller.msg("\n".join(lines))
 
