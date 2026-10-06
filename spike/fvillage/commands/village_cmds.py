@@ -13,6 +13,8 @@ from evennia import Command
 from evennia.commands.default.muxcommand import MuxCommand
 from evennia.commands.default.general import CmdGet, CmdLook
 
+from world.object_properties import mechanical_value
+
 
 class CmdTake(CmdGet):
     """Natural-language alias for Evennia's default get command."""
@@ -3576,8 +3578,11 @@ def _pay_for_fare(caller, item):
     Free fare (water, wild mushrooms) costs nothing. NPCs eat on the
     house tab — only the living with accounts pay coin.
     """
-    price = TAVERN_PRICES.get(_fare_short(item))
-    if not price:
+    price = mechanical_value(item, "worth", None)
+    if price is None:
+        price = TAVERN_PRICES.get(_fare_short(item))
+    price = int(price or 0)
+    if price <= 0:
         return True, 0
     if not caller.has_account:
         return True, 0  # regulars drink on the house
@@ -3627,9 +3632,12 @@ def _fare_depleted(caller, item):
     Water has no servings_max — the well is infinite. Wild fare (the
     mushrooms) isn't _fare at all, so this never gates it.
     """
-    max_s = (item.db.consume or {}).get("servings_max")
+    max_s = mechanical_value(item, "uses", None)
+    if max_s is None:
+        max_s = (item.db.consume or {}).get("servings_max")
     if not max_s:
         return False
+    max_s = int(max_s)
     left = item.db.servings
     if left is None:  # safety: fare created before servings existed
         item.db.servings = max_s
@@ -3665,7 +3673,10 @@ def _consume(caller, item, kind, verb_self, verb_room):
     # Magnitudes. A "nonourish" surprise (stale bread) voids the nourish.
     nourish = 0 if effect == "nonourish" else data.get("nourish", 0) or 0
     alcohol = data.get("alcohol", 0) or 0
-    toxic = data.get("toxic", 0) or 0
+    toxic = mechanical_value(item, "toxin", None)
+    if toxic is None:
+        toxic = data.get("toxic", 0) or 0
+    toxic = toxic or 0
     sobering = data.get("sobering", 0) or 0
     heal = data.get("heal", 0) or 0
 
@@ -3684,8 +3695,11 @@ def _consume(caller, item, kind, verb_self, verb_room):
     # Servings: finite hospitality. The sideboard keeps count, and the last
     # serving announces itself.
     last_serving = False
-    max_s = data.get("servings_max")
+    max_s = mechanical_value(item, "uses", None)
+    if max_s is None:
+        max_s = data.get("servings_max")
     if max_s:
+        max_s = int(max_s)
         left = item.db.servings
         if left is None:
             left = max_s
