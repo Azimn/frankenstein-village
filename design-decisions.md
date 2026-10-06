@@ -304,3 +304,19 @@ Market Morning uses persistent schedule deviations rather than special market NP
 Active scheduled events render through a generic room overlay rather than permanent room-description changes. This is the extension point for future council nights, lectures, delivery days, memorials, and similar recurring activity.
 
 The public `calendar` command is intentionally available from the Inn Between as well as IC space. Predictable schedules are planning information, not secret game state. Hidden incidents and quest timers are not exposed by this command.
+
+## 2026-10-05 - Weighted random world incidents implemented
+
+Random world incidents now use the authoritative village clock rather than adding another scheduler. One evaluation occurs per game-hour boundary after recurring calendar behavior has updated the world, so current gatherings and resident positions can affect eligibility.
+
+Selection is deterministic for a given day, hour, weather, occupancy, resident distribution, and candidate set. This prevents restart rerolling while still producing changing outcomes as the village changes. A global trigger gate limits frequency, each template has its own cooldown, and only one random incident may be active at a time.
+
+The first two live templates are accepted backlog examples:
+- Public Sneeze is mundane social texture and carries a high base weight. It requires an actual resident in an eligible public room and gains weight from social density.
+- Extinguished Lamp is odd environmental texture with a much lower base weight. It is night-only and becomes more likely in fog or rain.
+
+This establishes the signal-to-texture rule mechanically. Mundane irregularities should substantially outnumber ominous ones. Weather and context may make an odd occurrence more plausible without making the village generically supernatural.
+
+Random incidents reuse the generic room-overlay mechanism introduced by the recurring calendar. They create structured world-event records for causal history, but those records are private by default. They do not automatically become rumors, Harbinger stories, Chronicle entries, or quests. Later systems may promote a random occurrence if witnesses, repetition, investigation, or consequence makes that appropriate.
+
+Incident history is bounded and temporary overlays clear when each template's authored lifetime expires. Public Sneeze lasts one game hour; Extinguished Lamp lasts two because its accepted premise is a repeatedly failing lamp rather than a single flicker. The registry is canonical across process restarts: an active incident reconstructs its room overlay when the registry starts, and stale random overlays are removed. Resident event wakeups remain individual and are driven by explicit resident IDs present in the incident record.

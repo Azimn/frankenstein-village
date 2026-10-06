@@ -37,6 +37,7 @@ for script_key in (
     "public_records",
     "situation_registry",
     "scheduled_event_registry",
+    "random_incident_registry",
     "timed_incident_registry",
     "room_six",
     "moderation_queue",
@@ -959,6 +960,205 @@ tavern_for_snapshot.db.player_rumors = copy.deepcopy(
     tavern_player_rumors_snapshot
 )
 
+# Random world incidents reuse the village clock and generic room overlays.
+# Most texture must remain mundane; odd incidents are rarer and gain weight
+# from appropriate environmental context rather than genre privilege.
+from world.random_incidents import (
+    EXTINGUISHED_LAMP_ID,
+    PUBLIC_SNEEZE_ID,
+    advance_random_incidents,
+    candidate_table,
+    current_random_incident,
+    get_random_incident_registry,
+    recent_random_incidents,
+    reconcile_random_incident_overlay,
+)
+
+random_registry = get_random_incident_registry()
+random_snapshot = {
+    "current": copy.deepcopy(random_registry.db.current),
+    "history": copy.deepcopy(list(random_registry.db.history or [])),
+    "last_check_key": random_registry.db.last_check_key,
+    "last_runs": copy.deepcopy(dict(random_registry.db.last_runs or {})),
+    "metrics": copy.deepcopy(dict(random_registry.db.metrics or {})),
+}
+random_square_overlays = copy.deepcopy(dict(square.db.scheduled_overlays or {}))
+weather_script = ScriptDB.objects.get(db_key="village_weather")
+weather_snapshot = weather_script.db.state
+random_ledger_snapshot = copy.deepcopy(list(ledger.db.events or []))
+random_public_snapshot = {
+    key: copy.deepcopy(value)
+    for key, value in public_records_snapshot.items()
+}
+random_rumor_snapshot = {
+    "rumors": copy.deepcopy(list(rumor_registry.db.rumors or [])),
+    "transmissions": copy.deepcopy(list(rumor_registry.db.transmissions or [])),
+    "next_rumor_id": rumor_registry.db.next_rumor_id,
+    "next_transmission_id": rumor_registry.db.next_transmission_id,
+}
+
+# Market Morning changes the current world state by concentrating residents.
+# Prove the random layer consumes that state rather than assuming a fixed crowd.
+pre_market_candidates = {
+    row["id"]: row for row in candidate_table(day=14, hour=8)
+}
+pre_market_square_density = 0
+if PUBLIC_SNEEZE_ID in pre_market_candidates:
+    pre_market_square_density = next(
+        (
+            loc["resident_count"]
+            for loc in pre_market_candidates[PUBLIC_SNEEZE_ID]["locations"]
+            if loc["key"] == "Village Square"
+        ),
+        0,
+    )
+
+advance_scheduled_events(day=14, hour=7)
+market_candidates = candidate_table(day=14, hour=8)
+market_by_id = {row["id"]: row for row in market_candidates}
+assert PUBLIC_SNEEZE_ID in market_by_id
+assert market_by_id[PUBLIC_SNEEZE_ID]["tone"] == "mundane"
+market_square_density = next(
+    (
+        loc["resident_count"]
+        for loc in market_by_id[PUBLIC_SNEEZE_ID]["locations"]
+        if loc["key"] == "Village Square"
+    ),
+    0,
+)
+assert market_square_density > pre_market_square_density, (
+    pre_market_square_density,
+    market_square_density,
+)
+
+# Time and weather affect the odd environmental incident mechanically.
+weather_script.db.state = "clear"
+clear_rows = {row["id"]: row for row in candidate_table(day=14, hour=21)}
+weather_script.db.state = "fog"
+fog_rows = {row["id"]: row for row in candidate_table(day=14, hour=21)}
+assert EXTINGUISHED_LAMP_ID in clear_rows
+assert EXTINGUISHED_LAMP_ID in fog_rows
+assert fog_rows[EXTINGUISHED_LAMP_ID]["weight"] > clear_rows[
+    EXTINGUISHED_LAMP_ID
+]["weight"]
+assert fog_rows[PUBLIC_SNEEZE_ID]["weight"] > fog_rows[
+    EXTINGUISHED_LAMP_ID
+]["weight"], "odd texture became more common than mundane life by default"
+
+# Force the accepted mundane template only to test execution deterministically.
+mundane = advance_random_incidents(
+    day=14,
+    hour=8,
+    force_id=PUBLIC_SNEEZE_ID,
+)
+assert mundane["started"] == PUBLIC_SNEEZE_ID
+current = current_random_incident()
+assert current["tone"] == "mundane"
+assert current["subject"]["resident_id"]
+assert current["location"] in {"Village Square", "The Blood of the Vine"}
+mundane_room = one(current["location"])
+assert PUBLIC_SNEEZE_ID in (mundane_room.db.scheduled_overlays or {})
+mundane_event = ledger.get_event(current["event_id"])
+assert mundane_event["kind"] == "random.random-public-sneeze"
+assert not mundane_event.get("publications")
+assert not mundane_event.get("rumor")
+
+# One game hour later the overlay clears and history records the occurrence.
+ended = advance_random_incidents(
+    day=14,
+    hour=9,
+    force_id="NO-SUCH-RANDOM-INCIDENT",
+)
+assert ended["ended"] == PUBLIC_SNEEZE_ID
+assert current_random_incident() is None
+assert PUBLIC_SNEEZE_ID not in (mundane_room.db.scheduled_overlays or {})
+assert recent_random_incidents(1)[0]["id"] == PUBLIC_SNEEZE_ID
+
+# The odd template is separately executable and still remains private texture.
+weather_script.db.state = "fog"
+odd = advance_random_incidents(
+    day=15,
+    hour=21,
+    force_id=EXTINGUISHED_LAMP_ID,
+)
+assert odd["started"] == EXTINGUISHED_LAMP_ID
+lamp = current_random_incident()
+assert lamp["tone"] == "odd"
+assert lamp["location"] == "Village Square"
+assert "neighboring lamps burn steadily" in (
+    square.db.scheduled_overlays or {}
+)[EXTINGUISHED_LAMP_ID]
+
+# The persistent registry is canonical. If the visible projection disappears
+# across a process boundary, reconciliation must restore it.
+_random_projection = copy.deepcopy(dict(square.db.scheduled_overlays or {}))
+_random_projection.pop(EXTINGUISHED_LAMP_ID, None)
+square.db.scheduled_overlays = _random_projection
+assert EXTINGUISHED_LAMP_ID not in (square.db.scheduled_overlays or {})
+assert reconcile_random_incident_overlay()
+assert EXTINGUISHED_LAMP_ID in (square.db.scheduled_overlays or {})
+
+lamp_event = ledger.get_event(lamp["event_id"])
+assert not lamp_event.get("publications")
+assert not lamp_event.get("rumor")
+# The lamp template lasts two game hours because its authored premise is a
+# repeatedly failing lamp, not an instantaneous flicker.
+assert current_random_incident()["id"] == EXTINGUISHED_LAMP_ID
+advance_random_incidents(
+    day=15,
+    hour=23,
+    force_id="NO-SUCH-RANDOM-INCIDENT",
+)
+assert EXTINGUISHED_LAMP_ID not in (square.db.scheduled_overlays or {})
+
+# History is bounded. Texture cannot become an unbounded event log.
+random_registry.db.history = [
+    {"id": f"qa-{index}", "state": "ended"}
+    for index in range(30)
+]
+weather_script.db.state = "fog"
+advance_random_incidents(
+    day=17,
+    hour=21,
+    force_id=EXTINGUISHED_LAMP_ID,
+)
+advance_random_incidents(
+    day=17,
+    hour=23,
+    force_id="NO-SUCH-RANDOM-INCIDENT",
+)
+assert len(random_registry.db.history or []) == 24
+
+# Restore random and scheduled QA effects before the remaining regression.
+random_registry.db.current = copy.deepcopy(random_snapshot["current"])
+random_registry.db.history = copy.deepcopy(random_snapshot["history"])
+random_registry.db.last_check_key = random_snapshot["last_check_key"]
+random_registry.db.last_runs = copy.deepcopy(random_snapshot["last_runs"])
+random_registry.db.metrics = copy.deepcopy(random_snapshot["metrics"])
+square.db.scheduled_overlays = copy.deepcopy(random_square_overlays)
+weather_script.db.state = weather_snapshot
+ledger.db.events = copy.deepcopy(random_ledger_snapshot)
+for key, value in random_public_snapshot.items():
+    setattr(public_records.db, key, copy.deepcopy(value))
+rumor_registry.db.rumors = copy.deepcopy(random_rumor_snapshot["rumors"])
+rumor_registry.db.transmissions = copy.deepcopy(
+    random_rumor_snapshot["transmissions"]
+)
+rumor_registry.db.next_rumor_id = random_rumor_snapshot["next_rumor_id"]
+rumor_registry.db.next_transmission_id = random_rumor_snapshot[
+    "next_transmission_id"
+]
+# End the synthetic market if it was not already restored above.
+scheduled_registry.db.events = copy.deepcopy(scheduled_registry_snapshot)
+scheduled_registry.db.metrics = copy.deepcopy(scheduled_metrics_snapshot)
+square.db.scheduled_overlays = copy.deepcopy(random_square_overlays)
+for stable_id, old_state in scheduled_resident_states.items():
+    npc = by_resident_id[stable_id]
+    npc.db.resident_state = copy.deepcopy(old_state)
+    old_location = scheduled_resident_locations[stable_id]
+    if old_location and npc.location != old_location:
+        npc.move_to(old_location, quiet=True)
+
 # The butcher resolves directly to the correct current state. Skipped hours
 # are not replayed, and a dead resident stops following schedules.
 otto = by_resident_id["otto_kessler"]
@@ -1439,5 +1639,41 @@ _telnet_window = start_timed_incident(
 )
 assert _telnet_window and _telnet_window["state"] == "active"
 assert not _telnet_window["current"]["player_observations"]
+
+# Leave one ordinary random incident active too. This proves that stochastic
+# texture reaches the same room-description overlay path as scheduled events,
+# without becoming a quest or public record automatically.
+_existing_random = current_random_incident()
+if _existing_random:
+    advance_random_incidents(
+        day=_existing_random["end_day"],
+        hour=_existing_random["end_hour"],
+        force_id="NO-SUCH-RANDOM-INCIDENT",
+    )
+# Fixture-only normalization: preserve production cooldown behavior, but clear
+# this template's prior run so the network test can deterministically exercise
+# the accepted Extinguished Lamp example.
+_telnet_last_runs = copy.deepcopy(dict(random_registry.db.last_runs or {}))
+_telnet_last_runs.pop(EXTINGUISHED_LAMP_ID, None)
+random_registry.db.last_runs = _telnet_last_runs
+_telnet_random = advance_random_incidents(
+    day=_telnet_clock.db.day or 1,
+    hour=21,
+    force_id=EXTINGUISHED_LAMP_ID,
+)
+assert _telnet_random["started"] == EXTINGUISHED_LAMP_ID, _telnet_random
+
+# Keep this QA occurrence alive across server bootstrap hooks. Production
+# lifetimes remain template-owned; this only makes the real network rendering
+# check independent of how many immediate clock callbacks Evennia performs
+# while starting a fresh server process.
+_telnet_random_record = copy.deepcopy(dict(random_registry.db.current or {}))
+_telnet_random_record["end_day"] = int(_telnet_clock.db.day or 1) + 1
+_telnet_random_record["end_hour"] = 21
+random_registry.db.current = _telnet_random_record
+assert reconcile_random_incident_overlay()
+assert EXTINGUISHED_LAMP_ID in (
+    one("Village Square").db.scheduled_overlays or {}
+)
 
 print("WORLD_ASSERTIONS_GREEN")

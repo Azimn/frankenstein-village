@@ -605,6 +605,42 @@ class ModerationQueue(DefaultScript):
         return dict(selected), None
 
 
+class RandomIncidentRegistry(DefaultScript):
+    """Persistent stochastic incident state driven by the village clock."""
+
+    def at_script_creation(self):
+        self.key = "random_incident_registry"
+        self.desc = "Weighted environmental and social incident registry."
+        self.interval = -1
+        self.persistent = True
+        if self.db.current is None:
+            self.db.current = None
+        if self.db.history is None:
+            self.db.history = []
+        if self.db.last_check_key is None:
+            self.db.last_check_key = None
+        if self.db.last_runs is None:
+            self.db.last_runs = {}
+        if self.db.metrics is None:
+            self.db.metrics = {
+                "checks": 0,
+                "triggered": 0,
+                "ended": 0,
+                "mundane": 0,
+                "odd": 0,
+            }
+
+    def at_start(self, **kwargs):
+        """Re-project any active incident after a process restart."""
+        try:
+            from world.random_incidents import reconcile_random_incident_overlay
+            reconcile_random_incident_overlay()
+        except Exception:
+            pass
+
+
+
+
 class ScheduledEventRegistry(DefaultScript):
     """Persistent calendar state for recurring village events.
 
@@ -1322,6 +1358,17 @@ class VillageTime(SpikeScript):
         try:
             from world.scheduled_events import advance_scheduled_events
             advance_scheduled_events(
+                day=self.db.day or 1,
+                hour=hour,
+            )
+        except Exception:
+            pass
+
+        # Low-cost random incidents use this same authoritative hourly boundary.
+        # They may add temporary overlays or social texture, but own no scheduler.
+        try:
+            from world.random_incidents import advance_random_incidents
+            advance_random_incidents(
                 day=self.db.day or 1,
                 hour=hour,
             )
