@@ -1,5 +1,7 @@
 """Assertions run after the player telnet pass and a real server restart."""
 
+import hashlib
+
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
 
@@ -18,7 +20,10 @@ from world.publications import (
     get_story,
     latest_edition,
 )
-from world.harbinger_content import harbinger_conflicts
+from world.harbinger_content import (
+    correction_disputes_for_story,
+    harbinger_conflicts,
+)
 from world.timed_incidents import (
     WELL_BOILS_ID,
     advance_timed_incidents,
@@ -98,6 +103,52 @@ assert any(
     and entry.get("claim_status") == "reported_account"
     for entry in entries
 ), "player Chronicle deposition did not survive restart"
+
+# Harbinger The Correction must survive restart as an archive discrepancy.
+# The old story body remains the surviving copy; the claimant's alleged wording
+# and the follow-up response are separate persistent records.
+public_records_for_correction = ScriptDB.objects.get(db_key="public_records")
+smoke_correction_disputes = [
+    dict(dispute)
+    for dispute in (
+        public_records_for_correction.db.harbinger_correction_disputes or []
+    )
+    if dispute.get("claimed_by_mask_id") == smoke.id
+]
+assert len(smoke_correction_disputes) == 1
+smoke_correction_dispute = smoke_correction_disputes[0]
+assert smoke_correction_dispute["status"] == "archive_discrepancy"
+original_correction_story = get_story(smoke_correction_dispute["story_id"])
+assert original_correction_story
+assert smoke_correction_dispute["claimed_text"] not in (
+    original_correction_story["body"]
+)
+assert hashlib.sha256(
+    original_correction_story["body"].encode("utf-8")
+).hexdigest() == smoke_correction_dispute["surviving_body_hash"]
+story_disputes = correction_disputes_for_story(
+    smoke_correction_dispute["story_id"]
+)
+assert len([
+    dispute
+    for dispute in story_disputes
+    if dispute.get("claimed_by_mask_id") == smoke.id
+]) == 1
+assert original_correction_story["correction_disputes"][-1][
+    "id"
+] == smoke_correction_dispute["id"]
+correction_response_story = get_story(
+    smoke_correction_dispute["response_story_id"]
+)
+assert correction_response_story
+assert correction_response_story["basis"] == "correction_dispute"
+assert correction_response_story["disputes_story_id"] == (
+    original_correction_story["id"]
+)
+assert correction_response_story["surviving_body_hash"] == (
+    smoke_correction_dispute["surviving_body_hash"]
+)
+assert correction_response_story["id"] in edition["story_ids"]
 
 # Revision by Evidence must survive a real process restart without rewriting
 # the original Chronicle claim status. The telnet player cited documentary
