@@ -650,6 +650,105 @@ class CmdWorldEvent(Command):
 
 
 
+class CmdMystery(Command):
+    """Read shared evidence and provisional theories for public mysteries.
+
+    Usage:
+        mystery
+        mystery manor
+    """
+
+    key = "mystery"
+    aliases = ["mysteries"]
+    help_category = "Village"
+
+    def func(self):
+        if not _require_ic(self.caller):
+            return
+
+        from world.public_mysteries import (
+            MANOR_LIGHTS_ID,
+            mystery_lines,
+            resolve_subject,
+        )
+
+        arg = (self.args or "").strip()
+        stable_id = MANOR_LIGHTS_ID if not arg else resolve_subject(arg)
+        if not stable_id:
+            self.caller.msg(
+                "No public mystery by that name is currently indexed."
+            )
+            return
+        self.caller.msg("|yPublic mystery:|n\n" + "\n".join(
+            mystery_lines(self.caller, stable_id)
+        ))
+
+
+class CmdTheory(Command):
+    """Submit a provisional interpretation of a public mystery.
+
+    Usage:
+        theory manor = <your theory>
+        theory manor <your theory>
+
+    The system records authorship but never marks a theory true or false.
+    """
+
+    key = "theory"
+    aliases = ["hypothesis"]
+    help_category = "Village"
+
+    def func(self):
+        if not _require_ic(self.caller):
+            return
+
+        from world.public_mysteries import resolve_subject, submit_theory
+
+        raw = (self.args or "").strip()
+        if not raw:
+            self.caller.msg(
+                "Theory about what? Try: theory manor = <your theory>"
+            )
+            return
+
+        if "=" in raw:
+            subject, body = [part.strip() for part in raw.split("=", 1)]
+        else:
+            lower = raw.lower()
+            subject = next(
+                (
+                    prefix
+                    for prefix in ("manor lights", "hilltop manor", "manor")
+                    if lower.startswith(prefix + " ")
+                ),
+                None,
+            )
+            if not subject:
+                self.caller.msg(
+                    "Name the public question first. Try: "
+                    "theory manor = <your theory>"
+                )
+                return
+            body = raw[len(subject):].strip()
+
+        stable_id = resolve_subject(subject)
+        if not stable_id:
+            self.caller.msg(
+                "No public mystery by that name is currently indexed."
+            )
+            return
+
+        theory, error = submit_theory(self.caller, body, stable_id)
+        if error:
+            self.caller.msg(error)
+            return
+        self.caller.msg(
+            f"Theory T{theory['id']} added as a provisional public "
+            "interpretation. It has not been certified as truth."
+        )
+
+
+
 class CmdHarbinger(Command):
     """Read the latest Harbinger issue or inspect one printed story.
 
