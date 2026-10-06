@@ -141,6 +141,23 @@ def main() -> int:
         out = c.command("event")
         require(out, "the long blackout", "1 of 4", "street lamps stabilized")
 
+        # The public Manor mystery is discovered by looking at an object already
+        # named in the square, not by accepting a quest or opening a menu.
+        out = c.command("look manor")
+        require(out, "manor stands above the village", "distance does not supply the answer")
+
+        out = c.command("mystery manor")
+        require(out, "why are the manor lights returning", "shared observations")
+        require(out, "no metaphysical explanation is certified")
+
+        out = c.command(
+            "theory manor = The lights may follow an old maintenance schedule."
+        )
+        require(out, "provisional public interpretation", "not been certified as truth")
+
+        out = c.command("mystery manor")
+        require(out, "provisional theories", "old maintenance schedule")
+
         # A timed world window is already live. Firsthand evidence is earned by
         # being present during the window and observing the physical world.
         out = c.command("look well")
