@@ -152,6 +152,38 @@ bread.db.servings = bread_servings
 assert bread.db.servings == 2
 assert mechanical_value(bread, "uses") == 6
 
+# Upgrade safety: a persistent pre-migration fare object with no mechanical
+# tags still obeys its legacy price and capacity data until the next build
+# converges it. This fallback is transitional, not a second source of truth.
+cheese_mechanics = mechanical_properties(cheese)
+cheese_consume = copy.deepcopy(dict(cheese.db.consume or {}))
+cheese_servings = cheese.db.servings
+configure_mechanical_properties(cheese, {})
+legacy_actor = SimpleNamespace(
+    key="legacy_price_actor",
+    has_account=True,
+    location=None,
+    db=SimpleNamespace(coins_kr=20, dice_debts=0),
+    msg=lambda _message: None,
+)
+legacy_paid, legacy_price = _pay_for_fare(legacy_actor, cheese)
+assert legacy_paid and legacy_price == 6
+assert legacy_actor.db.coins_kr == 14
+cheese.db.servings = None
+assert not _fare_depleted(legacy_actor, cheese)
+assert cheese.db.servings == cheese_consume["servings_max"]
+configure_mechanical_properties(cheese, cheese_mechanics)
+cheese.db.consume = cheese_consume
+cheese.db.servings = cheese_servings
+
+try:
+    configure_mechanical_properties(water, {"not_a_real_mechanic": 1})
+except ValueError as error:
+    assert "unknown mechanical properties" in str(error)
+else:
+    raise AssertionError("unknown object mechanic was silently accepted")
+configure_mechanical_properties(water, {"worth": 0})
+
 # Falsification: toxicity still applies after the legacy toxic field is gone.
 mushroom_consume = copy.deepcopy(dict(mushrooms.db.consume or {}))
 quiet_mushroom_consume = copy.deepcopy(mushroom_consume)
