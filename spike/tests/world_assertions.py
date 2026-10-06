@@ -335,12 +335,12 @@ assert correction_dispute["published_edition_id"] == (
     destroy_story["published_edition_id"]
 )
 assert correction_dispute["claimed_text"] == claimed_missing_text
-assert len(correction_dispute["surviving_body_hash"]) == 64
+assert len(correction_dispute["surviving_copy_hash"]) == 64
 assert dispute_story["basis"] == "correction_dispute"
 assert dispute_story["status"] == "pending"
 assert dispute_story["disputes_story_id"] == destroy_story["id"]
-assert dispute_story["surviving_body_hash"] == (
-    correction_dispute["surviving_body_hash"]
+assert dispute_story["surviving_copy_hash"] == (
+    correction_dispute["surviving_copy_hash"]
 )
 assert get_story(destroy_story["id"])["body"] == original_story_body
 assert get_story(destroy_story["id"])["correction_disputes"][-1][
