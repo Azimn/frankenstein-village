@@ -310,11 +310,20 @@ def _feed_eligible(stable_id, situations, *, day, hour):
     if required_weather:
         try:
             weather = ScriptDB.objects.get(db_key="village_weather")
-            if str(weather.db.current or "").lower() not in {
+            if str(weather.db.current or weather.db.state or "").lower() not in {
                 str(value).lower() for value in required_weather
             }:
                 return False
         except ScriptDB.DoesNotExist:
+            return False
+
+    required_season_tags = set(feed.get("season_tags") or [])
+    if required_season_tags:
+        try:
+            from world.seasonal_frameworks import content_tags
+            if not required_season_tags.issubset(content_tags()):
+                return False
+        except Exception:
             return False
 
     return True
