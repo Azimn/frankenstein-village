@@ -340,3 +340,17 @@ The event records a canonical start, local structured contributions, an autonomo
 The start and end events feed the structured rumor, resident wakeup, and Harbinger systems. The completed village-scale event is Chronicle-eligible; individual local help remains private event-ledger detail by default. This preserves the distinction between public history and every low-level player action.
 
 Active and aftermath room overlays are projections of registry state and are reconstructed after restart. Event history is bounded. The server-event layer shares the village clock and does not add another ticker.
+
+## 2026-10-06 - Public mystery evidence/theory separation implemented
+
+Public mysteries now have a dedicated shared registry rather than being modeled as ordinary quests. The first production question is the accepted backlog example Why Are the Manor Lights Returning?
+
+The Manor is an examinable object already visible from the Village Square description. Looking at it records an objective observation keyed by village day, hour, weather, and visible light pattern. Multiple masks observing the same state attach as witnesses to the same observation instead of creating duplicate facts.
+
+The visible Manor-light state is deterministic from public world state so restarts cannot reroll what a player should have seen. The system records only observable claims such as a dark facade, one lit upper window, several separated lights, or motion behind the east gallery. It does not encode a cause.
+
+The first visible-light observation may enter the rumor and Harbinger pipelines as a reported event. It is not automatically Chronicle truth and it does not settle why the lights appeared.
+
+Players may inspect the shared public record with `mystery manor` and submit interpretations with `theory manor = <text>`. Every theory stores author and timestamp, remains marked `proposed`, and has `truth_status = None`. There is intentionally no solve command and no mechanism that silently promotes a theory into canon.
+
+This is the epistemic contract for future public mysteries: establish local facts, retain witnesses and provenance, permit public interpretation, and preserve intentionally unresolved Bible questions.
