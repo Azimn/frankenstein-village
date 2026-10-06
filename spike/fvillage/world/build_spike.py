@@ -1082,6 +1082,7 @@ for _skey, _sclass in (
     ("public_records", "typeclasses.scripts.PublicRecordRegistry"),
     ("public_mystery_registry", "typeclasses.scripts.PublicMysteryRegistry"),
     ("situation_registry", "typeclasses.scripts.SituationRegistry"),
+    ("seasonal_framework_registry", "typeclasses.scripts.SeasonalFrameworkRegistry"),
     ("scheduled_event_registry", "typeclasses.scripts.ScheduledEventRegistry"),
     ("server_event_registry", "typeclasses.scripts.ServerEventRegistry"),
     ("random_incident_registry", "typeclasses.scripts.RandomIncidentRegistry"),
@@ -1121,6 +1122,13 @@ print(
     f"({_situations['created']} created)."
 )
 
+
+from world.seasonal_frameworks import ensure_seasonal_frameworks
+_seasonal = ensure_seasonal_frameworks()
+print(
+    "seasonal framework ready: "
+    f"{_seasonal['active_id']} from day {_seasonal['started_day']}."
+)
 
 from world.scheduled_events import ensure_scheduled_events
 _scheduled_events = ensure_scheduled_events()
