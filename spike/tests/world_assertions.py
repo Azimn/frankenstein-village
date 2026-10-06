@@ -345,6 +345,7 @@ assert rumor_registry.belief_for(ilona, harbinger_roots[0]["id"]), (
 from world.situations import (
     TITHE_ID,
     TORN_CHRONICLE_ID,
+    TEMPLATES,
     advance_situations,
     choose,
     chronicle_gap_description,
