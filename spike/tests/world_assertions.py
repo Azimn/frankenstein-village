@@ -289,6 +289,7 @@ from world.harbinger_content import (
     get_harbinger_obituary_case,
     harbinger_obituary_cases,
     resolve_due_harbinger_conflicts,
+    resolve_due_obituary_cases,
     submit_correction_dispute,
     submit_tomorrows_obituary,
 )
@@ -471,6 +472,34 @@ assert len(harbinger_obituary_cases()) == 4
 assert get_harbinger_obituary_case(
     obituary_results["investigate"]["case"]["id"]
 )["decision"] == "investigate"
+
+# If nobody chooses before press time, the safe default is suppression. The
+# deadline must never auto-print an unverified death notice.
+deadline_subject = by_resident_id["father_andrei"]
+deadline_opened, deadline_error = submit_tomorrows_obituary(
+    wren,
+    deadline_subject.db.resident_id,
+)
+assert deadline_error is None and deadline_opened["created"]
+deadline_case = deadline_opened["case"]
+deadline_resolved = resolve_due_obituary_cases(
+    deadline_case["deadline_day"],
+    deadline_case["deadline_hour"],
+)
+assert deadline_resolved == [{
+    "case_id": deadline_case["id"],
+    "resolution": "deadline_suppressed",
+    "story_id": None,
+}]
+deadline_closed = get_harbinger_obituary_case(deadline_case["id"])
+assert deadline_closed["status"] == "closed"
+assert deadline_closed["decision"] == "suppress"
+assert deadline_closed["resolution"] == "deadline_suppressed"
+assert deadline_closed["story_id"] is None
+assert (resident_state(deadline_subject).get("lifecycle") or {}).get(
+    "status"
+) == "active"
+assert len(harbinger_obituary_cases()) == 5
 
 # A rumor may be news without becoming Chronicle truth.
 reported = publish_world_event(
