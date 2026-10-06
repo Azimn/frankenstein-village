@@ -301,6 +301,19 @@ get_or_create_scenery(
     aliases=["sign"],
 )
 
+manor = get_or_create_scenery(
+    "the manor on the hill", square,
+    "The Manor stands above the village, its distant windows unreadable "
+    "from a casual glance.",
+    aliases=["manor", "manor house", "hilltop manor"],
+)
+if not manor.is_typeclass("typeclasses.objects.ManorView", exact=True):
+    manor.swap_typeclass(
+        "typeclasses.objects.ManorView",
+        clean_attributes=False,
+    )
+    print("manor view upgraded to ManorView.")
+
 
 well = get_or_create_scenery(
     "well", square,
@@ -1067,6 +1080,7 @@ for _skey, _sclass in (
     ("village_weather", "typeclasses.scripts.VillageWeather"),
     ("resident_population", "typeclasses.scripts.ResidentPopulationRegistry"),
     ("public_records", "typeclasses.scripts.PublicRecordRegistry"),
+    ("public_mystery_registry", "typeclasses.scripts.PublicMysteryRegistry"),
     ("situation_registry", "typeclasses.scripts.SituationRegistry"),
     ("scheduled_event_registry", "typeclasses.scripts.ScheduledEventRegistry"),
     ("server_event_registry", "typeclasses.scripts.ServerEventRegistry"),
@@ -1089,6 +1103,14 @@ print(
     "resident population ready: "
     f"{_population['population_size']} residents "
     f"({_population['created']} created, {_population['registered']} registered)."
+)
+
+from world.public_mysteries import ensure_public_mysteries
+_public_mysteries = ensure_public_mysteries()
+print(
+    "public mystery registry ready: "
+    f"{_public_mysteries['count']} mysteries "
+    f"({_public_mysteries['created']} created)."
 )
 
 from world.situations import ensure_situations
