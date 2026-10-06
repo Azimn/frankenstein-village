@@ -394,3 +394,60 @@ def end_apprenticeship(mentor, apprentice, *, reason="ended"):
     if not changed:
         return None, "No active apprenticeship connects those masks."
     return {"relation_id": relation_id, "status": "ended"}, None
+
+def withdraw_apprenticeship(apprentice, *, reason="withdrawn_by_apprentice"):
+    """Let an Apprentice end their own active relation without needing the mentor online."""
+    relations = active_relations(apprentice, role="apprentice")
+    if not relations:
+        return None, "This mask has no active apprenticeship to withdraw from."
+    relation = relations[0]
+    mentor_id = relation.get("mentor_mask_id")
+    mentor = None
+    if mentor_id is not None:
+        try:
+            from evennia.utils import search
+            found = search.search_object(f"#{int(mentor_id)}")
+            mentor = next(
+                (obj for obj in found if getattr(obj, "id", None) == int(mentor_id)),
+                None,
+            )
+        except Exception:
+            mentor = None
+
+    if mentor is not None:
+        return end_apprenticeship(
+            mentor,
+            apprentice,
+            reason=reason,
+        )
+
+    state = calling_state(apprentice)
+    relation_id = relation.get("relation_id")
+    day, hour = _clock()
+    rows = []
+    for item in state.get("relations") or []:
+        row = copy.deepcopy(dict(item))
+        if row.get("relation_id") == relation_id and row.get("status") == "active":
+            row["status"] = "ended"
+            row["ended_day"] = int(day)
+            row["ended_hour"] = int(hour)
+            row["ended_reason"] = str(reason)
+            row["counterpart_missing"] = True
+        rows.append(row)
+    state["relations"] = rows
+    state["history"].append(
+        _history_entry(
+            "apprenticeship_ended",
+            calling=relation.get("calling"),
+            relation_id=relation_id,
+            reason=str(reason),
+            counterpart_missing=True,
+        )
+    )
+    _save(apprentice, state)
+    return {
+        "relation_id": relation_id,
+        "status": "ended",
+        "counterpart_missing": True,
+    }, None
+
