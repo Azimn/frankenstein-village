@@ -4,9 +4,43 @@ Date: 2026-10-06
 
 Repository: https://github.com/Azimn/frankenstein-village
 
-Audited code baseline before this handoff document: `ace642d0527baa7eaa7c8014abad1c63089eef88`
+Audited current `main` for this refreshed handoff: `d563ef46fc9bc33a13bd7b6e730ee0f733b3aa2a`
 
 Use the actual current `main` branch at the start of the takeover session. Do not assume the baseline above is still current if another developer or agent has landed work since this document was written.
+
+## Current takeover state as of the refreshed handoff
+
+Before doing any development, verify that `main` is still at or descended from:
+
+`d563ef46fc9bc33a13bd7b6e730ee0f733b3aa2a`
+
+The clean-checkout regression for that exact commit passed in GitHub Actions run:
+
+`37472901213`
+
+The repository has advanced beyond the earlier snapshot in this document. In particular, current `main` already contains:
+
+- the merged weighted random-world-incident layer;
+- village-scale server events;
+- public mystery evidence and provisional theory infrastructure;
+- persistent seasonal/chapter frameworks;
+- this production handoff document.
+
+There is also an open PR at the time of this refresh:
+
+`PR #15 - Add mask-specific private mystery threads`
+
+Known PR #15 head when this handoff was refreshed:
+
+`36a234c5291df2feddbb90f185086f1487e598a2`
+
+Its base is older than current `main`, and GitHub currently reports it as non-mergeable.
+
+Do not discard it and do not blindly merge it.
+
+The first development task for the next instance is to inspect the exact PR #15 delta against current `main`, determine whether the implementation is still sound, transplant or reconcile the private-mystery work onto current `main`, run the full regression suite, fix all conflicts and behavioral regressions, and only then merge it.
+
+If PR #15 has already been superseded, merged, closed with replacement work, or otherwise changed by the time the takeover begins, use the actual current repository state instead.
 
 # TAKEOVER PROMPT
 
@@ -1116,9 +1150,9 @@ Immediately:
 2. Read the World Bible, production handoff, generation packet, recent design decisions, recent build notes, and current regression harness.
 3. Run or inspect the current clean-checkout regression state before modifying code.
 4. Produce a compact dependency/status matrix for the remaining backlog.
-5. Confirm whether Section 3.21 Private Mysteries is still the next unresolved item.
-6. If yes, implement the smallest complete private-mystery vertical slice using shared persistence, player-specific knowledge, voluntary disclosure, no load-bearing account, real telnet interaction, and restart verification.
-7. If no because current `main` has advanced, take the next unresolved dependency from the repository.
+5. Inspect PR #15 before starting new Private Mysteries code. It already contains a candidate implementation but was based on an older `main` and was non-mergeable when this handoff was refreshed.
+6. If PR #15 remains relevant, reconcile or transplant it onto current `main`, preserve newer work, run the full regression suite, and complete Section 3.21 from that reconciled foundation rather than writing a duplicate implementation.
+7. If PR #15 has already been superseded or current `main` already contains Private Mysteries, identify the next unresolved dependency from the repository.
 8. Continue the loop without rebuilding systems that already exist.
 
 The repository is the source of truth.
