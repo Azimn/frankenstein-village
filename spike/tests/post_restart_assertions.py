@@ -32,6 +32,11 @@ from world.scheduled_events import (
     SUNDAY_SERVICE_ID,
     get_scheduled_event_registry,
 )
+from world.server_events import (
+    LONG_BLACKOUT_ID,
+    get_server_event,
+    get_server_event_registry,
+)
 
 
 def one(key):
@@ -132,6 +137,26 @@ random_record = random_records[-1]
 assert random_record["tone"] == "odd"
 assert random_record["location"] == "Village Square"
 
+# The player-facing blackout contribution is shared server state and must
+# survive a real process restart independently of the player's own journal.
+blackout = get_server_event(LONG_BLACKOUT_ID)
+assert blackout["state"] in {"active", "aftermath"}
+blackout_current = blackout["current"]
+assert "lamps" in (blackout_current.get("responses") or {})
+lamp_response = blackout_current["responses"]["lamps"]
+assert lamp_response["result"] == "street lamps stabilized"
+assert any(
+    helper.get("mask_id") == smoke.id
+    for helper in lamp_response.get("helpers") or []
+), "telnet blackout contribution did not survive restart"
+
+server_events = get_server_event_registry()
+assert ScriptDB.objects.filter(db_key="server_event_registry").count() == 1
+assert set((server_events.db.events or {}).keys()) == {LONG_BLACKOUT_ID}
+assert set((server_events.db.metrics or {}).keys()).issuperset({
+    "checks", "starts", "contributions", "resolutions", "aftermath_clears",
+})
+
 print("POST_RESTART_RESIDENT_ASSERTIONS_GREEN")
 print("POST_RESTART_PUBLIC_RECORD_ASSERTIONS_GREEN")
 print("POST_RESTART_SITUATION_ASSERTIONS_GREEN")
@@ -149,4 +174,5 @@ assert set((scheduled.db.metrics or {}).keys()).issuperset({
 print("POST_RESTART_INCIDENT_FEED_ASSERTIONS_GREEN")
 print("POST_RESTART_TIMED_INCIDENT_ASSERTIONS_GREEN")
 print("POST_RESTART_RANDOM_INCIDENT_ASSERTIONS_GREEN")
+print("POST_RESTART_SERVER_EVENT_ASSERTIONS_GREEN")
 print("POST_RESTART_SCHEDULED_EVENT_ASSERTIONS_GREEN")
