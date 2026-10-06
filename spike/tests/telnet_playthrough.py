@@ -217,6 +217,16 @@ def main() -> int:
         out = c.command("east")
         require(out, "blood of the vine")
 
+        # Systemic object foundation: the ordinary eat verb now reads the
+        # bread's worth and uses properties. The player-facing behavior stays
+        # natural while the underlying rule is object data rather than item ID.
+        out = c.command("purse")
+        require(out, "2 ft")
+        out = c.command("eat bread")
+        require(out, "4 kr", "purse: 1 ft 96 kr")
+        out = c.command("purse")
+        require(out, "1 ft 96 kr")
+
         # Private mysteries belong to this exact mask until the player chooses
         # to disclose them. János is here by his ordinary evening schedule.
         out = c.command("ask Janos about Hounds")
@@ -451,7 +461,7 @@ def main() -> int:
         require(out, "missing chronicle sequence reconstructed", "verified")
 
         out = c.command("purse")
-        require(out, "2 ft")
+        require(out, "1 ft 96 kr")
 
         out = c.command("rumors")
         require(out, "confessional")
