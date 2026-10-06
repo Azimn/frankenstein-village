@@ -604,6 +604,52 @@ def _parse_record_id(token, prefix):
     return int(raw) if raw.isdigit() else None
 
 
+class CmdWorldEvent(Command):
+    """Inspect or answer a public village-wide condition.
+
+    Usage:
+        event
+        event <local response>
+        respond <local response>
+
+    Server-wide events are shared conditions, not accepted quests. The command
+    only exposes the response available where the current mask is standing.
+    """
+
+    key = "event"
+    aliases = ["events", "crisis", "respond"]
+    help_category = "Village"
+
+    def func(self):
+        if not _require_ic(self.caller):
+            return
+
+        from world.server_events import contribute, status_lines
+
+        arg = (self.args or "").strip()
+        if not arg or arg.lower() in {"status", "help"}:
+            self.caller.msg("|yVillage conditions:|n\n" + "\n".join(
+                status_lines(self.caller)
+            ))
+            return
+
+        result, error = contribute(self.caller, arg)
+        if error:
+            self.caller.msg(error)
+            return
+
+        if result["first_completion"]:
+            self.caller.msg(
+                f"You {result['label']}. Result: {result['result']}."
+            )
+        else:
+            self.caller.msg(
+                f"You add another pair of hands. Result remains: "
+                f"{result['result']}."
+            )
+
+
+
 class CmdHarbinger(Command):
     """Read the latest Harbinger issue or inspect one printed story.
 
