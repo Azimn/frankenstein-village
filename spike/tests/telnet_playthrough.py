@@ -643,6 +643,38 @@ def main() -> int:
 
         out = c.command("west")
         require(out, "village square")
+
+        # Hidden object properties: ordinary look does not label the toxin.
+        # Direct consequences teach only this mask, and examine then recalls
+        # the learned fact without changing the mushroom's public description.
+        out = c.command("look mushrooms")
+        require(out, "cluster of pale mushrooms", "grandmother")
+        if "toxic" in out.lower():
+            raise AssertionError("ordinary look leaked the hidden toxin property")
+
+        out = c.command("examine mushrooms")
+        require(out, "cluster of pale mushrooms")
+        if "what this mask has learned" in out.lower():
+            raise AssertionError(
+                "examine revealed hidden toxin before this mask learned it"
+            )
+
+        out = c.command("eat mushrooms")
+        require(
+            out,
+            "your own reaction teaches you something",
+            "can be toxic",
+            "examine it again",
+        )
+
+        out = c.command("examine mushrooms")
+        require(
+            out,
+            "what this mask has learned",
+            "can be toxic",
+            "learned by direct effect",
+        )
+
         out = c.command("north")
         require(out, "inn hallway")
         out = c.command("west")
