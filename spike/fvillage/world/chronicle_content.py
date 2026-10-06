@@ -8,6 +8,8 @@ remain unchanged.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from world.publications import annotate_chronicle, get_chronicle_entry
 from world.situations import (
     TITHE_ID,
@@ -42,11 +44,42 @@ def evidence_reference_token(evidence_ref):
     return f"{subject}/{evidence_ref.get('evidence_id')}"
 
 
-def revision_evidence_for_player(player):
-    """Return evidence the current mask has actually discovered."""
+def _entry_situation_ids(entry):
+    """Return situation IDs established by the entry's canonical event sources."""
+    from world.events import get_event_ledger
+
+    ledger = get_event_ledger()
+    situation_ids = set()
+    for event_id in entry.get("source_event_ids") or []:
+        event = ledger.get_event(int(event_id))
+        if not event:
+            continue
+        payload = event.get("payload") or {}
+        if not isinstance(payload, Mapping):
+            try:
+                payload = dict(payload)
+            except Exception:
+                payload = {}
+        stable_id = payload.get("situation_id")
+        if stable_id:
+            situation_ids.add(str(stable_id))
+    return situation_ids
+
+
+def revision_evidence_for_player(player, entry_id=None):
+    """Return discovered evidence relevant to the selected Chronicle entry."""
+    relevant = None
+    if entry_id is not None:
+        entry = get_chronicle_entry(entry_id)
+        if not entry:
+            return []
+        relevant = _entry_situation_ids(entry)
+
     refs = []
     for situation, knowledge in known_situations(player):
         stable_id = situation["id"]
+        if relevant is not None and stable_id not in relevant:
+            continue
         template = TEMPLATES.get(stable_id) or {}
         for evidence_id in knowledge.get("evidence") or []:
             evidence = (template.get("evidence") or {}).get(evidence_id)
@@ -115,6 +148,21 @@ def submit_evidence_revision(player, entry_id, subject, evidence_id):
     )
     if error:
         return None, error
+
+    linked_situations = _entry_situation_ids(entry)
+    if not linked_situations:
+        return (
+            None,
+            "That Chronicle entry has no situation-linked event provenance, so "
+            "Revision by Evidence cannot attach unrelated material to it.",
+        )
+    if evidence_ref["situation_id"] not in linked_situations:
+        return (
+            None,
+            "That evidence belongs to a different situation than this Chronicle "
+            "entry. The archive will not imply a connection the source record "
+            "does not establish.",
+        )
 
     if _already_cited(entry, evidence_ref):
         return (
