@@ -492,3 +492,44 @@ Regression coverage verifies:
 - restart persistence.
 
 Random room text is a projection, not the source of truth. `RandomIncidentRegistry.at_start()` calls `reconcile_random_incident_overlay()`, which removes stale random overlays and reconstructs the active incident's overlay from the persistent registry. Regression deliberately deletes an active lamp projection and requires it to be reconstructed before the network playtest.
+
+## 2026-10-06 - Server-wide event layer
+
+`world/server_events.py` implements village-scale temporary conditions on the existing authoritative clock.
+
+Current execution path:
+
+`village clock -> scheduled civic events -> server event advancement -> random texture`
+
+The first framework is `SERVER-LONG-BLACKOUT`. It has:
+- one canonical shared state;
+- a 12-game-hour active window;
+- four independent local response nodes;
+- explicit resident wakeup IDs;
+- structured local contribution records;
+- Harbinger and rumor projection;
+- Chronicle eligibility on resolution;
+- coordinated, partial, and no-intervention outcome grades;
+- six game hours of visible aftermath;
+- bounded historical occurrences;
+- restart-safe overlay reconstruction.
+
+Player surface:
+- `event` or `crisis` shows active public village conditions and the response available in the current room.
+- `event <action>` or `respond <action>` performs a local response.
+- Players cannot respond to a node from another location.
+- Repeating the same local action with the same mask is rejected, while other masks may still add help.
+
+Regression coverage proves:
+- idempotent registry construction;
+- hidden autonomous trigger boundary;
+- all four local response paths;
+- wrong-location rejection;
+- relevant resident wakeups;
+- start rumor and Harbinger projection;
+- Chronicle projection only at completed-event resolution;
+- autonomous no-intervention aftermath;
+- active and aftermath overlay lifecycle;
+- overlay reconstruction after process boundaries;
+- real telnet discovery and contribution;
+- persistence of that contribution through a real server restart.
