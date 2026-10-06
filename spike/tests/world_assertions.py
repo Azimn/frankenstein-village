@@ -187,6 +187,12 @@ public_records_snapshot = {
     "next_harbinger_correction_dispute_id": (
         public_records.db.next_harbinger_correction_dispute_id
     ),
+    "harbinger_obituary_cases": copy.deepcopy(
+        list(public_records.db.harbinger_obituary_cases or [])
+    ),
+    "next_harbinger_obituary_case_id": (
+        public_records.db.next_harbinger_obituary_case_id
+    ),
     "next_story_id": public_records.db.next_story_id,
     "next_edition_id": public_records.db.next_edition_id,
     "next_chronicle_id": public_records.db.next_chronicle_id,
@@ -277,10 +283,15 @@ from world.publications import (
 )
 from world.harbinger_content import (
     correction_disputes_for_story,
+    decide_tomorrows_obituary,
     ensure_harbinger_conflict,
     get_harbinger_conflict,
+    get_harbinger_obituary_case,
+    harbinger_obituary_cases,
     resolve_due_harbinger_conflicts,
+    resolve_due_obituary_cases,
     submit_correction_dispute,
+    submit_tomorrows_obituary,
 )
 destroy_refs = school_destroyed.get("publications") or {}
 assert destroy_refs["harbinger_story_id"]
@@ -367,6 +378,128 @@ present_wording, present_wording_error = submit_correction_dispute(
 assert present_wording is None
 assert "surviving copy already contains" in present_wording_error.lower()
 assert get_story(destroy_story["id"])["body"] == original_story_body
+
+# Harbinger Section 3.22, Tomorrow's Obituary: a submitted death notice for a
+# living resident is an editorial dilemma, not an authority over lifecycle.
+# Exercise all four choices and prove that none of them kills the subject.
+obituary_targets = {
+    "print": by_resident_id["wren_vessey"],
+    "investigate": by_resident_id["lark_vessey"],
+    "suppress": by_resident_id["miklos_farkas"],
+    "mock": by_resident_id["old_vasile"],
+}
+obituary_results = {}
+for action, subject in obituary_targets.items():
+    before_lifecycle = (resident_state(subject).get("lifecycle") or {}).get("status")
+    assert before_lifecycle == "active"
+    opened, obituary_error = submit_tomorrows_obituary(
+        wren,
+        subject.db.resident_id,
+    )
+    assert obituary_error is None
+    assert opened["created"]
+    obituary_case = opened["case"]
+    assert obituary_case["status"] == "open"
+    assert obituary_case["lifecycle_at_submission"] == "active"
+
+    closed, obituary_story, obituary_error = decide_tomorrows_obituary(
+        wren,
+        obituary_case["id"],
+        action,
+    )
+    assert obituary_error is None
+    assert closed["status"] == "closed"
+    assert closed["decision"] == action
+    assert closed["lifecycle_at_decision"] == "active"
+    assert (resident_state(subject).get("lifecycle") or {}).get("status") == "active"
+
+    decision_event = ledger.get_event(closed["event_id"])
+    assert decision_event["kind"] == "harbinger.tomorrows_obituary_decision"
+    assert decision_event["payload"]["chronicle_eligible"] is False
+    assert decision_event["payload"]["harbinger"] is False
+    assert decision_event["payload"]["decision"] == action
+    assert decision_event["payload"]["lifecycle_status"] == "active"
+    assert not (decision_event.get("publications") or {}).get("chronicle_entry_id")
+
+    if action == "suppress":
+        assert obituary_story is None
+        assert closed["story_id"] is None
+        assert not decision_event["payload"].get("resident_ids")
+    else:
+        assert obituary_story
+        assert obituary_story["status"] == "pending"
+        assert obituary_story["source_event_id"] == decision_event["id"]
+        assert obituary_story["obituary_case_id"] == obituary_case["id"]
+        assert obituary_story["obituary_subject_resident_id"] == (
+            subject.db.resident_id
+        )
+        subject_flag = resident_state(subject)["event_flags"].get(
+            str(decision_event["id"])
+        )
+        assert subject_flag
+        assert subject_flag["payload"]["reaction"] == {
+            "print": "angered_by_premature_obituary",
+            "investigate": "relieved_by_obituary_investigation",
+            "mock": "embarrassed_by_obituary_mockery",
+        }[action]
+
+    obituary_results[action] = {
+        "case": closed,
+        "story": obituary_story,
+    }
+
+assert obituary_results["print"]["story"]["basis"] == "premature_obituary"
+assert "not as a certified death record" in (
+    obituary_results["print"]["story"]["body"].lower()
+)
+assert obituary_results["investigate"]["story"]["basis"] == (
+    "obituary_investigation"
+)
+assert "found" in obituary_results["investigate"]["story"]["headline"].lower()
+assert obituary_results["mock"]["story"]["basis"] == "editorial_mockery"
+assert "not a death" in obituary_results["mock"]["story"]["body"].lower()
+
+duplicate_obituary, duplicate_obituary_error = submit_tomorrows_obituary(
+    wren,
+    "wren_vessey",
+)
+assert duplicate_obituary_error is None
+assert not duplicate_obituary["created"]
+assert duplicate_obituary["case"]["id"] == (
+    obituary_results["print"]["case"]["id"]
+)
+assert len(harbinger_obituary_cases()) == 4
+assert get_harbinger_obituary_case(
+    obituary_results["investigate"]["case"]["id"]
+)["decision"] == "investigate"
+
+# If nobody chooses before press time, the safe default is suppression. The
+# deadline must never auto-print an unverified death notice.
+deadline_subject = by_resident_id["father_andrei"]
+deadline_opened, deadline_error = submit_tomorrows_obituary(
+    wren,
+    deadline_subject.db.resident_id,
+)
+assert deadline_error is None and deadline_opened["created"]
+deadline_case = deadline_opened["case"]
+deadline_resolved = resolve_due_obituary_cases(
+    deadline_case["deadline_day"],
+    deadline_case["deadline_hour"],
+)
+assert deadline_resolved == [{
+    "case_id": deadline_case["id"],
+    "resolution": "deadline_suppressed",
+    "story_id": None,
+}]
+deadline_closed = get_harbinger_obituary_case(deadline_case["id"])
+assert deadline_closed["status"] == "closed"
+assert deadline_closed["decision"] == "suppress"
+assert deadline_closed["resolution"] == "deadline_suppressed"
+assert deadline_closed["story_id"] is None
+assert (resident_state(deadline_subject).get("lifecycle") or {}).get(
+    "status"
+) == "active"
+assert len(harbinger_obituary_cases()) == 5
 
 # A rumor may be news without becoming Chronicle truth.
 reported = publish_world_event(

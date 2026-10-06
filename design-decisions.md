@@ -421,3 +421,10 @@ For Refused Entry content, popularity and evidentiary authority are deliberately
 A correction claim is not permission to rewrite a surviving publication artifact. When someone asserts that an older Harbinger issue contained wording absent from the preserved copy, the system records the claimant, exact alleged wording, surviving-copy hash, and later editorial response as separate provenance-bearing records.
 
 Accepted corrections and disputed memories of prior text are different epistemic objects. The former may append to a story's correction history; the latter must preserve the contradiction between recollection and artifact. Repetition of the same correction claim must not alter the archived copy or create additional evidentiary weight.
+
+
+## 2026-10-06 - Editorial claims cannot mutate resident lifecycle
+
+Harbinger content may report, investigate, suppress, ridicule, correct, or preserve claims about a resident, but publication state is not identity state. A death notice is therefore incapable of changing a resident from living to dead.
+
+Tomorrow's Obituary uses the resident lifecycle record as the authority boundary. A submitted obituary for an active resident is editorial input. Printing it creates a public claim with explicit uncertainty. Investigating it may establish that the resident is still active. Suppressing it creates no public claim. Mocking it records the editorial response. Actual death remains a separate canonical world event and lifecycle transition.

@@ -309,6 +309,62 @@ def main() -> int:
             "repetition does not alter the surviving copy",
         )
 
+        # Harbinger Section 3.22, Tomorrow's Obituary: submit a death notice
+        # for a resident who is currently alive, inspect the editorial dilemma,
+        # and choose investigation rather than allowing the notice to become
+        # world truth.
+        out = c.command("harbinger obituary Miklós Farkas")
+        require(
+            out,
+            "premature obituary tob",
+            "still recorded as living and active",
+            "copy desk",
+        )
+        obituary_match = re.search(r"TOB(\d+)", out, re.I)
+        if not obituary_match:
+            raise AssertionError(
+                "Tomorrow's Obituary exposed no stable editorial handle"
+            )
+        obituary_id = obituary_match.group(1)
+
+        out = c.command(f"harbinger obituary TOB{obituary_id}")
+        require(
+            out,
+            "editorial status: open",
+            "recorded as active",
+            "print",
+            "investigate",
+            "suppress",
+            "mock",
+            "does not change",
+        )
+
+        out = c.command(
+            f"harbinger obituary TOB{obituary_id} investigate"
+        )
+        require(
+            out,
+            "is closed with decision investigate",
+            "harbinger h",
+            "remains recorded as active",
+            "does not alter world truth",
+        )
+        obituary_story_match = re.search(r"Harbinger H(\d+)", out, re.I)
+        if not obituary_story_match:
+            raise AssertionError(
+                "Tomorrow's Obituary investigation queued no Harbinger story"
+            )
+        obituary_story_id = obituary_story_match.group(1)
+
+        out = c.command(f"harbinger obituary TOB{obituary_id}")
+        require(
+            out,
+            "editorial status: closed",
+            "decision: investigate",
+            "lifecycle at decision: active",
+            f"harbinger h{obituary_story_id}",
+        )
+
         out = c.command("chronicle")
         require(out, "church strongbox loss made public", "verified")
         require(out, "numbered sequence is missing", "chronicle gap")

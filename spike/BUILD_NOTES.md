@@ -709,3 +709,24 @@ Execution contract:
 - Repeating the same claim against the same story is idempotent.
 
 Regression coverage verifies immutable surviving copy text, archive hashing, absent-vs-present wording gates, stable dispute identity, real telnet filing and inspection, publication of the follow-up response, and persistence through a real server restart.
+
+
+## 2026-10-06 - Harbinger Tomorrow's Obituary
+
+Section 3.22 Tomorrow's Obituary is now a persistent editorial dilemma built on resident lifecycle state and the existing Harbinger publication pipeline.
+
+Execution contract:
+- `harbinger obituary <resident>` opens one obituary case only for a resident whose authoritative lifecycle is currently `active`.
+- The submission itself does not create a death event, rumor, Chronicle entry, or public story.
+- `harbinger obituary TOB<number>` exposes the preserved editorial state, lifecycle at submission, deadline, and available choices.
+- Editors may choose `print`, `investigate`, `suppress`, or `mock`.
+- `print` queues a low-confidence premature obituary that explicitly says the notice is not a certified death record.
+- `investigate` queues a high-confidence report that the resident was found alive and the obituary was withheld.
+- `suppress` preserves the internal editorial decision without queuing a public story.
+- `mock` queues an editorial response that rejects the death claim.
+- No choice mutates resident lifecycle. A resident who ceases to be active before the decision cannot be processed through the stale living-person case.
+- Public decisions create a canonical editorial event and wake the affected resident with an explicit reaction. Suppression stays non-public.
+- Re-submitting the same resident does not create a second obituary case.
+- If press time arrives with no decision, the safe default is suppression. An unresolved premature obituary can never auto-print merely because its deadline elapsed.
+
+Regression coverage exercises all four decisions, verifies Chronicle non-promotion, verifies lifecycle immutability, plays the investigation path through real telnet, and confirms the case, story, event, reaction, and active lifecycle survive a real server restart.

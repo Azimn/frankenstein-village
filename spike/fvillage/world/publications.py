@@ -469,8 +469,12 @@ def publish_harbinger_edition(*, special=False, day=None, hour=None):
     # Section 3.22 Stop the Press conflicts share the ordinary publication
     # deadline. An unresolved conflict prints attributed disagreement rather
     # than silently selecting a winner.
-    from world.harbinger_content import resolve_due_harbinger_conflicts
+    from world.harbinger_content import (
+        resolve_due_harbinger_conflicts,
+        resolve_due_obituary_cases,
+    )
     resolve_due_harbinger_conflicts(day, hour)
+    resolve_due_obituary_cases(day, hour)
 
     drafts = [dict(story) for story in (registry.db.harbinger_drafts or [])]
     pending = [story for story in drafts if story.get("status") == "pending"]
