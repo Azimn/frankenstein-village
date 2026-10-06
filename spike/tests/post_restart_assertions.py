@@ -48,6 +48,12 @@ from world.public_mysteries import (
     get_public_mystery,
     get_public_mystery_registry,
 )
+from world.private_mysteries import (
+    HOUNDS_INVITATION_ID,
+    get_private_mystery_registry,
+    records_for as private_records_for,
+)
+from world.rumors import get_rumor_registry
 
 
 def one(key):
@@ -191,6 +197,35 @@ public_mysteries = get_public_mystery_registry()
 assert ScriptDB.objects.filter(db_key="public_mystery_registry").count() == 1
 assert set((public_mysteries.db.mysteries or {}).keys()) == {MANOR_LIGHTS_ID}
 
+# Private mystery ownership and deliberate disclosure survive independently.
+private_registry = get_private_mystery_registry()
+assert ScriptDB.objects.filter(db_key="private_mystery_registry").count() == 1
+private_records = private_records_for(smoke)
+assert len(private_records) == 1
+private_record = private_records[0]
+assert private_record["id"] == HOUNDS_INVITATION_ID
+assert private_record["status"] == "opened"
+assert private_record["invitation_rumor_id"]
+assert private_record["followup_rumor_id"]
+assert any(
+    (entry.get("target") or {}).get("mask") == "Magda"
+    for entry in private_record.get("disclosures") or []
+), "private disclosure to Magda did not survive restart"
+
+private_rumors = get_rumor_registry()
+followup_id = private_record["followup_rumor_id"]
+followup_root = private_rumors.get_rumor(followup_id)
+assert followup_root["privacy"] == "private"
+assert private_rumors.belief_for(smoke, followup_id)
+magda = one("Magda")
+assert private_rumors.belief_for(magda, followup_id), (
+    "explicitly retold private rumor did not remain known to Magda"
+)
+tavern = one("The Blood of the Vine")
+assert followup_id not in (tavern.db.public_rumor_ids or []), (
+    "private disclosure became public tavern knowledge"
+)
+
 print("POST_RESTART_RESIDENT_ASSERTIONS_GREEN")
 print("POST_RESTART_PUBLIC_RECORD_ASSERTIONS_GREEN")
 print("POST_RESTART_SITUATION_ASSERTIONS_GREEN")
@@ -220,4 +255,5 @@ print("POST_RESTART_RANDOM_INCIDENT_ASSERTIONS_GREEN")
 print("POST_RESTART_SEASONAL_ASSERTIONS_GREEN")
 print("POST_RESTART_SERVER_EVENT_ASSERTIONS_GREEN")
 print("POST_RESTART_PUBLIC_MYSTERY_ASSERTIONS_GREEN")
+print("POST_RESTART_PRIVATE_MYSTERY_ASSERTIONS_GREEN")
 print("POST_RESTART_SCHEDULED_EVENT_ASSERTIONS_GREEN")
