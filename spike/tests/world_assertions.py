@@ -37,6 +37,7 @@ for script_key in (
     "public_records",
     "public_mystery_registry",
     "situation_registry",
+    "seasonal_framework_registry",
     "scheduled_event_registry",
     "server_event_registry",
     "random_incident_registry",
@@ -744,6 +745,163 @@ tavern_for_snapshot.db.public_rumor_ids = copy.deepcopy(
 tavern_for_snapshot.db.player_rumors = copy.deepcopy(
     tavern_player_rumors_snapshot
 )
+
+# Seasonal chapters modify the existing world instead of replacing it.
+from world.seasonal_frameworks import (
+    DEFINITIONS as SEASONAL_DEFINITIONS,
+    EMPTY_PLACES_ID,
+    FROZEN_ROADS_ID,
+    LONG_SHADOWS_ID,
+    RECKONING_ID,
+    THAW_BELOW_ID,
+    VISITORS_ID,
+    OVERLAY_KEY as SEASONAL_OVERLAY_KEY,
+    advance_seasonal_framework,
+    apply_resident_target,
+    calendar_line as seasonal_calendar_line,
+    chapter_history,
+    content_tags as seasonal_content_tags,
+    current_chapter,
+    economy_modifiers,
+    get_seasonal_framework_registry,
+    random_incident_bonus,
+    weather_weights,
+)
+
+seasonal_registry = get_seasonal_framework_registry()
+seasonal_snapshot = {
+    "active_id": seasonal_registry.db.active_id,
+    "started_day": seasonal_registry.db.started_day,
+    "cycle_started_day": seasonal_registry.db.cycle_started_day,
+    "history": copy.deepcopy(list(seasonal_registry.db.history or [])),
+    "metrics": copy.deepcopy(dict(seasonal_registry.db.metrics or {})),
+}
+seasonal_square = one("Village Square")
+seasonal_overlay_snapshot = copy.deepcopy(
+    dict(seasonal_square.db.scheduled_overlays or {})
+)
+
+assert current_chapter()["id"] == LONG_SHADOWS_ID
+assert sum(
+    int(SEASONAL_DEFINITIONS[stable_id]["duration_days"])
+    for stable_id in (
+        LONG_SHADOWS_ID,
+        RECKONING_ID,
+        EMPTY_PLACES_ID,
+        FROZEN_ROADS_ID,
+        THAW_BELOW_ID,
+        VISITORS_ID,
+    )
+) == 365
+assert "fog" in seasonal_content_tags()
+assert weather_weights()["fog"] > weather_weights()["clear"]
+assert SEASONAL_OVERLAY_KEY in (
+    seasonal_square.db.scheduled_overlays or {}
+)
+assert "long shadows" in (
+    seasonal_square.db.scheduled_overlays or {}
+)[SEASONAL_OVERLAY_KEY].lower()
+assert "The Weeks of Long Shadows" in seasonal_calendar_line(1)
+
+# Optional evening public routines close earlier, while essential night roles
+# remain exempt. This is schedule pressure, not a second scheduling engine.
+ilona_definition = resident_definition(by_resident_id["ilona_szabo"])
+ilona_target = {
+    "desired_location": "tavern",
+    "logical_location": "tavern",
+    "activity": "listens more than she speaks",
+    "source": "schedule",
+    "reason": None,
+}
+seasonal_ilona = apply_resident_target(
+    ilona_definition,
+    ilona_target,
+    day=1,
+    hour=21,
+)
+assert seasonal_ilona["logical_location"] == ilona_definition["home_id"]
+assert seasonal_ilona["source"] == "seasonal"
+
+miklos_definition = resident_definition(by_resident_id["miklos_farkas"])
+night_target = {
+    "desired_location": "village_square",
+    "logical_location": "village_square",
+    "activity": "tends the lamps",
+    "source": "schedule",
+    "reason": None,
+}
+assert apply_resident_target(
+    miklos_definition,
+    night_target,
+    day=1,
+    hour=21,
+)["logical_location"] == "village_square"
+
+# Long Shadows raises odd evening texture without making it dominant.
+lamp_definition = {
+    "tone": "odd",
+}
+assert random_incident_bonus(
+    "RANDOM-EXTINGUISHED-LAMP",
+    lamp_definition,
+    day=1,
+    hour=21,
+    weather="fog",
+) > random_incident_bonus(
+    "RANDOM-EXTINGUISHED-LAMP",
+    lamp_definition,
+    day=1,
+    hour=12,
+    weather="fog",
+)
+
+# Direct catch-up crosses chapter boundaries without replaying each day.
+transitions = advance_seasonal_framework(day=92, hour=0, emit=False)
+assert [item["to"] for item in transitions] == [
+    RECKONING_ID,
+    EMPTY_PLACES_ID,
+    FROZEN_ROADS_ID,
+]
+assert current_chapter(day=92)["id"] == FROZEN_ROADS_ID
+assert economy_modifiers()["travel_cost"] == 1.50
+assert len(chapter_history()) == 3
+
+# A real boundary writes durable public history with provenance. Restore it
+# afterward so synthetic season QA cannot leak into later network playtests.
+seasonal_registry.db.active_id = LONG_SHADOWS_ID
+seasonal_registry.db.started_day = 1
+seasonal_registry.db.cycle_started_day = 1
+seasonal_registry.db.history = []
+transition = advance_seasonal_framework(day=31, hour=0, emit=True)
+assert len(transition) == 1
+assert transition[0]["to"] == RECKONING_ID
+season_events = [
+    event for event in (ledger.db.events or [])
+    if event.get("kind") == "seasonal.chapter_changed"
+]
+assert season_events
+season_event = season_events[-1]
+assert season_event["publications"]["harbinger_story_id"]
+assert season_event["publications"]["chronicle_entry_id"]
+assert "debts" in seasonal_content_tags()
+assert economy_modifiers()["debt_pressure"] == 1.35
+
+# Restore the actual chapter and all synthetic public history.
+seasonal_registry.db.active_id = seasonal_snapshot["active_id"]
+seasonal_registry.db.started_day = seasonal_snapshot["started_day"]
+seasonal_registry.db.cycle_started_day = seasonal_snapshot["cycle_started_day"]
+seasonal_registry.db.history = copy.deepcopy(seasonal_snapshot["history"])
+seasonal_registry.db.metrics = copy.deepcopy(seasonal_snapshot["metrics"])
+seasonal_square.db.scheduled_overlays = copy.deepcopy(
+    seasonal_overlay_snapshot
+)
+ledger.db.events = copy.deepcopy(ledger_events_snapshot)
+for key, value in public_records_snapshot.items():
+    setattr(public_records.db, key, copy.deepcopy(value))
+rumor_registry.db.rumors = copy.deepcopy(rumor_snapshot["rumors"])
+rumor_registry.db.transmissions = copy.deepcopy(rumor_snapshot["transmissions"])
+rumor_registry.db.next_rumor_id = rumor_snapshot["next_rumor_id"]
+rumor_registry.db.next_transmission_id = rumor_snapshot["next_transmission_id"]
 
 # Recurring scheduled events share one persistent calendar registry. This
 # section proves three different behaviors: a publication pulse, a civic
