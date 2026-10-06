@@ -34,7 +34,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         #
         # any commands you add below will overload the default ones.
         #
-        from commands.village_cmds import CmdReport, CmdRumors, CmdRetell, CmdHarbinger, CmdChronicle, CmdJournal, CmdDecide, CmdWorldEvent, CmdMystery, CmdTheory, CmdTalk, CmdAsk, CmdRead, CmdTime, CmdCalendar, CmdListen, CmdSmell, CmdDiary, CmdPet, CmdThrow, CmdRoll, CmdDraw, CmdSit, CmdStand, CmdPlay, CmdPractice, CmdDuet, CmdScore, CmdEat, CmdDrink, CmdConfess, CmdOOCOverride, CmdICOverride, CmdExamine, CmdPurse, CmdTake
+        from commands.village_cmds import CmdReport, CmdRumors, CmdRetell, CmdHarbinger, CmdChronicle, CmdJournal, CmdDecide, CmdWorldEvent, CmdSecrets, CmdMystery, CmdTheory, CmdTalk, CmdAsk, CmdRead, CmdTime, CmdCalendar, CmdListen, CmdSmell, CmdDiary, CmdPet, CmdThrow, CmdRoll, CmdDraw, CmdSit, CmdStand, CmdPlay, CmdPractice, CmdDuet, CmdScore, CmdEat, CmdDrink, CmdConfess, CmdOOCOverride, CmdICOverride, CmdExamine, CmdPurse, CmdTake
 
         self.add(CmdReport())
         self.add(CmdRumors())
@@ -44,6 +44,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdJournal())
         self.add(CmdDecide())
         self.add(CmdWorldEvent())
+        self.add(CmdSecrets())
         self.add(CmdMystery())
         self.add(CmdTheory())
         self.add(CmdTalk())
