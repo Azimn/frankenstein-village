@@ -767,6 +767,15 @@ def _preserve_deposition_disagreement(rumor_id):
     return existing
 
 
+def reconcile_chronicle_disagreement(rumor_id):
+    """Backfill or update one rumor root from persisted depositions."""
+    try:
+        rumor_id = int(rumor_id)
+    except (TypeError, ValueError):
+        return None
+    return _preserve_deposition_disagreement(rumor_id)
+
+
 def reconcile_chronicle_disagreements():
     """Backfill and update disagreement records from persisted depositions."""
     registry = get_public_record_registry()
@@ -781,7 +790,7 @@ def reconcile_chronicle_disagreements():
 
     disagreement_ids = []
     for rumor_id in sorted(set(rumor_ids)):
-        entry = _preserve_deposition_disagreement(rumor_id)
+        entry = reconcile_chronicle_disagreement(rumor_id)
         if entry:
             disagreement_ids.append(entry["id"])
 
