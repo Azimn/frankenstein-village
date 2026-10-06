@@ -1065,7 +1065,10 @@ class CmdChronicle(Command):
             if not entry:
                 self.caller.msg("No such Chronicle entry is in the public index.")
                 return
-            evidence_refs = revision_evidence_for_player(self.caller)
+            evidence_refs = revision_evidence_for_player(
+                self.caller,
+                entry["id"],
+            )
             lines = [
                 f"|yEvidence your mask can cite on C{entry['id']}:|n",
             ]
