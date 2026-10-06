@@ -7,6 +7,8 @@ Idempotent-ish: skips creating things that already exist by key.
 """
 from evennia.utils import create, search
 
+from world.object_properties import configure_mechanical_properties
+
 ROOM = "typeclasses.rooms.SpikeRoom"
 COMMON = "typeclasses.rooms.CommonRoom"
 CHAR = "typeclasses.characters.SpikeCharacter"
@@ -355,9 +357,9 @@ mushrooms.db.desc = (
 )
 mushrooms.tags.add("consumable")
 mushrooms.tags.add("food")  # the eat gate
+configure_mechanical_properties(mushrooms, {"toxin": 25})
 mushrooms.db.consume = {
     "nourish": 5,
-    "toxic": 25,
     "flavor": "You eat a cap. Earthy at first, peppery after — and then "
               "your stomach files a formal complaint. The square has two "
               "of everything for a while.",
@@ -471,12 +473,21 @@ if _sb:
     )
 
 
-# Servings live in the consume dict as `servings_max`; the live count is
-# db.servings. Only the keeper's restock refills — a rebuild never resets
-# mid-session counts (init only if never set). Water has no servings_max:
-# well water is free and infinite by design. The well mushrooms aren't
-# _fare at all — they're wild, not the keeper's board.
-def _fare(key, aliases, kind, desc, consume, servings=None, short=None):
+# Mechanical definitions are stable configuration. The live serving count
+# remains db.servings so an idempotent rebuild never refills consumed stock.
+# Legacy servings_max stays in db.consume during migration for older command
+# paths and persistent worlds, but the systemic "uses" property is authoritative
+# for the migrated commands. Water has worth 0 and no finite uses.
+def _fare(
+    key,
+    aliases,
+    kind,
+    desc,
+    consume,
+    servings=None,
+    short=None,
+    worth=0,
+):
     found = [o for o in tavern.contents if o.key == key]
     if found:
         obj = found[0]
@@ -488,14 +499,18 @@ def _fare(key, aliases, kind, desc, consume, servings=None, short=None):
         print(f"fare created: {key}")
     obj.db.desc = desc
     obj.tags.add("consumable")
-    obj.tags.add(kind)  # "food" or "drink" — the eat/drink gate
+    obj.tags.add(kind)
     obj.db.consume = dict(consume)
+
+    mechanics = {"worth": int(worth or 0)}
     if servings is not None:
+        mechanics["uses"] = int(servings)
         obj.db.consume["servings_max"] = servings
         if short:
             obj.db.consume["short"] = short
         if obj.db.servings is None:
             obj.db.servings = servings
+    configure_mechanical_properties(obj, mechanics)
     return obj
 
 
@@ -513,7 +528,7 @@ _fare(
              "effect": "nonourish"},
         ],
     },
-    servings=6, short="bread",
+    servings=6, short="bread", worth=4,
 )
 _fare(
     "a wedge of cheese", ["cheese", "wedge"], "food",
@@ -523,7 +538,7 @@ _fare(
         "flavor": "The cheese bites back a little. You respect that.",
         "room": "works through a wedge of the sharp cheese.",
     },
-    servings=5, short="cheese",
+    servings=5, short="cheese", worth=6,
 )
 _fare(
     "a bowl of stew", ["stew", "bowl"], "food",
@@ -547,7 +562,7 @@ _fare(
              "effect": "queasy"},
         ],
     },
-    servings=8, short="stew",
+    servings=8, short="stew", worth=12,
 )
 _fare(
     "a tankard of ale", ["ale", "tankard"], "drink",
@@ -564,7 +579,7 @@ _fare(
              "rumor": "The keeper waters the ale. Or so the talk goes."},
         ],
     },
-    servings=8, short="ale",
+    servings=8, short="ale", worth=5,
 )
 _fare(
     "a cup of wine", ["wine", "cup"], "drink",
@@ -581,7 +596,7 @@ _fare(
              "effect": "heal"},
         ],
     },
-    servings=6, short="wine",
+    servings=6, short="wine", worth=10,
 )
 _fare(
     "a cup of water", ["water", "cup"], "drink",
@@ -592,6 +607,7 @@ _fare(
         "flavor": "Cold water. It clears the head and steadies the hands.",
         "room": "drinks a full cup of water, deliberately.",
     },
+    worth=0,
 )
 
 # --- the lamp shop: Lucian DeVille -------------------------------------------
