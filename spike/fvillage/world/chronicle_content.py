@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from world.publications import annotate_chronicle, get_chronicle_entry
 from world.situations import (
+    TITHE_ID,
+    TORN_CHRONICLE_ID,
     TEMPLATES,
     known_situations,
     resolve_situation_subject,
@@ -25,6 +27,19 @@ def _evidence_ref(stable_id, evidence):
         "provenance": evidence["provenance"],
         "summary": evidence["summary"],
     }
+
+
+def evidence_reference_token(evidence_ref):
+    """Return a stable player-facing token for one evidence reference."""
+    aliases = {
+        TITHE_ID: "strongbox",
+        TORN_CHRONICLE_ID: "chronicle",
+    }
+    subject = aliases.get(
+        evidence_ref.get("situation_id"),
+        evidence_ref.get("situation_id"),
+    )
+    return f"{subject}/{evidence_ref.get('evidence_id')}"
 
 
 def revision_evidence_for_player(player):
