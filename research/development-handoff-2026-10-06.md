@@ -230,6 +230,6 @@ The next dependency after this slice is the persistent calling/interdependence c
 
 After hidden-property perception, the next dependency is now implemented as a minimal persistent calling core rather than a conventional class system.
 
-The core provides the nine canon callings, one active profession per mask, Apprentice/Master rank records, append-only respecialization history, participation counters from real work, authored-only Master promotion, and persistent Master/Apprentice relations. Active apprenticeship obligations must be ended explicitly before respecialization.
+The core provides the nine canon callings, one active profession per mask, Apprentice/Master rank records, append-only respecialization history, participation counters from real work, authored-only Master promotion, authored-only respecialization after the initial player choice, and persistent Master/Apprentice relations. Active apprenticeship obligations must be ended explicitly before respecialization.
 
 This slice intentionally does not invent rank thresholds, combat bonuses, or a complete professional job economy. After it is accepted, inspect the current calling packs and systemic-object substrate to select the smallest real cross-calling work item or specialized capability that proves structural interdependence. Reuse `world/callings.py`; do not create a second profession state model.
