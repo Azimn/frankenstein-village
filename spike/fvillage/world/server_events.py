@@ -300,11 +300,12 @@ def _publish_start(stable_id, definition, current):
     )
     current["start_event_id"] = event["id"]
     current["start_publications"] = copy.deepcopy(event.get("publications") or {})
-    current["start_rumor_id"] = (
-        (event.get("rumor") or {}).get("rumor_id")
-        if isinstance(event.get("rumor"), dict)
-        else None
-    )
+    start_rumor = event.get("rumor") or {}
+    try:
+        start_rumor = dict(start_rumor)
+    except Exception:
+        start_rumor = {}
+    current["start_rumor_id"] = start_rumor.get("rumor_id")
     return current
 
 
@@ -535,11 +536,12 @@ def _resolve(stable_id, definition, event, day, hour):
     current["ended_hour"] = int(hour)
     current["end_event_id"] = end["id"]
     current["end_publications"] = copy.deepcopy(end.get("publications") or {})
-    current["end_rumor_id"] = (
-        (end.get("rumor") or {}).get("rumor_id")
-        if isinstance(end.get("rumor"), dict)
-        else None
-    )
+    end_rumor = end.get("rumor") or {}
+    try:
+        end_rumor = dict(end_rumor)
+    except Exception:
+        end_rumor = {}
+    current["end_rumor_id"] = end_rumor.get("rumor_id")
     current["aftermath_until_day"] = aftermath_day
     current["aftermath_until_hour"] = aftermath_hour
 
