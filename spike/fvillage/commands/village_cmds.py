@@ -1583,6 +1583,12 @@ class CmdChronicle(Command):
             if error:
                 self.caller.msg(error)
                 return
+            from world.callings import record_participation
+            record_participation(
+                self.caller,
+                "evidence_revisions",
+                calling="chronicler",
+            )
             annotation = updated["annotations"][-1]
             refs = list(annotation.get("source_evidence_refs") or [])
             label = refs[0]["label"] if refs else "submitted evidence"
@@ -1672,6 +1678,12 @@ class CmdChronicle(Command):
             if error:
                 self.caller.msg(error)
                 return
+            from world.callings import record_participation
+            record_participation(
+                self.caller,
+                "signed_accounts",
+                calling="chronicler",
+            )
             self.caller.msg(
                 f"Your account is entered as Chronicle C{entry['id']}. "
                 "The record preserves that you said it; it does not certify "
@@ -2962,6 +2974,12 @@ class CmdPlay(Command):
             )
             gain = 0.15
         self.caller.db.fiddle_skill = min(5.0, skill + gain)
+        from world.callings import record_participation
+        record_participation(
+            self.caller,
+            "performances",
+            calling="performer",
+        )
         # DF lesson: every rank must change the text. Rank-ups are witnessed.
         new_rank = fiddle_rank(self.caller.db.fiddle_skill)
         if new_rank != fiddle_rank(skill) and new_rank in RANK_UP_LINES:
@@ -3114,6 +3132,12 @@ class CmdPractice(Command):
         # the work is slow: +0.10, +0.25 on a breakthrough
         gain = 0.25 if breakthrough else 0.10
         self.caller.db.fiddle_skill = min(5.0, skill + gain)
+        from world.callings import record_participation
+        record_participation(
+            self.caller,
+            "practice_sessions",
+            calling="performer",
+        )
         # DF lesson: rank-ups are witnessed, same as performances
         new_rank = fiddle_rank(self.caller.db.fiddle_skill)
         if new_rank != rank and new_rank in RANK_UP_LINES:
