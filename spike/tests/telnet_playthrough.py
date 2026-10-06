@@ -648,7 +648,8 @@ def main() -> int:
         # Direct consequences teach only this mask, and examine then recalls
         # the learned fact without changing the mushroom's public description.
         out = c.command("look mushrooms")
-        require(out, "cluster of pale mushrooms", "grandmother")
+        require(out, "cluster of pale mushrooms")
+        require(out, "grandmother")
         if "toxic" in out.lower():
             raise AssertionError("ordinary look leaked the hidden toxin property")
 
@@ -660,20 +661,14 @@ def main() -> int:
             )
 
         out = c.command("eat mushrooms")
-        require(
-            out,
-            "your own reaction teaches you something",
-            "can be toxic",
-            "examine it again",
-        )
+        require(out, "your own reaction teaches you something")
+        require(out, "can be toxic")
+        require(out, "examine it again")
 
         out = c.command("examine mushrooms")
-        require(
-            out,
-            "what this mask has learned",
-            "can be toxic",
-            "learned by direct effect",
-        )
+        require(out, "what this mask has learned")
+        require(out, "can be toxic")
+        require(out, "learned by direct effect")
 
         out = c.command("north")
         require(out, "inn hallway")
