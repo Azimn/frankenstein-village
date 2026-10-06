@@ -180,7 +180,65 @@ def active_rank(mask):
 
 
 def choose_calling(mask, calling):
-    """Choose or respecialize a mask without erasing earlier profession history."""
+    """Make the mask's first profession choice.
+
+    Player-facing selection is deliberately not a free respecialization tool.
+    Once a mask has established professional history, changing that ruleset
+    must come through an authored respecialization gate.
+    """
+    slug = resolve_calling(calling)
+    if slug is False:
+        return None, "No such calling is recognized by the village."
+
+    state = calling_state(mask)
+    previous = state.get("active")
+    if previous == slug:
+        return {
+            "state": state,
+            "record": calling_record(mask, slug) if slug else None,
+            "changed": False,
+        }, None
+    if state.get("records"):
+        return (
+            None,
+            "This mask already has established professional history. "
+            "Changing callings requires an authored respecialization "
+            "opportunity in the world.",
+        )
+    if slug is None:
+        return {
+            "state": state,
+            "record": None,
+            "changed": False,
+        }, None
+
+    record = _new_record(slug)
+    state["records"] = {slug: record}
+    state["active"] = slug
+    state["history"].append(
+        _history_entry(
+            "joined_calling",
+            calling=slug,
+            previous_calling=None,
+            returning=False,
+        )
+    )
+    state = _save(mask, state)
+    return {
+        "state": state,
+        "record": copy.deepcopy(state["records"][slug]),
+        "changed": True,
+    }, None
+
+
+def respecialize_calling(
+    mask,
+    calling,
+    *,
+    reason,
+    source_event_id=None,
+):
+    """Authored change of active profession with biography preserved."""
     slug = resolve_calling(calling)
     if slug is False:
         return None, "No such calling is recognized by the village."
@@ -200,31 +258,36 @@ def choose_calling(mask, calling):
             "changed": False,
         }, None
 
+    records = dict(state.get("records") or {})
     if slug is None:
         state["active"] = None
-        if previous:
-            state["history"].append(
-                _history_entry("left_active_calling", calling=previous)
+        state["history"].append(
+            _history_entry(
+                "left_active_calling",
+                calling=previous,
+                reason=str(reason or "authored respecialization"),
+                source_event_id=source_event_id,
             )
+        )
         return {
             "state": _save(mask, state),
             "record": None,
             "changed": bool(previous),
         }, None
 
-    records = dict(state.get("records") or {})
     first_time = slug not in records
     if first_time:
         records[slug] = _new_record(slug)
     state["records"] = records
     state["active"] = slug
-    action = "joined_calling" if previous is None else "respecialized"
     state["history"].append(
         _history_entry(
-            action,
+            "respecialized",
             calling=slug,
             previous_calling=previous,
             returning=not first_time,
+            reason=str(reason or "authored respecialization"),
+            source_event_id=source_event_id,
         )
     )
     state = _save(mask, state)
@@ -233,7 +296,6 @@ def choose_calling(mask, calling):
         "record": copy.deepcopy(state["records"][slug]),
         "changed": True,
     }, None
-
 
 def record_participation(mask, metric, amount=1, *, calling=None):
     """Record real work for the active profession without auto-promoting it."""
