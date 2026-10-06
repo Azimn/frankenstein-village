@@ -114,7 +114,7 @@ def _room(key):
     return found[0] if found else None
 
 
-def _set_overlay(room_key, stable_id, text):
+def set_room_overlay(room_key, stable_id, text):
     room = _room(room_key)
     if not room:
         return False
@@ -124,7 +124,7 @@ def _set_overlay(room_key, stable_id, text):
     return True
 
 
-def _clear_overlay(room_key, stable_id):
+def clear_room_overlay(room_key, stable_id):
     room = _room(room_key)
     if not room:
         return False
@@ -193,7 +193,7 @@ def _start_market(day, hour):
         )
     advance_population(day=int(day), hour=int(hour), emit=True)
 
-    _set_overlay(
+    set_room_overlay(
         "Village Square",
         MARKET_MORNING_ID,
         (
@@ -217,7 +217,7 @@ def _start_market(day, hour):
 def _end_market(day, hour, current):
     from world.residents import advance_population
 
-    _clear_overlay("Village Square", MARKET_MORNING_ID)
+    clear_room_overlay("Village Square", MARKET_MORNING_ID)
     advance_population(day=int(day), hour=int(hour), emit=True)
     square = _room("Village Square")
     if square:
@@ -233,7 +233,7 @@ def _end_market(day, hour, current):
 def _start_sunday_service(day, hour):
     from world.routines import hold_mass
 
-    _set_overlay(
+    set_room_overlay(
         "St. Lazarus Church",
         SUNDAY_SERVICE_ID,
         (
@@ -250,7 +250,7 @@ def _end_sunday_service(day, hour, current):
     from world.residents import advance_population
     from world.routines import advance
 
-    _clear_overlay("St. Lazarus Church", SUNDAY_SERVICE_ID)
+    clear_room_overlay("St. Lazarus Church", SUNDAY_SERVICE_ID)
     advance(hour=int(hour), day=int(day))
     advance_population(day=int(day), hour=int(hour), emit=True)
     church = _room("St. Lazarus Church")
@@ -376,7 +376,7 @@ def reconcile_scheduled_overlays():
         if event.get("state") != "active":
             continue
         if stable_id == MARKET_MORNING_ID:
-            _set_overlay(
+            set_room_overlay(
                 "Village Square",
                 stable_id,
                 (
@@ -385,7 +385,7 @@ def reconcile_scheduled_overlays():
                 ),
             )
         elif stable_id == SUNDAY_SERVICE_ID:
-            _set_overlay(
+            set_room_overlay(
                 "St. Lazarus Church",
                 stable_id,
                 "Sunday Mass is underway; the pews are full and the altar candles burn.",
