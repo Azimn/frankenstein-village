@@ -89,7 +89,85 @@ import copy
 from collections import Counter
 from types import SimpleNamespace
 
+from commands.village_cmds import _consume, _fare_depleted, _pay_for_fare
+from world.object_properties import (
+    configure_mechanical_properties,
+    mechanical_properties,
+    mechanical_value,
+)
 from world.resident_data import FACT_BY_ID, RESIDENTS
+
+# Systemic object foundation: mechanical properties are definition data while
+# mutable state remains independent. The migrated live consumables exercise
+# worth, uses, and toxin without introducing a parallel inventory system.
+cheese = one("a wedge of cheese")
+stew = one("a bowl of stew")
+ale = one("a tankard of ale")
+wine = one("a cup of wine")
+water = one("a cup of water")
+mushrooms = one("a cluster of mushrooms")
+
+assert mechanical_properties(bread) == {"uses": 6, "worth": 4}
+assert mechanical_properties(cheese) == {"uses": 5, "worth": 6}
+assert mechanical_properties(stew) == {"uses": 8, "worth": 12}
+assert mechanical_properties(ale) == {"uses": 8, "worth": 5}
+assert mechanical_properties(wine) == {"uses": 6, "worth": 10}
+assert mechanical_properties(water) == {"worth": 0}
+assert mechanical_properties(mushrooms) == {"toxin": 25}
+assert "toxic" not in dict(mushrooms.db.consume or {}), (
+    "mushroom toxicity still depends on the legacy consume dictionary"
+)
+assert bread.db.servings == 2, (
+    "mechanical uses configuration reset mutable serving state"
+)
+
+# Falsification: change only the bread worth property. Payment must follow the
+# property rather than the historical name-based price table.
+bread_mechanics = mechanical_properties(bread)
+bread_consume = copy.deepcopy(dict(bread.db.consume or {}))
+bread_servings = bread.db.servings
+price_messages = []
+price_actor = SimpleNamespace(
+    key="property_price_actor",
+    has_account=True,
+    location=None,
+    db=SimpleNamespace(coins_kr=100, dice_debts=0),
+    msg=price_messages.append,
+)
+configure_mechanical_properties(bread, {"worth": 17, "uses": 3})
+paid, price = _pay_for_fare(price_actor, bread)
+assert paid and price == 17
+assert price_actor.db.coins_kr == 83
+
+# Falsification: uses is the definition capacity and db.servings is live state.
+# A missing live counter initializes from uses, not the legacy servings_max.
+bread.db.consume["servings_max"] = 99
+bread.db.servings = None
+assert not _fare_depleted(price_actor, bread)
+assert bread.db.servings == 3
+
+configure_mechanical_properties(bread, bread_mechanics)
+bread.db.consume = bread_consume
+bread.db.servings = bread_servings
+assert bread.db.servings == 2
+assert mechanical_value(bread, "uses") == 6
+
+# Falsification: toxicity still applies after the legacy toxic field is gone.
+mushroom_consume = copy.deepcopy(dict(mushrooms.db.consume or {}))
+quiet_mushroom_consume = copy.deepcopy(mushroom_consume)
+quiet_mushroom_consume["surprises"] = []
+mushrooms.db.consume = quiet_mushroom_consume
+toxin_messages = []
+toxin_actor = SimpleNamespace(
+    key="property_toxin_actor",
+    has_account=True,
+    location=None,
+    db=SimpleNamespace(queasy=0),
+    msg=toxin_messages.append,
+)
+_consume(toxin_actor, mushrooms, "food", "eat", "eats")
+assert toxin_actor.db.queasy == 25
+mushrooms.db.consume = mushroom_consume
 from world.residents import (
     advance_population,
     all_residents,
