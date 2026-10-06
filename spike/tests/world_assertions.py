@@ -265,6 +265,11 @@ from world.publications import (
     reconcile_chronicle_disagreements,
     submit_deposition,
 )
+from world.harbinger_content import (
+    ensure_harbinger_conflict,
+    get_harbinger_conflict,
+    resolve_due_harbinger_conflicts,
+)
 destroy_refs = school_destroyed.get("publications") or {}
 assert destroy_refs["harbinger_story_id"]
 assert destroy_refs["chronicle_entry_id"]
@@ -2211,6 +2216,51 @@ assert len([
     and root["id"] in list(entry.get("source_rumor_ids") or [])
 ]) == 1
 assert len(depositions_for_rumor(root["id"])) == 3
+
+# Harbinger Section 3.22, Stop the Press: incompatible signed accounts can
+# become a copy-desk decision without making the newspaper omniscient. The
+# no-player path is equally important: if press time arrives first, the paper
+# prints the disagreement rather than silently picking a winner.
+_stop_press_conflicts = copy.deepcopy(
+    list(public_records.db.harbinger_conflicts or [])
+)
+_stop_press_next = public_records.db.next_harbinger_conflict_id
+_stop_press_drafts = copy.deepcopy(list(public_records.db.harbinger_drafts or []))
+_stop_press_next_story = public_records.db.next_story_id
+
+stop_press, error = ensure_harbinger_conflict(root["id"])
+assert error is None and stop_press["status"] == "open"
+assert len(stop_press["accounts"]) == 3
+assert {
+    account["deposition_id"] for account in stop_press["accounts"]
+} == {
+    vasile_entry["deposition_id"],
+    janos_entry["deposition_id"],
+    magda_entry["deposition_id"],
+}
+resolved_press = resolve_due_harbinger_conflicts(
+    stop_press["deadline_day"],
+    stop_press["deadline_hour"],
+)
+assert resolved_press == [{
+    "conflict_id": stop_press["id"],
+    "story_id": resolved_press[0]["story_id"],
+}]
+closed_press = get_harbinger_conflict(stop_press["id"])
+assert closed_press["status"] == "deadline_neutral"
+assert closed_press["resolution"] == "printed_disagreement"
+neutral_story = get_story(closed_press["story_id"])
+assert neutral_story["basis"] == "disputed_report"
+assert neutral_story["source_rumor_id"] == root["id"]
+assert neutral_story["source_deposition_id"] is None
+assert "without selecting any version as settled fact" in neutral_story["body"]
+
+# Restore only the synthetic editorial layer. The signed accounts themselves
+# are intentional shared state used by the later real telnet playthrough.
+public_records.db.harbinger_conflicts = _stop_press_conflicts
+public_records.db.next_harbinger_conflict_id = _stop_press_next
+public_records.db.harbinger_drafts = _stop_press_drafts
+public_records.db.next_story_id = _stop_press_next_story
 
 # Migration path: an upgraded persistent world may already contain these
 # depositions but no disagreement entry. Removing only the derived record
