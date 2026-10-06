@@ -36,6 +36,7 @@ These work now:
 - `chronicle`: browse the public Chronicle. `chronicle C<number>` reads an entry; `chronicle gap` examines an active gap when one exists; `chronicle submit R<number>` records your version of a rumor as attributed testimony without certifying it as true.
 - `calendar` (or `schedule`): see predictable public village rhythms such as the daily Harbinger, Saturday market, and Sunday Mass. This also works in the Inn Between so groups can plan before going IC.
 - `journal`: read the deliberately thin record of village situations your current mask has actually encountered. `journal <topic>` shows only evidence you discovered, including whether a short-lived event was witnessed firsthand or only through its aftermath. It never exposes hidden objectives or answers.
+- `secrets` (or `private`): review private threads that this mask personally received. Private information stays mask-specific unless you deliberately pass its rumor handle with `retell <person> R<number>`.
 - `decide <situation> <choice>`: make a consequential choice when an investigated situation offers one. The choice changes the shared world, so another player does not get a private alternate outcome.
 - `diary`: read your private persistent notes. `diary <text>` writes; `diary/delete <number>` tears out an entry.
 - `help <topic>` — help on anything. `report <person> <reason>` — if someone breaks the compact (see below).
