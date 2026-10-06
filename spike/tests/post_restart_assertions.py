@@ -131,6 +131,52 @@ assert "original entry and its prior claim status remain unchanged" in (
     evidence_annotation["text"].lower()
 )
 
+# The Refused Entry must survive restart as an institutional decision, not as
+# a promoted rumor. Its social reaction also survives on residents who carried
+# the claim strongly enough to be affected by the refusal.
+public_records_for_refusal = ScriptDB.objects.get(db_key="public_records")
+smoke_refusals = [
+    dict(refusal)
+    for refusal in (public_records_for_refusal.db.chronicle_refusals or [])
+    if refusal.get("petitioned_by_mask_id") == smoke.id
+]
+assert len(smoke_refusals) == 1
+smoke_refusal = smoke_refusals[0]
+assert smoke_refusal["status"] == "refused"
+assert smoke_refusal["supporter_count"] >= 3
+assert len(smoke_refusal["supporter_resident_ids"]) == (
+    smoke_refusal["supporter_count"]
+)
+refusal_entry = next(
+    entry
+    for entry in entries
+    if entry.get("id") == smoke_refusal["chronicle_entry_id"]
+)
+assert refusal_entry["entry_type"] == "refusal_record"
+assert refusal_entry["claim_status"] == "refused_canonization"
+assert refusal_entry["source_rumor_ids"] == [smoke_refusal["rumor_id"]]
+assert "does not certify the rumor as true or false" in refusal_entry["text"]
+assert all(
+    not (
+        entry.get("claim_status") == "verified_event"
+        and smoke_refusal["rumor_id"] in (entry.get("source_rumor_ids") or [])
+    )
+    for entry in entries
+)
+refusal_story = get_story(smoke_refusal["harbinger_story_id"])
+assert refusal_story
+assert "Chronicle Refuses Popular Rumor" in refusal_story["headline"]
+supporter_id = smoke_refusal["supporter_resident_ids"][0]
+supporter = next(
+    npc for npc in population
+    if npc.db.resident_id == supporter_id
+)
+supporter_flag = resident_state(supporter)["event_flags"].get(
+    str(smoke_refusal["event_id"])
+)
+assert supporter_flag
+assert supporter_flag["payload"]["reaction"] == "angered_by_refusal"
+
 # The Chronicler preserves incompatible signed versions without promoting
 # either one to verified history. This fixture was created through the same
 # submission API before the real telnet pass and must survive a process restart.

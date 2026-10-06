@@ -177,6 +177,10 @@ public_records_snapshot = {
     "harbinger_editions": copy.deepcopy(list(public_records.db.harbinger_editions or [])),
     "chronicle_entries": copy.deepcopy(list(public_records.db.chronicle_entries or [])),
     "depositions": copy.deepcopy(list(public_records.db.depositions or [])),
+    "chronicle_refusals": copy.deepcopy(
+        list(public_records.db.chronicle_refusals or [])
+    ),
+    "next_chronicle_refusal_id": public_records.db.next_chronicle_refusal_id,
     "next_story_id": public_records.db.next_story_id,
     "next_edition_id": public_records.db.next_edition_id,
     "next_chronicle_id": public_records.db.next_chronicle_id,
@@ -325,6 +329,111 @@ private_event = publish_world_event(
     rumor="Someone was a long time in the box today.",
 )
 assert not private_event.get("publications")
+
+# Chronicler Section 3.23, The Refused Entry: popularity is not archival
+# evidence. Pick the most-carried canon rumor, petition it through a resident
+# who currently believes it, and verify that the Chronicle canonizes only the
+# institutional refusal while the Harbinger reports the social dispute.
+from world.chronicle_content import (
+    REFUSAL_CONFIDENCE_FLOOR,
+    chronicle_refusal_for_rumor,
+    petition_refused_entry,
+)
+
+canon_roots = [
+    dict(root)
+    for root in (rumor_registry.db.rumors or [])
+    if root.get("canonical_seed_id") in PLAYABLE_RUMOR_IDS
+]
+support_by_root = {}
+for root in canon_roots:
+    support_by_root[root["id"]] = [
+        npc
+        for npc in population
+        if (
+            (rumor_registry.belief_for(npc, root["id"]) or {}).get("confidence", 0)
+            >= REFUSAL_CONFIDENCE_FLOOR
+        )
+    ]
+refusal_root = max(
+    canon_roots,
+    key=lambda root: len(support_by_root[root["id"]]),
+)
+refusal_supporters = support_by_root[refusal_root["id"]]
+assert len(refusal_supporters) >= 3, (
+    "canon rumor seeding no longer supplies a popular Refused Entry case"
+)
+refusal_ledger_count = len(ledger.db.events or [])
+refusal_result, refusal_error = petition_refused_entry(
+    refusal_supporters[0],
+    refusal_root["id"],
+)
+assert refusal_error is None
+assert refusal_result["created"]
+refusal = refusal_result["refusal"]
+refusal_entry = refusal_result["entry"]
+assert refusal_entry["claim_status"] == "refused_canonization"
+assert refusal_entry["source_rumor_ids"] == [refusal_root["id"]]
+assert refusal_root["claim"] in refusal_entry["text"]
+assert "does not certify the rumor as true or false" in refusal_entry["text"]
+assert chronicle_refusal_for_rumor(refusal_root["id"])["id"] == refusal["id"]
+refusal_event = ledger.get_event(refusal["event_id"])
+assert refusal_event["kind"] == "chronicle.refused_entry"
+assert refusal_event["payload"]["chronicle_eligible"] is False
+assert refusal_event["payload"]["reaction"] == "angered_by_refusal"
+assert refusal_event["publications"]["harbinger_story_id"]
+assert refusal_event["publications"]["chronicle_entry_id"] is None
+assert get_story(
+    refusal_event["publications"]["harbinger_story_id"]
+)["status"] == "pending"
+for npc in refusal_supporters:
+    event_flag = resident_state(npc)["event_flags"].get(str(refusal["event_id"]))
+    assert event_flag
+    assert event_flag["payload"]["reaction"] == "angered_by_refusal"
+
+# A repeated petition preserves the first institutional decision rather than
+# manufacturing another event or pretending repeated pressure is new evidence.
+repeat_refusal, repeat_error = petition_refused_entry(
+    refusal_supporters[0],
+    refusal_root["id"],
+)
+assert repeat_error is None
+assert not repeat_refusal["created"]
+assert repeat_refusal["refusal"]["id"] == refusal["id"]
+assert len(ledger.db.events or []) == refusal_ledger_count + 1
+
+# Popularity must not be able to downgrade an already event-backed fact into a
+# refused-rumor case. Build a synthetic public telling of the verified school
+# destruction and give it more than enough supporters; the Chronicle must
+# still point to its existing objective authority.
+verified_rumor = rumor_registry.ensure_rumor(
+    subject="qa:verified-school-destruction",
+    claim="The schoolhouse was destroyed.",
+    source_actor="QA witness",
+    source_type="qa",
+    original_event_id=school_destroyed["id"],
+    origin_location="Village Square",
+    confidence=0.90,
+    emotional_charge=0.20,
+    privacy="public",
+    variants=[],
+    family="qa:verified-school-destruction",
+)
+for npc in population[:4]:
+    rumor_registry.hear_direct(
+        verified_rumor["id"],
+        npc,
+        source_label="QA witness",
+        source_type="qa",
+        location="Village Square",
+    )
+verified_petition, verified_petition_error = petition_refused_entry(
+    population[0],
+    verified_rumor["id"],
+)
+assert verified_petition is None
+assert "already has event-backed authority" in verified_petition_error.lower()
+assert chronicle_refusal_for_rumor(verified_rumor["id"]) is None
 
 # Printed stories feed public knowledge back into residents with explicit
 # Harbinger provenance. Ilona reads institutional news deterministically.

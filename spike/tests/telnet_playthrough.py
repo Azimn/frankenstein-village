@@ -365,6 +365,57 @@ def main() -> int:
         if not well_rumor_id:
             raise AssertionError("well rumor had no public provenance handle")
 
+        # Chronicler Section 3.23, The Refused Entry: petition a popular canon
+        # rumor that has no event-backed Chronicle authority. The institution
+        # may preserve the refusal while refusing to certify the claim.
+        refusal_candidates = []
+        for match in re.finditer(r"\[R(\d+)\]\s+([^\n]+)", out, re.I):
+            claim = match.group(2).lower()
+            if "arrivals register" in claim or "confessional" in claim:
+                refusal_candidates.append(match.group(1))
+        if not refusal_candidates:
+            raise AssertionError("no suitable public rumor was exposed for Refused Entry")
+
+        refusal_out = None
+        refused_rumor_id = None
+        for candidate in refusal_candidates:
+            attempt = c.command(f"chronicle petition R{candidate}")
+            if "refuses to canonize" in attempt.lower():
+                refusal_out = attempt
+                refused_rumor_id = candidate
+                break
+        if not refusal_out:
+            raise AssertionError(
+                "no canon rumor met the live Refused Entry popularity threshold"
+            )
+        require(
+            refusal_out,
+            "records the refusal itself",
+            "not the rumor's truth",
+            "residents",
+            "affected by the decision",
+        )
+        refused_entry_match = re.search(r"Chronicle C(\d+)", refusal_out, re.I)
+        if not refused_entry_match:
+            raise AssertionError("Refused Entry exposed no Chronicle handle")
+        refused_entry_id = refused_entry_match.group(1)
+
+        out = c.command(f"chronicle C{refused_entry_id}")
+        require(
+            out,
+            "refused canonization",
+            "petition asked the chronicle to canonize",
+            "does not certify the rumor as true or false",
+        )
+
+        out = c.command(f"chronicle petition R{refused_rumor_id}")
+        require(
+            out,
+            "already refused",
+            "preserves that institutional decision",
+            "without certifying the underlying claim",
+        )
+
         out = c.command(f"chronicle compare R{well_rumor_id}")
         require(
             out,

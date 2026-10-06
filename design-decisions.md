@@ -407,3 +407,10 @@ When incompatible signed accounts enter the Chronicle for the same rumor root, t
 The first two distinct versions establish the disagreement record. Later distinct versions are appended as annotations so the original archival text is never silently rewritten. Each version retains its source deposition identity and source mask. The public `chronicle compare R<number>` view is derived from signed depositions, so it can grow as additional testimony arrives without converting rumor into objective history.
 
 This pattern is the production precedent for Two Versions Survive, The Battle Over One Sentence, and later contested public-memory content. Disagreement itself can become canon while the disputed proposition remains unresolved.
+
+
+## 2026-10-06 - Chronicle refusal is itself canon, the refused claim is not
+
+A Chronicle refusal is an institutional event with objective existence. The system may therefore record that a petition occurred, that the Chronicler refused it, how socially widespread the claim was, and who reacted to the refusal. None of those facts authorize the Chronicle to promote the underlying rumor.
+
+For Refused Entry content, popularity and evidentiary authority are deliberately orthogonal. Repetition can create social consequences, Harbinger coverage, resentment, and future work, but it cannot satisfy the Chronicle's truth threshold by itself. Repeated petitions must be idempotent so pressure cannot be converted mechanically into evidence.
