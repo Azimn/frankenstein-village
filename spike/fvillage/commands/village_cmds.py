@@ -514,6 +514,9 @@ class CmdRetell(Command):
     help_category = "Village"
 
     def func(self):
+        if not _require_ic(self.caller):
+            return
+
         raw = (self.args or "").strip()
         if not raw:
             self.caller.msg("Retell to whom? Try: retell Magda R1")
