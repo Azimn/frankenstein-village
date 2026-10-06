@@ -428,3 +428,14 @@ Accepted corrections and disputed memories of prior text are different epistemic
 Harbinger content may report, investigate, suppress, ridicule, correct, or preserve claims about a resident, but publication state is not identity state. A death notice is therefore incapable of changing a resident from living to dead.
 
 Tomorrow's Obituary uses the resident lifecycle record as the authority boundary. A submitted obituary for an active resident is editorial input. Printing it creates a public claim with explicit uncertainty. Investigating it may establish that the resident is still active. Suppressing it creates no public claim. Mocking it records the editorial response. Actual death remains a separate canonical world event and lifecycle transition.
+
+
+## 2026-10-06 - Mechanical object properties use tags plus value data
+
+The systemic-object design now has a production representation. A mechanical property is a canonical Evennia tag in category `mechanic`, with its magnitude or payload stored in the object's `db.mechanic_values` mapping. This keeps affordance discovery cheap while avoiding property values encoded into tag strings.
+
+The initial canonical property vocabulary remains intentionally small: `harm`, `toxin`, `mend`, `ward`, `holds`, `fuel`, `uses`, `worth`, `perish`, and `tale`. Generated flavor is not a mechanic and must not be parsed to recover state.
+
+Definition and runtime state are separate. For finite consumables, `uses` states configured capacity while `db.servings` records how many servings remain. Idempotent world builds converge the former and preserve the latter. The same separation should be used for future durability, fuel, spoilage, and container state.
+
+The existing consumable system is the migration bridge. Fare pricing now reads `worth`, finite stock reads `uses`, and mushroom toxicity reads `toxin`. Legacy fields remain fallback-only for old persistent objects during migration. Hidden properties and perception gating are deliberately not part of this first phase.
