@@ -813,6 +813,121 @@ class CmdHarbinger(Command):
         )
 
         arg = (self.args or "").strip()
+        lower = arg.lower()
+
+        if lower == "desk":
+            from world.harbinger_content import open_harbinger_conflicts
+
+            conflicts = open_harbinger_conflicts()
+            if not conflicts:
+                self.caller.msg(
+                    "The Harbinger copy desk has no unresolved Stop the Press "
+                    "decision. Use |wharbinger desk R<number>|n when the "
+                    "Chronicle preserves incompatible signed accounts."
+                )
+                return
+            lines = ["|yStop the Press copy desk:|n"]
+            for conflict in conflicts:
+                lines.append(
+                    f"[STP{conflict['id']}] {conflict['subject']} "
+                    f"(deadline day {conflict['deadline_day']}, "
+                    f"{conflict['deadline_hour']:02d}:00)"
+                )
+            lines.append(
+                "Use |wharbinger desk STP<number>|n to inspect the accounts."
+            )
+            self.caller.msg("\n".join(lines))
+            return
+
+        if lower.startswith("desk "):
+            from world.harbinger_content import (
+                ensure_harbinger_conflict,
+                get_harbinger_conflict,
+            )
+
+            token = arg.split(None, 1)[1].strip()
+            if token.upper().startswith("R"):
+                rumor_id = _parse_rumor_id(token)
+                if rumor_id is None:
+                    self.caller.msg("Use: harbinger desk R<number>")
+                    return
+                conflict, error = ensure_harbinger_conflict(rumor_id)
+                if error:
+                    self.caller.msg(error)
+                    return
+            else:
+                conflict_id = _parse_record_id(token, "STP")
+                conflict = (
+                    get_harbinger_conflict(conflict_id)
+                    if conflict_id is not None
+                    else None
+                )
+                if not conflict:
+                    self.caller.msg("No such Stop the Press item is on the copy desk.")
+                    return
+
+            status = conflict.get("status") or "open"
+            lines = [
+                f"|ySTP{conflict['id']}: {conflict['subject']}|n",
+                (
+                    f"Editorial status: {status}. Deadline: day "
+                    f"{conflict['deadline_day']}, "
+                    f"{conflict['deadline_hour']:02d}:00."
+                ),
+            ]
+            for account in conflict.get("accounts") or []:
+                source = account.get("source_mask") or "Unknown witness"
+                lines.append(
+                    f"D{account['deposition_id']} {source}: "
+                    f"\"{account['claim']}\""
+                )
+            if status == "open":
+                lines.append(
+                    "Use |wharbinger choose STP<number> D<number>|n to select "
+                    "one attributed version for the next issue. If nobody "
+                    "chooses before press time, the paper will print the "
+                    "disagreement without selecting a winner."
+                )
+            elif conflict.get("story_id"):
+                lines.append(
+                    f"The preserved editorial decision queued Harbinger "
+                    f"H{conflict['story_id']}."
+                )
+            self.caller.msg("\n".join(lines))
+            return
+
+        if lower.startswith("choose "):
+            from world.harbinger_content import choose_harbinger_conflict
+
+            parts = arg.split()
+            if len(parts) != 3:
+                self.caller.msg(
+                    "Use: harbinger choose STP<number> D<number>"
+                )
+                return
+            conflict_id = _parse_record_id(parts[1], "STP")
+            deposition_id = _parse_record_id(parts[2], "D")
+            if conflict_id is None or deposition_id is None:
+                self.caller.msg(
+                    "Use: harbinger choose STP<number> D<number>"
+                )
+                return
+            conflict, story, error = choose_harbinger_conflict(
+                self.caller,
+                conflict_id,
+                deposition_id,
+            )
+            if error:
+                self.caller.msg(error)
+                return
+            self.caller.msg(
+                f"STP{conflict['id']} is closed. D{deposition_id} will be "
+                f"printed as attributed Harbinger story H{story['id']}; "
+                "other signed accounts remain on record, and the selected "
+                "version is not certified as fact."
+            )
+            return
+
         if arg.lower() == "archive":
             from world.situations import harbinger_archive_evidence
 
@@ -849,6 +964,12 @@ class CmdHarbinger(Command):
                 "objective": "filed from a recorded event",
                 "reported": "printed as a report, not settled fact",
                 "correction": "printed correction",
+                "contested_report": (
+                    "selected from conflicting attributed accounts, not settled fact"
+                ),
+                "disputed_report": (
+                    "conflicting attributed accounts printed without a winner"
+                ),
             }.get(story.get("basis"), "published account")
             lines = [
                 f"|yH{story['id']}: {story['headline']}|n",
