@@ -5,6 +5,13 @@ import hashlib
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
 
+from world.callings import (
+    RANK_APPRENTICE,
+    active_calling,
+    active_rank,
+    calling_record,
+    calling_state,
+)
 from world.object_properties import (
     hidden_mechanical_properties,
     hidden_property_knowledge,
@@ -89,6 +96,32 @@ assert state["simulation_resolution"] in {"reactive", "engaged", "focused"}
 assert state["facts"], "history question did not persist progressive characterization"
 known = facts_known_by_player(miklos, smoke)
 assert known, "revealed fact was not recorded for the player mask"
+
+# Calling identity and work history belong to the mask and survive a real
+# server restart. Respecialization did not erase the earlier Chronicler record.
+assert active_calling(smoke) == "chronicler"
+assert active_rank(smoke) == RANK_APPRENTICE
+smoke_chronicler = calling_record(smoke, "chronicler")
+assert smoke_chronicler["participation"]["evidence_revisions"] == 1
+assert smoke_chronicler["participation"]["signed_accounts"] == 1
+smoke_performer = calling_record(smoke, "performer")
+assert smoke_performer
+assert smoke_performer["rank"] == RANK_APPRENTICE
+smoke_calling_history = calling_state(smoke)["history"]
+assert any(
+    item.get("action") == "joined_calling"
+    and item.get("calling") == "chronicler"
+    for item in smoke_calling_history
+)
+assert any(
+    item.get("action") == "respecialized"
+    and item.get("calling") == "performer"
+    for item in smoke_calling_history
+)
+assert sum(
+    item.get("action") == "respecialized"
+    for item in smoke_calling_history
+) >= 2
 
 population = list(search.search_tag("resident", category="system"))
 assert len(population) == 36, "resident population changed across restart"
