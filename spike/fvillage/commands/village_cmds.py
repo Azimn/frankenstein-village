@@ -1016,6 +1016,7 @@ class CmdChronicle(Command):
         chronicle submit R<number>
         chronicle evidence C<number>
         chronicle revise C<number> = <situation>/<evidence>
+        chronicle petition R<number>
 
     A deposition records that you gave an account. It does not turn that
     account into objective truth.
@@ -1137,6 +1138,36 @@ class CmdChronicle(Command):
             )
             return
 
+        if arg.lower().startswith("petition "):
+            from world.chronicle_content import petition_refused_entry
+
+            token = arg.split(None, 1)[1]
+            rumor_id = _parse_rumor_id(token)
+            if rumor_id is None:
+                self.caller.msg("Use: chronicle petition R<number>")
+                return
+            result, error = petition_refused_entry(self.caller, rumor_id)
+            if error:
+                self.caller.msg(error)
+                return
+            refusal = result["refusal"]
+            entry = result["entry"]
+            if result.get("created"):
+                self.caller.msg(
+                    f"The Chronicler refuses to canonize R{rumor_id}. "
+                    f"Chronicle C{entry['id']} records the refusal itself, not "
+                    f"the rumor's truth. {refusal['supporter_count']} residents "
+                    "who already carry the claim are marked as affected by the "
+                    "decision."
+                )
+            else:
+                self.caller.msg(
+                    f"R{rumor_id} was already refused. Chronicle C{entry['id']} "
+                    "preserves that institutional decision without certifying "
+                    "the underlying claim."
+                )
+            return
+
         if arg.lower().startswith("compare "):
             token = arg.split(None, 1)[1]
             rumor_id = _parse_rumor_id(token)
@@ -1203,6 +1234,7 @@ class CmdChronicle(Command):
                 "verified_event": "verified event",
                 "documented_disagreement": "documented disagreement",
                 "reported_account": "attributed account",
+                "refused_canonization": "refused canonization",
             }.get(entry.get("claim_status"), "attributed account")
             lines = [
                 f"|yC{entry['id']}: {entry['title']}|n",
@@ -1231,6 +1263,7 @@ class CmdChronicle(Command):
                     "verified_event": "verified",
                     "documented_disagreement": "disagreement",
                     "reported_account": "account",
+                    "refused_canonization": "refused",
                 }.get(entry.get("claim_status"), "account")
                 lines.append(
                     f"[C{entry['id']}] {entry['title']} ({status})"
@@ -1249,8 +1282,9 @@ class CmdChronicle(Command):
             "Use |wchronicle C<number>|n to read an entry, "
             "|wchronicle compare R<number>|n to inspect preserved disagreement, "
             "|wchronicle submit R<number>|n to submit a rumor you actually heard, "
-            "or |wchronicle evidence C<number>|n to see evidence your mask can "
-            "append to an older entry."
+            "|wchronicle petition R<number>|n to ask the archive to canonize a "
+            "popular claim it may refuse, or |wchronicle evidence C<number>|n "
+            "to see evidence your mask can append to an older entry."
         )
         self.caller.msg("\n".join(lines))
 
