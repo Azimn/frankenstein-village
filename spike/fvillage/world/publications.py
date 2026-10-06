@@ -715,6 +715,8 @@ def _preserve_deposition_disagreement(rumor_id):
         entries = list(registry.db.chronicle_entries or [])
         entries.append(entry)
         registry.db.chronicle_entries = entries
+        if len(versions) > 2:
+            return _preserve_deposition_disagreement(rumor_id)
         return dict(entry)
 
     represented = {
@@ -763,6 +765,30 @@ def _preserve_deposition_disagreement(rumor_id):
         registry.db.chronicle_entries = entries
         return dict(replacement)
     return existing
+
+
+def reconcile_chronicle_disagreements():
+    """Backfill and update disagreement records from persisted depositions."""
+    registry = get_public_record_registry()
+    rumor_ids = []
+    for deposition in registry.db.depositions or []:
+        rumor_id = deposition.get("rumor_id")
+        try:
+            rumor_id = int(rumor_id)
+        except (TypeError, ValueError):
+            continue
+        rumor_ids.append(rumor_id)
+
+    disagreement_ids = []
+    for rumor_id in sorted(set(rumor_ids)):
+        entry = _preserve_deposition_disagreement(rumor_id)
+        if entry:
+            disagreement_ids.append(entry["id"])
+
+    return {
+        "rumor_ids_checked": len(set(rumor_ids)),
+        "disagreement_ids": disagreement_ids,
+    }
 
 
 def submit_deposition(player, rumor_id):
