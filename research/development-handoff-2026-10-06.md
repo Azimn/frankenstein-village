@@ -224,3 +224,12 @@ After the mechanical-property foundation merged, the next production slice moved
 The proving object is the well mushroom. Its toxin is mechanically active but no longer an openly exposed mechanic. Direct toxic effects can create mask-specific knowledge, and `examine` can later render only what that mask learned. Ordinary `look` remains public description.
 
 The next dependency after this slice is the persistent calling/interdependence core. Do not invent calling-gated hidden-property expertise retroactively in this perception slice. Calling-based skilled examination can extend the same knowledge API after the calling model exists.
+
+
+## Calling/interdependence continuation
+
+After hidden-property perception, the next dependency is now implemented as a minimal persistent calling core rather than a conventional class system.
+
+The core provides the nine canon callings, one active profession per mask, Apprentice/Master rank records, append-only respecialization history, participation counters from real work, authored-only Master promotion, and persistent Master/Apprentice relations. Active apprenticeship obligations must be ended explicitly before respecialization.
+
+This slice intentionally does not invent rank thresholds, combat bonuses, or a complete professional job economy. After it is accepted, inspect the current calling packs and systemic-object substrate to select the smallest real cross-calling work item or specialized capability that proves structural interdependence. Reuse `world/callings.py`; do not create a second profession state model.
