@@ -971,6 +971,7 @@ from world.random_incidents import (
     current_random_incident,
     get_random_incident_registry,
     recent_random_incidents,
+    reconcile_random_incident_overlay,
 )
 
 random_registry = get_random_incident_registry()
@@ -1087,6 +1088,16 @@ assert lamp["location"] == "Village Square"
 assert "neighboring lamps burn steadily" in (
     square.db.scheduled_overlays or {}
 )[EXTINGUISHED_LAMP_ID]
+
+# The persistent registry is canonical. If the visible projection disappears
+# across a process boundary, reconciliation must restore it.
+_random_projection = copy.deepcopy(dict(square.db.scheduled_overlays or {}))
+_random_projection.pop(EXTINGUISHED_LAMP_ID, None)
+square.db.scheduled_overlays = _random_projection
+assert EXTINGUISHED_LAMP_ID not in (square.db.scheduled_overlays or {})
+assert reconcile_random_incident_overlay()
+assert EXTINGUISHED_LAMP_ID in (square.db.scheduled_overlays or {})
+
 lamp_event = ledger.get_event(lamp["event_id"])
 assert not lamp_event.get("publications")
 assert not lamp_event.get("rumor")
@@ -1651,6 +1662,16 @@ _telnet_random = advance_random_incidents(
     force_id=EXTINGUISHED_LAMP_ID,
 )
 assert _telnet_random["started"] == EXTINGUISHED_LAMP_ID, _telnet_random
+
+# Keep this QA occurrence alive across server bootstrap hooks. Production
+# lifetimes remain template-owned; this only makes the real network rendering
+# check independent of how many immediate clock callbacks Evennia performs
+# while starting a fresh server process.
+_telnet_random_record = copy.deepcopy(dict(random_registry.db.current or {}))
+_telnet_random_record["end_day"] = int(_telnet_clock.db.day or 1) + 1
+_telnet_random_record["end_hour"] = 21
+random_registry.db.current = _telnet_random_record
+assert reconcile_random_incident_overlay()
 assert EXTINGUISHED_LAMP_ID in (
     one("Village Square").db.scheduled_overlays or {}
 )
