@@ -547,8 +547,18 @@ def get_chronicle_entry(entry_id):
     return None
 
 
-def annotate_chronicle(entry_id, text, *, source_event_ids=(), author="Chronicler"):
-    """Append evidence/correction without altering the original entry text."""
+def annotate_chronicle(
+    entry_id,
+    text,
+    *,
+    source_event_ids=(),
+    author="Chronicler",
+    source_evidence_refs=(),
+    source_mask_id=None,
+    source_mask=None,
+    annotation_type="note",
+):
+    """Append provenance-bearing evidence/correction without rewriting the entry."""
     registry = get_public_record_registry()
     entries = [dict(entry) for entry in (registry.db.chronicle_entries or [])]
     updated = None
@@ -561,6 +571,12 @@ def annotate_chronicle(entry_id, text, *, source_event_ids=(), author="Chronicle
             "id": len(annotations) + 1,
             "text": str(text),
             "source_event_ids": [int(eid) for eid in source_event_ids],
+            "source_evidence_refs": [
+                dict(ref) for ref in (source_evidence_refs or [])
+            ],
+            "source_mask_id": source_mask_id,
+            "source_mask": source_mask,
+            "annotation_type": str(annotation_type or "note"),
             "author": str(author),
             "day": day,
             "hour": hour,
