@@ -1081,6 +1081,7 @@ for _skey, _sclass in (
     ("resident_population", "typeclasses.scripts.ResidentPopulationRegistry"),
     ("public_records", "typeclasses.scripts.PublicRecordRegistry"),
     ("public_mystery_registry", "typeclasses.scripts.PublicMysteryRegistry"),
+    ("private_mystery_registry", "typeclasses.scripts.PrivateMysteryRegistry"),
     ("situation_registry", "typeclasses.scripts.SituationRegistry"),
     ("seasonal_framework_registry", "typeclasses.scripts.SeasonalFrameworkRegistry"),
     ("scheduled_event_registry", "typeclasses.scripts.ScheduledEventRegistry"),
@@ -1112,6 +1113,14 @@ print(
     "public mystery registry ready: "
     f"{_public_mysteries['count']} mysteries "
     f"({_public_mysteries['created']} created)."
+)
+
+from world.private_mysteries import ensure_private_mysteries
+_private_mysteries = ensure_private_mysteries()
+print(
+    "private mystery registry ready: "
+    f"{_private_mysteries['definition_count']} definitions, "
+    f"{_private_mysteries['mask_count']} masks carrying threads."
 )
 
 from world.situations import ensure_situations
