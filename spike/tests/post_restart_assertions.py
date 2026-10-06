@@ -148,7 +148,13 @@ assert correction_response_story["disputes_story_id"] == (
 assert correction_response_story["surviving_body_hash"] == (
     smoke_correction_dispute["surviving_body_hash"]
 )
-assert correction_response_story["id"] in edition["story_ids"]
+assert correction_response_story["status"] == "published"
+response_edition = next(
+    dict(item)
+    for item in (public_records_for_correction.db.harbinger_editions or [])
+    if item.get("id") == correction_response_story["published_edition_id"]
+)
+assert correction_response_story["id"] in response_edition["story_ids"]
 
 # Revision by Evidence must survive a real process restart without rewriting
 # the original Chronicle claim status. The telnet player cited documentary
