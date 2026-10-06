@@ -35,6 +35,7 @@ DEFINITIONS = {
         "hours": list(range(7, 23)),
         "requires_resident": True,
         "cooldown_hours": 6,
+        "duration_hours": 1,
         "overlay": (
             "{resident} keeps interrupting the room with a spectacular series "
             "of sneezes. It looks miserable rather than mysterious."
@@ -48,6 +49,7 @@ DEFINITIONS = {
         "hours": [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5],
         "requires_resident": False,
         "cooldown_hours": 18,
+        "duration_hours": 2,
         "weather_bonus": {
             "rain": 25,
             "fog": 12,
@@ -321,15 +323,17 @@ def _start_extinguished_lamp(record, room):
 
 
 def _start_record(stable_id, day, hour, location):
+    definition = DEFINITIONS[stable_id]
+    duration_hours = max(1, int(definition.get("duration_hours") or 1))
     return {
         "id": stable_id,
-        "title": DEFINITIONS[stable_id]["title"],
-        "tone": DEFINITIONS[stable_id]["tone"],
+        "title": definition["title"],
+        "tone": definition["tone"],
         "state": "active",
         "started_day": int(day),
         "started_hour": int(hour),
         "end_day": int(day),
-        "end_hour": int(hour) + 1,
+        "end_hour": int(hour) + duration_hours,
         "location": location["key"],
         "subject": None,
         "overlay_text": None,
