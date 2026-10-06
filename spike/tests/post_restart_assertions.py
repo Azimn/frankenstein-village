@@ -37,6 +37,11 @@ from world.server_events import (
     get_server_event,
     get_server_event_registry,
 )
+from world.public_mysteries import (
+    MANOR_LIGHTS_ID,
+    get_public_mystery,
+    get_public_mystery_registry,
+)
 
 
 def one(key):
@@ -157,6 +162,29 @@ assert set((server_events.db.metrics or {}).keys()).issuperset({
     "checks", "starts", "contributions", "resolutions", "aftermath_clears",
 })
 
+# Public observations and theories are shared persistent records, but theory
+# truth status must remain deliberately unset after restart.
+manor_mystery = get_public_mystery(MANOR_LIGHTS_ID)
+assert manor_mystery["status"] == "open"
+assert any(
+    any(witness.get("mask_id") == smoke.id for witness in obs.get("witnesses") or [])
+    for obs in manor_mystery.get("observations") or []
+), "telnet Manor observation did not survive restart"
+smoke_theories = [
+    theory
+    for theory in manor_mystery.get("theories") or []
+    if (theory.get("author") or {}).get("mask_id") == smoke.id
+]
+assert smoke_theories, "telnet public theory did not survive restart"
+assert all(theory.get("truth_status") is None for theory in smoke_theories)
+assert any(
+    "maintenance schedule" in theory.get("text", "").lower()
+    for theory in smoke_theories
+)
+public_mysteries = get_public_mystery_registry()
+assert ScriptDB.objects.filter(db_key="public_mystery_registry").count() == 1
+assert set((public_mysteries.db.mysteries or {}).keys()) == {MANOR_LIGHTS_ID}
+
 print("POST_RESTART_RESIDENT_ASSERTIONS_GREEN")
 print("POST_RESTART_PUBLIC_RECORD_ASSERTIONS_GREEN")
 print("POST_RESTART_SITUATION_ASSERTIONS_GREEN")
@@ -175,4 +203,5 @@ print("POST_RESTART_INCIDENT_FEED_ASSERTIONS_GREEN")
 print("POST_RESTART_TIMED_INCIDENT_ASSERTIONS_GREEN")
 print("POST_RESTART_RANDOM_INCIDENT_ASSERTIONS_GREEN")
 print("POST_RESTART_SERVER_EVENT_ASSERTIONS_GREEN")
+print("POST_RESTART_PUBLIC_MYSTERY_ASSERTIONS_GREEN")
 print("POST_RESTART_SCHEDULED_EVENT_ASSERTIONS_GREEN")
