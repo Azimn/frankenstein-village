@@ -1890,4 +1890,38 @@ assert EXTINGUISHED_LAMP_ID in (
     one("Village Square").db.scheduled_overlays or {}
 )
 
+# Leave one server-wide condition active for the real network playtest.
+_telnet_server = start_server_event(
+    LONG_BLACKOUT_ID,
+    day=_telnet_clock.db.day or 1,
+    hour=(
+        _telnet_clock.db.hour
+        if _telnet_clock.db.hour is not None
+        else 21
+    ),
+    force=True,
+)
+assert _telnet_server and _telnet_server["state"] == "active"
+_telnet_server_record = copy.deepcopy(
+    dict(server_registry.db.events[LONG_BLACKOUT_ID])
+)
+_telnet_server_current = copy.deepcopy(
+    dict(_telnet_server_record["current"])
+)
+_telnet_server_current["end_day"] = int(_telnet_clock.db.day or 1) + 1
+_telnet_server_current["end_hour"] = int(
+    _telnet_clock.db.hour
+    if _telnet_clock.db.hour is not None
+    else 21
+)
+_telnet_server_record["current"] = _telnet_server_current
+_telnet_server_record["state"] = "active"
+_telnet_events = copy.deepcopy(dict(server_registry.db.events or {}))
+_telnet_events[LONG_BLACKOUT_ID] = _telnet_server_record
+server_registry.db.events = _telnet_events
+assert reconcile_server_event_overlays()
+assert f"{LONG_BLACKOUT_ID}:active" in (
+    one("Village Square").db.scheduled_overlays or {}
+)
+
 print("WORLD_ASSERTIONS_GREEN")
