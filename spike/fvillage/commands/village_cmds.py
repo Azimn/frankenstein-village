@@ -906,6 +906,7 @@ class CmdChronicle(Command):
             chronicle_entries,
             depositions_for_rumor,
             get_chronicle_entry,
+            reconcile_chronicle_disagreements,
             submit_deposition,
         )
         from world.situations import (
@@ -930,6 +931,7 @@ class CmdChronicle(Command):
             if rumor_id is None:
                 self.caller.msg("Use: chronicle compare R<number>")
                 return
+            reconcile_chronicle_disagreements()
             depositions = depositions_for_rumor(rumor_id)
             versions = []
             seen_claims = set()
