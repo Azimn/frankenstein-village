@@ -13,7 +13,12 @@ from evennia import Command
 from evennia.commands.default.muxcommand import MuxCommand
 from evennia.commands.default.general import CmdGet, CmdLook
 
-from world.object_properties import mechanical_value
+from world.object_properties import (
+    is_hidden_mechanical_property,
+    learn_hidden_property,
+    mechanical_value,
+    perception_notes,
+)
 
 
 class CmdTake(CmdGet):
@@ -24,15 +29,33 @@ class CmdTake(CmdGet):
 
 
 class CmdExamine(CmdLook):
-    """Look at something closely. (An alias for look, for travelers
-    whose fingers type it first.)
+    """Look closely and recall property knowledge this mask has earned.
 
     Usage:
         examine <thing>
+
+    Ordinary look text never exposes hidden mechanics. Examine adds only
+    information the current mask has actually learned through play.
     """
 
     key = "examine"
     aliases = ["exam", "ex"]
+
+    def func(self):
+        super().func()
+        arg = (self.args or "").strip()
+        if not arg:
+            return
+        matches = self.caller.search(arg, quiet=True) or []
+        if len(matches) != 1:
+            return
+        notes = perception_notes(self.caller, matches[0])
+        if not notes:
+            return
+        self.caller.msg(
+            "|xWhat this mask has learned:|n\n"
+            + "\n".join(f"- {note}" for note in notes)
+        )
 
 
 class CmdPurse(Command):
@@ -3688,8 +3711,16 @@ def _consume(caller, item, kind, verb_self, verb_room):
         me.db.drunkenness = min(100, drunk_before + alcohol)
     if sobering and hasattr(me, "_drunkenness"):
         me.db.drunkenness = max(0, me._drunkenness() - sobering)
+    learned_hidden_toxin = False
     if toxic:
         me.db.queasy = max(me.db.queasy or 0, toxic)
+        if is_hidden_mechanical_property(item, "toxin"):
+            _knowledge, learned_hidden_toxin = learn_hidden_property(
+                me,
+                item,
+                "toxin",
+                source="direct_effect",
+            )
     if heal:
         me.db.queasy = 0
     # Servings: finite hospitality. The sideboard keeps count, and the last
@@ -3730,6 +3761,12 @@ def _consume(caller, item, kind, verb_self, verb_room):
     if last_serving:
         personal = f"That was the last of the {_fare_short(item)}. " + personal
     me.msg(personal + extra)
+    if learned_hidden_toxin:
+        me.msg(
+            "Your own reaction teaches you something the description did not: "
+            f"{item.key} can be toxic. Examine it again to recall what this "
+            "mask has learned."
+        )
     if room_line and me.location:
         me.location.msg_contents(room_line, exclude=[me])
 
