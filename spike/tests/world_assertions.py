@@ -402,6 +402,39 @@ assert not repeat_refusal["created"]
 assert repeat_refusal["refusal"]["id"] == refusal["id"]
 assert len(ledger.db.events or []) == refusal_ledger_count + 1
 
+# Popularity must not be able to downgrade an already event-backed fact into a
+# refused-rumor case. Build a synthetic public telling of the verified school
+# destruction and give it more than enough supporters; the Chronicle must
+# still point to its existing objective authority.
+verified_rumor = rumor_registry.ensure_rumor(
+    subject="qa:verified-school-destruction",
+    claim="The schoolhouse was destroyed.",
+    source_actor="QA witness",
+    source_type="qa",
+    original_event_id=school_destroyed["id"],
+    origin_location="Village Square",
+    confidence=0.90,
+    emotional_charge=0.20,
+    privacy="public",
+    variants=[],
+    family="qa:verified-school-destruction",
+)
+for npc in population[:4]:
+    rumor_registry.hear_direct(
+        verified_rumor["id"],
+        npc,
+        source_label="QA witness",
+        source_type="qa",
+        location="Village Square",
+    )
+verified_petition, verified_petition_error = petition_refused_entry(
+    population[0],
+    verified_rumor["id"],
+)
+assert verified_petition is None
+assert "already has event-backed authority" in verified_petition_error.lower()
+assert chronicle_refusal_for_rumor(verified_rumor["id"]) is None
+
 # Printed stories feed public knowledge back into residents with explicit
 # Harbinger provenance. Ilona reads institutional news deterministically.
 harbinger_roots = [
