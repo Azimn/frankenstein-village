@@ -64,7 +64,7 @@ class CmdCalling(Command):
     Usage:
         calling
         calling list
-        calling choose <calling|none>
+        calling choose <calling>
         calling history
         calling relations
         calling apprentice <player>
@@ -128,8 +128,8 @@ class CmdCalling(Command):
             state = result["state"]
             if not state.get("active"):
                 self.caller.msg(
-                    "You step away from an active calling. Your earlier "
-                    "professional history remains part of this mask."
+                    "This mask has not established a calling. Use "
+                    "|wcalling list|n when you are ready to choose one."
                 )
                 return
             record = result["record"]
@@ -142,8 +142,9 @@ class CmdCalling(Command):
                 return
             self.caller.msg(
                 f"{label} is now your active calling at "
-                f"{record['rank'].title()} rank. Earlier callings and work "
-                "remain in your history; respecialization does not erase them."
+                f"{record['rank'].title()} rank. This establishes professional "
+                "history for the mask; later respecialization requires an "
+                "authored opportunity in the world."
             )
             return
 
@@ -252,7 +253,7 @@ class CmdCalling(Command):
 
         if raw:
             self.caller.msg(
-                "Use: calling | calling list | calling choose <calling|none> | "
+                "Use: calling | calling list | calling choose <calling> | "
                 "calling history | calling relations | calling apprentice <player> | "
                 "calling release <player> | calling withdraw"
             )
