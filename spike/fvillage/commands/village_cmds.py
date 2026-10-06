@@ -795,6 +795,10 @@ class CmdHarbinger(Command):
         harbinger
         harbinger archive
         harbinger H<number>
+        harbinger desk
+        harbinger desk R<number>
+        harbinger desk STP<number>
+        harbinger choose STP<number> D<number>
     """
 
     key = "harbinger"
@@ -884,9 +888,10 @@ class CmdHarbinger(Command):
             if status == "open":
                 lines.append(
                     "Use |wharbinger choose STP<number> D<number>|n to select "
-                    "one attributed version for the next issue. If nobody "
-                    "chooses before press time, the paper will print the "
-                    "disagreement without selecting a winner."
+                    "one attributed version for the next issue. The selection "
+                    "changes the paper, not what the Chronicle certifies as "
+                    "truth. If nobody chooses before press time, the paper "
+                    "will print the disagreement without selecting a winner."
                 )
             elif conflict.get("story_id"):
                 lines.append(
