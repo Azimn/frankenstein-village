@@ -775,10 +775,10 @@ The first production calling slice establishes persistent social-profession iden
 
 Execution contract:
 - Canonical callings are Innkeep, Chronicler, Smith, Healer, Merchant, Wanderer, Performer, Detective, and Hound.
-- `calling list` shows the professions. `calling choose <name>` selects or respecializes the current mask. `calling choose none` steps away from an active profession without deleting history.
+- `calling list` shows the professions. `calling choose <name>` makes the mask's first professional choice. Once professional history exists, later changes require an authored respecialization opportunity rather than free command swapping.
 - A newly chosen profession begins at Apprentice. Master is the current authority ceiling.
 - There is deliberately no player-facing promote command and no invented numeric XP threshold. `promote_to_master()` is an authored gate for later quest, institution, or responsibility logic.
-- Only the active calling exercises its rank. A mask may return to a previously mastered profession later, but switching to another calling makes that other profession the active ruleset.
+- Only the active calling exercises its rank. Authored respecialization preserves old records and may later return a mask to a previously mastered profession, but player commands cannot swap active rulesets on demand.
 - Professional records persist participation counters, first-join data, Master provenance, and append-only respecialization history.
 - Existing work feeds participation rather than a placeholder grind. Chronicle depositions and evidence revisions record Chronicler work; fiddle practice and performance record Performer work.
 - Participation never auto-promotes a mask. It is evidence future authored advancement gates may inspect.
