@@ -799,6 +799,7 @@ class CmdHarbinger(Command):
         harbinger desk R<number>
         harbinger desk STP<number>
         harbinger choose STP<number> D<number>
+        harbinger correction H<number> = <claimed prior wording>
     """
 
     key = "harbinger"
@@ -933,6 +934,52 @@ class CmdHarbinger(Command):
             )
             return
 
+        if lower.startswith("correction "):
+            from world.harbinger_content import submit_correction_dispute
+
+            raw = arg.split(None, 1)[1].strip()
+            if "=" not in raw:
+                self.caller.msg(
+                    "Use: harbinger correction H<number> = "
+                    "<claimed prior wording>"
+                )
+                return
+            target, claimed_text = [
+                part.strip() for part in raw.split("=", 1)
+            ]
+            story_id = _parse_record_id(target, "H")
+            if story_id is None or not claimed_text:
+                self.caller.msg(
+                    "Use: harbinger correction H<number> = "
+                    "<claimed prior wording>"
+                )
+                return
+            result, error = submit_correction_dispute(
+                self.caller,
+                story_id,
+                claimed_text,
+            )
+            if error:
+                self.caller.msg(error)
+                return
+            dispute = result["dispute"]
+            response_story = result["response_story"]
+            if result.get("created"):
+                self.caller.msg(
+                    f"Correction dispute CD{dispute['id']} is preserved against "
+                    f"H{story_id}. The surviving copy does not contain the "
+                    "claimed wording, so the old issue is not rewritten. "
+                    f"Harbinger H{response_story['id']} will report the "
+                    "archive discrepancy."
+                )
+            else:
+                self.caller.msg(
+                    f"That correction claim is already preserved as "
+                    f"CD{dispute['id']} against H{story_id}; repetition does "
+                    "not alter the surviving copy."
+                )
+            return
+
         if arg.lower() == "archive":
             from world.situations import harbinger_archive_evidence
 
@@ -969,6 +1016,10 @@ class CmdHarbinger(Command):
                 "objective": "filed from a recorded event",
                 "reported": "printed as a report, not settled fact",
                 "correction": "printed correction",
+                "correction_dispute": (
+                    "archive discrepancy; claimed prior wording is absent "
+                    "from the surviving copy"
+                ),
                 "contested_report": (
                     "selected from conflicting attributed accounts, not settled fact"
                 ),
@@ -984,6 +1035,12 @@ class CmdHarbinger(Command):
             for correction in story.get("corrections") or []:
                 lines.append(
                     f"|wCorrection {correction['id']}:|n {correction['text']}"
+                )
+            for dispute in story.get("correction_disputes") or []:
+                lines.append(
+                    f"|wDisputed correction CD{dispute['id']}:|n claimed prior "
+                    f"wording \"{dispute['claimed_text']}\" is absent from "
+                    "the surviving copy. The archived story remains unchanged."
                 )
             self.caller.msg("\n".join(lines))
             return
