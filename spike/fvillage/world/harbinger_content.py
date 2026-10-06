@@ -325,8 +325,14 @@ def correction_disputes_for_story(story_id):
     ]
 
 
-def _body_hash(body):
-    return hashlib.sha256(str(body or "").encode("utf-8")).hexdigest()
+def _surviving_copy_text(story):
+    return f"{story.get('headline') or ''}\n{story.get('body') or ''}"
+
+
+def _copy_hash(story):
+    return hashlib.sha256(
+        _surviving_copy_text(story).encode("utf-8")
+    ).hexdigest()
 
 
 def _replace_story(replacement):
@@ -361,8 +367,8 @@ def submit_correction_dispute(player, story_id, claimed_text):
     if not story or story.get("status") != "published":
         return None, "The Correction requires a story from a surviving printed issue."
 
-    surviving_body = str(story.get("body") or "")
-    if claimed_text.casefold() in surviving_body.casefold():
+    surviving_copy = _surviving_copy_text(story)
+    if claimed_text.casefold() in surviving_copy.casefold():
         return (
             None,
             "The surviving copy already contains that wording. This case is for "
@@ -385,13 +391,13 @@ def submit_correction_dispute(player, story_id, claimed_text):
 
     day, hour = _clock()
     dispute_id = int(registry.db.next_harbinger_correction_dispute_id or 1)
-    archive_hash = _body_hash(surviving_body)
+    archive_hash = _copy_hash(story)
     dispute = {
         "id": dispute_id,
         "story_id": story_id,
         "published_edition_id": story.get("published_edition_id"),
         "claimed_text": claimed_text,
-        "surviving_body_hash": archive_hash,
+        "surviving_copy_hash": archive_hash,
         "claimed_by_mask_id": getattr(player, "id", None),
         "claimed_by_mask": getattr(player, "key", None),
         "day": int(day),
@@ -421,7 +427,7 @@ def submit_correction_dispute(player, story_id, claimed_text):
         "corrections": [],
         "correction_dispute_id": dispute_id,
         "disputes_story_id": story_id,
-        "surviving_body_hash": archive_hash,
+        "surviving_copy_hash": archive_hash,
     }
     registry.db.next_story_id = response_story["id"] + 1
     drafts = list(registry.db.harbinger_drafts or [])
@@ -441,7 +447,7 @@ def submit_correction_dispute(player, story_id, claimed_text):
         "claimed_text": claimed_text,
         "claimed_by_mask_id": dispute["claimed_by_mask_id"],
         "claimed_by_mask": dispute["claimed_by_mask"],
-        "surviving_body_hash": archive_hash,
+        "surviving_copy_hash": archive_hash,
         "response_story_id": response_story["id"],
     })
     replacement["correction_disputes"] = claims
