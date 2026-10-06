@@ -382,3 +382,19 @@ The Weeks of Long Shadows is the initial production chapter. It favors fog, slig
 Chapter transitions are evaluated by the authoritative village clock and can catch up across long offline gaps without replaying individual days. A chapter transition creates a structured world event, a Harbinger account, and a Chronicle entry so late arrivals inherit the public history of prior chapters.
 
 The chapter system intentionally modifies probability and availability. It does not declare a singular seasonal villain, force every player through a storyline, or erase ordinary village life.
+
+## 2026-10-06 - Private mystery information asymmetry implemented
+
+Private mysteries are mask-specific information threads, not private copies of world state and not requirements for server-wide progression.
+
+The first production framework is the accepted backlog example A Private Invitation. János may privately invite one mask to ask about the east patrol. Only that mask receives the invitation thread and its private rumor provenance. A second mask cannot open the follow-up merely by guessing the topic.
+
+The follow-up establishes a limited claim about repeated chalk rings found by the Hounds. The claim is intentionally not promoted into objective truth, public rumor, Harbinger copy, Chronicle history, or a shared incident merely because the private conversation occurred.
+
+Private information uses the existing rumor registry with `privacy=private`. This preserves provenance and allows the receiving mask to inspect what it heard. Ordinary ambient rumor propagation cannot carry private roots. The player may deliberately disclose one with the existing `retell <person> R<number>` command.
+
+Disclosure shares knowledge, not ownership. A recipient gains a rumor belief with a reconstructable transmission chain but does not receive the originating mask's private mystery record. The original mask records whom it deliberately told. Subsequent retelling remains represented by ordinary rumor provenance.
+
+The `secrets` command, with `private` as an alias, is deliberately a memory aid rather than a quest tracker. It shows only private threads received by the current mask, their current stage, rumor handles, and deliberate disclosures. It is unavailable in the OOC Inn.
+
+Private mystery existence has no automatic server-wide consequence. This is the construction rule for future private notes, invitations, personal objects, familiar faces, contradictory records, buyers, and repeated questions.
