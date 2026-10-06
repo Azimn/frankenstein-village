@@ -1636,6 +1636,12 @@ if _existing_random:
         hour=_existing_random["end_hour"],
         force_id="NO-SUCH-RANDOM-INCIDENT",
     )
+# Fixture-only normalization: preserve production cooldown behavior, but clear
+# this template's prior run so the network test can deterministically exercise
+# the accepted Extinguished Lamp example.
+_telnet_last_runs = copy.deepcopy(dict(random_registry.db.last_runs or {}))
+_telnet_last_runs.pop(EXTINGUISHED_LAMP_ID, None)
+random_registry.db.last_runs = _telnet_last_runs
 _telnet_random = advance_random_incidents(
     day=_telnet_clock.db.day or 1,
     hour=21,
