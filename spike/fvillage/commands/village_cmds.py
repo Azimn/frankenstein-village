@@ -585,6 +585,12 @@ class CmdRetell(Command):
         else:
             self.caller.msg(f"{target.key} hears you out, but looks unconvinced.")
 
+        try:
+            from world.private_mysteries import note_disclosure
+            note_disclosure(self.caller, target, rumor_id)
+        except Exception:
+            pass
+
 
 def _require_ic(caller):
     loc = caller.location
@@ -602,6 +608,33 @@ def _parse_record_id(token, prefix):
     if raw.startswith(prefix):
         raw = raw[len(prefix):]
     return int(raw) if raw.isdigit() else None
+
+
+class CmdSecrets(Command):
+    """Review private mystery threads carried by the current mask.
+
+    Usage:
+        secrets
+        private
+
+    This is not a quest log. It only reminds the current mask what private
+    information it has actually received and whether it chose to disclose it.
+    """
+
+    key = "secrets"
+    aliases = ["private", "private mysteries"]
+    help_category = "Village"
+
+    def func(self):
+        if not _require_ic(self.caller):
+            return
+
+        from world.private_mysteries import private_lines
+
+        self.caller.msg("|yPrivate threads:|n\n" + "\n".join(
+            private_lines(self.caller)
+        ))
+
 
 
 class CmdWorldEvent(Command):
