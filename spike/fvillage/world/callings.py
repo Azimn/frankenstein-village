@@ -187,6 +187,12 @@ def choose_calling(mask, calling):
 
     state = calling_state(mask)
     previous = state.get("active")
+    if previous != slug and active_relations(mask):
+        return (
+            None,
+            "End the active apprenticeship before changing callings. "
+            "Professional obligations do not disappear through respecialization.",
+        )
     if previous == slug:
         return {
             "state": state,
