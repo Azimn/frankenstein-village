@@ -490,3 +490,5 @@ Regression coverage verifies:
 - bounded history;
 - real telnet rendering;
 - restart persistence.
+
+Random room text is a projection, not the source of truth. `RandomIncidentRegistry.at_start()` calls `reconcile_random_incident_overlay()`, which removes stale random overlays and reconstructs the active incident's overlay from the persistent registry. Regression deliberately deletes an active lamp projection and requires it to be reconstructed before the network playtest.
