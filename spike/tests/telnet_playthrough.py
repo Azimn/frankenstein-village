@@ -240,12 +240,12 @@ def main() -> int:
         out = c.command(f"rumors R{private_rumor_id}")
         require(out, "chalk ring", "telling trail", "janos")
 
-        out = c.command(f"retell Magda R{private_rumor_id}")
-        require(out, "you tell magda", "chalk ring")
+        out = c.command(f"retell Bram R{private_rumor_id}")
+        require(out, "you tell bram", "chalk ring")
 
         out = c.command("secrets")
         require(out, "opened", "follow-up rumor")
-        require(out, "magda")
+        require(out, "bram")
 
         out = c.command("journal strongbox")
         require(out, "tithe roll", "unforced lock")
