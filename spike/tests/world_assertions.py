@@ -997,15 +997,37 @@ random_rumor_snapshot = {
 }
 
 # Market Morning changes the current world state by concentrating residents.
-# The mundane social incident should therefore be a strong eligible candidate.
+# Prove the random layer consumes that state rather than assuming a fixed crowd.
+pre_market_candidates = {
+    row["id"]: row for row in candidate_table(day=14, hour=8)
+}
+pre_market_square_density = 0
+if PUBLIC_SNEEZE_ID in pre_market_candidates:
+    pre_market_square_density = next(
+        (
+            loc["resident_count"]
+            for loc in pre_market_candidates[PUBLIC_SNEEZE_ID]["locations"]
+            if loc["key"] == "Village Square"
+        ),
+        0,
+    )
+
 advance_scheduled_events(day=14, hour=7)
 market_candidates = candidate_table(day=14, hour=8)
 market_by_id = {row["id"]: row for row in market_candidates}
 assert PUBLIC_SNEEZE_ID in market_by_id
 assert market_by_id[PUBLIC_SNEEZE_ID]["tone"] == "mundane"
-assert any(
-    loc["key"] == "Village Square" and loc["resident_count"] >= 6
-    for loc in market_by_id[PUBLIC_SNEEZE_ID]["locations"]
+market_square_density = next(
+    (
+        loc["resident_count"]
+        for loc in market_by_id[PUBLIC_SNEEZE_ID]["locations"]
+        if loc["key"] == "Village Square"
+    ),
+    0,
+)
+assert market_square_density > pre_market_square_density, (
+    pre_market_square_density,
+    market_square_density,
 )
 
 # Time and weather affect the odd environmental incident mechanically.
