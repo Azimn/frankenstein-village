@@ -328,6 +328,41 @@ def main() -> int:
         )
         require(out, "no version is certified as truth")
 
+        # Harbinger Section 3.22, Stop the Press: the same incompatible signed
+        # accounts become a real editorial decision. Selecting one version
+        # changes what the paper will print, but never certifies it as truth.
+        out = c.command(f"harbinger desk R{well_rumor_id}")
+        require(
+            out,
+            "editorial status: open",
+            "old vasile",
+            "jános",
+            "magda",
+            "not certified",
+        )
+        stop_press_match = re.search(r"STP(\d+)", out, re.I)
+        vasile_deposition = re.search(r"D(\d+)\s+Old Vasile:", out, re.I)
+        if not stop_press_match or not vasile_deposition:
+            raise AssertionError(
+                "Stop the Press did not expose stable editorial/deposition handles"
+            )
+        stop_press_id = stop_press_match.group(1)
+        deposition_id = vasile_deposition.group(1)
+
+        out = c.command(
+            f"harbinger choose STP{stop_press_id} D{deposition_id}"
+        )
+        require(
+            out,
+            "is closed",
+            "will be printed",
+            "other signed accounts remain on record",
+            "not certified as fact",
+        )
+
+        out = c.command(f"harbinger desk STP{stop_press_id}")
+        require(out, "editorial status: selected", "queued harbinger h")
+
         out = c.command(f"rumors R{rumor_id}")
         require(out, "telling trail", "reconstructable")
         require(out, "retell it with")

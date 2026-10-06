@@ -639,3 +639,22 @@ The accepted 3.23 content case Two Versions Survive now uses the existing deposi
 Later distinct versions do not rewrite that entry. They append provenance-bearing Chronicle annotations and remain separately signed depositions. Repeated copies of an already represented claim do not create a second disagreement record. `chronicle compare R<number>` renders all currently preserved public versions side by side with count-neutral wording and identifies the Chronicle record that preserves the disagreement.
 
 The regression path uses naturally divergent versions of the canon well rumor carried by Old Vasile, János, and Magda. It verifies distinct signed claims, one stable disagreement record, later-version annotation, no promotion to `verified_event`, real telnet comparison, and persistence through a real server restart. Upgrade reconciliation scans persisted depositions idempotently during world build. The public comparison command reconciles only its requested rumor root, so an older persistent world gains the missing record without requiring new testimony or running the global migration on every player comparison.
+
+
+## 2026-10-06 - Harbinger Stop the Press editorial conflicts
+
+The accepted Section 3.22 case Stop the Press now uses incompatible signed Chronicle depositions as an explicit Harbinger editorial decision rather than treating the newspaper as omniscient narration.
+
+Execution contract:
+- `harbinger desk R<number>` opens one persistent copy-desk conflict only when at least two distinct signed Chronicle accounts exist for the rumor root.
+- `harbinger desk STP<number>` shows every preserved attributed account, the press deadline, and the editorial status.
+- `harbinger choose STP<number> D<number>` selects one listed account for the next issue.
+- The selected story is marked `contested_report`, retains its rumor and deposition provenance, and explicitly states that publication does not certify the claim as fact.
+- The unselected signed accounts remain in the Chronicle and are not rewritten or deleted.
+- If nobody chooses before the next morning publication deadline, the copy desk queues a `disputed_report` that prints the disagreement without selecting a winner.
+- Ordinary Harbinger publication then feeds the printed account back into NPC belief state through the existing newspaper provenance path.
+- Later corrections still use the existing append-only Harbinger correction mechanism.
+
+Persistence lives in the public-record registry through lazy upgrade-safe attributes, so older worlds do not require a destructive migration.
+
+Regression coverage verifies the no-player press-deadline fallback, stable source handles, a real telnet editorial choice, non-promotion to Chronicle truth, and preservation of the selected editorial record through a real server restart.

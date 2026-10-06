@@ -466,6 +466,12 @@ def publish_harbinger_edition(*, special=False, day=None, hour=None):
         day = current_day if day is None else day
         hour = current_hour if hour is None else hour
 
+    # Section 3.22 Stop the Press conflicts share the ordinary publication
+    # deadline. An unresolved conflict prints attributed disagreement rather
+    # than silently selecting a winner.
+    from world.harbinger_content import resolve_due_harbinger_conflicts
+    resolve_due_harbinger_conflicts(day, hour)
+
     drafts = [dict(story) for story in (registry.db.harbinger_drafts or [])]
     pending = [story for story in drafts if story.get("status") == "pending"]
     if not pending:
