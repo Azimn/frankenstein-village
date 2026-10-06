@@ -950,6 +950,16 @@ from world.rumors import seed_playable_rumors
 _seeded_rumors = seed_playable_rumors(participants=_rumor_participants)
 print(f"rumor roots ready: {len(_seeded_rumors)} playable canon seeds.")
 
+# Upgrade-safe reconciliation: persisted signed accounts from an older world
+# gain Chronicle disagreement records without waiting for a new deposition.
+from world.publications import reconcile_chronicle_disagreements
+_chronicle_reconcile = reconcile_chronicle_disagreements()
+print(
+    "Chronicle disagreement reconciliation: "
+    f"{_chronicle_reconcile['rumor_ids_checked']} rumor roots checked, "
+    f"{len(_chronicle_reconcile['disagreement_ids'])} disagreements present."
+)
+
 if ScriptDB.objects.filter(db_key="world_event_ledger").exists():
     print("world_event_ledger script exists.")
 else:

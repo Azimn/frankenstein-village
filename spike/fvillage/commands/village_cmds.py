@@ -886,6 +886,7 @@ class CmdChronicle(Command):
     Usage:
         chronicle
         chronicle C<number>
+        chronicle compare R<number>
         chronicle submit R<number>
 
     A deposition records that you gave an account. It does not turn that
@@ -901,8 +902,11 @@ class CmdChronicle(Command):
             return
 
         from world.publications import (
+            chronicle_disagreement_for_rumor,
             chronicle_entries,
+            depositions_for_rumor,
             get_chronicle_entry,
+            reconcile_chronicle_disagreement,
             submit_deposition,
         )
         from world.situations import (
@@ -921,6 +925,45 @@ class CmdChronicle(Command):
                 return
             self.caller.msg(description)
             return
+        if arg.lower().startswith("compare "):
+            token = arg.split(None, 1)[1]
+            rumor_id = _parse_rumor_id(token)
+            if rumor_id is None:
+                self.caller.msg("Use: chronicle compare R<number>")
+                return
+            reconcile_chronicle_disagreement(rumor_id)
+            depositions = depositions_for_rumor(rumor_id)
+            versions = []
+            seen_claims = set()
+            for deposition in depositions:
+                claim = str(deposition.get("claim") or "").strip()
+                if not claim or claim in seen_claims:
+                    continue
+                seen_claims.add(claim)
+                versions.append(deposition)
+            disagreement = chronicle_disagreement_for_rumor(rumor_id)
+            if len(versions) < 2 or not disagreement:
+                self.caller.msg(
+                    f"The Chronicle does not preserve incompatible signed "
+                    f"accounts for R{rumor_id}."
+                )
+                return
+            lines = [
+                f"|yConflicting versions survive for R{rumor_id}:|n",
+            ]
+            for deposition in versions:
+                source = deposition.get("source_mask") or "Unknown witness"
+                lines.append(
+                    f"D{deposition['id']} {source}: "
+                    f"\"{deposition['claim']}\""
+                )
+            lines.append(
+                f"Chronicle C{disagreement['id']} preserves the disagreement. "
+                "No version is certified as truth."
+            )
+            self.caller.msg("\n".join(lines))
+            return
+
         if arg.lower().startswith("submit "):
             token = arg.split(None, 1)[1]
             rumor_id = _parse_rumor_id(token)
@@ -944,11 +987,11 @@ class CmdChronicle(Command):
             if not entry:
                 self.caller.msg("No such Chronicle entry is in the public index.")
                 return
-            status = (
-                "verified event"
-                if entry.get("claim_status") == "verified_event"
-                else "attributed account"
-            )
+            status = {
+                "verified_event": "verified event",
+                "documented_disagreement": "documented disagreement",
+                "reported_account": "attributed account",
+            }.get(entry.get("claim_status"), "attributed account")
             lines = [
                 f"|yC{entry['id']}: {entry['title']}|n",
                 entry["text"],
@@ -966,11 +1009,11 @@ class CmdChronicle(Command):
         lines = ["|yThe public Chronicle index:|n"]
         if entries:
             for entry in entries[-10:]:
-                status = (
-                    "verified"
-                    if entry.get("claim_status") == "verified_event"
-                    else "account"
-                )
+                status = {
+                    "verified_event": "verified",
+                    "documented_disagreement": "disagreement",
+                    "reported_account": "account",
+                }.get(entry.get("claim_status"), "account")
                 lines.append(
                     f"[C{entry['id']}] {entry['title']} ({status})"
                 )
@@ -985,8 +1028,9 @@ class CmdChronicle(Command):
             )
 
         lines.append(
-            "Use |wchronicle C<number>|n to read an entry, or "
-            "|wchronicle submit R<number>|n to submit a rumor you actually heard."
+            "Use |wchronicle C<number>|n to read an entry, "
+            "|wchronicle compare R<number>|n to inspect preserved disagreement, "
+            "or |wchronicle submit R<number>|n to submit a rumor you actually heard."
         )
         self.caller.msg("\n".join(lines))
 

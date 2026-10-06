@@ -630,3 +630,12 @@ Regression coverage verifies:
 - disclosure without ownership cloning;
 - real János interaction and disclosure over telnet;
 - private thread, private rumor, recipient knowledge, and disclosure history across a real server restart.
+
+
+## 2026-10-06 - Chronicle incompatible-account preservation
+
+The accepted 3.23 content case Two Versions Survive now uses the existing deposition and Chronicle substrate instead of a separate quest state machine. When two signed depositions about the same rumor root contain incompatible claims, the Chronicle creates one persistent `disagreement_record`. The original deposition entries remain intact, and the disagreement entry explicitly states that the archive is preserving incompatible accounts rather than selecting a true version.
+
+Later distinct versions do not rewrite that entry. They append provenance-bearing Chronicle annotations and remain separately signed depositions. Repeated copies of an already represented claim do not create a second disagreement record. `chronicle compare R<number>` renders all currently preserved public versions side by side with count-neutral wording and identifies the Chronicle record that preserves the disagreement.
+
+The regression path uses naturally divergent versions of the canon well rumor carried by Old Vasile, János, and Magda. It verifies distinct signed claims, one stable disagreement record, later-version annotation, no promotion to `verified_event`, real telnet comparison, and persistence through a real server restart. Upgrade reconciliation scans persisted depositions idempotently during world build. The public comparison command reconciles only its requested rumor root, so an older persistent world gains the missing record without requiring new testimony or running the global migration on every player comparison.
