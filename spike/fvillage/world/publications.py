@@ -618,6 +618,151 @@ def correct_harbinger_story(story_id, text, *, source_event_id=None):
     return dict(correction_story)
 
 
+
+def depositions_for_rumor(rumor_id):
+    """Return public signed accounts for one rumor root in record order."""
+    try:
+        rumor_id = int(rumor_id)
+    except (TypeError, ValueError):
+        return []
+    registry = get_public_record_registry()
+    return [
+        dict(deposition)
+        for deposition in (registry.db.depositions or [])
+        if deposition.get("rumor_id") == rumor_id
+    ]
+
+
+def chronicle_disagreement_for_rumor(rumor_id):
+    """Return the Chronicle record that preserves incompatible accounts."""
+    try:
+        rumor_id = int(rumor_id)
+    except (TypeError, ValueError):
+        return None
+    registry = get_public_record_registry()
+    for entry in registry.db.chronicle_entries or []:
+        if (
+            entry.get("entry_type") == "disagreement_record"
+            and rumor_id in list(entry.get("source_rumor_ids") or [])
+        ):
+            return dict(entry)
+    return None
+
+
+def _distinct_deposition_versions(depositions):
+    """Keep one representative deposition for each distinct signed claim."""
+    versions = []
+    seen = set()
+    for deposition in depositions:
+        claim = str(deposition.get("claim") or "").strip()
+        if not claim or claim in seen:
+            continue
+        seen.add(claim)
+        versions.append(dict(deposition))
+    return versions
+
+
+def _version_ref(deposition):
+    return {
+        "deposition_id": deposition["id"],
+        "source_mask_id": deposition.get("source_mask_id"),
+        "source_mask": deposition.get("source_mask"),
+        "claim": deposition.get("claim"),
+    }
+
+
+def _preserve_deposition_disagreement(rumor_id):
+    """Preserve incompatible signed accounts without selecting a true version."""
+    versions = _distinct_deposition_versions(depositions_for_rumor(rumor_id))
+    if len(versions) < 2:
+        return None
+
+    registry = get_public_record_registry()
+    existing = chronicle_disagreement_for_rumor(rumor_id)
+    day, hour = _clock()
+
+    if existing is None:
+        from world.rumors import get_rumor_registry
+
+        root = get_rumor_registry().get_rumor(rumor_id) or {}
+        first, second = versions[:2]
+        subject = _humanize(root.get("subject") or f"rumor R{rumor_id}")
+        entry = {
+            "id": int(registry.db.next_chronicle_id or 1),
+            "entry_type": "disagreement_record",
+            "title": f"Two Versions Survive: {subject.title()}",
+            "text": (
+                f"The Chronicle preserves incompatible signed accounts concerning "
+                f"{subject}. {first.get('source_mask') or 'One witness'} recorded: "
+                f"\"{first['claim']}\" "
+                f"{second.get('source_mask') or 'Another witness'} recorded: "
+                f"\"{second['claim']}\" "
+                "The archive does not choose between them. Both remain attributed "
+                "accounts rather than verified fact."
+            ),
+            "claim_status": "documented_disagreement",
+            "source_event_ids": [],
+            "source_rumor_ids": [int(rumor_id)],
+            "source_deposition_ids": [first["id"], second["id"]],
+            "version_claims": [_version_ref(first), _version_ref(second)],
+            "recorded_day": day,
+            "recorded_hour": hour,
+            "annotations": [],
+        }
+        registry.db.next_chronicle_id = entry["id"] + 1
+        entries = list(registry.db.chronicle_entries or [])
+        entries.append(entry)
+        registry.db.chronicle_entries = entries
+        return dict(entry)
+
+    represented = {
+        str(item.get("claim") or "").strip()
+        for item in (existing.get("version_claims") or [])
+    }
+    additions = [
+        version
+        for version in versions
+        if str(version.get("claim") or "").strip() not in represented
+    ]
+    if not additions:
+        return existing
+
+    entries = [dict(entry) for entry in (registry.db.chronicle_entries or [])]
+    for index, entry in enumerate(entries):
+        if entry.get("id") != existing["id"]:
+            continue
+        replacement = dict(entry)
+        annotations = list(replacement.get("annotations") or [])
+        version_claims = list(replacement.get("version_claims") or [])
+        source_deposition_ids = list(
+            replacement.get("source_deposition_ids") or []
+        )
+        for deposition in additions:
+            annotations.append({
+                "id": len(annotations) + 1,
+                "text": (
+                    f"A further incompatible signed account from "
+                    f"{deposition.get('source_mask') or 'another witness'} is "
+                    f"preserved: \"{deposition['claim']}\" "
+                    "The annotation records disagreement, not truth."
+                ),
+                "source_event_ids": [],
+                "source_deposition_ids": [deposition["id"]],
+                "author": "Chronicler",
+                "day": day,
+                "hour": hour,
+            })
+            version_claims.append(_version_ref(deposition))
+            source_deposition_ids.append(deposition["id"])
+        replacement["annotations"] = annotations
+        replacement["version_claims"] = version_claims
+        replacement["source_deposition_ids"] = source_deposition_ids
+        entries[index] = replacement
+        registry.db.chronicle_entries = entries
+        return dict(replacement)
+    return existing
+
+
 def submit_deposition(player, rumor_id):
     """Record that a player publicly submitted a rumor account to Chronicle."""
     from world.rumors import get_rumor_registry
@@ -667,6 +812,7 @@ def submit_deposition(player, rumor_id):
     entries = list(registry.db.chronicle_entries or [])
     entries.append(entry)
     registry.db.chronicle_entries = entries
+    _preserve_deposition_disagreement(rumor_id)
     return dict(entry), None
 
 
