@@ -1069,6 +1069,7 @@ for _skey, _sclass in (
     ("public_records", "typeclasses.scripts.PublicRecordRegistry"),
     ("situation_registry", "typeclasses.scripts.SituationRegistry"),
     ("scheduled_event_registry", "typeclasses.scripts.ScheduledEventRegistry"),
+    ("random_incident_registry", "typeclasses.scripts.RandomIncidentRegistry"),
     ("timed_incident_registry", "typeclasses.scripts.TimedIncidentRegistry"),
     ("warmth_watch", "typeclasses.scripts.WarmthWatch"),
     ("tavern_life", "typeclasses.scripts.TavernLife"),
@@ -1112,6 +1113,15 @@ print(
     "timed incident registry ready: "
     f"{_timed_incidents['count']} windows "
     f"({_timed_incidents['created']} created)."
+)
+
+
+from world.random_incidents import ensure_random_incidents
+_random_incidents = ensure_random_incidents()
+print(
+    "random incident registry ready: "
+    f"{_random_incidents['definition_count']} definitions, "
+    f"{_random_incidents['history_count']} prior occurrences."
 )
 
 # The square starts under fog, as it has always been.
