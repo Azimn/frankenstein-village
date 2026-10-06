@@ -1356,6 +1356,17 @@ class VillageTime(SpikeScript):
         except Exception:
             pass
 
+        # Low-cost random incidents use this same authoritative hourly boundary.
+        # They may add temporary overlays or social texture, but own no scheduler.
+        try:
+            from world.random_incidents import advance_random_incidents
+            advance_random_incidents(
+                day=self.db.day or 1,
+                hour=hour,
+            )
+        except Exception:
+            pass
+
         name = village_hour_name(hour)
         for key in ("Village Square", "The Blood of the Vine", "Inn Common Room",
                     "Inn Hallway", "Private Room", "Tavern Back Hall"):
