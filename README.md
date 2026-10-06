@@ -25,6 +25,7 @@ Fresh checkout: set `EVENNIA_SUPERUSER_USERNAME`, `EVENNIA_SUPERUSER_EMAIL`, and
 
 ## Research
 
+- **`research/development-handoff-2026-10-06.md`**: Current production takeover prompt for completing the remaining authoritative backlog. It records the audited live architecture, completed frameworks, known regression lessons, remaining launch families, dependency order, Git/CI discipline, and definition of done.
 - **`research/npc-simulation-handoff-v0.1.md`** — ChatGPT's NPC simulation architecture handoff (2026-10-01), filed as received: layered world-truth/perception/belief design, utility AI, LOD tiers, rumor data model, phased build sequence.
 - **`research/emergent-npc-population-plan-2026-10-05.md`**: Production reconciliation and dependency graph for the live resident system. It records repository precedence, state ownership, logical location projection, promotion/demotion semantics, persistence, fact claiming, event wakeups, and the no-model execution contract.
 - **`research/npc-simulation-review-2026-10-01.md`** — Calibos's review: adopted architecture, corrections (Pretorius is the licensed film-bridge exception; Septimius spelling; NPCs must never perceive the OOC layer), gaps (NPC departure lifecycle, Chronicler ledger feed, interdependence hooks), tool verification (npc-sim Apache-2.0, openNPC too young), open decisions.
