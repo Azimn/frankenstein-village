@@ -605,6 +605,34 @@ class ModerationQueue(DefaultScript):
         return dict(selected), None
 
 
+class RandomIncidentRegistry(DefaultScript):
+    """Persistent stochastic incident state driven by the village clock."""
+
+    def at_script_creation(self):
+        self.key = "random_incident_registry"
+        self.desc = "Weighted environmental and social incident registry."
+        self.interval = -1
+        self.persistent = True
+        if self.db.current is None:
+            self.db.current = None
+        if self.db.history is None:
+            self.db.history = []
+        if self.db.last_check_key is None:
+            self.db.last_check_key = None
+        if self.db.run_counts is None:
+            self.db.run_counts = {}
+        if self.db.metrics is None:
+            self.db.metrics = {
+                "checks": 0,
+                "triggered": 0,
+                "ended": 0,
+                "mundane": 0,
+                "odd": 0,
+            }
+
+
+
+
 class ScheduledEventRegistry(DefaultScript):
     """Persistent calendar state for recurring village events.
 
