@@ -104,24 +104,17 @@ assert active_rank(smoke) == RANK_APPRENTICE
 smoke_chronicler = calling_record(smoke, "chronicler")
 assert smoke_chronicler["participation"]["evidence_revisions"] == 1
 assert smoke_chronicler["participation"]["signed_accounts"] == 1
-smoke_performer = calling_record(smoke, "performer")
-assert smoke_performer
-assert smoke_performer["rank"] == RANK_APPRENTICE
+assert calling_record(smoke, "performer") is None
 smoke_calling_history = calling_state(smoke)["history"]
 assert any(
     item.get("action") == "joined_calling"
     and item.get("calling") == "chronicler"
     for item in smoke_calling_history
 )
-assert any(
-    item.get("action") == "respecialized"
-    and item.get("calling") == "performer"
-    for item in smoke_calling_history
-)
-assert sum(
+assert not any(
     item.get("action") == "respecialized"
     for item in smoke_calling_history
-) >= 2
+), "player command bypassed authored respecialization before restart"
 
 population = list(search.search_tag("resident", category="system"))
 assert len(population) == 36, "resident population changed across restart"
