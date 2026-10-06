@@ -752,3 +752,79 @@ def decide_tomorrows_obituary(player, case_id, action):
     replacement["story_id"] = story["id"] if story else None
     closed = _replace_obituary_case(replacement)
     return closed, story, None
+
+
+
+def resolve_due_obituary_cases(day, hour):
+    """Close overdue premature obituaries by withholding them, never by printing."""
+    day = int(day)
+    hour = int(hour)
+    resolved = []
+    for case in open_harbinger_obituary_cases():
+        deadline = (
+            int(case.get("deadline_day") or 0),
+            int(case.get("deadline_hour") or 0),
+        )
+        if (day, hour) < deadline:
+            continue
+
+        npc = _obituary_subject(case)
+        lifecycle = None
+        if npc:
+            from world.residents import resident_state
+            lifecycle = (
+                (resident_state(npc).get("lifecycle") or {}).get("status")
+            )
+
+        if lifecycle != "active":
+            replacement = dict(case)
+            replacement["status"] = "superseded"
+            replacement["decision"] = "lifecycle_changed_before_deadline"
+            replacement["decided_day"] = day
+            replacement["decided_hour"] = hour
+            replacement["lifecycle_at_decision"] = lifecycle
+            replacement["story_id"] = None
+            replacement["event_id"] = None
+            _replace_obituary_case(replacement)
+            resolved.append({
+                "case_id": case["id"],
+                "resolution": "superseded",
+                "story_id": None,
+            })
+            continue
+
+        from world.events import publish_world_event
+
+        event = publish_world_event(
+            "harbinger.tomorrows_obituary_decision",
+            actor=None,
+            payload={
+                "harbinger": False,
+                "chronicle_eligible": False,
+                "obituary_case_id": int(case["id"]),
+                "subject_resident_id": case.get("subject_resident_id"),
+                "subject_name": case.get("subject_name"),
+                "decision": "suppress",
+                "lifecycle_status": lifecycle,
+                "reaction": "deadline_suppressed",
+                "automatic": True,
+            },
+        )
+        replacement = dict(case)
+        replacement["status"] = "closed"
+        replacement["decision"] = "suppress"
+        replacement["decided_by_mask_id"] = None
+        replacement["decided_by_mask"] = "Harbinger deadline policy"
+        replacement["decided_day"] = day
+        replacement["decided_hour"] = hour
+        replacement["lifecycle_at_decision"] = lifecycle
+        replacement["event_id"] = event["id"]
+        replacement["story_id"] = None
+        replacement["resolution"] = "deadline_suppressed"
+        _replace_obituary_case(replacement)
+        resolved.append({
+            "case_id": case["id"],
+            "resolution": "deadline_suppressed",
+            "story_id": None,
+        })
+    return resolved
