@@ -727,5 +727,6 @@ Execution contract:
 - No choice mutates resident lifecycle. A resident who ceases to be active before the decision cannot be processed through the stale living-person case.
 - Public decisions create a canonical editorial event and wake the affected resident with an explicit reaction. Suppression stays non-public.
 - Re-submitting the same resident does not create a second obituary case.
+- If press time arrives with no decision, the safe default is suppression. An unresolved premature obituary can never auto-print merely because its deadline elapsed.
 
 Regression coverage exercises all four decisions, verifies Chronicle non-promotion, verifies lifecycle immutability, plays the investigation path through real telnet, and confirms the case, story, event, reaction, and active lifecycle survive a real server restart.
