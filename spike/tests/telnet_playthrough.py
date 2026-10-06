@@ -107,6 +107,24 @@ def main() -> int:
         out = c.command("ic SmokeTester", wait=4.0)
         require(out, "private room")
 
+        # Calling foundation: a mask can choose a social profession before
+        # crossing IC. Selection begins at Apprentice and exposes no free
+        # promotion command or combat power.
+        out = c.command("calling")
+        require(out, "no active calling")
+        out = c.command("calling list")
+        require(out, "chronicler")
+        require(out, "hound")
+        require(out, "social professions")
+        out = c.command("calling choose chronicler")
+        require(out, "chronicler is now your active calling")
+        require(out, "apprentice rank")
+        require(out, "respecialization does not erase")
+        out = c.command("calling")
+        require(out, "active calling: chronicler")
+        require(out, "rank: apprentice")
+        require(out, "no professional participation")
+
         out = c.command("chronicle")
         require(out, "in-character village record", "cross the front door")
 
@@ -636,6 +654,27 @@ def main() -> int:
         out = c.command(f"chronicle submit R{room_six_rumor_id}")
         require(out, "the record preserves that you said it")
         require(out, "does not certify", "not certify")
+
+        out = c.command("calling")
+        require(out, "active calling: chronicler")
+        require(out, "evidence revisions 1")
+        require(out, "signed accounts 1")
+
+        # Respecialization changes current professional identity but preserves
+        # prior rank and participation. Returning to Chronicler restores that
+        # existing record rather than creating a fresh character sheet.
+        out = c.command("calling choose performer")
+        require(out, "performer is now your active calling")
+        require(out, "apprentice rank")
+        out = c.command("calling history")
+        require(out, "joined calling chronicler")
+        require(out, "respecialized performer")
+        out = c.command("calling choose chronicler")
+        require(out, "chronicler is now your active calling")
+        require(out, "apprentice rank")
+        out = c.command("calling")
+        require(out, "evidence revisions 1")
+        require(out, "signed accounts 1")
 
         out = c.command("chronicle")
         require(out, "deposition from smoketester")
