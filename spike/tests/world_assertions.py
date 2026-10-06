@@ -83,6 +83,154 @@ ids = {int(num) for num, _body in playable}
 assert ids == set(PLAYABLE_RUMOR_IDS) == {151, 201, 236}, ids
 assert len(load_rumor_seeds(playable_only=False)) == 250, "canon rumor corpus changed"
 
+# Calling/interdependence core: professional identity is mask-specific,
+# respecialization preserves biography, Master authority belongs only to the
+# active calling, and apprenticeship is a persistent obligation rather than a
+# temporary party flag.
+from world.callings import (
+    CALLINGS,
+    RANK_APPRENTICE,
+    RANK_MASTER,
+    active_calling,
+    active_rank,
+    active_relations,
+    calling_record,
+    calling_state,
+    choose_calling,
+    create_apprenticeship,
+    end_apprenticeship,
+    promote_to_master,
+    record_participation,
+)
+
+assert set(CALLINGS) == {
+    "innkeep",
+    "chronicler",
+    "smith",
+    "healer",
+    "merchant",
+    "wanderer",
+    "performer",
+    "detective",
+    "hound",
+}
+
+calling_mentor = SimpleNamespace(
+    id=910001,
+    key="QA Master",
+    db=SimpleNamespace(),
+)
+calling_apprentice = SimpleNamespace(
+    id=910002,
+    key="QA Apprentice",
+    db=SimpleNamespace(),
+)
+calling_other = SimpleNamespace(
+    id=910003,
+    key="QA Other",
+    db=SimpleNamespace(),
+)
+
+bad_choice, bad_choice_error = choose_calling(calling_mentor, "necromancer")
+assert bad_choice is None
+assert "no such calling" in bad_choice_error.lower()
+
+mentor_choice, error = choose_calling(calling_mentor, "chronicler")
+assert error is None and mentor_choice["changed"]
+assert active_calling(calling_mentor) == "chronicler"
+assert active_rank(calling_mentor) == RANK_APPRENTICE
+
+apprentice_choice, error = choose_calling(calling_apprentice, "chronicler")
+assert error is None and apprentice_choice["changed"]
+assert active_rank(calling_apprentice) == RANK_APPRENTICE
+
+# Participation belongs only to the active profession and does not silently
+# promote a rank.
+assert record_participation(
+    calling_apprentice,
+    "signed_accounts",
+    calling="performer",
+) is None
+assert record_participation(
+    calling_apprentice,
+    "signed_accounts",
+    calling="chronicler",
+) == 1
+assert active_rank(calling_apprentice) == RANK_APPRENTICE
+
+master_record, error = promote_to_master(
+    calling_mentor,
+    reason="QA authored promotion",
+    source_event_id=4242,
+)
+assert error is None
+assert master_record["rank"] == RANK_MASTER
+assert master_record["mastery_source_event_id"] == 4242
+assert active_rank(calling_mentor) == RANK_MASTER
+
+relation, error = create_apprenticeship(
+    calling_mentor,
+    calling_apprentice,
+)
+assert error is None
+assert relation["calling"] == "chronicler"
+assert relation["role"] == "apprentice"
+assert len(active_relations(calling_mentor, role="mentor")) == 1
+assert len(active_relations(calling_apprentice, role="apprentice")) == 1
+
+same_relation, error = create_apprenticeship(
+    calling_mentor,
+    calling_apprentice,
+)
+assert error is None
+assert same_relation["relation_id"] == relation["relation_id"]
+assert len(active_relations(calling_mentor, role="mentor")) == 1
+
+# A live apprenticeship must be closed explicitly before either side can use
+# respecialization to leave the professional obligation behind.
+blocked, blocked_error = choose_calling(calling_apprentice, "healer")
+assert blocked is None
+assert "end the active apprenticeship" in blocked_error.lower()
+
+wrong_relation, wrong_error = create_apprenticeship(
+    calling_mentor,
+    calling_other,
+)
+assert wrong_relation is None
+assert "same calling" in wrong_error.lower()
+
+ended, error = end_apprenticeship(
+    calling_mentor,
+    calling_apprentice,
+    reason="QA completed training",
+)
+assert error is None and ended["status"] == "ended"
+assert active_relations(calling_mentor) == []
+assert active_relations(calling_apprentice) == []
+
+respecialized, error = choose_calling(calling_apprentice, "healer")
+assert error is None and respecialized["changed"]
+assert active_calling(calling_apprentice) == "healer"
+assert active_rank(calling_apprentice) == RANK_APPRENTICE
+old_chronicler = calling_record(calling_apprentice, "chronicler")
+assert old_chronicler["rank"] == RANK_APPRENTICE
+assert old_chronicler["participation"]["signed_accounts"] == 1
+
+# Historical mastery is retained, but only the active calling exercises it.
+smith_choice, error = choose_calling(calling_mentor, "smith")
+assert error is None and smith_choice["changed"]
+assert active_calling(calling_mentor) == "smith"
+assert active_rank(calling_mentor) == RANK_APPRENTICE
+assert calling_record(calling_mentor, "chronicler")["rank"] == RANK_MASTER
+
+return_choice, error = choose_calling(calling_mentor, "chronicler")
+assert error is None and return_choice["changed"]
+assert active_calling(calling_mentor) == "chronicler"
+assert active_rank(calling_mentor) == RANK_MASTER
+mentor_history = calling_state(calling_mentor)["history"]
+assert any(item["action"] == "promoted_master" for item in mentor_history)
+assert sum(item["action"] == "respecialized" for item in mentor_history) >= 2
+
 # Production resident population: identity, schedules, fallback, persistence,
 # progressive depth, fact claims, isolation, event wakeups, and cheap demotion.
 import copy
