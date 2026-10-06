@@ -254,11 +254,14 @@ assert resident_state(wren)["routine"]["logical_location"] == "schoolhouse"
 # morning issue. Corrections and Chronicle annotations append without erasing.
 from world.publications import (
     annotate_chronicle,
+    chronicle_disagreement_for_rumor,
     correct_harbinger_story,
+    depositions_for_rumor,
     get_chronicle_entry,
     get_story,
     latest_edition,
     publish_due_harbinger,
+    submit_deposition,
 )
 destroy_refs = school_destroyed.get("publications") or {}
 assert destroy_refs["harbinger_story_id"]
@@ -2158,6 +2161,54 @@ known = rumor_registry.known_by(root["id"])
 known_ids = {entry.get("id") for entry in known}
 assert {magda.id, vasile.id, janos.id}.issubset(known_ids)
 assert len(rumor_registry.current_claims(root["id"])) >= 2
+
+# Chronicler content: incompatible signed accounts remain distinct public
+# records. The archive acknowledges disagreement without selecting a winner.
+vasile_entry, error = submit_deposition(vasile, root["id"])
+assert error is None and vasile_entry["entry_type"] == "deposition"
+assert chronicle_disagreement_for_rumor(root["id"]) is None
+
+janos_entry, error = submit_deposition(janos, root["id"])
+assert error is None and janos_entry["entry_type"] == "deposition"
+disagreement = chronicle_disagreement_for_rumor(root["id"])
+assert disagreement
+assert disagreement["entry_type"] == "disagreement_record"
+assert disagreement["claim_status"] == "documented_disagreement"
+assert set(disagreement["source_deposition_ids"]) == {
+    vasile_entry["deposition_id"],
+    janos_entry["deposition_id"],
+}
+assert len(disagreement["version_claims"]) == 2
+assert {
+    item["claim"] for item in disagreement["version_claims"]
+} == {
+    rumor_registry.belief_for(vasile, root["id"])["claim"],
+    rumor_registry.belief_for(janos, root["id"])["claim"],
+}
+assert "does not choose" in disagreement["text"].lower()
+assert "verified fact" in disagreement["text"].lower()
+
+# A third distinct account is appended as an annotation. The original
+# disagreement text remains immutable, and repeating a represented version
+# does not create a second disagreement record.
+initial_disagreement_text = disagreement["text"]
+magda_entry, error = submit_deposition(magda, root["id"])
+assert error is None and magda_entry["entry_type"] == "deposition"
+expanded = chronicle_disagreement_for_rumor(root["id"])
+assert expanded["text"] == initial_disagreement_text
+assert len(expanded["version_claims"]) == 3
+assert len(expanded["annotations"]) == 1
+assert expanded["annotations"][0]["source_deposition_ids"] == [
+    magda_entry["deposition_id"]
+]
+assert "not truth" in expanded["annotations"][0]["text"].lower()
+assert len([
+    entry
+    for entry in (public_records.db.chronicle_entries or [])
+    if entry.get("entry_type") == "disagreement_record"
+    and root["id"] in list(entry.get("source_rumor_ids") or [])
+]) == 1
+assert len(depositions_for_rumor(root["id"])) == 3
 
 from world.rumors import propagate_colocated_npcs
 autonomous = propagate_colocated_npcs(announce=False, max_per_room=1)
