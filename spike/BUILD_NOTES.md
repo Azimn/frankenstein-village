@@ -455,3 +455,38 @@ Regression coverage verifies:
 - Sunday Mass convergence through the existing liturgical behavior, exactly one Mass event, active overlay, idempotence, and post-service release;
 - player-facing calendar access through real telnet;
 - scheduled registry structure across a real server restart.
+
+## 2026-10-05 - Random world incident layer
+
+`world/random_incidents.py` implements the production backlog's low-cost unpredictable world texture without introducing a new ticker.
+
+Execution is:
+
+`village clock boundary -> recurring calendar update -> random eligibility -> deterministic trigger roll -> weighted selection -> one-hour overlay -> private structured event -> cleanup/history`
+
+The same world state produces the same random decision after restart. Weight inputs currently include:
+- location availability;
+- game hour;
+- weather;
+- resident presence and density;
+- connected player presence;
+- per-template cooldown;
+- state created by scheduled events such as Market Morning.
+
+The first two templates deliberately establish a mundane-heavy distribution. Public Sneeze has a high base weight and requires a resident. Extinguished Lamp has a low base weight, is night-only, and gains weight in fog and rain.
+
+Random incidents are not publicized automatically. Their structured ledger events use private publicity and create no rumor or public-record projection by themselves. This keeps background texture from becoming forced mystery content.
+
+Temporary prose uses the same room overlay mechanism as scheduled events. History is capped at 24 completed incidents. The current incident and bounded history persist through restart.
+
+Regression coverage verifies:
+- rebuild idempotence;
+- market-density eligibility;
+- weather-sensitive weighting;
+- mundane-over-odd default weighting;
+- deterministic forced execution of both accepted templates;
+- private event-ledger behavior;
+- overlay creation and cleanup;
+- bounded history;
+- real telnet rendering;
+- restart persistence.
