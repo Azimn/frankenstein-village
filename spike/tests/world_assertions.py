@@ -2242,10 +2242,9 @@ resolved_press = resolve_due_harbinger_conflicts(
     stop_press["deadline_day"],
     stop_press["deadline_hour"],
 )
-assert resolved_press == [{
-    "conflict_id": stop_press["id"],
-    "story_id": resolved_press[0]["story_id"],
-}]
+assert len(resolved_press) == 1
+assert resolved_press[0]["conflict_id"] == stop_press["id"]
+assert resolved_press[0]["story_id"]
 closed_press = get_harbinger_conflict(stop_press["id"])
 assert closed_press["status"] == "deadline_neutral"
 assert closed_press["resolution"] == "printed_disagreement"
