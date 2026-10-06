@@ -124,8 +124,12 @@ assert smoke_correction_dispute["claimed_text"] not in (
     original_correction_story["body"]
 )
 assert hashlib.sha256(
-    original_correction_story["body"].encode("utf-8")
-).hexdigest() == smoke_correction_dispute["surviving_body_hash"]
+    (
+        original_correction_story["headline"]
+        + "\n"
+        + original_correction_story["body"]
+    ).encode("utf-8")
+).hexdigest() == smoke_correction_dispute["surviving_copy_hash"]
 story_disputes = correction_disputes_for_story(
     smoke_correction_dispute["story_id"]
 )
@@ -145,8 +149,8 @@ assert correction_response_story["basis"] == "correction_dispute"
 assert correction_response_story["disputes_story_id"] == (
     original_correction_story["id"]
 )
-assert correction_response_story["surviving_body_hash"] == (
-    smoke_correction_dispute["surviving_body_hash"]
+assert correction_response_story["surviving_copy_hash"] == (
+    smoke_correction_dispute["surviving_copy_hash"]
 )
 assert correction_response_story["status"] == "published"
 response_edition = next(
