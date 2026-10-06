@@ -215,3 +215,12 @@ The Harbinger and Chronicle content-framework pass is now sufficiently mature to
 The first systemic-object slice must extend existing consumables rather than creating a second inventory or effect system. The production representation is mechanical tags plus a value mapping, with configuration kept separate from mutable runtime counters. Existing fare and mushroom behavior is the proving ground. Hidden properties, crafting, and legend classification remain later phases.
 
 When resuming, verify current `main`, open PRs, and Actions first. If the systemic-object property slice has already merged, inspect its exact release evidence and continue to the next dependency rather than rebuilding it.
+
+
+## Systemic object continuation: hidden-property perception
+
+After the mechanical-property foundation merged, the next production slice moved the accepted design's `hidden:<tag>` concept into the same object system rather than creating a separate secret-item layer.
+
+The proving object is the well mushroom. Its toxin is mechanically active but no longer an openly exposed mechanic. Direct toxic effects can create mask-specific knowledge, and `examine` can later render only what that mask learned. Ordinary `look` remains public description.
+
+The next dependency after this slice is the persistent calling/interdependence core. Do not invent calling-gated hidden-property expertise retroactively in this perception slice. Calling-based skilled examination can extend the same knowledge API after the calling model exists.

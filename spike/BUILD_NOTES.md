@@ -749,3 +749,21 @@ Execution contract:
 - Hidden properties, perception-gated reveal, crafting transformations, and legend classification remain later phases.
 
 Regression coverage proves property authority by changing bread worth independently of its name, initializing a missing live counter from `uses` rather than legacy capacity, applying mushroom toxicity with no legacy toxic field, preserving a partially consumed bread count through idempotent rebuild, exercising ordinary bread purchase through real telnet, and verifying property definitions plus live state after a real process restart.
+
+
+## 2026-10-06 - Hidden object properties and mask perception
+
+The second production phase of the systemic-object plan now separates mechanical truth from what a particular mask knows.
+
+Execution contract:
+- Hidden mechanics use the same canonical property vocabulary and values as visible mechanics.
+- A hidden property is tagged as `hidden:<property>` in the existing `mechanic` category. No second physics system is introduced.
+- `mechanical_value()` reads both visible and hidden mechanics for simulation. `mechanical_properties()` returns only openly exposed mechanics.
+- `hidden_mechanical_properties()` exists for trusted engine and regression use, not player presentation.
+- The well mushrooms now carry hidden toxin 25. Their toxin remains fully active when eaten even though ordinary `look` does not expose it.
+- Direct toxic consequences record per-mask object-property knowledge with object identity, learned value, and discovery provenance.
+- `examine <thing>` adds only hidden-property facts the current mask has actually learned. Another mask receives no such note until it earns its own knowledge.
+- Learned knowledge is persistent memory. Later object transformation must not retroactively rewrite what a mask remembers discovering.
+- Visible and hidden definitions for the same property are rejected as contradictory authoring.
+
+Regression coverage proves hidden toxin remains active, ordinary visible property queries omit it, unrelated observers do not receive it, direct consequences teach the affected mask, real telnet look/examine behavior respects the gate, and learned toxin knowledge survives a real process restart.

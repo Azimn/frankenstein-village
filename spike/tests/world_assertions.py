@@ -92,8 +92,12 @@ from types import SimpleNamespace
 from commands.village_cmds import _consume, _fare_depleted, _pay_for_fare
 from world.object_properties import (
     configure_mechanical_properties,
+    effective_mechanical_properties,
+    hidden_mechanical_properties,
+    hidden_property_knowledge,
     mechanical_properties,
     mechanical_value,
+    perception_notes,
 )
 from world.resident_data import FACT_BY_ID, RESIDENTS
 from world.routines import restock_sideboard
@@ -114,7 +118,10 @@ assert mechanical_properties(stew) == {"uses": 8, "worth": 12}
 assert mechanical_properties(ale) == {"uses": 8, "worth": 5}
 assert mechanical_properties(wine) == {"uses": 6, "worth": 10}
 assert mechanical_properties(water) == {"worth": 0}
-assert mechanical_properties(mushrooms) == {"toxin": 25}
+assert mechanical_properties(mushrooms) == {}
+assert hidden_mechanical_properties(mushrooms) == {"toxin": 25}
+assert effective_mechanical_properties(mushrooms) == {"toxin": 25}
+assert mechanical_value(mushrooms, "toxin") == 25
 assert "toxic" not in dict(mushrooms.db.consume or {}), (
     "mushroom toxicity still depends on the legacy consume dictionary"
 )
@@ -195,6 +202,18 @@ else:
     raise AssertionError("unknown object mechanic was silently accepted")
 configure_mechanical_properties(water, {"worth": 0})
 
+try:
+    configure_mechanical_properties(
+        water,
+        {"worth": 0},
+        hidden_properties={"worth": 1},
+    )
+except ValueError as error:
+    assert "both visible and hidden" in str(error)
+else:
+    raise AssertionError("one mechanic was allowed to be both visible and hidden")
+configure_mechanical_properties(water, {"worth": 0})
+
 # Falsification: toxicity still applies after the legacy toxic field is gone.
 mushroom_consume = copy.deepcopy(dict(mushrooms.db.consume or {}))
 quiet_mushroom_consume = copy.deepcopy(mushroom_consume)
@@ -210,6 +229,21 @@ toxin_actor = SimpleNamespace(
 )
 _consume(toxin_actor, mushrooms, "food", "eat", "eats")
 assert toxin_actor.db.queasy == 25
+toxin_knowledge = hidden_property_knowledge(toxin_actor, mushrooms)
+assert toxin_knowledge["toxin"]["value"] == 25
+assert toxin_knowledge["toxin"]["source"] == "direct_effect"
+assert any("toxic" in note.lower() for note in perception_notes(toxin_actor, mushrooms))
+assert any(
+    "reaction teaches you" in message.lower()
+    for message in toxin_messages
+)
+ignorant_actor = SimpleNamespace(
+    key="property_ignorant_actor",
+    id=999998,
+    db=SimpleNamespace(),
+)
+assert hidden_property_knowledge(ignorant_actor, mushrooms) == {}
+assert perception_notes(ignorant_actor, mushrooms) == []
 mushrooms.db.consume = mushroom_consume
 from world.residents import (
     advance_population,

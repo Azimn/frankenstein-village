@@ -439,3 +439,12 @@ The initial canonical property vocabulary remains intentionally small: `harm`, `
 Definition and runtime state are separate. For finite consumables, `uses` states configured capacity while `db.servings` records how many servings remain. Idempotent world builds converge the former and preserve the latter. The same separation should be used for future durability, fuel, spoilage, and container state.
 
 The existing consumable system is the migration bridge. Fare pricing now reads `worth`, finite stock reads `uses`, and mushroom toxicity reads `toxin`. Legacy fields remain fallback-only for old persistent objects during migration. Hidden properties and perception gating are deliberately not part of this first phase.
+
+
+## 2026-10-06 - Object truth and object knowledge are separate
+
+Hidden mechanics are simulation truth, not presentation metadata. The physics layer must apply a hidden toxin, ward, fuel value, or other property exactly as it would an exposed one. Visibility only controls who can name the property before consequences occur.
+
+Per-mask object knowledge is therefore stored on the observer rather than copied onto the object or global world state. Direct consequences can teach a mask what affected it. Ordinary `look` remains public description. `examine` may recall only knowledge that mask already earned.
+
+Discovery records preserve the value and provenance observed at discovery time. Future crafting or other property transformation must change object truth without silently rewriting old character memory. This preserves the same truth-versus-belief boundary already used by rumors and public records.
