@@ -691,6 +691,31 @@ class RandomIncidentRegistry(DefaultScript):
 
 
 
+class SeasonalFrameworkRegistry(DefaultScript):
+    """Persistent chapter state for slow seasonal world modulation."""
+
+    def at_script_creation(self):
+        self.key = "seasonal_framework_registry"
+        self.desc = "Persistent seasonal and chapter framework state."
+        self.interval = -1
+        self.persistent = True
+        if self.db.active_id is None:
+            self.db.active_id = None
+        if self.db.started_day is None:
+            self.db.started_day = None
+        if self.db.cycle_started_day is None:
+            self.db.cycle_started_day = None
+        if self.db.history is None:
+            self.db.history = []
+        if self.db.metrics is None:
+            self.db.metrics = {
+                "checks": 0,
+                "transitions": 0,
+            }
+
+
+
+
 class ScheduledEventRegistry(DefaultScript):
     """Persistent calendar state for recurring village events.
 
