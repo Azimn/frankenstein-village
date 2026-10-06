@@ -888,9 +888,9 @@ class CmdHarbinger(Command):
             if status == "open":
                 lines.append(
                     "Use |wharbinger choose STP<number> D<number>|n to select "
-                    "one attributed version for the next issue. The selection "
-                    "changes the paper, not what the Chronicle certifies as "
-                    "truth. If nobody chooses before press time, the paper "
+                    "one attributed version for the next issue. The selected "
+                    "version is not certified as truth by the Chronicle. "
+                    "If nobody chooses before press time, the paper "
                     "will print the disagreement without selecting a winner."
                 )
             elif conflict.get("story_id"):
