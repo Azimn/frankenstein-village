@@ -1629,12 +1629,19 @@ assert not _telnet_window["current"]["player_observations"]
 # Leave one ordinary random incident active too. This proves that stochastic
 # texture reaches the same room-description overlay path as scheduled events,
 # without becoming a quest or public record automatically.
+_existing_random = current_random_incident()
+if _existing_random:
+    advance_random_incidents(
+        day=_existing_random["end_day"],
+        hour=_existing_random["end_hour"],
+        force_id="NO-SUCH-RANDOM-INCIDENT",
+    )
 _telnet_random = advance_random_incidents(
     day=_telnet_clock.db.day or 1,
     hour=21,
     force_id=EXTINGUISHED_LAMP_ID,
 )
-assert _telnet_random["started"] == EXTINGUISHED_LAMP_ID
+assert _telnet_random["started"] == EXTINGUISHED_LAMP_ID, _telnet_random
 assert EXTINGUISHED_LAMP_ID in (
     one("Village Square").db.scheduled_overlays or {}
 )
