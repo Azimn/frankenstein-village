@@ -799,6 +799,10 @@ class CmdHarbinger(Command):
         harbinger desk R<number>
         harbinger desk STP<number>
         harbinger choose STP<number> D<number>
+        harbinger obituary
+        harbinger obituary <resident>
+        harbinger obituary TOB<number>
+        harbinger obituary TOB<number> <print|investigate|suppress|mock>
         harbinger correction H<number> = <claimed prior wording>
     """
 
@@ -934,6 +938,141 @@ class CmdHarbinger(Command):
             )
             return
 
+        if lower == "obituary":
+            from world.harbinger_content import open_harbinger_obituary_cases
+
+            cases = open_harbinger_obituary_cases()
+            if not cases:
+                self.caller.msg(
+                    "The Harbinger has no unresolved Tomorrow's Obituary item. "
+                    "Use |wharbinger obituary <resident>|n to submit a premature "
+                    "obituary for editorial review."
+                )
+                return
+            lines = ["|yTomorrow's Obituary copy desk:|n"]
+            for case in cases:
+                lines.append(
+                    f"[TOB{case['id']}] {case['subject_name']} "
+                    f"(deadline day {case['deadline_day']}, "
+                    f"{case['deadline_hour']:02d}:00)"
+                )
+            lines.append(
+                "Use |wharbinger obituary TOB<number>|n to inspect a case."
+            )
+            self.caller.msg("\n".join(lines))
+            return
+
+        if lower.startswith("obituary "):
+            from world.harbinger_content import (
+                decide_tomorrows_obituary,
+                get_harbinger_obituary_case,
+                submit_tomorrows_obituary,
+            )
+
+            raw = arg.split(None, 1)[1].strip()
+            parts = raw.split()
+            if parts and parts[0].upper().startswith("TOB"):
+                case_id = _parse_record_id(parts[0], "TOB")
+                case = (
+                    get_harbinger_obituary_case(case_id)
+                    if case_id is not None
+                    else None
+                )
+                if not case:
+                    self.caller.msg(
+                        "No such Tomorrow's Obituary item is on the copy desk."
+                    )
+                    return
+
+                if len(parts) == 1:
+                    status = case.get("status") or "open"
+                    lines = [
+                        f"|yTOB{case['id']}: {case['subject_name']}|n",
+                        (
+                            f"Editorial status: {status}. The resident was "
+                            f"recorded as {case.get('lifecycle_at_submission')} "
+                            "when the obituary was submitted."
+                        ),
+                        (
+                            f"Press deadline: day {case['deadline_day']}, "
+                            f"{case['deadline_hour']:02d}:00."
+                        ),
+                    ]
+                    if status == "open":
+                        lines.append(
+                            "Choose |wprint|n, |winvestigate|n, |wsuppress|n, "
+                            "or |wmock|n. None of these options changes the "
+                            "resident's actual lifecycle record."
+                        )
+                    else:
+                        lines.append(
+                            f"Decision: {case.get('decision')}. "
+                            f"Lifecycle at decision: "
+                            f"{case.get('lifecycle_at_decision')}."
+                        )
+                        if case.get("story_id"):
+                            lines.append(
+                                f"The decision queued Harbinger H"
+                                f"{case['story_id']}."
+                            )
+                        else:
+                            lines.append(
+                                "No public Harbinger story was queued."
+                            )
+                    self.caller.msg("\n".join(lines))
+                    return
+
+                if len(parts) != 2:
+                    self.caller.msg(
+                        "Use: harbinger obituary TOB<number> "
+                        "<print|investigate|suppress|mock>"
+                    )
+                    return
+                case, story, error = decide_tomorrows_obituary(
+                    self.caller,
+                    case_id,
+                    parts[1],
+                )
+                if error:
+                    self.caller.msg(error)
+                    return
+                decision = case["decision"]
+                if decision == "suppress":
+                    self.caller.msg(
+                        f"TOB{case['id']} is closed as suppressed. The "
+                        "submitted obituary remains an internal editorial "
+                        "record, and no death story is queued."
+                    )
+                else:
+                    self.caller.msg(
+                        f"TOB{case['id']} is closed with decision "
+                        f"{decision}. Harbinger H{story['id']} is queued. "
+                        f"{case['subject_name']} remains recorded as "
+                        f"{case['lifecycle_at_decision']}; the editorial "
+                        "choice does not alter world truth."
+                    )
+                return
+
+            result, error = submit_tomorrows_obituary(self.caller, raw)
+            if error:
+                self.caller.msg(error)
+                return
+            case = result["case"]
+            if result.get("created"):
+                self.caller.msg(
+                    f"Premature obituary TOB{case['id']} for "
+                    f"{case['subject_name']} is on the copy desk. The resident "
+                    "is still recorded as living and active. Inspect it with "
+                    f"|wharbinger obituary TOB{case['id']}|n."
+                )
+            else:
+                self.caller.msg(
+                    f"An obituary case for {case['subject_name']} already "
+                    f"exists as TOB{case['id']}. Repetition does not create a "
+                    "second editorial record."
+                )
+            return
+
         if lower.startswith("correction "):
             from world.harbinger_content import submit_correction_dispute
 
@@ -1019,6 +1158,18 @@ class CmdHarbinger(Command):
                 "correction_dispute": (
                     "archive discrepancy; claimed prior wording is absent "
                     "from the surviving copy"
+                ),
+                "premature_obituary": (
+                    "premature obituary printed as an editorial choice, not a "
+                    "certified death record"
+                ),
+                "obituary_investigation": (
+                    "submitted obituary investigated and withheld after the "
+                    "resident was confirmed living"
+                ),
+                "editorial_mockery": (
+                    "editorial response to a premature obituary, not a death "
+                    "claim"
                 ),
                 "contested_report": (
                     "selected from conflicting attributed accounts, not settled fact"
