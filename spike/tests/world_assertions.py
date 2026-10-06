@@ -83,6 +83,8 @@ ids = {int(num) for num, _body in playable}
 assert ids == set(PLAYABLE_RUMOR_IDS) == {151, 201, 236}, ids
 assert len(load_rumor_seeds(playable_only=False)) == 250, "canon rumor corpus changed"
 
+from types import SimpleNamespace
+
 # Calling/interdependence core: professional identity is mask-specific,
 # respecialization preserves biography, Master authority belongs only to the
 # active calling, and apprenticeship is a persistent obligation rather than a
@@ -235,7 +237,6 @@ assert sum(item["action"] == "respecialized" for item in mentor_history) >= 2
 # progressive depth, fact claims, isolation, event wakeups, and cheap demotion.
 import copy
 from collections import Counter
-from types import SimpleNamespace
 
 from commands.village_cmds import _consume, _fare_depleted, _pay_for_fare
 from world.object_properties import (
