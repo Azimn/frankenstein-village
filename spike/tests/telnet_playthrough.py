@@ -262,6 +262,53 @@ def main() -> int:
         out = c.command("chronicle")
         require(out, "church strongbox loss made public", "verified")
         require(out, "numbered sequence is missing", "chronicle gap")
+        strongbox_entry_match = re.search(
+            r"\[C(\d+)\]\s+Church Strongbox Loss Made Public",
+            out,
+            re.I,
+        )
+        if not strongbox_entry_match:
+            raise AssertionError(
+                "strongbox Chronicle entry exposed no stable public handle"
+            )
+        strongbox_entry_id = strongbox_entry_match.group(1)
+
+        # Chronicler Section 3.23, Revision by Evidence: only evidence this
+        # mask actually discovered is offered for an append-only amendment.
+        out = c.command(f"chronicle evidence C{strongbox_entry_id}")
+        require(
+            out,
+            "strongbox/lock",
+            "strongbox/roll",
+            "documentary",
+            "does not rewrite the original entry",
+        )
+
+        out = c.command(
+            f"chronicle revise C{strongbox_entry_id} = strongbox/roll"
+        )
+        require(
+            out,
+            "receives annotation",
+            "tithe roll",
+            "original entry",
+            "prior claim status are preserved",
+        )
+
+        out = c.command(f"chronicle C{strongbox_entry_id}")
+        require(
+            out,
+            "verified event",
+            "evidence submitted by smoketester",
+            "tithe roll",
+            "evidence source",
+            "documentary",
+        )
+
+        out = c.command(
+            f"chronicle revise C{strongbox_entry_id} = strongbox/roll"
+        )
+        require(out, "already cited", "does not duplicate")
 
         out = c.command("journal chronicle")
         require(out, "nothing about that situation")
