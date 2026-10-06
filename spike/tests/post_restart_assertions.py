@@ -11,7 +11,9 @@ from world.situations import (
     situation_status_for_player,
 )
 from world.publications import (
+    chronicle_disagreement_for_rumor,
     chronicle_entries,
+    depositions_for_rumor,
     edition_stories,
     latest_edition,
 )
@@ -94,6 +96,34 @@ assert any(
     and entry.get("claim_status") == "reported_account"
     for entry in entries
 ), "player Chronicle deposition did not survive restart"
+
+# The Chronicler preserves incompatible signed versions without promoting
+# either one to verified history. This fixture was created through the same
+# submission API before the real telnet pass and must survive a process restart.
+chronicle_rumors = get_rumor_registry()
+well_root = next(
+    dict(rumor)
+    for rumor in (chronicle_rumors.db.rumors or [])
+    if rumor.get("canonical_seed_id") == 201
+)
+well_depositions = depositions_for_rumor(well_root["id"])
+assert len({
+    deposition.get("claim")
+    for deposition in well_depositions
+}) >= 3
+well_disagreement = chronicle_disagreement_for_rumor(well_root["id"])
+assert well_disagreement
+assert well_disagreement["claim_status"] == "documented_disagreement"
+assert len(well_disagreement.get("version_claims") or []) >= 3
+assert len(well_disagreement.get("annotations") or []) >= 1
+assert "does not choose" in well_disagreement["text"].lower()
+assert all(
+    entry.get("claim_status") != "verified_event"
+    for entry in [
+        item for item in entries
+        if item.get("id") == well_disagreement["id"]
+    ]
+)
 
 incident = get_situation(TITHE_ID)
 assert incident["state"] == "aftermath"
