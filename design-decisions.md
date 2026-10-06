@@ -319,4 +319,4 @@ This establishes the signal-to-texture rule mechanically. Mundane irregularities
 
 Random incidents reuse the generic room-overlay mechanism introduced by the recurring calendar. They create structured world-event records for causal history, but those records are private by default. They do not automatically become rumors, Harbinger stories, Chronicle entries, or quests. Later systems may promote a random occurrence if witnesses, repetition, investigation, or consequence makes that appropriate.
 
-Incident history is bounded and temporary overlays clear at the next game-hour boundary. Resident event wakeups remain individual and are driven by explicit resident IDs present in the incident record.
+Incident history is bounded and temporary overlays clear when each template's authored lifetime expires. Public Sneeze lasts one game hour; Extinguished Lamp lasts two because its accepted premise is a repeatedly failing lamp rather than a single flicker. Resident event wakeups remain individual and are driven by explicit resident IDs present in the incident record.
