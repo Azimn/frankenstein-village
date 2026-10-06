@@ -565,3 +565,39 @@ Regression coverage proves:
 - theory persistence with `truth_status = None`;
 - real telnet discovery through `look manor`;
 - public evidence and theory persistence across a real server restart.
+
+## 2026-10-06 - Seasonal chapter framework
+
+`world/seasonal_frameworks.py` implements production backlog section 3.19 without introducing another scheduler.
+
+Execution is:
+
+`village clock -> seasonal catch-up -> chapter modifiers -> existing weather/schedule/incident systems`
+
+The first active chapter is The Weeks of Long Shadows. The full canonical six-chapter cycle totals 365 village days, but it remains independent of the still-open exact civil year.
+
+Current executable modifiers:
+- weighted weather selection through the existing VillageWeather ticker;
+- weighted random-incident bonuses through `world/random_incidents.py`;
+- cheap earlier-home pressure for optional evening Tavern/Square routines;
+- structured economy modifiers for future economic systems;
+- structured content tags for incident-feed eligibility;
+- persistent Village Square chapter projection;
+- public `calendar` visibility.
+
+Essential night roles such as the lamplighter, night watch, priest, tavern keeper, and midwife are not sent home by chapter pressure.
+
+Chapter boundaries publish one canonical `seasonal.chapter_changed` event with Harbinger and Chronicle projections. Catch-up operates on chapter boundaries rather than replaying every skipped village day.
+
+Regression coverage verifies:
+- one persistent seasonal registry;
+- 365-day chapter cycle;
+- Long Shadows fog weighting;
+- odd-evening random-incident bias without genre dominance;
+- optional evening schedule pressure and essential-role exemption;
+- direct multi-chapter catch-up;
+- chapter economy/content modifiers;
+- transition publication into Harbinger and Chronicle;
+- synthetic QA cleanup;
+- real calendar and room-overlay rendering over telnet;
+- chapter state and projection across a real server restart.
