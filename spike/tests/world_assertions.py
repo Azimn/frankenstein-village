@@ -103,6 +103,7 @@ from world.callings import (
     end_apprenticeship,
     promote_to_master,
     record_participation,
+    respecialize_calling,
 )
 
 assert set(CALLINGS) == {
@@ -145,6 +146,14 @@ assert active_rank(calling_mentor) == RANK_APPRENTICE
 apprentice_choice, error = choose_calling(calling_apprentice, "chronicler")
 assert error is None and apprentice_choice["changed"]
 assert active_rank(calling_apprentice) == RANK_APPRENTICE
+
+free_switch, free_switch_error = choose_calling(
+    calling_apprentice,
+    "healer",
+)
+assert free_switch is None
+assert "authored respecialization" in free_switch_error.lower()
+assert active_calling(calling_apprentice) == "chronicler"
 
 # Participation belongs only to the active profession and does not silently
 # promote a rank.
@@ -190,7 +199,11 @@ assert len(active_relations(calling_mentor, role="mentor")) == 1
 
 # A live apprenticeship must be closed explicitly before either side can use
 # respecialization to leave the professional obligation behind.
-blocked, blocked_error = choose_calling(calling_apprentice, "healer")
+blocked, blocked_error = respecialize_calling(
+    calling_apprentice,
+    "healer",
+    reason="QA attempted transition",
+)
 assert blocked is None
 assert "end the active apprenticeship" in blocked_error.lower()
 
@@ -210,7 +223,12 @@ assert error is None and ended["status"] == "ended"
 assert active_relations(calling_mentor) == []
 assert active_relations(calling_apprentice) == []
 
-respecialized, error = choose_calling(calling_apprentice, "healer")
+respecialized, error = respecialize_calling(
+    calling_apprentice,
+    "healer",
+    reason="QA completed retraining",
+    source_event_id=4343,
+)
 assert error is None and respecialized["changed"]
 assert active_calling(calling_apprentice) == "healer"
 assert active_rank(calling_apprentice) == RANK_APPRENTICE
@@ -219,13 +237,21 @@ assert old_chronicler["rank"] == RANK_APPRENTICE
 assert old_chronicler["participation"]["signed_accounts"] == 1
 
 # Historical mastery is retained, but only the active calling exercises it.
-smith_choice, error = choose_calling(calling_mentor, "smith")
+smith_choice, error = respecialize_calling(
+    calling_mentor,
+    "smith",
+    reason="QA career change",
+)
 assert error is None and smith_choice["changed"]
 assert active_calling(calling_mentor) == "smith"
 assert active_rank(calling_mentor) == RANK_APPRENTICE
 assert calling_record(calling_mentor, "chronicler")["rank"] == RANK_MASTER
 
-return_choice, error = choose_calling(calling_mentor, "chronicler")
+return_choice, error = respecialize_calling(
+    calling_mentor,
+    "chronicler",
+    reason="QA return to prior profession",
+)
 assert error is None and return_choice["changed"]
 assert active_calling(calling_mentor) == "chronicler"
 assert active_rank(calling_mentor) == RANK_MASTER
