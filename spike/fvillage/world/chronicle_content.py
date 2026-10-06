@@ -10,7 +10,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from world.publications import annotate_chronicle, get_chronicle_entry
+from world.publications import (
+    annotate_chronicle,
+    chronicle_entries,
+    get_chronicle_entry,
+    get_public_record_registry,
+)
 from world.situations import (
     TITHE_ID,
     TORN_CHRONICLE_ID,
@@ -188,3 +193,202 @@ def submit_evidence_revision(player, entry_id, subject, evidence_id):
     if not updated:
         return None, "The Chronicle could not append that evidence."
     return updated, None
+
+
+MIN_REFUSAL_SUPPORTERS = 3
+REFUSAL_CONFIDENCE_FLOOR = 0.50
+
+
+def _refusal_state():
+    registry = get_public_record_registry()
+    if registry.db.chronicle_refusals is None:
+        registry.db.chronicle_refusals = []
+    if registry.db.next_chronicle_refusal_id is None:
+        registry.db.next_chronicle_refusal_id = 1
+    return registry
+
+
+def chronicle_refusal_for_rumor(rumor_id):
+    """Return an existing institutional refusal for one rumor root."""
+    try:
+        rumor_id = int(rumor_id)
+    except (TypeError, ValueError):
+        return None
+    registry = _refusal_state()
+    for refusal in registry.db.chronicle_refusals or []:
+        if refusal.get("rumor_id") == rumor_id:
+            return dict(refusal)
+    return None
+
+
+def _verified_chronicle_for_rumor(root):
+    """Return an event-backed Chronicle entry that already establishes the fact."""
+    event_id = root.get("original_event_id")
+    if event_id is None:
+        return None
+    for entry in chronicle_entries():
+        if (
+            entry.get("claim_status") == "verified_event"
+            and int(event_id) in [
+                int(source_id)
+                for source_id in (entry.get("source_event_ids") or [])
+            ]
+        ):
+            return entry
+    return None
+
+
+def _resident_supporters(rumor_id):
+    """Residents currently carrying the rumor with committed acceptance."""
+    from world.residents import all_residents
+    from world.rumors import get_rumor_registry
+
+    rumor_registry = get_rumor_registry()
+    supporters = []
+    for npc in all_residents():
+        belief = rumor_registry.belief_for(npc, rumor_id)
+        if not belief:
+            continue
+        if float(belief.get("confidence") or 0.0) < REFUSAL_CONFIDENCE_FLOOR:
+            continue
+        supporters.append(
+            {
+                "resident_id": npc.db.resident_id,
+                "object_id": npc.id,
+                "name": npc.key,
+                "confidence": float(belief.get("confidence") or 0.0),
+            }
+        )
+    return supporters
+
+
+def petition_refused_entry(player, rumor_id):
+    """Ask the Chronicle to canonize a popular rumor and preserve its refusal.
+
+    The Chronicle may canonize that a claim was popular and refused without
+    canonizing the claim itself. The refusal becomes a canonical institutional
+    event, while the rumor remains a rumor.
+    """
+    from world.events import publish_world_event
+    from world.publications import _clock
+    from world.rumors import get_rumor_registry
+
+    try:
+        rumor_id = int(rumor_id)
+    except (TypeError, ValueError):
+        return None, "That is not a valid rumor reference."
+
+    rumor_registry = get_rumor_registry()
+    root = rumor_registry.get_rumor(rumor_id)
+    belief = rumor_registry.belief_for(player, rumor_id)
+    if not root or not belief:
+        return None, "You cannot petition over a rumor your current mask has not heard."
+    if root.get("privacy") != "public":
+        return None, "Private information cannot be turned into a public Chronicle petition."
+
+    existing = chronicle_refusal_for_rumor(rumor_id)
+    if existing:
+        entry = get_chronicle_entry(existing.get("chronicle_entry_id"))
+        return {
+            "refusal": existing,
+            "entry": entry,
+            "created": False,
+        }, None
+
+    verified = _verified_chronicle_for_rumor(root)
+    if verified:
+        return (
+            None,
+            f"Chronicle C{verified['id']} already has event-backed authority for "
+            "that underlying occurrence; it is not eligible for a refused-entry case.",
+        )
+
+    supporters = _resident_supporters(rumor_id)
+    if len(supporters) < MIN_REFUSAL_SUPPORTERS:
+        return (
+            None,
+            f"That rumor has only {len(supporters)} committed resident carriers. "
+            f"The Refused Entry case requires at least {MIN_REFUSAL_SUPPORTERS} "
+            "people already treating the claim as credible public knowledge.",
+        )
+
+    registry = _refusal_state()
+    refusal_id = int(registry.db.next_chronicle_refusal_id or 1)
+    day, hour = _clock()
+    supporter_ids = [item["resident_id"] for item in supporters]
+    public_summary = (
+        f"The Chronicler declined a petition to enter rumor R{rumor_id} as settled "
+        f"history. {len(supporters)} residents currently carry the claim with "
+        "committed confidence, but repetition is not evidence. The refusal records "
+        "an archival boundary, not a verdict on whether the rumor is true."
+    )
+    event = publish_world_event(
+        "chronicle.refused_entry",
+        actor=player,
+        payload={
+            "headline": f"Chronicle Refuses Popular Rumor R{rumor_id}",
+            "public_summary": public_summary,
+            "harbinger": True,
+            "chronicle_eligible": False,
+            "source_rumor_id": rumor_id,
+            "resident_ids": supporter_ids,
+            "supporter_count": len(supporters),
+            "reaction": "angered_by_refusal",
+            "refusal_id": refusal_id,
+        },
+    )
+
+    entry = {
+        "id": int(registry.db.next_chronicle_id or 1),
+        "entry_type": "refusal_record",
+        "title": f"Refused Entry: Rumor R{rumor_id}",
+        "text": (
+            f"A petition asked the Chronicle to canonize the claim: "
+            f"\"{root.get('claim') or ''}\" The Chronicler refused. "
+            f"At the time of refusal, {len(supporters)} residents carried the "
+            "claim strongly enough to count as committed supporters. This entry "
+            "canonizes the petition, the refusal, and the public dispute only. "
+            "It does not certify the rumor as true or false."
+        ),
+        "claim_status": "refused_canonization",
+        "source_event_ids": [event["id"]],
+        "source_rumor_ids": [rumor_id],
+        "source_deposition_ids": [],
+        "recorded_day": int(day),
+        "recorded_hour": int(hour),
+        "annotations": [],
+        "refusal_id": refusal_id,
+    }
+    registry.db.next_chronicle_id = entry["id"] + 1
+    entries = list(registry.db.chronicle_entries or [])
+    entries.append(entry)
+    registry.db.chronicle_entries = entries
+
+    refusal = {
+        "id": refusal_id,
+        "rumor_id": rumor_id,
+        "claim": root.get("claim"),
+        "petitioned_by_mask_id": getattr(player, "id", None),
+        "petitioned_by_mask": getattr(player, "key", None),
+        "day": int(day),
+        "hour": int(hour),
+        "supporter_count": len(supporters),
+        "supporter_resident_ids": supporter_ids,
+        "supporter_confidence_floor": REFUSAL_CONFIDENCE_FLOOR,
+        "reason": "popularity_without_archival_evidence",
+        "status": "refused",
+        "event_id": event["id"],
+        "chronicle_entry_id": entry["id"],
+        "harbinger_story_id": (
+            (event.get("publications") or {}).get("harbinger_story_id")
+        ),
+    }
+    registry.db.next_chronicle_refusal_id = refusal_id + 1
+    refusals = list(registry.db.chronicle_refusals or [])
+    refusals.append(refusal)
+    registry.db.chronicle_refusals = refusals
+    return {
+        "refusal": dict(refusal),
+        "entry": dict(entry),
+        "created": True,
+    }, None
