@@ -11,7 +11,13 @@ editorial state and published interpretation.
 
 from __future__ import annotations
 
-from world.publications import depositions_for_rumor, get_public_record_registry
+import hashlib
+
+from world.publications import (
+    depositions_for_rumor,
+    get_public_record_registry,
+    get_story,
+)
 
 
 def _clock():
@@ -288,3 +294,167 @@ def resolve_due_harbinger_conflicts(day, hour):
             }
         )
     return resolved
+
+
+def _ensure_correction_state():
+    registry = get_public_record_registry()
+    if registry.db.harbinger_correction_disputes is None:
+        registry.db.harbinger_correction_disputes = []
+    if registry.db.next_harbinger_correction_dispute_id is None:
+        registry.db.next_harbinger_correction_dispute_id = 1
+    return registry
+
+
+def harbinger_correction_disputes():
+    registry = _ensure_correction_state()
+    return [
+        dict(item)
+        for item in (registry.db.harbinger_correction_disputes or [])
+    ]
+
+
+def correction_disputes_for_story(story_id):
+    try:
+        story_id = int(story_id)
+    except (TypeError, ValueError):
+        return []
+    return [
+        item
+        for item in harbinger_correction_disputes()
+        if item.get("story_id") == story_id
+    ]
+
+
+def _surviving_copy_text(story):
+    return f"{story.get('headline') or ''}\n{story.get('body') or ''}"
+
+
+def _copy_hash(story):
+    return hashlib.sha256(
+        _surviving_copy_text(story).encode("utf-8")
+    ).hexdigest()
+
+
+def _replace_story(replacement):
+    registry = get_public_record_registry()
+    drafts = [dict(story) for story in (registry.db.harbinger_drafts or [])]
+    for index, story in enumerate(drafts):
+        if story.get("id") == replacement.get("id"):
+            drafts[index] = dict(replacement)
+            registry.db.harbinger_drafts = drafts
+            return dict(replacement)
+    return None
+
+
+def submit_correction_dispute(player, story_id, claimed_text):
+    """Preserve a correction claim contradicted by the surviving archive copy.
+
+    This implements Section 3.22 THE CORRECTION. The surviving story body is
+    immutable. The correction claim is preserved as a separate editorial
+    discrepancy and queued for public reporting without being treated as an
+    accepted correction.
+    """
+    try:
+        story_id = int(story_id)
+    except (TypeError, ValueError):
+        return None, "That is not a valid Harbinger story reference."
+
+    claimed_text = str(claimed_text or "").strip()
+    if not claimed_text:
+        return None, "A correction claim must name the wording you say appeared."
+
+    story = get_story(story_id)
+    if not story or story.get("status") != "published":
+        return None, "The Correction requires a story from a surviving printed issue."
+
+    surviving_copy = _surviving_copy_text(story)
+    if claimed_text.casefold() in surviving_copy.casefold():
+        return (
+            None,
+            "The surviving copy already contains that wording. This case is for "
+            "a claimed correction whose alleged original text is absent from the archive.",
+        )
+
+    registry = _ensure_correction_state()
+    for existing in registry.db.harbinger_correction_disputes or []:
+        if (
+            existing.get("story_id") == story_id
+            and str(existing.get("claimed_text") or "").casefold()
+            == claimed_text.casefold()
+        ):
+            response_story = get_story(existing.get("response_story_id"))
+            return {
+                "dispute": dict(existing),
+                "response_story": response_story,
+                "created": False,
+            }, None
+
+    day, hour = _clock()
+    dispute_id = int(registry.db.next_harbinger_correction_dispute_id or 1)
+    archive_hash = _copy_hash(story)
+    dispute = {
+        "id": dispute_id,
+        "story_id": story_id,
+        "published_edition_id": story.get("published_edition_id"),
+        "claimed_text": claimed_text,
+        "surviving_copy_hash": archive_hash,
+        "claimed_by_mask_id": getattr(player, "id", None),
+        "claimed_by_mask": getattr(player, "key", None),
+        "day": int(day),
+        "hour": int(hour),
+        "status": "archive_discrepancy",
+        "response_story_id": None,
+    }
+
+    response_story = {
+        "id": int(registry.db.next_story_id or 1),
+        "source_event_id": None,
+        "source_rumor_id": None,
+        "headline": f"Correction Disputed: {story['headline']}",
+        "body": (
+            f"A correction claim says Harbinger H{story_id} originally contained "
+            f"the wording: \"{claimed_text}\". The surviving archive copy does "
+            "not contain that text. The paper records the discrepancy without "
+            "rewriting the surviving issue or treating either recollection as "
+            "automatically authoritative."
+        ),
+        "basis": "correction_dispute",
+        "confidence": 0.55,
+        "status": "pending",
+        "created_day": int(day),
+        "created_hour": int(hour),
+        "published_edition_id": None,
+        "corrections": [],
+        "correction_dispute_id": dispute_id,
+        "disputes_story_id": story_id,
+        "surviving_copy_hash": archive_hash,
+    }
+    registry.db.next_story_id = response_story["id"] + 1
+    drafts = list(registry.db.harbinger_drafts or [])
+    drafts.append(response_story)
+    registry.db.harbinger_drafts = drafts
+
+    dispute["response_story_id"] = response_story["id"]
+    registry.db.next_harbinger_correction_dispute_id = dispute_id + 1
+    disputes = list(registry.db.harbinger_correction_disputes or [])
+    disputes.append(dispute)
+    registry.db.harbinger_correction_disputes = disputes
+
+    replacement = dict(story)
+    claims = list(replacement.get("correction_disputes") or [])
+    claims.append({
+        "id": dispute_id,
+        "claimed_text": claimed_text,
+        "claimed_by_mask_id": dispute["claimed_by_mask_id"],
+        "claimed_by_mask": dispute["claimed_by_mask"],
+        "surviving_copy_hash": archive_hash,
+        "response_story_id": response_story["id"],
+    })
+    replacement["correction_disputes"] = claims
+    _replace_story(replacement)
+
+    return {
+        "dispute": dict(dispute),
+        "response_story": dict(response_story),
+        "created": True,
+    }, None

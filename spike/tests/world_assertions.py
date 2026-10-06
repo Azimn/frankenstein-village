@@ -181,6 +181,12 @@ public_records_snapshot = {
         list(public_records.db.chronicle_refusals or [])
     ),
     "next_chronicle_refusal_id": public_records.db.next_chronicle_refusal_id,
+    "harbinger_correction_disputes": copy.deepcopy(
+        list(public_records.db.harbinger_correction_disputes or [])
+    ),
+    "next_harbinger_correction_dispute_id": (
+        public_records.db.next_harbinger_correction_dispute_id
+    ),
     "next_story_id": public_records.db.next_story_id,
     "next_edition_id": public_records.db.next_edition_id,
     "next_chronicle_id": public_records.db.next_chronicle_id,
@@ -270,9 +276,11 @@ from world.publications import (
     submit_deposition,
 )
 from world.harbinger_content import (
+    correction_disputes_for_story,
     ensure_harbinger_conflict,
     get_harbinger_conflict,
     resolve_due_harbinger_conflicts,
+    submit_correction_dispute,
 )
 destroy_refs = school_destroyed.get("publications") or {}
 assert destroy_refs["harbinger_story_id"]
@@ -308,6 +316,57 @@ assert correction["id"] in morning["story_ids"]
 assert publish_due_harbinger(2, 8) is None, (
     "fixed Harbinger cadence printed twice on one game day"
 )
+
+# Harbinger Section 3.22, The Correction: a claimant says an older issue
+# contained wording absent from every surviving copy. Preserve the discrepancy
+# without rewriting the old story or upgrading the claim into accepted fact.
+claimed_missing_text = "The schoolhouse burned before dawn."
+correction_dispute_result, correction_dispute_error = submit_correction_dispute(
+    wren,
+    destroy_story["id"],
+    claimed_missing_text,
+)
+assert correction_dispute_error is None
+assert correction_dispute_result["created"]
+correction_dispute = correction_dispute_result["dispute"]
+dispute_story = correction_dispute_result["response_story"]
+assert correction_dispute["story_id"] == destroy_story["id"]
+assert correction_dispute["published_edition_id"] == (
+    destroy_story["published_edition_id"]
+)
+assert correction_dispute["claimed_text"] == claimed_missing_text
+assert len(correction_dispute["surviving_copy_hash"]) == 64
+assert dispute_story["basis"] == "correction_dispute"
+assert dispute_story["status"] == "pending"
+assert dispute_story["disputes_story_id"] == destroy_story["id"]
+assert dispute_story["surviving_copy_hash"] == (
+    correction_dispute["surviving_copy_hash"]
+)
+assert get_story(destroy_story["id"])["body"] == original_story_body
+assert get_story(destroy_story["id"])["correction_disputes"][-1][
+    "claimed_text"
+] == claimed_missing_text
+assert correction_disputes_for_story(destroy_story["id"])[0]["id"] == (
+    correction_dispute["id"]
+)
+
+repeat_dispute, repeat_dispute_error = submit_correction_dispute(
+    wren,
+    destroy_story["id"],
+    claimed_missing_text,
+)
+assert repeat_dispute_error is None
+assert not repeat_dispute["created"]
+assert repeat_dispute["dispute"]["id"] == correction_dispute["id"]
+
+present_wording, present_wording_error = submit_correction_dispute(
+    wren,
+    destroy_story["id"],
+    "schoolhouse",
+)
+assert present_wording is None
+assert "surviving copy already contains" in present_wording_error.lower()
+assert get_story(destroy_story["id"])["body"] == original_story_body
 
 # A rumor may be news without becoming Chronicle truth.
 reported = publish_world_event(

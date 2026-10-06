@@ -414,3 +414,10 @@ This pattern is the production precedent for Two Versions Survive, The Battle Ov
 A Chronicle refusal is an institutional event with objective existence. The system may therefore record that a petition occurred, that the Chronicler refused it, how socially widespread the claim was, and who reacted to the refusal. None of those facts authorize the Chronicle to promote the underlying rumor.
 
 For Refused Entry content, popularity and evidentiary authority are deliberately orthogonal. Repetition can create social consequences, Harbinger coverage, resentment, and future work, but it cannot satisfy the Chronicle's truth threshold by itself. Repeated petitions must be idempotent so pressure cannot be converted mechanically into evidence.
+
+
+## 2026-10-06 - Printed-copy integrity outranks retrospective correction claims
+
+A correction claim is not permission to rewrite a surviving publication artifact. When someone asserts that an older Harbinger issue contained wording absent from the preserved copy, the system records the claimant, exact alleged wording, surviving-copy hash, and later editorial response as separate provenance-bearing records.
+
+Accepted corrections and disputed memories of prior text are different epistemic objects. The former may append to a story's correction history; the latter must preserve the contradiction between recollection and artifact. Repetition of the same correction claim must not alter the archived copy or create additional evidentiary weight.

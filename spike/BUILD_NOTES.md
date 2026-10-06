@@ -693,3 +693,19 @@ Execution contract:
 - Repeated petitions are idempotent and return the original refusal instead of generating new events or artificial evidentiary weight.
 
 Regression coverage verifies popularity gating, non-promotion of rumor truth, Harbinger projection, resident reaction state, repeated-petition idempotence, real telnet use, and survival through a real server restart.
+
+
+## 2026-10-06 - Harbinger The Correction archive discrepancy
+
+Section 3.22 The Correction now distinguishes an accepted correction from a disputed memory of what an older issue allegedly contained.
+
+Execution contract:
+- `harbinger correction H<number> = <claimed prior wording>` operates only on a published Harbinger story.
+- The claimed wording must be absent from the surviving story body. If the archive already contains it, this is not a correction-discrepancy case.
+- The surviving story is never rewritten. Its complete headline-plus-body text is SHA-256 fingerprinted, and that hash, printed edition ID, and story ID are preserved with the dispute.
+- The claimant, exact claimed wording, archive hash, and response-story ID are stored in a persistent `harbinger_correction_disputes` record.
+- The original story receives only a reference to the dispute, separate from its accepted `corrections` list.
+- A follow-up Harbinger story with basis `correction_dispute` reports that the correction claim and surviving copy conflict, without automatically treating either recollection as authoritative.
+- Repeating the same claim against the same story is idempotent.
+
+Regression coverage verifies immutable surviving copy text, archive hashing, absent-vs-present wording gates, stable dispute identity, real telnet filing and inspection, publication of the follow-up response, and persistence through a real server restart.
