@@ -130,6 +130,16 @@ def main() -> int:
         out = c.command("south")
         require(out, "village square")
         require(out, "one gas lamp", "neighboring lamps burn steadily")
+        require(out, "blackout has swallowed", "dark gas standards")
+
+        out = c.command("event")
+        require(out, "the long blackout", "0 of 4", "event lamps")
+
+        out = c.command("event lamps")
+        require(out, "street lamps stabilized")
+
+        out = c.command("event")
+        require(out, "the long blackout", "1 of 4", "street lamps stabilized")
 
         # A timed world window is already live. Firsthand evidence is earned by
         # being present during the window and observing the physical world.

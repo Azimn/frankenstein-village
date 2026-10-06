@@ -37,6 +37,7 @@ for script_key in (
     "public_records",
     "situation_registry",
     "scheduled_event_registry",
+    "server_event_registry",
     "random_incident_registry",
     "timed_incident_registry",
     "room_six",
@@ -1159,6 +1160,219 @@ for stable_id, old_state in scheduled_resident_states.items():
     if old_location and npc.location != old_location:
         npc.move_to(old_location, quiet=True)
 
+# Server-wide events are broad conditions with independent local responses,
+# not accepted quests. The Long Blackout is the first production framework.
+from world.server_events import (
+    LONG_BLACKOUT_ID,
+    advance_server_events,
+    contribute as contribute_server_event,
+    get_server_event,
+    get_server_event_registry,
+    reconcile_server_event_overlays,
+    start_server_event,
+    status_lines as server_event_status_lines,
+)
+
+server_registry = get_server_event_registry()
+assert set((server_registry.db.events or {}).keys()) == {LONG_BLACKOUT_ID}
+server_snapshot = {
+    "events": copy.deepcopy(dict(server_registry.db.events or {})),
+    "metrics": copy.deepcopy(dict(server_registry.db.metrics or {})),
+}
+server_rooms = {
+    key: one(key)
+    for key in (
+        "Village Square",
+        "The Blood of the Vine",
+        "St. Lazarus Church",
+        "The Lamp Shop",
+    )
+}
+server_overlay_snapshot = {
+    key: copy.deepcopy(dict(room.db.scheduled_overlays or {}))
+    for key, room in server_rooms.items()
+}
+server_ledger_snapshot = copy.deepcopy(list(ledger.db.events or []))
+server_public_snapshot = {
+    key: copy.deepcopy(getattr(public_records.db, key))
+    for key in public_records_snapshot
+}
+server_rumor_snapshot = {
+    "rumors": copy.deepcopy(list(rumor_registry.db.rumors or [])),
+    "transmissions": copy.deepcopy(list(rumor_registry.db.transmissions or [])),
+    "next_rumor_id": rumor_registry.db.next_rumor_id,
+    "next_transmission_id": rumor_registry.db.next_transmission_id,
+}
+server_belief_snapshot = {
+    npc.id: copy.deepcopy(dict(npc.db.rumor_beliefs or {}))
+    for npc in population
+}
+server_resident_snapshot = {
+    npc.db.resident_id: copy.deepcopy(npc.db.resident_state)
+    for npc in population
+}
+server_tavern_public = copy.deepcopy(
+    list(tavern_for_snapshot.db.public_rumor_ids or [])
+)
+server_tavern_player = copy.deepcopy(
+    list(tavern_for_snapshot.db.player_rumors or [])
+)
+
+# The framework starts only at its hidden authored boundary unless forced.
+assert advance_server_events(day=10, hour=18)["started"] == []
+autostart = advance_server_events(day=10, hour=19)
+assert autostart["started"] == [LONG_BLACKOUT_ID]
+blackout = get_server_event(LONG_BLACKOUT_ID)
+assert blackout["state"] == "active"
+assert blackout["current"]["end_day"] == 11
+assert blackout["current"]["end_hour"] == 7
+assert not blackout["current"]["responses"]
+
+active_overlay_id = f"{LONG_BLACKOUT_ID}:active"
+for room_key, room in server_rooms.items():
+    assert active_overlay_id in (room.db.scheduled_overlays or {}), room_key
+
+start_event = ledger.get_event(blackout["current"]["start_event_id"])
+assert start_event["kind"] == "server.long_blackout.started"
+assert start_event["rumor"]["rumor_id"] == blackout["current"]["start_rumor_id"]
+assert start_event["publications"]["harbinger_story_id"]
+assert start_event["publications"]["chronicle_entry_id"] is None
+
+# Relevant residents are woken from explicit structured IDs rather than prose.
+for stable_id in (
+    "miklos_farkas",
+    "lucian_deville",
+    "bram_v",
+    "father_andrei",
+    "sorin_dragomir",
+):
+    npc = by_resident_id[stable_id]
+    flags = resident_state(npc).get("event_flags") or {}
+    assert str(start_event["id"]) in flags, stable_id
+
+# The registry, not room prose, is canonical across process boundaries.
+square_server_overlays = copy.deepcopy(dict(square.db.scheduled_overlays or {}))
+square_server_overlays.pop(active_overlay_id, None)
+square.db.scheduled_overlays = square_server_overlays
+assert active_overlay_id not in (square.db.scheduled_overlays or {})
+assert reconcile_server_event_overlays()
+assert active_overlay_id in (square.db.scheduled_overlays or {})
+
+qa_square = SimpleNamespace(
+    id=930001, key="qa_square", location=server_rooms["Village Square"],
+    has_account=True, account=None,
+)
+qa_tavern = SimpleNamespace(
+    id=930002, key="qa_tavern", location=server_rooms["The Blood of the Vine"],
+    has_account=True, account=None,
+)
+qa_church = SimpleNamespace(
+    id=930003, key="qa_church", location=server_rooms["St. Lazarus Church"],
+    has_account=True, account=None,
+)
+qa_shop = SimpleNamespace(
+    id=930004, key="qa_shop", location=server_rooms["The Lamp Shop"],
+    has_account=True, account=None,
+)
+
+wrong, error = contribute_server_event(qa_square, "supplies")
+assert wrong is None and "Lamp Shop" in error
+
+for actor, action in (
+    (qa_square, "lamps"),
+    (qa_tavern, "shelter"),
+    (qa_church, "candles"),
+    (qa_shop, "supplies"),
+):
+    result, error = contribute_server_event(actor, action)
+    assert result and error is None
+    assert result["first_completion"]
+
+duplicate, error = contribute_server_event(qa_square, "lamps")
+assert duplicate is None and "already done" in error.lower()
+
+blackout = get_server_event(LONG_BLACKOUT_ID)
+assert set(blackout["current"]["responses"]) == {
+    "lamps", "shelter", "candles", "supplies"
+}
+status_text = "\n".join(server_event_status_lines(qa_square))
+assert "4 of 4" in status_text
+assert "street lamps stabilized" in status_text
+
+# It does not freeze offline and does not resolve early.
+assert advance_server_events(day=11, hour=6)["resolved"] == []
+resolved_result = advance_server_events(day=11, hour=7)
+assert resolved_result["resolved"] == [LONG_BLACKOUT_ID]
+blackout = get_server_event(LONG_BLACKOUT_ID)
+assert blackout["state"] == "aftermath"
+assert blackout["current"]["outcome"]["quality"] == "coordinated"
+assert blackout["current"]["outcome"]["completed_response_count"] == 4
+
+end_event = ledger.get_event(blackout["current"]["end_event_id"])
+assert end_event["kind"] == "server.long_blackout.ended"
+assert end_event["publications"]["harbinger_story_id"]
+assert end_event["publications"]["chronicle_entry_id"]
+assert blackout["current"]["end_rumor_id"]
+
+aftermath_overlay_id = f"{LONG_BLACKOUT_ID}:aftermath"
+for room_key, room in server_rooms.items():
+    assert active_overlay_id not in (room.db.scheduled_overlays or {}), room_key
+    assert aftermath_overlay_id in (room.db.scheduled_overlays or {}), room_key
+
+# Aftermath is playable but finite, then the framework returns to dormancy.
+assert advance_server_events(day=11, hour=12)["cleared"] == []
+cleared_result = advance_server_events(day=11, hour=13)
+assert cleared_result["cleared"] == [LONG_BLACKOUT_ID]
+blackout = get_server_event(LONG_BLACKOUT_ID)
+assert blackout["state"] == "dormant"
+assert blackout["current"] is None
+assert len(blackout["history"]) == 1
+
+# No-intervention is also authored content, not a frozen or failed quest.
+unanswered = start_server_event(
+    LONG_BLACKOUT_ID,
+    day=20,
+    hour=19,
+    force=True,
+)
+assert unanswered and unanswered["state"] == "active"
+advance_server_events(day=21, hour=7)
+unanswered = get_server_event(LONG_BLACKOUT_ID)
+assert unanswered["state"] == "aftermath"
+assert unanswered["current"]["outcome"]["quality"] == "rough"
+assert unanswered["current"]["outcome"]["completed_response_count"] == 0
+assert "without organized player help" in (
+    unanswered["current"]["outcome"]["summary"]
+)
+
+# Restore all QA mutations before lifecycle and telnet scenarios.
+server_registry.db.events = copy.deepcopy(server_snapshot["events"])
+server_registry.db.metrics = copy.deepcopy(server_snapshot["metrics"])
+for room_key, room in server_rooms.items():
+    room.db.scheduled_overlays = copy.deepcopy(
+        server_overlay_snapshot[room_key]
+    )
+ledger.db.events = copy.deepcopy(server_ledger_snapshot)
+for key, value in server_public_snapshot.items():
+    setattr(public_records.db, key, copy.deepcopy(value))
+rumor_registry.db.rumors = copy.deepcopy(server_rumor_snapshot["rumors"])
+rumor_registry.db.transmissions = copy.deepcopy(
+    server_rumor_snapshot["transmissions"]
+)
+rumor_registry.db.next_rumor_id = server_rumor_snapshot["next_rumor_id"]
+rumor_registry.db.next_transmission_id = server_rumor_snapshot[
+    "next_transmission_id"
+]
+for npc in population:
+    npc.db.rumor_beliefs = copy.deepcopy(
+        server_belief_snapshot.get(npc.id, {})
+    )
+    old_state = server_resident_snapshot.get(npc.db.resident_id)
+    if old_state is not None:
+        npc.db.resident_state = copy.deepcopy(old_state)
+tavern_for_snapshot.db.public_rumor_ids = copy.deepcopy(server_tavern_public)
+tavern_for_snapshot.db.player_rumors = copy.deepcopy(server_tavern_player)
+
 # The butcher resolves directly to the correct current state. Skipped hours
 # are not replayed, and a dead resident stops following schedules.
 otto = by_resident_id["otto_kessler"]
@@ -1673,6 +1887,40 @@ _telnet_random_record["end_hour"] = 21
 random_registry.db.current = _telnet_random_record
 assert reconcile_random_incident_overlay()
 assert EXTINGUISHED_LAMP_ID in (
+    one("Village Square").db.scheduled_overlays or {}
+)
+
+# Leave one server-wide condition active for the real network playtest.
+_telnet_server = start_server_event(
+    LONG_BLACKOUT_ID,
+    day=_telnet_clock.db.day or 1,
+    hour=(
+        _telnet_clock.db.hour
+        if _telnet_clock.db.hour is not None
+        else 21
+    ),
+    force=True,
+)
+assert _telnet_server and _telnet_server["state"] == "active"
+_telnet_server_record = copy.deepcopy(
+    dict(server_registry.db.events[LONG_BLACKOUT_ID])
+)
+_telnet_server_current = copy.deepcopy(
+    dict(_telnet_server_record["current"])
+)
+_telnet_server_current["end_day"] = int(_telnet_clock.db.day or 1) + 1
+_telnet_server_current["end_hour"] = int(
+    _telnet_clock.db.hour
+    if _telnet_clock.db.hour is not None
+    else 21
+)
+_telnet_server_record["current"] = _telnet_server_current
+_telnet_server_record["state"] = "active"
+_telnet_events = copy.deepcopy(dict(server_registry.db.events or {}))
+_telnet_events[LONG_BLACKOUT_ID] = _telnet_server_record
+server_registry.db.events = _telnet_events
+assert reconcile_server_event_overlays()
+assert f"{LONG_BLACKOUT_ID}:active" in (
     one("Village Square").db.scheduled_overlays or {}
 )
 

@@ -320,3 +320,23 @@ This establishes the signal-to-texture rule mechanically. Mundane irregularities
 Random incidents reuse the generic room-overlay mechanism introduced by the recurring calendar. They create structured world-event records for causal history, but those records are private by default. They do not automatically become rumors, Harbinger stories, Chronicle entries, or quests. Later systems may promote a random occurrence if witnesses, repetition, investigation, or consequence makes that appropriate.
 
 Incident history is bounded and temporary overlays clear when each template's authored lifetime expires. Public Sneeze lasts one game hour; Extinguished Lamp lasts two because its accepted premise is a repeatedly failing lamp rather than a single flicker. The registry is canonical across process restarts: an active incident reconstructs its room overlay when the registry starts, and stale random overlays are removed. Resident event wakeups remain individual and are driven by explicit resident IDs present in the incident record.
+
+## 2026-10-06 - Village-scale server event framework implemented
+
+Server-wide events are now a distinct world layer. They are temporary shared conditions that affect several institutions and locations at once. They are not accepted quests, do not belong to one player, and do not own a separate scheduler.
+
+The authoritative village clock starts, advances, resolves, and clears server events. The first production framework is the accepted backlog example The Long Blackout. Its normal hidden recurrence is infrequent, while tests and future staff tooling may force a start explicitly.
+
+The Long Blackout currently affects four existing public nodes:
+- Village Square: street-light response with the lamplighter and night watch.
+- Blood of the Vine: shelter and crowd-management response with Bram.
+- St. Lazarus Church: candle rationing and public refuge with Father Andrei.
+- Lamp Shop: emergency oil, mantle, and glass distribution with Lucian DeVille.
+
+Each node is useful independently. A player sees the condition in ordinary room prose, can inspect the public state with `event`, and can contribute only to the response physically available at the current location. The `respond` alias accepts the same local action. No player accepts or owns the event.
+
+The event records a canonical start, local structured contributions, an autonomous deadline, outcome quality, and finite aftermath. Full local coverage produces a coordinated outcome. Partial coverage produces uneven strain. No intervention still resolves and produces authored consequences rather than freezing or showing a failure screen.
+
+The start and end events feed the structured rumor, resident wakeup, and Harbinger systems. The completed village-scale event is Chronicle-eligible; individual local help remains private event-ledger detail by default. This preserves the distinction between public history and every low-level player action.
+
+Active and aftermath room overlays are projections of registry state and are reconstructed after restart. Event history is bounded. The server-event layer shares the village clock and does not add another ticker.

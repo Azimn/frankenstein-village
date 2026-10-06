@@ -605,6 +605,35 @@ class ModerationQueue(DefaultScript):
         return dict(selected), None
 
 
+class ServerEventRegistry(DefaultScript):
+    """Persistent village-scale conditions and their local response state."""
+
+    def at_script_creation(self):
+        self.key = "server_event_registry"
+        self.desc = "Village-scale event conditions, responses, and aftermath."
+        self.interval = -1
+        self.persistent = True
+        if self.db.events is None:
+            self.db.events = {}
+        if self.db.metrics is None:
+            self.db.metrics = {
+                "checks": 0,
+                "starts": 0,
+                "contributions": 0,
+                "resolutions": 0,
+                "aftermath_clears": 0,
+            }
+
+    def at_start(self, **kwargs):
+        try:
+            from world.server_events import reconcile_server_event_overlays
+            reconcile_server_event_overlays()
+        except Exception:
+            pass
+
+
+
+
 class RandomIncidentRegistry(DefaultScript):
     """Persistent stochastic incident state driven by the village clock."""
 
@@ -1358,6 +1387,17 @@ class VillageTime(SpikeScript):
         try:
             from world.scheduled_events import advance_scheduled_events
             advance_scheduled_events(
+                day=self.db.day or 1,
+                hour=hour,
+            )
+        except Exception:
+            pass
+
+        # Village-scale conditions use the same clock without owning a ticker.
+        # They update before random texture so broad world state is authoritative.
+        try:
+            from world.server_events import advance_server_events
+            advance_server_events(
                 day=self.db.day or 1,
                 hour=hour,
             )
