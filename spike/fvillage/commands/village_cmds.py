@@ -58,6 +58,228 @@ class CmdExamine(CmdLook):
         )
 
 
+class CmdCalling(Command):
+    """Choose and inspect a social profession.
+
+    Usage:
+        calling
+        calling list
+        calling choose <calling|none>
+        calling history
+        calling relations
+        calling apprentice <player>
+        calling release <player>
+
+    Callings are social professions, not combat classes. A new profession
+    begins at Apprentice. Master promotion comes from authored world work,
+    never from a free player command.
+    """
+
+    key = "calling"
+    aliases = ["profession"]
+    help_category = "Village"
+
+    def _target(self, raw):
+        matches = self.caller.search(raw, quiet=True) or []
+        if len(matches) != 1:
+            return None
+        target = matches[0]
+        if target is self.caller or not getattr(target, "account", None):
+            return None
+        return target
+
+    def func(self):
+        from world.callings import (
+            CALLINGS,
+            active_calling,
+            active_rank,
+            active_relations,
+            calling_label,
+            calling_state,
+            choose_calling,
+            create_apprenticeship,
+            end_apprenticeship,
+        )
+
+        raw = (self.args or "").strip()
+        lower = raw.lower()
+
+        if lower == "list":
+            lines = ["|yVillage callings:|n"]
+            for slug, definition in CALLINGS.items():
+                lines.append(
+                    f"{definition['display']}: {definition['summary']}"
+                )
+            lines.append(
+                "Choose one with |wcalling choose <name>|n. Participation is "
+                "broad, but only your active calling carries professional rank."
+            )
+            self.caller.msg("\n".join(lines))
+            return
+
+        if lower.startswith("choose "):
+            wanted = raw.split(None, 1)[1].strip()
+            result, error = choose_calling(self.caller, wanted)
+            if error:
+                self.caller.msg(error)
+                return
+            state = result["state"]
+            if not state.get("active"):
+                self.caller.msg(
+                    "You step away from an active calling. Your earlier "
+                    "professional history remains part of this mask."
+                )
+                return
+            record = result["record"]
+            label = calling_label(state["active"])
+            if not result.get("changed"):
+                self.caller.msg(
+                    f"{label} is already your active calling at "
+                    f"{record['rank'].title()} rank."
+                )
+                return
+            self.caller.msg(
+                f"{label} is now your active calling at "
+                f"{record['rank'].title()} rank. Earlier callings and work "
+                "remain in your history; respecialization does not erase them."
+            )
+            return
+
+        if lower == "history":
+            state = calling_state(self.caller)
+            history = list(state.get("history") or [])
+            lines = ["|yCalling history:|n"]
+            if not history:
+                lines.append("This mask has not chosen a calling yet.")
+            else:
+                for entry in history[-12:]:
+                    action = str(entry.get("action") or "").replace("_", " ")
+                    calling = entry.get("calling")
+                    detail = f" {calling_label(calling)}" if calling else ""
+                    lines.append(
+                        f"Day {entry.get('day')}, {int(entry.get('hour') or 0):02d}:00: "
+                        f"{action}{detail}."
+                    )
+            self.caller.msg("\n".join(lines))
+            return
+
+        if lower == "relations":
+            relations = active_relations(self.caller)
+            lines = ["|yActive calling relations:|n"]
+            if not relations:
+                lines.append("No active apprenticeship is recorded.")
+            else:
+                for relation in relations:
+                    if relation.get("role") == "mentor":
+                        other = relation.get("apprentice_mask") or "Unknown apprentice"
+                        lines.append(
+                            f"Master of {other} in "
+                            f"{calling_label(relation.get('calling'))}."
+                        )
+                    else:
+                        other = relation.get("mentor_mask") or "Unknown mentor"
+                        lines.append(
+                            f"Apprentice of {other} in "
+                            f"{calling_label(relation.get('calling'))}."
+                        )
+            self.caller.msg("\n".join(lines))
+            return
+
+        if lower.startswith("apprentice "):
+            if not _require_ic(self.caller):
+                return
+            target = self._target(raw.split(None, 1)[1].strip())
+            if not target:
+                self.caller.msg(
+                    "Your apprentice must be another player mask here with you."
+                )
+                return
+            relation, error = create_apprenticeship(self.caller, target)
+            if error:
+                self.caller.msg(error)
+                return
+            self.caller.msg(
+                f"{target.key} is now recorded as your Apprentice in "
+                f"{calling_label(relation['calling'])}. This is a persistent "
+                "professional relationship, not a temporary party flag."
+            )
+            target.msg(
+                f"{self.caller.key} has taken you as an Apprentice in "
+                f"{calling_label(relation['calling'])}. Use |wcalling relations|n "
+                "to review the relationship."
+            )
+            return
+
+        if lower.startswith("release "):
+            if not _require_ic(self.caller):
+                return
+            target = self._target(raw.split(None, 1)[1].strip())
+            if not target:
+                self.caller.msg(
+                    "Name the player mask whose apprenticeship you are ending."
+                )
+                return
+            ended, error = end_apprenticeship(
+                self.caller,
+                target,
+                reason="released_by_mentor",
+            )
+            if error:
+                self.caller.msg(error)
+                return
+            self.caller.msg(
+                f"The apprenticeship with {target.key} is ended and remains "
+                "preserved in both professional histories."
+            )
+            target.msg(
+                f"{self.caller.key} has ended your apprenticeship. The relation "
+                "remains in your calling history."
+            )
+            return
+
+        if raw:
+            self.caller.msg(
+                "Use: calling | calling list | calling choose <calling|none> | "
+                "calling history | calling relations | calling apprentice <player> | "
+                "calling release <player>"
+            )
+            return
+
+        active = active_calling(self.caller)
+        if not active:
+            self.caller.msg(
+                "This mask has no active calling. Callings are social professions, "
+                "not classes. Use |wcalling list|n, then "
+                "|wcalling choose <name>|n when you decide what you do for the village."
+            )
+            return
+        state = calling_state(self.caller)
+        record = dict((state.get("records") or {}).get(active) or {})
+        participation = dict(record.get("participation") or {})
+        lines = [
+            f"|yActive calling: {calling_label(active)}|n",
+            f"Rank: {(active_rank(self.caller) or 'apprentice').title()}.",
+        ]
+        if participation:
+            rendered = ", ".join(
+                f"{key.replace('_', ' ')} {value}"
+                for key, value in sorted(participation.items())
+            )
+            lines.append(f"Recorded participation: {rendered}.")
+        else:
+            lines.append(
+                "No professional participation has been recorded yet. "
+                "Participation is evidence for authored advancement, not a hidden XP bar."
+            )
+        relations = active_relations(self.caller)
+        if relations:
+            lines.append(
+                f"Active apprenticeship relations: {len(relations)}. "
+                "Use |wcalling relations|n for details."
+            )
+        self.caller.msg("\n".join(lines))
+
+
 class CmdPurse(Command):
     """
     Count your coin.
