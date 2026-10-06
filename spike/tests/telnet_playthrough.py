@@ -119,7 +119,7 @@ def main() -> int:
         out = c.command("calling choose chronicler")
         require(out, "chronicler is now your active calling")
         require(out, "apprentice rank")
-        require(out, "respecialization does not erase")
+        require(out, "later respecialization requires an authored opportunity")
         out = c.command("calling")
         require(out, "active calling: chronicler")
         require(out, "rank: apprentice")
@@ -660,19 +660,19 @@ def main() -> int:
         require(out, "evidence revisions 1")
         require(out, "signed accounts 1")
 
-        # Respecialization changes current professional identity but preserves
-        # prior rank and participation. Returning to Chronicler restores that
-        # existing record rather than creating a fresh character sheet.
+        # Free profession swapping is rejected. Respecialization is supported
+        # by the persistent model but must be opened by authored world logic.
         out = c.command("calling choose performer")
-        require(out, "performer is now your active calling")
-        require(out, "apprentice rank")
+        require(out, "established professional history")
+        require(out, "authored respecialization opportunity")
         out = c.command("calling history")
         require(out, "joined calling chronicler")
-        require(out, "respecialized performer")
-        out = c.command("calling choose chronicler")
-        require(out, "chronicler is now your active calling")
-        require(out, "apprentice rank")
+        if "respecialized performer" in out.lower():
+            raise AssertionError(
+                "player command bypassed the authored respecialization gate"
+            )
         out = c.command("calling")
+        require(out, "active calling: chronicler")
         require(out, "evidence revisions 1")
         require(out, "signed accounts 1")
 
