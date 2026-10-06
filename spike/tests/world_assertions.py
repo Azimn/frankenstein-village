@@ -345,6 +345,7 @@ assert rumor_registry.belief_for(ilona, harbinger_roots[0]["id"]), (
 from world.situations import (
     TITHE_ID,
     TORN_CHRONICLE_ID,
+    TEMPLATES,
     advance_situations,
     choose,
     chronicle_gap_description,
@@ -464,6 +465,72 @@ assert get_story(
 torn = get_situation(TORN_CHRONICLE_ID)
 assert torn["state"] == "surfaced"
 assert public_records.db.chronicle_gap_policy == "open_gap"
+
+# Chronicler Section 3.23, Revision by Evidence: a mask may append evidence it
+# actually discovered to an older Chronicle entry. The original text and claim
+# status remain immutable, duplicate provenance is rejected, and another mask
+# cannot cite evidence it has not discovered.
+from world.chronicle_content import (
+    revision_evidence_for_player,
+    submit_evidence_revision,
+)
+open_entry_id = open_event["publications"]["chronicle_entry_id"]
+open_entry_before = get_chronicle_entry(open_entry_id)
+original_open_text = open_entry_before["text"]
+original_open_status = open_entry_before["claim_status"]
+revision_refs = revision_evidence_for_player(inc_alice)
+assert {
+    (ref["situation_id"], ref["evidence_id"])
+    for ref in revision_refs
+} >= {
+    (TITHE_ID, "lock"),
+    (TITHE_ID, "roll"),
+}
+revised_entry, revision_error = submit_evidence_revision(
+    inc_alice,
+    open_entry_id,
+    "strongbox",
+    "roll",
+)
+assert revision_error is None
+assert revised_entry["text"] == original_open_text
+assert revised_entry["claim_status"] == original_open_status
+revision_annotation = revised_entry["annotations"][-1]
+assert revision_annotation["annotation_type"] == "evidence_revision"
+assert revision_annotation["source_mask"] == inc_alice.key
+assert revision_annotation["source_evidence_refs"] == [{
+    "situation_id": TITHE_ID,
+    "evidence_id": "roll",
+    "label": "the tithe roll",
+    "provenance": "documentary",
+    "summary": TEMPLATES[TITHE_ID]["evidence"]["roll"]["summary"],
+}]
+assert "original entry and its prior claim status remain unchanged" in (
+    revision_annotation["text"].lower()
+)
+duplicate_revision, duplicate_error = submit_evidence_revision(
+    inc_alice,
+    open_entry_id,
+    "strongbox",
+    "roll",
+)
+assert duplicate_revision is None and "already cited" in duplicate_error.lower()
+unrelated_revision, unrelated_error = submit_evidence_revision(
+    inc_alice,
+    destroy_entry["id"],
+    "strongbox",
+    "lock",
+)
+assert unrelated_revision is None
+assert "no situation-linked event provenance" in unrelated_error.lower()
+unseen_revision, unseen_error = submit_evidence_revision(
+    inc_bob,
+    open_entry_id,
+    "strongbox",
+    "lock",
+)
+assert unseen_revision is None
+assert "has not discovered" in unseen_error.lower()
 
 # Save the feed-surfaced world as the common starting point for the second
 # incident's three outcome branches.

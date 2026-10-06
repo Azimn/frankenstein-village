@@ -658,3 +658,20 @@ Execution contract:
 Persistence lives in the public-record registry through lazy upgrade-safe attributes, so older worlds do not require a destructive migration.
 
 Regression coverage verifies the no-player press-deadline fallback, stable source handles, a real telnet editorial choice, non-promotion to Chronicle truth, and preservation of the selected editorial record through a real server restart.
+
+
+## 2026-10-06 - Chronicle Revision by Evidence
+
+The accepted Section 3.23 case Revision by Evidence is now a player-facing Chronicle operation rather than an internal annotation helper.
+
+Execution contract:
+- `chronicle evidence C<number>` lists only situation evidence the current mask has actually discovered.
+- Evidence is exposed through stable source handles such as `strongbox/roll` and `chronicle/gap`.
+- `chronicle revise C<number> = <situation>/<evidence>` submits one discovered evidence source to an existing Chronicle entry.
+- The resulting annotation stores the submitting mask, evidence label, evidence provenance, situation ID, evidence ID, and evidence summary.
+- The original Chronicle text and prior claim status remain unchanged.
+- The same evidence provenance cannot be appended twice to the same entry merely to make the record look stronger.
+- A mask cannot cite evidence it has not discovered.
+- Reading `chronicle C<number>` renders the evidence source and provenance in player-facing text rather than hiding provenance in metadata.
+
+Regression coverage verifies evidence ownership, append-only behavior, duplicate rejection, cross-mask isolation, real telnet submission, public rendering, and persistence through a real server restart.

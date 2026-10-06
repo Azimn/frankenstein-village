@@ -99,6 +99,38 @@ assert any(
     for entry in entries
 ), "player Chronicle deposition did not survive restart"
 
+# Revision by Evidence must survive a real process restart without rewriting
+# the original Chronicle claim status. The telnet player cited documentary
+# strongbox evidence through the public command path.
+strongbox_entry = next(
+    entry
+    for entry in entries
+    if entry.get("title") == "Church Strongbox Loss Made Public"
+)
+assert strongbox_entry["claim_status"] == "verified_event"
+evidence_annotations = [
+    annotation
+    for annotation in strongbox_entry.get("annotations") or []
+    if annotation.get("annotation_type") == "evidence_revision"
+    and annotation.get("source_mask_id") == smoke.id
+]
+assert len(evidence_annotations) == 1
+evidence_annotation = evidence_annotations[0]
+assert evidence_annotation["source_mask"] == "SmokeTester"
+assert evidence_annotation["source_evidence_refs"] == [{
+    "situation_id": TITHE_ID,
+    "evidence_id": "roll",
+    "label": "the tithe roll",
+    "provenance": "documentary",
+    "summary": (
+        "The tithe roll was balanced the previous evening and records enough "
+        "coin that the present lightness cannot be bookkeeping."
+    ),
+}]
+assert "original entry and its prior claim status remain unchanged" in (
+    evidence_annotation["text"].lower()
+)
+
 # The Chronicler preserves incompatible signed versions without promoting
 # either one to verified history. This fixture was created through the same
 # submission API before the real telnet pass and must survive a process restart.
