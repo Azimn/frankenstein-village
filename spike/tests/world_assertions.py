@@ -261,6 +261,7 @@ from world.publications import (
     get_story,
     latest_edition,
     publish_due_harbinger,
+    reconcile_chronicle_disagreement,
     reconcile_chronicle_disagreements,
     submit_deposition,
 )
@@ -2240,6 +2241,25 @@ assert len([
     if entry.get("entry_type") == "disagreement_record"
     and root["id"] in list(entry.get("source_rumor_ids") or [])
 ]) == 1
+
+# Player-facing lazy recovery is deliberately scoped to one requested rumor.
+# Remove the derived record a second time and prove the single-root path can
+# restore it without invoking the global migration.
+public_records.db.chronicle_entries = [
+    entry
+    for entry in (public_records.db.chronicle_entries or [])
+    if not (
+        entry.get("entry_type") == "disagreement_record"
+        and root["id"] in list(entry.get("source_rumor_ids") or [])
+    )
+]
+assert chronicle_disagreement_for_rumor(root["id"]) is None
+lazy_backfill = reconcile_chronicle_disagreement(root["id"])
+assert lazy_backfill
+assert lazy_backfill["claim_status"] == "documented_disagreement"
+assert len(lazy_backfill["version_claims"]) == 3
+assert len(lazy_backfill["annotations"]) == 1
+assert chronicle_disagreement_for_rumor(root["id"])["id"] == lazy_backfill["id"]
 
 from world.rumors import propagate_colocated_npcs
 autonomous = propagate_colocated_npcs(announce=False, max_per_room=1)
