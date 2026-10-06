@@ -129,6 +129,7 @@ def main() -> int:
 
         out = c.command("south")
         require(out, "village square")
+        require(out, "one gas lamp", "neighboring lamps burn steadily")
 
         # A timed world window is already live. Firsthand evidence is earned by
         # being present during the window and observing the physical world.
