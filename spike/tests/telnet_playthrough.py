@@ -309,6 +309,19 @@ def main() -> int:
             raise AssertionError("rumor output did not expose a retellable handle")
         rumor_id = handles[0]
 
+        well_rumor_id = None
+        for match in re.finditer(r"\[R(\d+)\]\s+([^\n]+)", out, re.I):
+            claim = match.group(2).lower()
+            if "well" in claim and "steam" in claim:
+                well_rumor_id = match.group(1)
+                break
+        if not well_rumor_id:
+            raise AssertionError("well rumor had no public provenance handle")
+
+        out = c.command(f"chronicle compare R{well_rumor_id}")
+        require(out, "two versions survive", "old vasile", "jános")
+        require(out, "no version is certified as truth")
+
         out = c.command(f"rumors R{rumor_id}")
         require(out, "telling trail", "reconstructable")
         require(out, "retell it with")
