@@ -214,6 +214,19 @@ def _candidate_weight(stable_id, definition, day, hour, weather):
     weight += int(
         (definition.get("weather_bonus") or {}).get(weather, 0)
     )
+    try:
+        from world.seasonal_frameworks import random_incident_bonus
+        weight += int(
+            random_incident_bonus(
+                stable_id,
+                definition,
+                day=day,
+                hour=hour,
+                weather=weather,
+            )
+        )
+    except Exception:
+        pass
 
     # Occupied spaces are a little more likely to receive social texture,
     # but empty rooms remain eligible. This preserves a world that happens
