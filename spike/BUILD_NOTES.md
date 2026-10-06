@@ -462,7 +462,7 @@ Regression coverage verifies:
 
 Execution is:
 
-`village clock boundary -> recurring calendar update -> random eligibility -> deterministic trigger roll -> weighted selection -> one-hour overlay -> private structured event -> cleanup/history`
+`village clock boundary -> recurring calendar update -> random eligibility -> deterministic trigger roll -> weighted selection -> temporary overlay -> private structured event -> cleanup/history`
 
 The same world state produces the same random decision after restart. Weight inputs currently include:
 - location availability;
@@ -475,7 +475,7 @@ The same world state produces the same random decision after restart. Weight inp
 
 The first two templates deliberately establish a mundane-heavy distribution. Public Sneeze has a high base weight and requires a resident. Extinguished Lamp has a low base weight, is night-only, and gains weight in fog and rain.
 
-Random incidents are not publicized automatically. Their structured ledger events use private publicity and create no rumor or public-record projection by themselves. This keeps background texture from becoming forced mystery content.
+Random incidents are not publicized automatically. Their structured ledger events use private publicity and create no rumor or public-record projection by themselves. This keeps background texture from becoming forced mystery content. Templates own explicit lifetimes: Public Sneeze lasts one game hour and Extinguished Lamp lasts two.
 
 Temporary prose uses the same room overlay mechanism as scheduled events. History is capped at 24 completed incidents. The current incident and bounded history persist through restart.
 
