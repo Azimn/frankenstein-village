@@ -448,3 +448,14 @@ Hidden mechanics are simulation truth, not presentation metadata. The physics la
 Per-mask object knowledge is therefore stored on the observer rather than copied onto the object or global world state. Direct consequences can teach a mask what affected it. Ordinary `look` remains public description. `examine` may recall only knowledge that mask already earned.
 
 Discovery records preserve the value and provenance observed at discovery time. Future crafting or other property transformation must change object truth without silently rewriting old character memory. This preserves the same truth-versus-belief boundary already used by rumors and public records.
+
+
+## 2026-10-06 - Calling progression records biography, not levels
+
+A calling is the mask's active social profession. The production core uses Apprentice and Master because the world bible specifies advancement from Apprentice to Master but does not authorize an invented intermediate level ladder or automatic threshold.
+
+Participation is recorded from real professional actions but is not itself a hidden XP meter. Promotion to Master must be authored by world or institutional logic that can examine participation, responsibility, relationships, and current state. There is no free player promotion command.
+
+Respecialization preserves prior calling records and rank history. Only one calling is active at a time, so a character cannot simultaneously exercise every mastered profession. Returning to an earlier profession restores its historical record rather than erasing biography.
+
+Apprenticeship is persistent bilateral state. Master and Apprentice must currently share a calling. Either party can end the obligation, and a live apprenticeship blocks silent respecialization until it is resolved. This is the first interdependence primitive; later professional jobs should build on it rather than inventing temporary role flags.
