@@ -1069,6 +1069,7 @@ for _skey, _sclass in (
     ("public_records", "typeclasses.scripts.PublicRecordRegistry"),
     ("situation_registry", "typeclasses.scripts.SituationRegistry"),
     ("scheduled_event_registry", "typeclasses.scripts.ScheduledEventRegistry"),
+    ("server_event_registry", "typeclasses.scripts.ServerEventRegistry"),
     ("random_incident_registry", "typeclasses.scripts.RandomIncidentRegistry"),
     ("timed_incident_registry", "typeclasses.scripts.TimedIncidentRegistry"),
     ("warmth_watch", "typeclasses.scripts.WarmthWatch"),
@@ -1115,6 +1116,14 @@ print(
     f"({_timed_incidents['created']} created)."
 )
 
+
+from world.server_events import ensure_server_events
+_server_events = ensure_server_events()
+print(
+    "server event registry ready: "
+    f"{_server_events['count']} frameworks "
+    f"({_server_events['created']} created)."
+)
 
 from world.random_incidents import ensure_random_incidents
 _random_incidents = ensure_random_incidents()
