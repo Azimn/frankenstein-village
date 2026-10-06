@@ -35,6 +35,7 @@ for script_key in (
     "rumor_registry",
     "resident_population",
     "public_records",
+    "public_mystery_registry",
     "situation_registry",
     "scheduled_event_registry",
     "server_event_registry",
@@ -1372,6 +1373,171 @@ for npc in population:
         npc.db.resident_state = copy.deepcopy(old_state)
 tavern_for_snapshot.db.public_rumor_ids = copy.deepcopy(server_tavern_public)
 tavern_for_snapshot.db.player_rumors = copy.deepcopy(server_tavern_player)
+
+# Public mysteries preserve the distinction between observation and theory.
+from world.public_mysteries import (
+    MANOR_LIGHTS_ID,
+    get_public_mystery,
+    get_public_mystery_registry,
+    manor_light_state,
+    mystery_lines,
+    observe_manor,
+    submit_theory,
+)
+
+manor = one("the manor on the hill")
+assert manor.typeclass_path == "typeclasses.objects.ManorView"
+public_mystery_registry = get_public_mystery_registry()
+assert set((public_mystery_registry.db.mysteries or {}).keys()) == {
+    MANOR_LIGHTS_ID
+}
+public_mystery_snapshot = {
+    "mysteries": copy.deepcopy(
+        dict(public_mystery_registry.db.mysteries or {})
+    ),
+    "metrics": copy.deepcopy(dict(public_mystery_registry.db.metrics or {})),
+}
+mystery_ledger_snapshot = copy.deepcopy(list(ledger.db.events or []))
+mystery_public_snapshot = {
+    key: copy.deepcopy(getattr(public_records.db, key))
+    for key in public_records_snapshot
+}
+mystery_rumor_snapshot = {
+    "rumors": copy.deepcopy(list(rumor_registry.db.rumors or [])),
+    "transmissions": copy.deepcopy(list(rumor_registry.db.transmissions or [])),
+    "next_rumor_id": rumor_registry.db.next_rumor_id,
+    "next_transmission_id": rumor_registry.db.next_transmission_id,
+}
+mystery_belief_snapshot = {
+    npc.id: copy.deepcopy(dict(npc.db.rumor_beliefs or {}))
+    for npc in population
+}
+mystery_tavern_public = copy.deepcopy(
+    list(tavern_for_snapshot.db.public_rumor_ids or [])
+)
+mystery_tavern_player = copy.deepcopy(
+    list(tavern_for_snapshot.db.player_rumors or [])
+)
+
+# Find one deterministic visible-light state without hard-coding a lucky hour.
+lit_sample = None
+dark_sample = None
+for _day in range(1, 8):
+    for _hour in (18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5):
+        for _weather in ("clear", "fog", "rain"):
+            _state = manor_light_state(_day, _hour, _weather)
+            if _state["lit"] and lit_sample is None:
+                lit_sample = (_day, _hour, _weather, _state)
+            if not _state["lit"] and dark_sample is None:
+                dark_sample = (_day, _hour, _weather, _state)
+assert lit_sample and dark_sample
+
+qa_manor_a = SimpleNamespace(
+    id=940001, key="qa_manor_a", location=square,
+    has_account=True, account=None,
+)
+qa_manor_b = SimpleNamespace(
+    id=940002, key="qa_manor_b", location=square,
+    has_account=True, account=None,
+)
+
+_day, _hour, _weather, _state = lit_sample
+first_obs = observe_manor(
+    qa_manor_a,
+    day=_day,
+    hour=_hour,
+    weather=_weather,
+)
+assert first_obs["lit"]
+assert first_obs["pattern"] == _state["pattern"]
+mystery = get_public_mystery(MANOR_LIGHTS_ID)
+assert len(mystery["observations"]) == 1
+assert len(mystery["observations"][0]["witnesses"]) == 1
+assert mystery["first_signal_event_id"]
+assert mystery["first_signal_rumor_id"]
+assert mystery["first_signal_publications"]["harbinger_story_id"]
+assert not mystery["first_signal_publications"].get("chronicle_entry_id")
+
+signal_event = ledger.get_event(mystery["first_signal_event_id"])
+assert signal_event["kind"] == "public_mystery.manor_lights.observed"
+assert signal_event["rumor"]["rumor_id"] == mystery["first_signal_rumor_id"]
+
+# A second witness to the same objective state attaches provenance rather than
+# creating a duplicate "fact".
+second_obs = observe_manor(
+    qa_manor_b,
+    day=_day,
+    hour=_hour,
+    weather=_weather,
+)
+assert second_obs["key"] == first_obs["key"]
+mystery = get_public_mystery(MANOR_LIGHTS_ID)
+assert len(mystery["observations"]) == 1
+assert {
+    witness["mask_id"]
+    for witness in mystery["observations"][0]["witnesses"]
+} == {qa_manor_a.id, qa_manor_b.id}
+
+observe_manor(
+    qa_manor_a,
+    day=_day,
+    hour=_hour,
+    weather=_weather,
+)
+mystery = get_public_mystery(MANOR_LIGHTS_ID)
+assert len(mystery["observations"][0]["witnesses"]) == 2
+
+# A dark observation is equally valid evidence. Absence is measurable too.
+_dark_day, _dark_hour, _dark_weather, _dark_state = dark_sample
+dark_obs = observe_manor(
+    qa_manor_a,
+    day=_dark_day,
+    hour=_dark_hour,
+    weather=_dark_weather,
+)
+assert not dark_obs["lit"]
+mystery = get_public_mystery(MANOR_LIGHTS_ID)
+assert len(mystery["observations"]) == 2
+
+theory, error = submit_theory(
+    qa_manor_a,
+    "The lights follow a maintenance routine the village has forgotten.",
+)
+assert theory and error is None
+assert theory["status"] == "proposed"
+assert theory["truth_status"] is None
+mystery = get_public_mystery(MANOR_LIGHTS_ID)
+assert len(mystery["theories"]) == 1
+assert mystery["theories"][0]["truth_status"] is None
+mystery_text = "\n".join(mystery_lines(qa_manor_a))
+assert "Shared observations: 2" in mystery_text
+assert "Provisional theories:" in mystery_text
+assert "No metaphysical explanation is certified." in mystery_text
+
+# Restore QA evidence and its publication side effects before later scenarios.
+public_mystery_registry.db.mysteries = copy.deepcopy(
+    public_mystery_snapshot["mysteries"]
+)
+public_mystery_registry.db.metrics = copy.deepcopy(
+    public_mystery_snapshot["metrics"]
+)
+ledger.db.events = copy.deepcopy(mystery_ledger_snapshot)
+for key, value in mystery_public_snapshot.items():
+    setattr(public_records.db, key, copy.deepcopy(value))
+rumor_registry.db.rumors = copy.deepcopy(mystery_rumor_snapshot["rumors"])
+rumor_registry.db.transmissions = copy.deepcopy(
+    mystery_rumor_snapshot["transmissions"]
+)
+rumor_registry.db.next_rumor_id = mystery_rumor_snapshot["next_rumor_id"]
+rumor_registry.db.next_transmission_id = mystery_rumor_snapshot[
+    "next_transmission_id"
+]
+for npc in population:
+    npc.db.rumor_beliefs = copy.deepcopy(
+        mystery_belief_snapshot.get(npc.id, {})
+    )
+tavern_for_snapshot.db.public_rumor_ids = copy.deepcopy(mystery_tavern_public)
+tavern_for_snapshot.db.player_rumors = copy.deepcopy(mystery_tavern_player)
 
 # The butcher resolves directly to the correct current state. Skipped hours
 # are not replayed, and a dead resident stops following schedules.
