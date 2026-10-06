@@ -675,3 +675,21 @@ Execution contract:
 - Reading `chronicle C<number>` renders the evidence source and provenance in player-facing text rather than hiding provenance in metadata.
 
 Regression coverage verifies evidence ownership, append-only behavior, duplicate rejection, cross-mask isolation, real telnet submission, public rendering, and persistence through a real server restart.
+
+
+## 2026-10-06 - Chronicle Refused Entry
+
+Section 3.23 The Refused Entry is now a persistent institutional behavior rather than a prose-only rejection.
+
+Execution contract:
+- `chronicle petition R<number>` requires a public rumor the current mask actually knows.
+- The Refused Entry case activates only when at least three residents currently carry the rumor at confidence 0.50 or higher.
+- A rumor whose underlying event already has a verified Chronicle entry cannot be processed as a refused-entry case.
+- The refusal creates a canonical `chronicle.refused_entry` world event and a Chronicle `refusal_record`.
+- The refusal record canonizes that the petition happened, that the archive refused it, and that the claim was socially popular. It explicitly does not certify the rumor as true or false.
+- The event is not Chronicle-eligible through the automatic publication bridge, preventing accidental double-canonization. The explicit refusal record is the sole Chronicle artifact.
+- The Harbinger may report the refusal as an objective institutional event.
+- Residents who already carry the refused rumor above the confidence floor receive the refusal event with `reaction = angered_by_refusal`, making the backlash persistent world state rather than decorative prose.
+- Repeated petitions are idempotent and return the original refusal instead of generating new events or artificial evidentiary weight.
+
+Regression coverage verifies popularity gating, non-promotion of rumor truth, Harbinger projection, resident reaction state, repeated-petition idempotence, real telnet use, and survival through a real server restart.
