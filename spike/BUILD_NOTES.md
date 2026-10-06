@@ -767,3 +767,24 @@ Execution contract:
 - Visible and hidden definitions for the same property are rejected as contradictory authoring.
 
 Regression coverage proves hidden toxin remains active, ordinary visible property queries omit it, unrelated observers do not receive it, direct consequences teach the affected mask, real telnet look/examine behavior respects the gate, and learned toxin knowledge survives a real process restart.
+
+
+## 2026-10-06 - Calling and apprenticeship core
+
+The first production calling slice establishes persistent social-profession identity without introducing levels or combat classes.
+
+Execution contract:
+- Canonical callings are Innkeep, Chronicler, Smith, Healer, Merchant, Wanderer, Performer, Detective, and Hound.
+- `calling list` shows the professions. `calling choose <name>` selects or respecializes the current mask. `calling choose none` steps away from an active profession without deleting history.
+- A newly chosen profession begins at Apprentice. Master is the current authority ceiling.
+- There is deliberately no player-facing promote command and no invented numeric XP threshold. `promote_to_master()` is an authored gate for later quest, institution, or responsibility logic.
+- Only the active calling exercises its rank. A mask may return to a previously mastered profession later, but switching to another calling makes that other profession the active ruleset.
+- Professional records persist participation counters, first-join data, Master provenance, and append-only respecialization history.
+- Existing work feeds participation rather than a placeholder grind. Chronicle depositions and evidence revisions record Chronicler work; fiddle practice and performance record Performer work.
+- Participation never auto-promotes a mask. It is evidence future authored advancement gates may inspect.
+- Master-to-Apprentice relations are persistent on both masks. They require the same active calling, one Master, and one Apprentice.
+- An active apprenticeship blocks silent respecialization until it is explicitly ended.
+- A Master may release an Apprentice. An Apprentice may withdraw even if the Master is unavailable; the historical relation remains recorded.
+- These relations provide the first persistent interdependence primitive. They are not party membership and grant no combat bonus.
+
+Regression coverage proves invalid calling rejection, participation isolation, authored Master promotion, apprenticeship creation and idempotence, obligation-aware respecialization, historical Master retention with one active professional identity, real telnet calling selection and respecialization, real Chronicle participation, and persistence through a real server restart.
