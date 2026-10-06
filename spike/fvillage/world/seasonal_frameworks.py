@@ -219,14 +219,15 @@ def ensure_seasonal_frameworks():
     }
 
 
-def current_chapter():
+def current_chapter(day=None):
     registry = _registry()
     stable_id = registry.db.active_id
     if not stable_id:
         ensure_seasonal_frameworks()
         stable_id = registry.db.active_id
     definition = DEFINITIONS[stable_id]
-    day, _hour = _clock()
+    if day is None:
+        day, _hour = _clock()
     chapter_day = max(1, int(day) - int(registry.db.started_day or day) + 1)
     return {
         "id": stable_id,
@@ -409,7 +410,7 @@ def advance_seasonal_framework(*, day, hour, emit=True):
 def calendar_line(day=None):
     if day is None:
         day, _hour = _clock()
-    chapter = current_chapter()
+    chapter = current_chapter(day=day)
     remaining = max(
         0,
         chapter["duration_days"] - chapter["chapter_day"],
