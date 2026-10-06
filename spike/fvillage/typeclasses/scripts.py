@@ -605,6 +605,31 @@ class ModerationQueue(DefaultScript):
         return dict(selected), None
 
 
+class PrivateMysteryRegistry(DefaultScript):
+    """Mask-specific mysteries and disclosure state.
+
+    Private mysteries create information asymmetry without becoming required
+    world-state gates. The authoritative content remains attached to the mask
+    that received it until that mask chooses to disclose it.
+    """
+
+    def at_script_creation(self):
+        self.key = "private_mystery_registry"
+        self.desc = "Mask-specific private mystery delivery and disclosure records."
+        self.interval = -1
+        self.persistent = True
+        if self.db.records is None:
+            self.db.records = {}
+        if self.db.metrics is None:
+            self.db.metrics = {
+                "deliveries": 0,
+                "repeat_checks": 0,
+                "disclosures": 0,
+            }
+
+
+
+
 class PublicMysteryRegistry(DefaultScript):
     """Shared observations and theories for intentionally open mysteries."""
 
