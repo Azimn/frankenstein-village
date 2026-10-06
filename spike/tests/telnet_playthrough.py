@@ -110,6 +110,9 @@ def main() -> int:
         out = c.command("chronicle")
         require(out, "in-character village record", "cross the front door")
 
+        out = c.command("secrets")
+        require(out, "in-character village record", "cross the front door")
+
         # The public calendar is intentionally available backstage so groups
         # can plan around predictable village rhythms before crossing IC.
         out = c.command("calendar")
@@ -213,6 +216,36 @@ def main() -> int:
 
         out = c.command("east")
         require(out, "blood of the vine")
+
+        # Private mysteries belong to this exact mask until the player chooses
+        # to disclose them. János is here by his ordinary evening schedule.
+        out = c.command("ask Janos about Hounds")
+        require(out, "hounds keep some things off the bar", "private p1")
+        invitation_match = re.search(r"rumor R(\d+)", out, re.I)
+        if not invitation_match:
+            raise AssertionError("private invitation exposed no rumor handle")
+        invitation_rumor_id = invitation_match.group(1)
+
+        out = c.command("secrets")
+        require(out, "a private invitation", "invited")
+        require(out, f"invitation rumor: r{invitation_rumor_id}")
+
+        out = c.command("ask Janos about east patrol")
+        require(out, "three mornings", "same chalk ring", "we do not know")
+        followup_match = re.search(r"rumor R(\d+)", out, re.I)
+        if not followup_match:
+            raise AssertionError("private follow-up exposed no rumor handle")
+        private_rumor_id = followup_match.group(1)
+
+        out = c.command(f"rumors R{private_rumor_id}")
+        require(out, "chalk ring", "telling trail", "janos")
+
+        out = c.command(f"retell Bram R{private_rumor_id}")
+        require(out, "you tell bram", "chalk ring")
+
+        out = c.command("secrets")
+        require(out, "opened", "follow-up rumor")
+        require(out, "bram")
 
         out = c.command("journal strongbox")
         require(out, "tithe roll", "unforced lock")

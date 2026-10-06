@@ -601,3 +601,32 @@ Regression coverage verifies:
 - synthetic QA cleanup;
 - real calendar and room-overlay rendering over telnet;
 - chapter state and projection across a real server restart.
+
+## 2026-10-06 - Private mystery layer
+
+`world/private_mysteries.py` implements production backlog section 3.21 as mask-specific information asymmetry.
+
+The first live thread is `PRIVATE-HOUNDS-INVITATION`:
+1. ask János about the Hounds;
+2. the exact mask receives one private invitation rumor;
+3. only an invited mask can open the east-patrol follow-up;
+4. `secrets` shows the mask's private thread and rumor handles;
+5. explicit `retell <person> R<number>` may disclose the private rumor;
+6. disclosure writes ordinary rumor provenance plus an owner-side disclosure record.
+
+Private rumors are not added to Tavern public rumor IDs and do not create world-event, Harbinger, or Chronicle records automatically. A recipient of a disclosed secret gains knowledge but does not inherit the private thread itself.
+
+`retell` now explicitly enforces the IC threshold so OOC Inn conversation cannot create in-world rumor provenance.
+
+Regression coverage verifies:
+- one persistent private registry;
+- two-mask isolation;
+- follow-up rejection before invitation;
+- idempotent invitation and follow-up delivery;
+- private rumor roots and mask beliefs;
+- absence from Tavern public rumor state;
+- absence of automatic world-event and public-record side effects;
+- explicit disclosure to another mask;
+- disclosure without ownership cloning;
+- real János interaction and disclosure over telnet;
+- private thread, private rumor, recipient knowledge, and disclosure history across a real server restart.

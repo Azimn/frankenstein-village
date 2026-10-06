@@ -36,6 +36,7 @@ for script_key in (
     "resident_population",
     "public_records",
     "public_mystery_registry",
+    "private_mystery_registry",
     "situation_registry",
     "seasonal_framework_registry",
     "scheduled_event_registry",
@@ -1703,6 +1704,141 @@ for npc in population:
     )
 tavern_for_snapshot.db.public_rumor_ids = copy.deepcopy(mystery_tavern_public)
 tavern_for_snapshot.db.player_rumors = copy.deepcopy(mystery_tavern_player)
+
+# Private mysteries create mask-specific information asymmetry. The thread
+# belongs to the invited mask; deliberate disclosure shares knowledge without
+# cloning ownership or becoming server-wide progress.
+from evennia.utils import create as evennia_create
+from world.private_mysteries import (
+    HOUNDS_INVITATION_ID,
+    deliver_hounds_invitation,
+    get_private_mystery_registry,
+    note_disclosure,
+    open_hounds_followup,
+    private_lines,
+    private_mystery_answer,
+    records_for,
+)
+
+private_registry = get_private_mystery_registry()
+private_snapshot = {
+    "records": copy.deepcopy(dict(private_registry.db.records or {})),
+    "metrics": copy.deepcopy(dict(private_registry.db.metrics or {})),
+}
+private_rumor_snapshot = {
+    "rumors": copy.deepcopy(list(rumor_registry.db.rumors or [])),
+    "transmissions": copy.deepcopy(list(rumor_registry.db.transmissions or [])),
+    "next_rumor_id": rumor_registry.db.next_rumor_id,
+    "next_transmission_id": rumor_registry.db.next_transmission_id,
+}
+private_tavern_public = copy.deepcopy(
+    list(tavern_for_snapshot.db.public_rumor_ids or [])
+)
+private_tavern_player = copy.deepcopy(
+    list(tavern_for_snapshot.db.player_rumors or [])
+)
+private_ledger_count = len(ledger.db.events or [])
+private_harbinger_count = len(public_records.db.harbinger_drafts or [])
+private_chronicle_count = len(public_records.db.chronicle_entries or [])
+
+qa_private_a = evennia_create.create_object(
+    "typeclasses.characters.Character",
+    key="qa_private_a",
+    location=tavern_for_snapshot,
+)
+qa_private_b = evennia_create.create_object(
+    "typeclasses.characters.Character",
+    key="qa_private_b",
+    location=tavern_for_snapshot,
+)
+janos = one("János")
+
+try:
+    assert records_for(qa_private_a) == []
+    assert records_for(qa_private_b) == []
+
+    refused = private_mystery_answer(
+        janos,
+        qa_private_b,
+        "east patrol",
+    )
+    assert "not a conversation" in refused.lower()
+    assert records_for(qa_private_b) == []
+
+    invitation = deliver_hounds_invitation(janos, qa_private_a)
+    assert invitation["status"] == "invited"
+    invitation_id = invitation["invitation_rumor_id"]
+    assert records_for(qa_private_a)[0]["id"] == HOUNDS_INVITATION_ID
+    assert records_for(qa_private_b) == []
+
+    invitation_root = rumor_registry.get_rumor(invitation_id)
+    assert invitation_root["privacy"] == "private"
+    assert rumor_registry.belief_for(qa_private_a, invitation_id)
+    assert rumor_registry.belief_for(qa_private_b, invitation_id) is None
+    assert invitation_id not in (
+        tavern_for_snapshot.db.public_rumor_ids or []
+    )
+
+    rumor_count = len(rumor_registry.db.rumors or [])
+    duplicate = deliver_hounds_invitation(janos, qa_private_a)
+    assert duplicate["invitation_rumor_id"] == invitation_id
+    assert len(rumor_registry.db.rumors or []) == rumor_count
+
+    followup = open_hounds_followup(janos, qa_private_a)
+    assert followup["status"] == "opened"
+    followup_id = followup["followup_rumor_id"]
+    followup_root = rumor_registry.get_rumor(followup_id)
+    assert followup_root["privacy"] == "private"
+    assert "chalk ring" in followup_root["claim"].lower()
+    assert open_hounds_followup(janos, qa_private_b) is None
+    assert followup_id not in (
+        tavern_for_snapshot.db.public_rumor_ids or []
+    )
+
+    # Private existence alone never creates public history.
+    assert len(ledger.db.events or []) == private_ledger_count
+    assert len(public_records.db.harbinger_drafts or []) == private_harbinger_count
+    assert len(public_records.db.chronicle_entries or []) == private_chronicle_count
+
+    # Explicit retelling shares the rumor but does not clone the private thread.
+    shared = rumor_registry.transmit(
+        followup_id,
+        qa_private_a,
+        qa_private_b,
+        location=tavern_for_snapshot.key,
+        force_accept=True,
+        allow_private=True,
+    )
+    assert shared and shared["accepted"]
+    assert rumor_registry.belief_for(qa_private_b, followup_id)
+    note_disclosure(qa_private_a, qa_private_b, followup_id)
+    assert records_for(qa_private_b) == []
+
+    owner_record = records_for(qa_private_a)[0]
+    assert owner_record["disclosures"]
+    assert owner_record["disclosures"][-1]["target"]["mask"] == "qa_private_b"
+    owner_text = "\n".join(private_lines(qa_private_a))
+    assert "qa_private_b" in owner_text
+    assert "server-wide requirement" in owner_text
+finally:
+    qa_private_a.delete()
+    qa_private_b.delete()
+    private_registry.db.records = copy.deepcopy(private_snapshot["records"])
+    private_registry.db.metrics = copy.deepcopy(private_snapshot["metrics"])
+    rumor_registry.db.rumors = copy.deepcopy(private_rumor_snapshot["rumors"])
+    rumor_registry.db.transmissions = copy.deepcopy(
+        private_rumor_snapshot["transmissions"]
+    )
+    rumor_registry.db.next_rumor_id = private_rumor_snapshot["next_rumor_id"]
+    rumor_registry.db.next_transmission_id = private_rumor_snapshot[
+        "next_transmission_id"
+    ]
+    tavern_for_snapshot.db.public_rumor_ids = copy.deepcopy(
+        private_tavern_public
+    )
+    tavern_for_snapshot.db.player_rumors = copy.deepcopy(
+        private_tavern_player
+    )
 
 # The butcher resolves directly to the correct current state. Skipped hours
 # are not replayed, and a dead resident stops following schedules.

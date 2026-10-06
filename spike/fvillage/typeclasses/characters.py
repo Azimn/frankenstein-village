@@ -1035,7 +1035,15 @@ class TavernRegular(SpikeCharacter):
         )
 
     def ask_about(self, char, topic):
-        """Share an actually held rumor when asked about local talk."""
+        """Answer private authored threads before ordinary public gossip."""
+        try:
+            from world.private_mysteries import private_mystery_answer
+            private_line = private_mystery_answer(self, char, topic)
+            if private_line:
+                return private_line
+        except Exception:
+            pass
+
         if not topic_matches(
             topic.lower().strip(),
             "rumor", "rumors", "rumour", "rumours", "gossip", "talk",
