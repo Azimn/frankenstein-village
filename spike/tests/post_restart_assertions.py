@@ -15,8 +15,10 @@ from world.publications import (
     chronicle_entries,
     depositions_for_rumor,
     edition_stories,
+    get_story,
     latest_edition,
 )
+from world.harbinger_content import harbinger_conflicts
 from world.timed_incidents import (
     WELL_BOILS_ID,
     advance_timed_incidents,
@@ -124,6 +126,29 @@ assert all(
         if item.get("id") == well_disagreement["id"]
     ]
 )
+
+# The telnet copy-desk choice must survive a real process restart. It remains
+# an attributed Harbinger interpretation and never upgrades the underlying
+# disputed rumor to verified Chronicle history.
+well_press = [
+    conflict
+    for conflict in harbinger_conflicts()
+    if conflict.get("rumor_id") == well_root["id"]
+]
+assert len(well_press) == 1
+well_press = well_press[0]
+assert well_press["status"] == "selected"
+assert well_press["resolution"] == "selected_account"
+assert well_press["decided_by_mask"] == "SmokeTester"
+assert well_press["story_id"]
+well_press_story = get_story(well_press["story_id"])
+assert well_press_story
+assert well_press_story["basis"] == "contested_report"
+assert well_press_story["source_rumor_id"] == well_root["id"]
+assert well_press_story["source_deposition_id"] == (
+    well_press["decision_deposition_id"]
+)
+assert "does not certify the claim as fact" in well_press_story["body"]
 
 incident = get_situation(TITHE_ID)
 assert incident["state"] == "aftermath"
