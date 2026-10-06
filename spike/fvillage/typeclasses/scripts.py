@@ -605,6 +605,27 @@ class ModerationQueue(DefaultScript):
         return dict(selected), None
 
 
+class PublicMysteryRegistry(DefaultScript):
+    """Shared observations and theories for intentionally open mysteries."""
+
+    def at_script_creation(self):
+        self.key = "public_mystery_registry"
+        self.desc = "Public mystery evidence, witnesses, and provisional theories."
+        self.interval = -1
+        self.persistent = True
+        if self.db.mysteries is None:
+            self.db.mysteries = {}
+        if self.db.metrics is None:
+            self.db.metrics = {
+                "observations": 0,
+                "witness_links": 0,
+                "theories": 0,
+                "public_signals": 0,
+            }
+
+
+
+
 class ServerEventRegistry(DefaultScript):
     """Persistent village-scale conditions and their local response state."""
 
