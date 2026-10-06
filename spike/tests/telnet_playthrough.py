@@ -258,6 +258,56 @@ def main() -> int:
 
         out = c.command("harbinger")
         require(out, "special edition", "church strongbox loss made public")
+        strongbox_story_match = re.search(
+            r"\[H(\d+)\]\s+Church Strongbox Loss Made Public",
+            out,
+            re.I,
+        )
+        if not strongbox_story_match:
+            raise AssertionError(
+                "strongbox Harbinger story exposed no stable public handle"
+            )
+        strongbox_story_id = strongbox_story_match.group(1)
+
+        # Harbinger Section 3.22, The Correction: file a correction claiming
+        # prior wording that the surviving archive copy does not contain.
+        missing_wording = "The vestry window was broken before the coins disappeared."
+        out = c.command(
+            f"harbinger correction H{strongbox_story_id} = {missing_wording}"
+        )
+        require(
+            out,
+            "correction dispute cd",
+            "surviving copy does not contain",
+            "old issue is not rewritten",
+            "archive discrepancy",
+        )
+        correction_dispute_match = re.search(r"CD(\d+)", out, re.I)
+        response_story_match = re.search(r"Harbinger H(\d+)", out, re.I)
+        if not correction_dispute_match or not response_story_match:
+            raise AssertionError(
+                "The Correction exposed no stable dispute/response handles"
+            )
+        correction_dispute_id = correction_dispute_match.group(1)
+        correction_response_story_id = response_story_match.group(1)
+
+        out = c.command(f"harbinger H{strongbox_story_id}")
+        require(
+            out,
+            f"disputed correction cd{correction_dispute_id}",
+            "claimed prior wording",
+            "absent from the surviving copy",
+            "archived story remains unchanged",
+        )
+
+        out = c.command(
+            f"harbinger correction H{strongbox_story_id} = {missing_wording}"
+        )
+        require(
+            out,
+            "already preserved",
+            "repetition does not alter the surviving copy",
+        )
 
         out = c.command("chronicle")
         require(out, "church strongbox loss made public", "verified")
