@@ -1054,7 +1054,10 @@ class CmdChronicle(Command):
             self.caller.msg(description)
             return
         if arg.lower().startswith("evidence "):
-            from world.chronicle_content import revision_evidence_for_player
+            from world.chronicle_content import (
+                evidence_reference_token,
+                revision_evidence_for_player,
+            )
 
             token = arg.split(None, 1)[1]
             entry_id = _parse_record_id(token, "C")
@@ -1074,7 +1077,7 @@ class CmdChronicle(Command):
             else:
                 for ref in evidence_refs:
                     lines.append(
-                        f"{ref['situation_id']}/{ref['evidence_id']}: "
+                        f"{evidence_reference_token(ref)}: "
                         f"{ref['label']} ({ref['provenance']})"
                     )
                 lines.append(
