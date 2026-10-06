@@ -630,6 +630,14 @@ class RandomIncidentRegistry(DefaultScript):
                 "odd": 0,
             }
 
+    def at_start(self, **kwargs):
+        """Re-project any active incident after a process restart."""
+        try:
+            from world.random_incidents import reconcile_random_incident_overlay
+            reconcile_random_incident_overlay()
+        except Exception:
+            pass
+
 
 
 
