@@ -208,18 +208,18 @@ assert private_record["status"] == "opened"
 assert private_record["invitation_rumor_id"]
 assert private_record["followup_rumor_id"]
 assert any(
-    (entry.get("target") or {}).get("mask") == "Magda"
+    (entry.get("target") or {}).get("mask") == "Bram"
     for entry in private_record.get("disclosures") or []
-), "private disclosure to Magda did not survive restart"
+), "private disclosure to Bram did not survive restart"
 
 private_rumors = get_rumor_registry()
 followup_id = private_record["followup_rumor_id"]
 followup_root = private_rumors.get_rumor(followup_id)
 assert followup_root["privacy"] == "private"
 assert private_rumors.belief_for(smoke, followup_id)
-magda = one("Magda")
-assert private_rumors.belief_for(magda, followup_id), (
-    "explicitly retold private rumor did not remain known to Magda"
+bram = one("Bram")
+assert private_rumors.belief_for(bram, followup_id), (
+    "explicitly retold private rumor did not remain known to Bram"
 )
 tavern = one("The Blood of the Vine")
 assert followup_id not in (tavern.db.public_rumor_ids or []), (
