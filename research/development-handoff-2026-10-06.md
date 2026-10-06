@@ -197,3 +197,21 @@ Do not rebuild Chronicle disagreement preservation.
 Do not skip directly to a later subsystem merely because it is more interesting.
 
 Continue one production item at a time through the authoritative backlog.
+
+
+## Production continuation after the original checkpoint
+
+The original checkpoint above predates several accepted production slices. Repository history remains authoritative.
+
+Accepted publication work since that checkpoint:
+- PR #20, Stop the Press, merged and post-merge verified.
+- PR #21, Chronicle Revision by Evidence, merged and post-merge verified.
+- PR #22, The Refused Entry, merged and post-merge verified.
+- PR #23, The Correction, merged and post-merge verified.
+- PR #24, Tomorrow's Obituary, merged as `10e5d44429f03f4e001d7ab9ce9487e1e5a47d01` and post-merge verified by Actions run `37517157161`.
+
+The Harbinger and Chronicle content-framework pass is now sufficiently mature to advance to the next documented dependency. The current production direction is the minimal systemic object/property foundation from `design-decisions.md`, followed by hidden-property perception work and then the persistent calling/interdependence core.
+
+The first systemic-object slice must extend existing consumables rather than creating a second inventory or effect system. The production representation is mechanical tags plus a value mapping, with configuration kept separate from mutable runtime counters. Existing fare and mushroom behavior is the proving ground. Hidden properties, crafting, and legend classification remain later phases.
+
+When resuming, verify current `main`, open PRs, and Actions first. If the systemic-object property slice has already merged, inspect its exact release evidence and continue to the next dependency rather than rebuilding it.

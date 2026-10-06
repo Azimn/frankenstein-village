@@ -730,3 +730,22 @@ Execution contract:
 - If press time arrives with no decision, the safe default is suppression. An unresolved premature obituary can never auto-print merely because its deadline elapsed.
 
 Regression coverage exercises all four decisions, verifies Chronicle non-promotion, verifies lifecycle immutability, plays the investigation path through real telnet, and confirms the case, story, event, reaction, and active lifecycle survive a real server restart.
+
+
+## 2026-10-06 - Systemic object mechanical-property foundation
+
+The first production phase of the systemic-object plan is now implemented on live consumables instead of as an unused abstraction.
+
+Execution contract:
+- Canonical mechanical property names are centralized in `world/object_properties.py`: `harm`, `toxin`, `mend`, `ward`, `holds`, `fuel`, `uses`, `worth`, `perish`, and `tale`.
+- Presence is encoded as Evennia tags in category `mechanic`. Magnitudes and payloads are stored in `db.mechanic_values`.
+- `configure_mechanical_properties()` converges definition data and rejects unknown property names.
+- Definition data is separate from mutable runtime state. In particular, `uses` is the configured capacity for finite fare while `db.servings` remains the live remaining count.
+- Rebuilding the world may converge property definitions but must never refill an existing live serving counter.
+- Tavern fare now carries `worth` and finite fare carries `uses`.
+- Well mushrooms carry `toxin=25`; their legacy `db.consume["toxic"]` field has been removed.
+- Payment, depletion, consumption-count, and toxicity paths read mechanical properties first.
+- Legacy `TAVERN_PRICES`, `servings_max`, and `toxic` reads remain fallback-only where needed for persistent pre-migration objects. The dice rule still intentionally uses the fixed ale price as a game rule rather than an item lookup.
+- Hidden properties, perception-gated reveal, crafting transformations, and legend classification remain later phases.
+
+Regression coverage proves property authority by changing bread worth independently of its name, initializing a missing live counter from `uses` rather than legacy capacity, applying mushroom toxicity with no legacy toxic field, preserving a partially consumed bread count through idempotent rebuild, exercising ordinary bread purchase through real telnet, and verifying property definitions plus live state after a real process restart.

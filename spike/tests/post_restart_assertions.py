@@ -5,6 +5,7 @@ import hashlib
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
 
+from world.object_properties import mechanical_properties
 from world.residents import facts_known_by_player, resident_state
 from world.situations import (
     TITHE_ID,
@@ -86,6 +87,19 @@ assert known, "revealed fact was not recorded for the player mask"
 
 population = list(search.search_tag("resident", category="system"))
 assert len(population) == 36, "resident population changed across restart"
+
+# Systemic object definitions survive the process boundary. During the live
+# server pass Bram's routine legitimately restocks the bread after the player
+# buys a serving, so the post-restart count should be the configured uses
+# capacity rather than the pre-restock count.
+bread = one("a loaf of bread")
+water = one("a cup of water")
+mushrooms = one("a cluster of mushrooms")
+assert mechanical_properties(bread) == {"uses": 6, "worth": 4}
+assert mechanical_properties(water) == {"worth": 0}
+assert mechanical_properties(mushrooms) == {"toxin": 25}
+assert bread.db.servings == mechanical_properties(bread)["uses"]
+assert "toxic" not in dict(mushrooms.db.consume or {})
 
 edition = latest_edition()
 assert edition and edition["special"], "Room Six special edition did not survive restart"
