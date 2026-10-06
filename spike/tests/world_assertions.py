@@ -261,6 +261,7 @@ from world.publications import (
     get_story,
     latest_edition,
     publish_due_harbinger,
+    reconcile_chronicle_disagreements,
     submit_deposition,
 )
 destroy_refs = school_destroyed.get("publications") or {}
@@ -2209,6 +2210,36 @@ assert len([
     and root["id"] in list(entry.get("source_rumor_ids") or [])
 ]) == 1
 assert len(depositions_for_rumor(root["id"])) == 3
+
+# Migration path: an upgraded persistent world may already contain these
+# depositions but no disagreement entry. Removing only the derived record
+# simulates that pre-feature state. Reconciliation must restore the public
+# archive immediately and remain idempotent.
+public_records.db.chronicle_entries = [
+    entry
+    for entry in (public_records.db.chronicle_entries or [])
+    if not (
+        entry.get("entry_type") == "disagreement_record"
+        and root["id"] in list(entry.get("source_rumor_ids") or [])
+    )
+]
+assert chronicle_disagreement_for_rumor(root["id"]) is None
+migration = reconcile_chronicle_disagreements()
+backfilled = chronicle_disagreement_for_rumor(root["id"])
+assert backfilled
+assert backfilled["id"] in migration["disagreement_ids"]
+assert len(backfilled["version_claims"]) == 3
+assert len(backfilled["annotations"]) == 1
+backfill_id = backfilled["id"]
+again = reconcile_chronicle_disagreements()
+assert chronicle_disagreement_for_rumor(root["id"])["id"] == backfill_id
+assert again["disagreement_ids"].count(backfill_id) == 1
+assert len([
+    entry
+    for entry in (public_records.db.chronicle_entries or [])
+    if entry.get("entry_type") == "disagreement_record"
+    and root["id"] in list(entry.get("source_rumor_ids") or [])
+]) == 1
 
 from world.rumors import propagate_colocated_npcs
 autonomous = propagate_colocated_npcs(announce=False, max_per_room=1)
