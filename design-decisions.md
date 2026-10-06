@@ -398,3 +398,12 @@ Disclosure shares knowledge, not ownership. A recipient gains a rumor belief wit
 The `secrets` command, with `private` as an alias, is deliberately a memory aid rather than a quest tracker. It shows only private threads received by the current mask, their current stage, rumor handles, and deliberate disclosures. It is unavailable in the OOC Inn.
 
 Private mystery existence has no automatic server-wide consequence. This is the construction rule for future private notes, invitations, personal objects, familiar faces, contradictory records, buyers, and repeated questions.
+
+
+## 2026-10-06 - Chronicle disagreement is an institutional fact, not a truth verdict
+
+When incompatible signed accounts enter the Chronicle for the same rumor root, the durable fact is that the archive received and preserved incompatible testimony. The Chronicle may therefore create a `documented_disagreement` record, but that status says nothing about which underlying claim is objectively correct.
+
+The first two distinct versions establish the disagreement record. Later distinct versions are appended as annotations so the original archival text is never silently rewritten. Each version retains its source deposition identity and source mask. The public `chronicle compare R<number>` view is derived from signed depositions, so it can grow as additional testimony arrives without converting rumor into objective history.
+
+This pattern is the production precedent for Two Versions Survive, The Battle Over One Sentence, and later contested public-memory content. Disagreement itself can become canon while the disputed proposition remains unresolved.
