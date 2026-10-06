@@ -687,6 +687,8 @@ def _preserve_deposition_disagreement(rumor_id):
         root = get_rumor_registry().get_rumor(rumor_id) or {}
         first, second = versions[:2]
         subject = _humanize(root.get("subject") or f"rumor R{rumor_id}")
+        if str(root.get("subject") or "").startswith("canon:"):
+            subject = "a village rumor"
         entry = {
             "id": int(registry.db.next_chronicle_id or 1),
             "entry_type": "disagreement_record",
