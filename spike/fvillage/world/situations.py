@@ -654,8 +654,10 @@ def surface_incident_feed(*, day=None, hour=None, max_active=1):
     registry = _registry()
     situations = copy.deepcopy(dict(registry.db.situations or {}))
     active = sum(
-        1 for situation in situations.values()
-        if dict(situation).get("state") in ACTIVE_STATES
+        1
+        for stable_id, situation in situations.items()
+        if dict(TEMPLATES.get(stable_id, {}).get("feed") or {})
+        and dict(situation).get("state") in ACTIVE_STATES
     )
     slots = max(0, int(max_active) - active)
     if not slots:
