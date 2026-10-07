@@ -783,8 +783,9 @@ Execution contract:
 - Existing work feeds participation rather than a placeholder grind. Chronicle depositions and evidence revisions record Chronicler work; fiddle practice and performance record Performer work.
 - Participation never auto-promotes a mask. It is evidence future authored advancement gates may inspect.
 - Master-to-Apprentice relations are persistent on both masks. They require the same active calling, one Master, and one Apprentice.
-- An active apprenticeship blocks silent respecialization until it is explicitly ended.
+- A Master can offer an apprenticeship, but the relation remains pending and creates no professional obligation until the Apprentice explicitly accepts it. The Apprentice may decline instead.
+- Only an accepted, active apprenticeship blocks silent respecialization until it is explicitly ended.
 - A Master may release an Apprentice. An Apprentice may withdraw even if the Master is unavailable; the historical relation remains recorded.
 - These relations provide the first persistent interdependence primitive. They are not party membership and grant no combat bonus.
 
-Regression coverage proves invalid calling rejection, participation isolation, authored Master promotion, apprenticeship creation and idempotence, obligation-aware respecialization, historical Master retention with one active professional identity, real telnet calling selection and respecialization, real Chronicle participation, and persistence through a real server restart.
+Regression coverage proves invalid calling rejection, participation isolation, authored Master promotion, offer idempotence, explicit acceptance and decline, obligation-aware respecialization only after acceptance, historical Master retention with one active professional identity, real telnet calling selection, real Chronicle participation, and persistence through a real server restart.
