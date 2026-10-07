@@ -107,7 +107,7 @@ class CmdCalling(Command):
         lower = raw.lower()
 
         if lower == "list":
-            lines = ["|yVillage callings:|n"]
+            lines = ["|yVillage callings:|n", "These are social professions, not combat classes."]
             for slug, definition in CALLINGS.items():
                 lines.append(
                     f"{definition['display']}: {definition['summary']}"
