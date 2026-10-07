@@ -962,8 +962,11 @@ def main() -> int:
             f"connect {healer_user} {healer_password}",
             wait=4.0,
         )
-        require(connect_out, "connected", "account qa_healer_assessor")
-        out = smith.command("ic SmithTester", wait=4.0)
+        require(connect_out, "connected", "account qa_healer_assessor", "private room")
+        if "private room" in connect_out.lower():
+            out = connect_out
+        else:
+            out = smith.command("ic SmithTester", wait=4.0)
         require(out, "private room")
         out = smith.command("calling choose smith")
         require(out, "smith is now your active calling")
@@ -1001,8 +1004,11 @@ def main() -> int:
             f"connect {inn_user} {inn_password}",
             wait=4.0,
         )
-        require(connect_out, "connected", "account qa_innkeep_care")
-        out = merchant.command("ic MerchantTester", wait=4.0)
+        require(connect_out, "connected", "account qa_innkeep_care", "private room")
+        if "private room" in connect_out.lower():
+            out = connect_out
+        else:
+            out = merchant.command("ic MerchantTester", wait=4.0)
         require(out, "private room")
         out = merchant.command("calling choose merchant")
         require(out, "merchant is now your active calling")
