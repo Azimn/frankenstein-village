@@ -87,6 +87,7 @@ def one(key):
 
 miklos = one("Miklós Farkas")
 smoke = one("SmokeTester")
+healer_tester = one("HealerTester")
 state = resident_state(miklos)
 relation = (state.get("relationships") or {}).get(str(smoke.id))
 assert relation, "telnet interactions did not persist a Miklós relationship"
@@ -116,6 +117,15 @@ assert not any(
     for item in smoke_calling_history
 ), "player command bypassed authored respecialization before restart"
 
+# The specialized Healer capability survives the same process boundary.
+assert active_calling(healer_tester) == "healer"
+assert active_rank(healer_tester) == RANK_APPRENTICE
+healer_record = calling_record(healer_tester, "healer")
+assert healer_record["participation"]["assessments"] == 1
+assert not getattr(healer_tester.db, "queasy", 0), (
+    "safe Healer assessment unexpectedly applied the toxin effect"
+)
+
 population = list(search.search_tag("resident", category="system"))
 assert len(population) == 36, "resident population changed across restart"
 
@@ -140,6 +150,21 @@ assert any(
     "can be toxic" in note.lower()
     and "direct effect" in note.lower()
     for note in perception_notes(smoke, mushrooms)
+)
+
+healer_mushroom_knowledge = hidden_property_knowledge(
+    healer_tester,
+    mushrooms,
+)
+assert healer_mushroom_knowledge["toxin"]["value"] == 25
+assert healer_mushroom_knowledge["toxin"]["source"] == "healer_assessment"
+assert healer_mushroom_knowledge["toxin"]["object_key"] == (
+    "a cluster of mushrooms"
+)
+assert any(
+    "can be toxic" in note.lower()
+    and "healer assessment" in note.lower()
+    for note in perception_notes(healer_tester, mushrooms)
 )
 
 edition = latest_edition()
