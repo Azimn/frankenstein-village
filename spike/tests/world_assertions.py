@@ -1185,6 +1185,8 @@ assert rumor_registry.belief_for(ilona, harbinger_roots[0]["id"]), (
 # Shared situation engine and incident feed: one canonical world state,
 # separate per-mask evidence, deterministic surfacing, and autonomous aftermath.
 from world.situations import (
+    OBT_ID,
+    TRUNK_ID,
     TITHE_ID,
     TORN_CHRONICLE_ID,
     TEMPLATES,
@@ -1202,6 +1204,8 @@ from world.situations import (
 
 situation_registry = get_situation_registry()
 assert set((situation_registry.db.situations or {}).keys()) == {
+    TRUNK_ID,
+    OBT_ID,
     TITHE_ID,
     TORN_CHRONICLE_ID,
 }
@@ -1217,6 +1221,8 @@ church_state_original = {
 inc_alice = SimpleNamespace(id=910001, key="incident_alice", has_account=True)
 inc_bob = SimpleNamespace(id=910002, key="incident_bob", has_account=True)
 
+assert get_situation(TRUNK_ID)["state"] == "dormant"
+assert get_situation(OBT_ID)["state"] == "dormant"
 assert get_situation(TITHE_ID)["state"] == "surfaced"
 assert get_situation(TORN_CHRONICLE_ID)["state"] == "dormant"
 assert incident_feed_candidates() == [], (
