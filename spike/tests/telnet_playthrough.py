@@ -829,13 +829,15 @@ def main() -> int:
                 "public Chronicle leaked internal toxin magnitude"
             )
 
-        out = c.command(f"harbinger H{warning_story_id}")
-        require(out, "health warning issued for well mushrooms")
-        require(out, "healertester")
-        require(out, "can be toxic")
+        # The Harbinger item follows the ordinary publication cadence.
+        # Before press time it is queued, not readable from the public archive.
+        out = c.command("chronicle health")
+        require(out, f"chronicle c{warning_chronicle_id}")
+        require(out, f"harbinger h{warning_story_id}")
+        require(out, "queued or printed")
         if "25" in out:
             raise AssertionError(
-                "Harbinger warning leaked internal toxin magnitude"
+                "public health desk leaked internal toxin magnitude"
             )
 
         out = c.command("calling")
