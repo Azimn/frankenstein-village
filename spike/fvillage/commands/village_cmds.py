@@ -113,6 +113,128 @@ class CmdAssess(Command):
             )
 
 
+class CmdCare(Command):
+    """Work the current cross-calling care case at the Tavern.
+
+    Usage:
+        care
+        care assess <resident>
+        care serve <resident>
+
+    This command is intentionally narrow. The current case uses Resident Life
+    for the patient's condition, Healer authority for assessment, and Innkeep
+    authority plus a real finite stew serving for hospitality.
+    """
+
+    key = "care"
+    help_category = "Village"
+
+    def func(self):
+        if not _require_ic(self.caller):
+            return
+        raw = (self.args or "").strip()
+        lower = raw.lower()
+
+        from world.tavern_care import (
+            care_status,
+            provide_innkeep_care,
+            submit_healer_care_assessment,
+        )
+
+        if not raw:
+            case = care_status()
+            mutations = dict(case.get("objective_mutations") or {})
+            initialization = dict(mutations.get("patient_initialized") or {})
+            assessment = dict(mutations.get("healer_assessment") or {})
+            innkeep = dict(mutations.get("innkeep_care") or {})
+            lines = ["|yTavern care: Cold Hunter at Supper|n"]
+            lines.append(
+                f"{initialization.get('resident_name') or 'Silas Crowe'} came "
+                "in cold and wet from the evening hunt."
+            )
+            if case.get("state") == "aftermath":
+                if case.get("branch") == "cared_for":
+                    lines.append(
+                        "Care complete: a Healer assessed him and an Innkeep "
+                        "spent a real tavern meal to help him warm up."
+                    )
+                else:
+                    lines.append(
+                        "The case closed after Silas warmed up without coordinated care."
+                    )
+                self.caller.msg("\n".join(lines))
+                return
+            if assessment:
+                lines.append(
+                    f"Healer assessment filed by "
+                    f"{assessment.get('mask') or 'an unnamed Healer'}: warm "
+                    "food, dry warmth, and rest are recommended."
+                )
+            else:
+                lines.append(
+                    "No Healer assessment is on file. An active Healer who is "
+                    "present with Silas can use |wcare assess Silas Crowe|n."
+                )
+            if assessment and not innkeep:
+                lines.append(
+                    "Hospitality is still needed. An active Innkeep in the "
+                    "Tavern can use |wcare serve Silas Crowe|n; this spends one "
+                    "actual serving of stew."
+                )
+            self.caller.msg("\n".join(lines))
+            return
+
+        parts = raw.split(None, 1)
+        if len(parts) != 2 or parts[0].lower() not in {"assess", "serve"}:
+            self.caller.msg(
+                "Use: care | care assess <resident> | care serve <resident>"
+            )
+            return
+        target = self.caller.search(parts[1].strip())
+        if not target:
+            return
+
+        if parts[0].lower() == "assess":
+            result, error = submit_healer_care_assessment(
+                self.caller,
+                target,
+            )
+            if error:
+                self.caller.msg(error)
+                return
+            assessment = result["assessment"]
+            if result.get("created"):
+                self.caller.msg(
+                    f"You assess {target.key}'s cold exposure and file a "
+                    "professional recommendation: warm food, dry warmth, and "
+                    "rest. The case still needs an Innkeep to spend the tavern "
+                    "resource."
+                )
+            else:
+                self.caller.msg(
+                    f"The Healer assessment by "
+                    f"{assessment.get('mask') or 'a Healer'} is already on file."
+                )
+            return
+
+        result, error = provide_innkeep_care(self.caller, target)
+        if error:
+            self.caller.msg(error)
+            return
+        care = result["care"]
+        if result.get("created"):
+            self.caller.msg(
+                f"You serve {target.key} a hot bowl from the tavern stock and "
+                "settle him by the hearth. One stew serving is spent; the "
+                "cross-calling care case is complete."
+            )
+        else:
+            self.caller.msg(
+                f"Tavern care is already complete. The recorded meal left "
+                f"{care.get('servings_after')} stew servings in stock."
+            )
+
+
 class CmdCalling(Command):
     """Choose and inspect a social profession.
 
