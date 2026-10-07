@@ -21,6 +21,7 @@ from evennia.utils import search
 
 REGISTRY_KEY = "situation_registry"
 TRUNK_ID = "DM-Q-0001-WRONG-TRUNK"
+OBT_ID = "DM-Q-0017-OBTUARY"
 TITHE_ID = "INC-0006-TITHE-STRONGBOX"
 TORN_CHRONICLE_ID = "INC-0008-TORN-CHRONICLE"
 
@@ -252,7 +253,138 @@ TEMPLATES = {
             "after": [TITHE_ID],
         },
     },
-}
+    OBT_ID: {
+        "template_id": "dm-q-0017",
+        "working_title": "Tomorrow's Obituary",
+        "content_family": "rumor",
+        "canonical_status": "working content",
+        "spoiler_tier": 2,
+        "primary_location": "Harbinger office",
+        "secondary_locations": ["Village square", "Church"],
+        "involved_npcs": ["harbinger_editor", "printer", "witness", "rival_detective"],
+        "factions": ["Harbinger"],
+        "calling_relevance": ["chronicler", "detective", "merchant"],
+        "repeatability": "one-shot",
+        "hook": (
+            "A typed obituary sits on the editorial desk, signed by a grieving family "
+            "for a resident who is still walking through the square. The copy appears "
+            "legitimate: correct spelling, proper format, matching handwriting with "
+            "previous submissions. But its source is unclear."
+        ),
+        "autonomy": {
+            "initial_deadline_hours": 12,
+            "left_alone": (
+                "The printer schedules the obituary for tomorrow's edition. "
+                "Village rumors spread. A rival investigator publishes a competing theory."
+            ),
+        },
+        "choices": {
+            "editor_decision": {
+                "label": "Editorial decision",
+                "branch_from": "initial",
+                "options": [
+                    {"label": "Publish as submitted", "outcome": "published"},
+                    {"label": "Delay and investigate", "outcome": "investigated"},
+                    {"label": "Suppress without explanation", "outcome": "suppressed"},
+                ],
+            },
+        },
+        "evidence": {
+            "obituary_copy": {
+                "label": "typed obituary copy",
+                "provenance": "documentary",
+                "summary": (
+                    "A professionally typeset obituary for the deceased, written "
+                    "in the standard Harbinger format. The date of death is precise "
+                    "and matches the family's account. The source signature is "
+                    "legible but unfamiliar to the editorial staff."
+                ),
+            },
+            "source_letter": {
+                "label": "letter from the family",
+                "provenance": "documentary",
+                "summary": (
+                    "A sealed letter accompanying the obituary, explaining why "
+                    "publication is urgent. The handwriting matches known family "
+                    "samples, but the letter contains no specific biographical details "
+                    "only a request for speed."
+                ),
+            },
+            "rival_theory": {
+                "label": "rival investigator's theory",
+                "provenance": "rumor",
+                "summary": (
+                    "A detective who specializes in 'false death notices' has "
+                    "published a theory that the obituary is part of a pattern of "
+                    "identity theft used to clear debts or evade legal obligations."
+                ),
+            },
+            "witness_accounts": {
+                "label": "witness testimony",
+                "provenance": "witness",
+                "summary": (
+                    "Several villagers recall seeing the deceased in public over "
+                    "the past month. Their confidence varies, and their descriptions "
+                    "of the person disagree in minor but notable details."
+                ),
+            },
+            "printer_notes": {
+                "label": "printer's production notes",
+                "provenance": "documentary",
+                "summary": (
+                    "Internal notes about scheduling, ink usage, and plate changes "
+                    "that reveal the obituary was assigned a premium time slot, "
+                    "suggesting it was expected to be front-page content."
+                ),
+            },
+            "board_directive": {
+                "label": "editorial board directive",
+                "provenance": "documentary",
+                "summary": (
+                    "A confidential memo from the board warning editors against "
+                    "publishing 'unverified obituaries' due to a recent scandal "
+                    "where false death notices were used to manipulate public opinion."
+                ),
+            },
+        },
+        "npc_beliefs": {
+            "harbinger_editor": {
+                "initial": (
+                    "The editor believes the obituary is legitimate but feels "
+                    "obliged to verify because of the board directive. They are "
+                    "conflicted between journalistic duty and institutional caution."
+                ),
+            },
+            "rival_detective": {
+                "initial": "The detective believes the obituary is part of a pattern of false death notices.",
+            },
+        },
+        "rumors": [
+            "The obituary was submitted by a foreign correspondent.",
+            "The deceased was actually a member of the Hounds.",
+            "The editor is using the obituary to test the printing schedule.",
+            "The obituary author is still alive and will appear at the next council meeting.",
+        ],
+        "harbinger_consequences": [
+            "The story may be republished as a correction or as a 'story of the week.'",
+            "The editorial board may issue a statement on verifying obituary sources.",
+            "The obituary may appear in the Chronicle as a notable error or cautionary tale.",
+        ],
+        "chronicle_eligibility": {
+            "primary": "A published false obituary in the Harbinger",
+            "secondary": "The editor's response to the incident",
+        },
+        "follow_up": {
+            "immediate": "Investigation of the obituary's source and the deceased's whereabouts.",
+            "medium": "Publication of a correction or editorial note explaining the incident.",
+            "long_term": "Debate over the ethics of publishing death notices without verification.",
+        },
+        "aftermath": {
+            "world_state": "Public belief about the deceased is altered; rumors about the editor's credibility spread.",
+            "npc_effects": "The rival detective gains followers; the editor may become more cautious or more defensive.",
+            "evidence_state": "The obituary copy may be archived, destroyed, or repurposed as evidence in a future case.",
+        },
+    },}
 
 
 def _clock():
