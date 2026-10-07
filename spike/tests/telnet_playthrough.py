@@ -95,6 +95,8 @@ def main() -> int:
     c = Client(args.host, args.port)
     h = None
     inn = None
+    smith = None
+    merchant = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -947,86 +949,102 @@ def main() -> int:
         require(out, "care complete")
 
 
-        # Third structural interdependence case. Reuse the two already
-        # authenticated QA accounts with new masks so the network test proves
-        # mask-specific professional biography without tripping Evennia's
-        # account-creation throttle.
-        h.command("ooc", wait=3.0)
-        h.command("charcreate SmithTester", wait=3.0)
-        out = h.command("ic SmithTester", wait=4.0)
+        # Third structural interdependence case. The existing QA accounts
+        # each create a second mask, then a second session on that same account
+        # puppets it. This preserves distinct professional masks and avoids
+        # multiplying accounts solely for regression coverage.
+        create_out = h.command("charcreate SmithTester", wait=3.0)
+        require(create_out, "created new character smithtester")
+        smith = Client(args.host, args.port)
+        smith_banner = smith.sync_login_screen()
+        require(smith_banner, "frankenstein village")
+        connect_out = smith.command(
+            f"connect {healer_user} {healer_password}",
+            wait=4.0,
+        )
+        require(connect_out, "connected", "account qa_healer_assessor")
+        out = smith.command("ic SmithTester", wait=4.0)
         require(out, "private room")
-        out = h.command("calling choose smith")
+        out = smith.command("calling choose smith")
         require(out, "smith is now your active calling")
         require(out, "apprentice rank")
-        out = h.command("down")
+        out = smith.command("down")
         require(out, "inn common room")
-        out = h.command("east")
+        out = smith.command("east")
         require(out, "inn hallway")
-        out = h.command("south")
+        out = smith.command("south")
         require(out, "village square")
 
-        out = h.command("repair")
+        out = smith.command("repair")
         require(out, "the broken mantle")
         require(out, "no smith diagnosis is on file")
-        out = h.command("repair procure")
+        out = smith.command("repair procure")
         require(out, "active merchant calling")
-        out = h.command("repair diagnose north-square gas lamp")
+        out = smith.command("repair diagnose north-square gas lamp")
         require(out, "mantle collar is cracked")
         require(out, "merchant must procure")
-        out = h.command("repair finish north-square gas lamp")
+        out = smith.command("repair finish north-square gas lamp")
         require(out, "merchant must procure the replacement collar")
-        out = h.command("calling")
+        out = smith.command("calling")
         require(out, "repair diagnoses 1")
-        out = h.command("repair diagnose north-square gas lamp")
+        out = smith.command("repair diagnose north-square gas lamp")
         require(out, "already on file")
-        out = h.command("calling")
+        out = smith.command("calling")
         require(out, "repair diagnoses 1")
 
-        inn.command("ooc", wait=3.0)
-        inn.command("charcreate MerchantTester", wait=3.0)
-        out = inn.command("ic MerchantTester", wait=4.0)
+        create_out = inn.command("charcreate MerchantTester", wait=3.0)
+        require(create_out, "created new character merchanttester")
+        merchant = Client(args.host, args.port)
+        merchant_banner = merchant.sync_login_screen()
+        require(merchant_banner, "frankenstein village")
+        connect_out = merchant.command(
+            f"connect {inn_user} {inn_password}",
+            wait=4.0,
+        )
+        require(connect_out, "connected", "account qa_innkeep_care")
+        out = merchant.command("ic MerchantTester", wait=4.0)
         require(out, "private room")
-        out = inn.command("calling choose merchant")
+        out = merchant.command("calling choose merchant")
         require(out, "merchant is now your active calling")
         require(out, "apprentice rank")
-        out = inn.command("down")
+        out = merchant.command("down")
         require(out, "inn common room")
-        out = inn.command("east")
+        out = merchant.command("east")
         require(out, "inn hallway")
-        out = inn.command("south")
+        out = merchant.command("south")
         require(out, "village square")
 
-        out = inn.command("repair diagnose north-square gas lamp")
+        out = merchant.command("repair diagnose north-square gas lamp")
         require(out, "active smith calling")
-        out = inn.command("south")
+        out = merchant.command("south")
         require(out, "lamp shop")
-        out = inn.command("repair")
+        out = merchant.command("repair")
         require(out, "smith diagnosis filed by smithtester")
         require(out, "merchant must procure")
-        out = inn.command("repair procure")
+        out = merchant.command("repair procure")
         require(out, "procure one brass mantle collar")
         require(out, "one real stock unit")
         require(out, "smith must install")
-        out = inn.command("calling")
+        out = merchant.command("calling")
         require(out, "repair procurements 1")
-        out = inn.command("repair procure")
+        out = merchant.command("repair procure")
         require(out, "already procured")
-        out = inn.command("calling")
+        out = merchant.command("calling")
         require(out, "repair procurements 1")
 
-        out = h.command("repair")
+        out = smith.command("repair")
         require(out, "replacement collar procured by merchanttester")
-        out = h.command("repair finish north-square gas lamp")
+        out = smith.command("repair finish north-square gas lamp")
         require(out, "install the procured collar")
         require(out, "lamp is working again")
-        out = h.command("calling")
+        out = smith.command("calling")
         require(out, "repair diagnoses 1")
         require(out, "repair completions 1")
-        out = h.command("repair finish north-square gas lamp")
+        out = smith.command("repair finish north-square gas lamp")
         require(out, "already complete")
-        out = h.command("calling")
+        out = smith.command("calling")
         require(out, "repair completions 1")
-        out = inn.command("repair")
+        out = merchant.command("repair")
         require(out, "repair complete")
         require(out, "smithtester")
         require(out, "merchanttester")
@@ -1048,12 +1066,20 @@ def main() -> int:
         print("\nFULL TRANSCRIPT\n" + "\n".join(c.transcript))
         if h is not None:
             print("\nHEALER TRANSCRIPT\n" + "\n".join(h.transcript))
-        if inn is not None:
-            print("\nINNKEEP/MERCHANT TRANSCRIPT\n" + "\n".join(inn.transcript))
         if h is not None:
-            print("\nHEALER/SMITH TRANSCRIPT\n" + "\n".join(h.transcript))
+            print("\nHEALER TRANSCRIPT\n" + "\n".join(h.transcript))
+        if inn is not None:
+            print("\nINNKEEP TRANSCRIPT\n" + "\n".join(inn.transcript))
+        if smith is not None:
+            print("\nSMITH TRANSCRIPT\n" + "\n".join(smith.transcript))
+        if merchant is not None:
+            print("\nMERCHANT TRANSCRIPT\n" + "\n".join(merchant.transcript))
         raise
     finally:
+        if merchant is not None:
+            merchant.close()
+        if smith is not None:
+            smith.close()
         if inn is not None:
             inn.close()
         if h is not None:
