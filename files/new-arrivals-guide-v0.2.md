@@ -58,7 +58,7 @@ Travel takes time. Choices close doors. Asking everyone everything is not a stra
 
 The village runs on **rumors**. Someone says something strange at the Tavern. A party gathers. You go look — the catacombs, the Manor grounds, the marshes, the woods. You bring back evidence, oddities, witnesses, or better questions. You *tell* what happened: at the bar, in the Chronicle, as leverage. The telling makes new rumors. Round it goes.
 
-You don't need permission. Pick a calling (innkeep, chronicler, smith, healer, merchant, wanderer, performer, detective, hunter — or none), follow a rumor, and see.
+You don't need permission. Pick a calling (innkeep, chronicler, smith, healer, merchant, wanderer, performer, detective, hunter — or none), follow a rumor, and see. Some village needs now require more than one profession. At the Tavern, `care` shows the live Silas Crowe cold-exposure case; a Healer may use `care assess Silas Crowe`, and an Innkeep may use `care serve Silas Crowe` after that assessment.
 
 ## Where to go first
 
