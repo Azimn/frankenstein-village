@@ -107,6 +107,24 @@ def main() -> int:
         out = c.command("ic SmokeTester", wait=4.0)
         require(out, "private room")
 
+        # Calling foundation: a mask can choose a social profession before
+        # crossing IC. Selection begins at Apprentice and exposes no free
+        # promotion command or combat power.
+        out = c.command("calling")
+        require(out, "no active calling")
+        out = c.command("calling list")
+        require(out, "chronicler")
+        require(out, "hound")
+        require(out, "social professions")
+        out = c.command("calling choose chronicler")
+        require(out, "chronicler is now your active calling")
+        require(out, "apprentice rank")
+        require(out, "later respecialization requires an authored opportunity")
+        out = c.command("calling")
+        require(out, "active calling: chronicler")
+        require(out, "rank: apprentice")
+        require(out, "no professional participation")
+
         out = c.command("chronicle")
         require(out, "in-character village record", "cross the front door")
 
@@ -636,6 +654,27 @@ def main() -> int:
         out = c.command(f"chronicle submit R{room_six_rumor_id}")
         require(out, "the record preserves that you said it")
         require(out, "does not certify", "not certify")
+
+        out = c.command("calling")
+        require(out, "active calling: chronicler")
+        require(out, "evidence revisions 1")
+        require(out, "signed accounts 1")
+
+        # Free profession swapping is rejected. Respecialization is supported
+        # by the persistent model but must be opened by authored world logic.
+        out = c.command("calling choose performer")
+        require(out, "established professional history")
+        require(out, "authored respecialization opportunity")
+        out = c.command("calling history")
+        require(out, "joined calling chronicler")
+        if "respecialized performer" in out.lower():
+            raise AssertionError(
+                "player command bypassed the authored respecialization gate"
+            )
+        out = c.command("calling")
+        require(out, "active calling: chronicler")
+        require(out, "evidence revisions 1")
+        require(out, "signed accounts 1")
 
         out = c.command("chronicle")
         require(out, "deposition from smoketester")

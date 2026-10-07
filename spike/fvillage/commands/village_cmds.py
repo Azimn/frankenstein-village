@@ -58,6 +58,337 @@ class CmdExamine(CmdLook):
         )
 
 
+class CmdCalling(Command):
+    """Choose and inspect a social profession.
+
+    Usage:
+        calling
+        calling list
+        calling choose <calling>
+        calling history
+        calling relations
+        calling apprentice <player>
+        calling accept
+        calling decline
+        calling release <player>
+        calling withdraw
+
+    Callings are social professions, not combat classes. A new profession
+    begins at Apprentice. Master promotion comes from authored world work,
+    never from a free player command.
+    """
+
+    key = "calling"
+    aliases = ["profession"]
+    help_category = "Village"
+
+    def _target(self, raw):
+        matches = self.caller.search(raw, quiet=True) or []
+        if len(matches) != 1:
+            return None
+        target = matches[0]
+        if target is self.caller or not getattr(target, "account", None):
+            return None
+        return target
+
+    def _mask_by_id(self, object_id):
+        if object_id is None:
+            return None
+        try:
+            from evennia.utils import search
+            found = search.search_object(f"#{int(object_id)}")
+        except (TypeError, ValueError):
+            return None
+        return next(
+            (
+                obj
+                for obj in found
+                if getattr(obj, "id", None) == int(object_id)
+                and getattr(obj, "account", None)
+            ),
+            None,
+        )
+
+    def func(self):
+        from world.callings import (
+            CALLINGS,
+            active_calling,
+            active_rank,
+            accept_apprenticeship,
+            active_relations,
+            calling_label,
+            calling_state,
+            choose_calling,
+            decline_apprenticeship,
+            end_apprenticeship,
+            offer_apprenticeship,
+            pending_relations,
+            withdraw_apprenticeship,
+        )
+
+        raw = (self.args or "").strip()
+        lower = raw.lower()
+
+        if lower == "list":
+            lines = ["|yVillage callings:|n", "These are social professions, not combat classes."]
+            for slug, definition in CALLINGS.items():
+                lines.append(
+                    f"{definition['display']}: {definition['summary']}"
+                )
+            lines.append(
+                "Choose one with |wcalling choose <name>|n. Participation is "
+                "broad, but only your active calling carries professional rank."
+            )
+            self.caller.msg("\n".join(lines))
+            return
+
+        if lower.startswith("choose "):
+            wanted = raw.split(None, 1)[1].strip()
+            result, error = choose_calling(self.caller, wanted)
+            if error:
+                self.caller.msg(error)
+                return
+            state = result["state"]
+            if not state.get("active"):
+                self.caller.msg(
+                    "This mask has not established a calling. Use "
+                    "|wcalling list|n when you are ready to choose one."
+                )
+                return
+            record = result["record"]
+            label = calling_label(state["active"])
+            if not result.get("changed"):
+                self.caller.msg(
+                    f"{label} is already your active calling at "
+                    f"{record['rank'].title()} rank."
+                )
+                return
+            self.caller.msg(
+                f"{label} is now your active calling at "
+                f"{record['rank'].title()} rank. This establishes professional "
+                "history for the mask; later respecialization requires an "
+                "authored opportunity in the world."
+            )
+            return
+
+        if lower == "history":
+            state = calling_state(self.caller)
+            history = list(state.get("history") or [])
+            lines = ["|yCalling history:|n"]
+            if not history:
+                lines.append("This mask has not chosen a calling yet.")
+            else:
+                for entry in history[-12:]:
+                    action = str(entry.get("action") or "").replace("_", " ")
+                    calling = entry.get("calling")
+                    detail = f" {calling_label(calling)}" if calling else ""
+                    lines.append(
+                        f"Day {entry.get('day')}, {int(entry.get('hour') or 0):02d}:00: "
+                        f"{action}{detail}."
+                    )
+            self.caller.msg("\n".join(lines))
+            return
+
+        if lower == "relations":
+            relations = active_relations(self.caller)
+            pending = pending_relations(self.caller)
+            lines = ["|yCalling relations:|n"]
+            if not relations:
+                lines.append("No active apprenticeship is recorded.")
+            else:
+                for relation in relations:
+                    if relation.get("role") == "mentor":
+                        other = relation.get("apprentice_mask") or "Unknown apprentice"
+                        lines.append(
+                            f"Master of {other} in "
+                            f"{calling_label(relation.get('calling'))}."
+                        )
+                    else:
+                        other = relation.get("mentor_mask") or "Unknown mentor"
+                        lines.append(
+                            f"Apprentice of {other} in "
+                            f"{calling_label(relation.get('calling'))}."
+                        )
+            for relation in pending:
+                if relation.get("role") == "mentor":
+                    other = relation.get("apprentice_mask") or "Unknown apprentice"
+                    lines.append(
+                        f"Offer pending to {other} in "
+                        f"{calling_label(relation.get('calling'))}."
+                    )
+                else:
+                    other = relation.get("mentor_mask") or "Unknown mentor"
+                    lines.append(
+                        f"Offer from {other} in "
+                        f"{calling_label(relation.get('calling'))}. "
+                        "Use |wcalling accept|n or |wcalling decline|n."
+                    )
+            self.caller.msg("\n".join(lines))
+            return
+
+        if lower.startswith("apprentice "):
+            if not _require_ic(self.caller):
+                return
+            target = self._target(raw.split(None, 1)[1].strip())
+            if not target:
+                self.caller.msg(
+                    "Your apprentice must be another player mask here with you."
+                )
+                return
+            relation, error = offer_apprenticeship(self.caller, target)
+            if error and "already active" not in error.lower():
+                self.caller.msg(error)
+                return
+            if error:
+                self.caller.msg(error)
+                return
+            self.caller.msg(
+                f"You offer {target.key} an apprenticeship in "
+                f"{calling_label(relation['calling'])}. No professional "
+                "obligation becomes active unless they accept it."
+            )
+            target.msg(
+                f"{self.caller.key} offers you an apprenticeship in "
+                f"{calling_label(relation['calling'])}. Use "
+                "|wcalling accept|n or |wcalling decline|n."
+            )
+            return
+
+        if lower in {"accept", "decline"}:
+            offers = pending_relations(self.caller, role="apprentice")
+            if not offers:
+                self.caller.msg("This mask has no pending apprenticeship offer.")
+                return
+            offer = offers[0]
+            mentor = self._mask_by_id(offer.get("mentor_mask_id"))
+            if not mentor:
+                self.caller.msg(
+                    "The offering mentor can no longer be resolved. Decline the "
+                    "stale offer through staff review rather than activating it."
+                )
+                return
+            if lower == "accept":
+                relation, error = accept_apprenticeship(
+                    mentor,
+                    self.caller,
+                )
+                if error:
+                    self.caller.msg(error)
+                    return
+                self.caller.msg(
+                    f"You accept {mentor.key}'s apprenticeship in "
+                    f"{calling_label(relation['calling'])}. The professional "
+                    "obligation is now active and persistent."
+                )
+                mentor.msg(
+                    f"{self.caller.key} accepts your apprenticeship offer. "
+                    "The professional relation is now active."
+                )
+            else:
+                relation, error = decline_apprenticeship(
+                    mentor,
+                    self.caller,
+                )
+                if error:
+                    self.caller.msg(error)
+                    return
+                self.caller.msg(
+                    f"You decline {mentor.key}'s apprenticeship offer. "
+                    "No professional obligation was created."
+                )
+                mentor.msg(
+                    f"{self.caller.key} declines your apprenticeship offer."
+                )
+            return
+
+        if lower == "withdraw":
+            relation, error = withdraw_apprenticeship(self.caller)
+            if error:
+                self.caller.msg(error)
+                return
+            self.caller.msg(
+                "You withdraw from the active apprenticeship. The ended "
+                "relationship remains in your professional history."
+            )
+            return
+
+        if lower.startswith("release "):
+            if not _require_ic(self.caller):
+                return
+            target = self._target(raw.split(None, 1)[1].strip())
+            if not target:
+                self.caller.msg(
+                    "Name the player mask whose apprenticeship you are ending."
+                )
+                return
+            ended, error = end_apprenticeship(
+                self.caller,
+                target,
+                reason="released_by_mentor",
+            )
+            if error:
+                self.caller.msg(error)
+                return
+            self.caller.msg(
+                f"The apprenticeship with {target.key} is ended and remains "
+                "preserved in both professional histories."
+            )
+            target.msg(
+                f"{self.caller.key} has ended your apprenticeship. The relation "
+                "remains in your calling history."
+            )
+            return
+
+        if raw:
+            self.caller.msg(
+                "Use: calling | calling list | calling choose <calling> | "
+                "calling history | calling relations | calling apprentice <player> | "
+                "calling accept | calling decline | calling release <player> | "
+                "calling withdraw"
+            )
+            return
+
+        active = active_calling(self.caller)
+        if not active:
+            self.caller.msg(
+                "This mask has no active calling. Callings are social professions, "
+                "not classes. Use |wcalling list|n, then "
+                "|wcalling choose <name>|n when you decide what you do for the village."
+            )
+            return
+        state = calling_state(self.caller)
+        record = dict((state.get("records") or {}).get(active) or {})
+        participation = dict(record.get("participation") or {})
+        lines = [
+            f"|yActive calling: {calling_label(active)}|n",
+            f"Rank: {(active_rank(self.caller) or 'apprentice').title()}.",
+        ]
+        if participation:
+            rendered = ", ".join(
+                f"{key.replace('_', ' ')} {value}"
+                for key, value in sorted(participation.items())
+            )
+            lines.append(f"Recorded participation: {rendered}.")
+        else:
+            lines.append(
+                "No professional participation has been recorded yet. "
+                "Participation is evidence for authored advancement, not a hidden XP bar."
+            )
+        relations = active_relations(self.caller)
+        pending = pending_relations(self.caller)
+        if relations:
+            lines.append(
+                f"Active apprenticeship relations: {len(relations)}. "
+                "Use |wcalling relations|n for details."
+            )
+        if pending:
+            lines.append(
+                f"Pending apprenticeship offers: {len(pending)}. "
+                "Use |wcalling relations|n for details."
+            )
+        self.caller.msg("\n".join(lines))
+
+
 class CmdPurse(Command):
     """
     Count your coin.
@@ -1361,6 +1692,12 @@ class CmdChronicle(Command):
             if error:
                 self.caller.msg(error)
                 return
+            from world.callings import record_participation
+            record_participation(
+                self.caller,
+                "evidence_revisions",
+                calling="chronicler",
+            )
             annotation = updated["annotations"][-1]
             refs = list(annotation.get("source_evidence_refs") or [])
             label = refs[0]["label"] if refs else "submitted evidence"
@@ -1450,6 +1787,12 @@ class CmdChronicle(Command):
             if error:
                 self.caller.msg(error)
                 return
+            from world.callings import record_participation
+            record_participation(
+                self.caller,
+                "signed_accounts",
+                calling="chronicler",
+            )
             self.caller.msg(
                 f"Your account is entered as Chronicle C{entry['id']}. "
                 "The record preserves that you said it; it does not certify "
@@ -2740,6 +3083,12 @@ class CmdPlay(Command):
             )
             gain = 0.15
         self.caller.db.fiddle_skill = min(5.0, skill + gain)
+        from world.callings import record_participation
+        record_participation(
+            self.caller,
+            "performances",
+            calling="performer",
+        )
         # DF lesson: every rank must change the text. Rank-ups are witnessed.
         new_rank = fiddle_rank(self.caller.db.fiddle_skill)
         if new_rank != fiddle_rank(skill) and new_rank in RANK_UP_LINES:
@@ -2892,6 +3241,12 @@ class CmdPractice(Command):
         # the work is slow: +0.10, +0.25 on a breakthrough
         gain = 0.25 if breakthrough else 0.10
         self.caller.db.fiddle_skill = min(5.0, skill + gain)
+        from world.callings import record_participation
+        record_participation(
+            self.caller,
+            "practice_sessions",
+            calling="performer",
+        )
         # DF lesson: rank-ups are witnessed, same as performances
         new_rank = fiddle_rank(self.caller.db.fiddle_skill)
         if new_rank != rank and new_rank in RANK_UP_LINES:
