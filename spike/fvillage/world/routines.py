@@ -400,6 +400,11 @@ def tick():
         population_result = None
     restock_sideboard()
     try:
+        from world.tavern_care import reconcile_tavern_cold_care
+        reconcile_tavern_cold_care()
+    except Exception:
+        pass
+    try:
         clock = ScriptDB.objects.get(db_key="village_time")
         day = clock.db.day or 1
         hour = clock.db.hour if clock.db.hour is not None else 21
