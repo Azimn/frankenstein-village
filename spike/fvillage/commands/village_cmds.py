@@ -58,6 +58,61 @@ class CmdExamine(CmdLook):
         )
 
 
+class CmdAssess(Command):
+    """Use active professional knowledge to assess an object.
+
+    Usage:
+        assess <thing>
+
+    The first production capability belongs to Healers: a basic assessment can
+    identify supported hidden toxicity without requiring the mask to ingest the
+    object. The finding becomes this mask's knowledge; it does not alter the
+    object or make the information globally public.
+    """
+
+    key = "assess"
+    aliases = ["evaluate"]
+    help_category = "Village"
+
+    def func(self):
+        if not _require_ic(self.caller):
+            return
+        arg = (self.args or "").strip()
+        if not arg:
+            self.caller.msg("Assess what?")
+            return
+        obj = self.caller.search(arg)
+        if not obj:
+            return
+
+        from world.callings import assess_hidden_object
+
+        result, error = assess_hidden_object(self.caller, obj)
+        if error:
+            self.caller.msg(error)
+            return
+
+        discoveries = list(result.get("discoveries") or [])
+        if not discoveries:
+            self.caller.msg(
+                f"Your basic Healer assessment of {obj.key} finds no supported "
+                "hidden toxicity. That is not a guarantee of universal safety."
+            )
+            return
+
+        if result.get("learned"):
+            self.caller.msg(
+                f"Your Healer assessment identifies a toxic property in "
+                f"{obj.key} without requiring you to taste it. This mask now "
+                "remembers that finding; examine the object to recall it."
+            )
+        else:
+            self.caller.msg(
+                f"Your Healer assessment confirms what this mask already "
+                f"learned about {obj.key}: it can be toxic."
+            )
+
+
 class CmdCalling(Command):
     """Choose and inspect a social profession.
 
