@@ -15,3 +15,10 @@ spike/venv/
 # evennia runtime
 *.log
 .github/workflows/
+
+# generated Evennia state and local operator secrets
+spike/fvillage/server/evennia.db3*
+spike/fvillage/server/conf/secret_settings.py
+backups/
+*.sqlite3-wal
+*.sqlite3-shm
