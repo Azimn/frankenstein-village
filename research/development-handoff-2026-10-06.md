@@ -244,3 +244,12 @@ The first vertical slice is active-Healer assessment over the existing hidden-pr
 This intentionally establishes the pattern that callings change method, interpretation, access, and responsibility rather than owning separate world truth.
 
 After this slice is accepted, the next dependency should be a genuinely cross-calling work item that requires at least two professional contributions to one persistent world need. Inspect current runtime locations and existing systems before selecting the example. Prefer reusing current Harbinger, economy, object-property, event, and resident substrates over creating a generic job framework prematurely.
+
+
+## 2026-10-07 continuation: Resident Life v2 integration
+
+The next population-depth slice adds event-driven physical condition, affect, commitments, first-person perception, and sparse resident-to-resident relationships to ordinary residents only. Authored quest NPCs are protected by a hard simulation profile boundary rather than relying on developer convention.
+
+The integration does not replace the existing D/C/B/A resolution system. It extends it. D-tier continuity remains schedule-only and cheap; richer life-state processing happens only when a resident is already engaged or receives a concrete wake reason.
+
+The current authored lock includes all runtime-canon and legacy-routine residents plus Ilona Szabó, who is already bound into authored Chronicle content. Future quest NPCs should be locked at definition time before new situation content ships.
