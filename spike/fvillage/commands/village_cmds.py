@@ -68,6 +68,8 @@ class CmdCalling(Command):
         calling history
         calling relations
         calling apprentice <player>
+        calling accept
+        calling decline
         calling release <player>
         calling withdraw
 
@@ -89,17 +91,38 @@ class CmdCalling(Command):
             return None
         return target
 
+    def _mask_by_id(self, object_id):
+        if object_id is None:
+            return None
+        try:
+            from evennia.utils import search
+            found = search.search_object(f"#{int(object_id)}")
+        except (TypeError, ValueError):
+            return None
+        return next(
+            (
+                obj
+                for obj in found
+                if getattr(obj, "id", None) == int(object_id)
+                and getattr(obj, "account", None)
+            ),
+            None,
+        )
+
     def func(self):
         from world.callings import (
             CALLINGS,
             active_calling,
             active_rank,
+            accept_apprenticeship,
             active_relations,
             calling_label,
             calling_state,
             choose_calling,
-            create_apprenticeship,
+            decline_apprenticeship,
             end_apprenticeship,
+            offer_apprenticeship,
+            pending_relations,
             withdraw_apprenticeship,
         )
 
@@ -168,7 +191,8 @@ class CmdCalling(Command):
 
         if lower == "relations":
             relations = active_relations(self.caller)
-            lines = ["|yActive calling relations:|n"]
+            pending = pending_relations(self.caller)
+            lines = ["|yCalling relations:|n"]
             if not relations:
                 lines.append("No active apprenticeship is recorded.")
             else:
@@ -185,6 +209,20 @@ class CmdCalling(Command):
                             f"Apprentice of {other} in "
                             f"{calling_label(relation.get('calling'))}."
                         )
+            for relation in pending:
+                if relation.get("role") == "mentor":
+                    other = relation.get("apprentice_mask") or "Unknown apprentice"
+                    lines.append(
+                        f"Offer pending to {other} in "
+                        f"{calling_label(relation.get('calling'))}."
+                    )
+                else:
+                    other = relation.get("mentor_mask") or "Unknown mentor"
+                    lines.append(
+                        f"Offer from {other} in "
+                        f"{calling_label(relation.get('calling'))}. "
+                        "Use |wcalling accept|n or |wcalling decline|n."
+                    )
             self.caller.msg("\n".join(lines))
             return
 
@@ -197,20 +235,70 @@ class CmdCalling(Command):
                     "Your apprentice must be another player mask here with you."
                 )
                 return
-            relation, error = create_apprenticeship(self.caller, target)
+            relation, error = offer_apprenticeship(self.caller, target)
+            if error and "already active" not in error.lower():
+                self.caller.msg(error)
+                return
             if error:
                 self.caller.msg(error)
                 return
             self.caller.msg(
-                f"{target.key} is now recorded as your Apprentice in "
-                f"{calling_label(relation['calling'])}. This is a persistent "
-                "professional relationship, not a temporary party flag."
+                f"You offer {target.key} an apprenticeship in "
+                f"{calling_label(relation['calling'])}. No professional "
+                "obligation becomes active unless they accept it."
             )
             target.msg(
-                f"{self.caller.key} has taken you as an Apprentice in "
-                f"{calling_label(relation['calling'])}. Use |wcalling relations|n "
-                "to review the relationship."
+                f"{self.caller.key} offers you an apprenticeship in "
+                f"{calling_label(relation['calling'])}. Use "
+                "|wcalling accept|n or |wcalling decline|n."
             )
+            return
+
+        if lower in {"accept", "decline"}:
+            offers = pending_relations(self.caller, role="apprentice")
+            if not offers:
+                self.caller.msg("This mask has no pending apprenticeship offer.")
+                return
+            offer = offers[0]
+            mentor = self._mask_by_id(offer.get("mentor_mask_id"))
+            if not mentor:
+                self.caller.msg(
+                    "The offering mentor can no longer be resolved. Decline the "
+                    "stale offer through staff review rather than activating it."
+                )
+                return
+            if lower == "accept":
+                relation, error = accept_apprenticeship(
+                    mentor,
+                    self.caller,
+                )
+                if error:
+                    self.caller.msg(error)
+                    return
+                self.caller.msg(
+                    f"You accept {mentor.key}'s apprenticeship in "
+                    f"{calling_label(relation['calling'])}. The professional "
+                    "obligation is now active and persistent."
+                )
+                mentor.msg(
+                    f"{self.caller.key} accepts your apprenticeship offer. "
+                    "The professional relation is now active."
+                )
+            else:
+                relation, error = decline_apprenticeship(
+                    mentor,
+                    self.caller,
+                )
+                if error:
+                    self.caller.msg(error)
+                    return
+                self.caller.msg(
+                    f"You decline {mentor.key}'s apprenticeship offer. "
+                    "No professional obligation was created."
+                )
+                mentor.msg(
+                    f"{self.caller.key} declines your apprenticeship offer."
+                )
             return
 
         if lower == "withdraw":
@@ -255,7 +343,8 @@ class CmdCalling(Command):
             self.caller.msg(
                 "Use: calling | calling list | calling choose <calling> | "
                 "calling history | calling relations | calling apprentice <player> | "
-                "calling release <player> | calling withdraw"
+                "calling accept | calling decline | calling release <player> | "
+                "calling withdraw"
             )
             return
 
@@ -286,9 +375,15 @@ class CmdCalling(Command):
                 "Participation is evidence for authored advancement, not a hidden XP bar."
             )
         relations = active_relations(self.caller)
+        pending = pending_relations(self.caller)
         if relations:
             lines.append(
                 f"Active apprenticeship relations: {len(relations)}. "
+                "Use |wcalling relations|n for details."
+            )
+        if pending:
+            lines.append(
+                f"Pending apprenticeship offers: {len(pending)}. "
                 "Use |wcalling relations|n for details."
             )
         self.caller.msg("\n".join(lines))
