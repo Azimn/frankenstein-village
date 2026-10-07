@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import socket
 import time
@@ -949,24 +950,20 @@ def main() -> int:
         require(out, "care complete")
 
 
-        # Third structural interdependence case. The existing QA accounts
-        # each create a second mask, then a second session on that same account
-        # puppets it. This preserves distinct professional masks and avoids
-        # multiplying accounts solely for regression coverage.
-        create_out = h.command("charcreate SmithTester", wait=3.0)
-        require(create_out, "created new character smithtester")
+        # Third structural interdependence case: independent QA accounts each
+        # own exactly one mask. The fixture provisions them before telnet so
+        # public account creation rate limits remain fully enforced.
+        repair_password = os.environ["FV_QA_REPAIR_PASSWORD"]
         smith = Client(args.host, args.port)
         smith_banner = smith.sync_login_screen()
         require(smith_banner, "frankenstein village")
-        connect_out = smith.command(
-            f"connect {healer_user} {healer_password}",
+        smith_out = smith.command(
+            f"connect qa_smith_repair {repair_password}",
             wait=4.0,
         )
-        require(connect_out, "connected", "account qa_healer_assessor", "private room")
-        if "private room" in connect_out.lower():
-            out = connect_out
-        else:
-            out = smith.command("ic SmithTester", wait=4.0)
+        require(smith_out, "connected", "account qa_smith_repair")
+        smith.command("charcreate SmithTester", wait=3.0)
+        out = smith.command("ic SmithTester", wait=4.0)
         require(out, "private room")
         out = smith.command("calling choose smith")
         require(out, "smith is now your active calling")
@@ -995,20 +992,16 @@ def main() -> int:
         out = smith.command("calling")
         require(out, "repair diagnoses 1")
 
-        create_out = inn.command("charcreate MerchantTester", wait=3.0)
-        require(create_out, "created new character merchanttester")
         merchant = Client(args.host, args.port)
         merchant_banner = merchant.sync_login_screen()
         require(merchant_banner, "frankenstein village")
-        connect_out = merchant.command(
-            f"connect {inn_user} {inn_password}",
+        merchant_out = merchant.command(
+            f"connect qa_merchant_repair {repair_password}",
             wait=4.0,
         )
-        require(connect_out, "connected", "account qa_innkeep_care", "private room")
-        if "private room" in connect_out.lower():
-            out = connect_out
-        else:
-            out = merchant.command("ic MerchantTester", wait=4.0)
+        require(merchant_out, "connected", "account qa_merchant_repair")
+        merchant.command("charcreate MerchantTester", wait=3.0)
+        out = merchant.command("ic MerchantTester", wait=4.0)
         require(out, "private room")
         out = merchant.command("calling choose merchant")
         require(out, "merchant is now your active calling")
@@ -1070,8 +1063,6 @@ def main() -> int:
         return 0
     except Exception:
         print("\nFULL TRANSCRIPT\n" + "\n".join(c.transcript))
-        if h is not None:
-            print("\nHEALER TRANSCRIPT\n" + "\n".join(h.transcript))
         if h is not None:
             print("\nHEALER TRANSCRIPT\n" + "\n".join(h.transcript))
         if inn is not None:

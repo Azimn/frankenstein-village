@@ -100,6 +100,7 @@ def main() -> int:
                 "EVENNIA_SUPERUSER_USERNAME": username,
                 "EVENNIA_SUPERUSER_EMAIL": "qa-admin@example.invalid",
                 "EVENNIA_SUPERUSER_PASSWORD": password,
+                "FV_QA_REPAIR_PASSWORD": secrets.token_urlsafe(24),
                 "PYTHONUNBUFFERED": "1",
             }
         )
@@ -145,6 +146,26 @@ def main() -> int:
                 encoding="utf-8"
             )
             run([evennia, "shell"], cwd=game, env=env, input_text=assertions)
+
+            # Seed two distinct QA accounts before live telnet. Creating accounts
+            # through the public socket is rate-limited by design and the two
+            # other QA accounts already have active masks during this scenario.
+            # This fixture changes no server anti-abuse or mask-isolation rule.
+            repair_accounts = (
+                "import os\n"
+                "from evennia.utils import create\n"
+                "from evennia.accounts.models import AccountDB\n"
+                "for key in ('qa_smith_repair', 'qa_merchant_repair'):\n"
+                "    account = AccountDB.objects.filter(db_key=key).first()\n"
+                "    if account is None:\n"
+                "        account = create.create_account(\n"
+                "            key, password=os.environ['FV_QA_REPAIR_PASSWORD']\n"
+                "        )\n"
+                "    account.db.substrate = 'ai'\n"
+                "    account.db.disclosure_consent = True\n"
+                "print('REPAIR_QA_ACCOUNTS_READY')\n"
+            )
+            run([evennia, "shell"], cwd=game, env=env, input_text=repair_accounts)
 
             started = False
             try:
