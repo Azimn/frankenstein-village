@@ -141,8 +141,9 @@ class CmdCare(Command):
             submit_healer_care_assessment,
         )
 
+        case = care_status()
+
         if not raw:
-            case = care_status()
             mutations = dict(case.get("objective_mutations") or {})
             initialization = dict(mutations.get("patient_initialized") or {})
             assessment = dict(mutations.get("healer_assessment") or {})
@@ -190,11 +191,25 @@ class CmdCare(Command):
                 "Use: care | care assess <resident> | care serve <resident>"
             )
             return
+
+        action = parts[0].lower()
+        if case.get("state") == "aftermath":
+            mutations = dict(case.get("objective_mutations") or {})
+            completed_care = dict(mutations.get("innkeep_care") or {})
+            if action == "serve" and completed_care:
+                self.caller.msg(
+                    f"Tavern care is already complete. The recorded meal left "
+                    f"{completed_care.get('servings_after')} stew servings in stock."
+                )
+            else:
+                self.caller.msg("This cold-exposure care case is already closed.")
+            return
+
         target = self.caller.search(parts[1].strip())
         if not target:
             return
 
-        if parts[0].lower() == "assess":
+        if action == "assess":
             result, error = submit_healer_care_assessment(
                 self.caller,
                 target,
