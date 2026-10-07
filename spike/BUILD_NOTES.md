@@ -862,3 +862,24 @@ Execution contract:
 - No parallel patient, inventory, or relationship model is introduced.
 
 Regression coverage includes build-time Resident Life state, calling authority gates, a real three-account telnet collaboration, idempotent participation, finite stew consumption, first-person recovery state, and full restart persistence.
+
+
+## 2026-10-07 - Smith and Merchant physical repair interdependence
+
+`The Broken Mantle` is the third structural interdependence slice. It turns professional diagnosis and procurement into a persistent physical object transformation.
+
+Execution contract:
+- The one-shot situation is `CIV-REPAIR-0003-BROKEN-MANTLE`.
+- The repair target is the existing world object `north-square gas lamp` in Village Square.
+- Lamp repair state is mutable object state and is never reset by an idempotent world build.
+- Replacement collars are existing Lamp Shop stock represented by `a tray of brass mantle collars`.
+- The stock definition uses mechanical `uses=4` and `worth=7`; mutable live stock is `db.units`, initialized only when absent.
+- `repair` displays the shared case. An active Smith uses `repair diagnose north-square gas lamp` to establish the cracked mantle collar.
+- An active Merchant must be physically present in the Lamp Shop and use `repair procure`. This spends exactly one live collar unit and records the Smith diagnosis event as provenance.
+- The Smith then uses `repair finish north-square gas lamp` in Village Square. Completion changes the same lamp object to working state and updates its public description.
+- Diagnosis, procurement, and completion each create separate canonical world events and separate calling participation evidence.
+- Repeated completed actions are idempotent and cannot farm participation or duplicate stock consumption.
+- The case has a twelve-village-hour window. If the chain is not completed, routine reconciliation closes the case with the lamp still physically broken. Any stock already procured remains spent.
+- No generic crafting, work-order, or alternate inventory system is introduced.
+
+Regression coverage proves calling authority gates, finite stock configuration versus live count, a real Smith and Merchant multi-account telnet collaboration, linked event provenance, participation idempotence, persistent object repair, persistent stock depletion, and real restart survival.

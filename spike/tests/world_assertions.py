@@ -1234,6 +1234,7 @@ from world.situations import (
     TORN_CHRONICLE_ID,
     WELL_MUSHROOM_WARNING_ID,
     TAVERN_COLD_CARE_ID,
+    LAMP_REPAIR_ID,
     TEMPLATES,
     advance_situations,
     choose,
@@ -1258,6 +1259,7 @@ assert set((situation_registry.db.situations or {}).keys()) == {
     TORN_CHRONICLE_ID,
     WELL_MUSHROOM_WARNING_ID,
     TAVERN_COLD_CARE_ID,
+    LAMP_REPAIR_ID,
 }
 situation_original = copy.deepcopy(dict(situation_registry.db.situations or {}))
 situation_metrics_original = copy.deepcopy(dict(situation_registry.db.metrics or {}))
@@ -1276,6 +1278,7 @@ assert get_situation(OBT_ID)["state"] == "dormant"
 assert get_situation(TITHE_ID)["state"] == "surfaced"
 assert get_situation(TORN_CHRONICLE_ID)["state"] == "dormant"
 assert get_situation(TAVERN_COLD_CARE_ID)["state"] == "surfaced"
+assert get_situation(LAMP_REPAIR_ID)["state"] == "surfaced"
 
 # The second structural interdependence case is already real world state at
 # build time. Resident Life owns Silas's condition and the situation owns only
@@ -1316,6 +1319,71 @@ blocked_hospitality, blocked_hospitality_error = provide_innkeep_care(
 assert blocked_hospitality is None
 assert "active innkeep calling" in blocked_hospitality_error.lower()
 assert care_status()["state"] == "surfaced"
+
+from world.repair_case import (
+    complete_smith_lamp_repair,
+    procure_merchant_repair_part,
+    reconcile_lamp_repair_case,
+    repair_status,
+    submit_smith_repair_diagnosis,
+    sync_lamp_description,
+)
+repair_lamp = one("north-square gas lamp")
+repair_stock = one("a tray of brass mantle collars")
+assert repair_lamp.db.repair_state == "broken"
+assert mechanical_properties(repair_stock) == {"uses": 4, "worth": 7}
+assert repair_stock.db.units == 4
+repair_case = repair_status()
+repair_mutations = dict(repair_case.get("objective_mutations") or {})
+assert repair_case["state"] == "surfaced"
+assert repair_mutations["lamp_initialized"]["lamp_object_id"] == repair_lamp.id
+assert repair_mutations["lamp_initialized"]["stock_object_id"] == repair_stock.id
+repair_unqualified = SimpleNamespace(id=929999, key="repair_unqualified", db=SimpleNamespace())
+blocked, error = submit_smith_repair_diagnosis(repair_unqualified, repair_lamp)
+assert blocked is None and "active smith calling" in error.lower()
+blocked, error = procure_merchant_repair_part(repair_unqualified)
+assert blocked is None and "active merchant calling" in error.lower()
+blocked, error = complete_smith_lamp_repair(repair_unqualified, repair_lamp)
+assert blocked is None and "active smith calling" in error.lower()
+assert repair_status()["state"] == "surfaced"
+
+# The authored failure branch is a real persistent outcome, not documentation
+# only. Force only this case to its current deadline, prove the lamp stays dark
+# without consuming stock, then restore the untouched playtest fixture.
+_repair_case_snapshot = copy.deepcopy(get_situation(LAMP_REPAIR_ID))
+_repair_ledger_snapshot = copy.deepcopy(list(ledger.db.events or []))
+_repair_state_snapshot = repair_lamp.db.repair_state
+_repair_fault_snapshot = repair_lamp.db.repair_fault
+_repair_failure_snapshot = repair_lamp.db.repair_failure
+_repair_units_snapshot = repair_stock.db.units
+_repair_clock = ScriptDB.objects.get(db_key="village_time")
+_repair_due = copy.deepcopy(get_situation(LAMP_REPAIR_ID))
+_repair_due["deadline_day"] = int(_repair_clock.db.day or 1)
+_repair_due["deadline_hour"] = int(
+    _repair_clock.db.hour if _repair_clock.db.hour is not None else 21
+)
+_repair_situations = copy.deepcopy(dict(situation_registry.db.situations or {}))
+_repair_situations[LAMP_REPAIR_ID] = _repair_due
+situation_registry.db.situations = _repair_situations
+_repair_failed = reconcile_lamp_repair_case()
+assert _repair_failed["state"] == "aftermath"
+assert _repair_failed["branch"] == "left_dark"
+assert repair_lamp.db.repair_state == "broken"
+assert repair_lamp.db.repair_failure == "deadline"
+assert repair_stock.db.units == _repair_units_snapshot
+_repair_failure_event = ledger.get_event(_repair_failed["event_ids"][-1])
+assert _repair_failure_event["kind"] == "civic.public_lamp_left_dark"
+
+_repair_situations = copy.deepcopy(dict(situation_registry.db.situations or {}))
+_repair_situations[LAMP_REPAIR_ID] = _repair_case_snapshot
+situation_registry.db.situations = _repair_situations
+ledger.db.events = _repair_ledger_snapshot
+repair_lamp.db.repair_state = _repair_state_snapshot
+repair_lamp.db.repair_fault = _repair_fault_snapshot
+repair_lamp.db.repair_failure = _repair_failure_snapshot
+repair_stock.db.units = _repair_units_snapshot
+sync_lamp_description(repair_lamp)
+assert repair_status()["state"] == "surfaced"
 
 assert incident_feed_candidates() == [], (
     "dependent incident surfaced before its prerequisite aftermath"

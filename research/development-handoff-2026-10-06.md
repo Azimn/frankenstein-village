@@ -275,3 +275,14 @@ Silas Crowe is an ordinary Resident Life participant who surfaces cold and wet a
 The case also has a four-hour village deadline and a self-recovery path if nobody completes coordinated care. No patient subsystem, job inventory, or generic work-order engine was added.
 
 After this slice is accepted, prefer the next dependency that adds a new kind of professional relationship to existing world state, rather than repeating the same two-step gate with different labels.
+
+
+## 2026-10-07 continuation: physical repair and procurement interdependence
+
+The third cross-calling case is `The Broken Mantle`.
+
+A named north-square gas lamp owns its own mutable broken or working state. A Smith must diagnose its cracked mantle collar. A Merchant must then procure one replacement from finite Lamp Shop stock, spending one live unit whose configured capacity and worth use the systemic object-property layer. The Smith returns to the same lamp and installs the procured part, persistently transforming the object to working state.
+
+The SituationRegistry owns only case progression and provenance. It does not own a duplicate lamp state or inventory. Each professional contribution has its own canonical event and participation evidence. Repeated actions are idempotent. A missed twelve-hour deadline leaves the lamp dark, and any stock already procured stays spent.
+
+This slice intentionally does not create a generic crafting or work-order engine. After it is accepted, inspect current travel, route, investigation, resident, faction, and economic substrates before selecting the next cross-calling dependency. Prefer a relationship shape not already represented by publication, care, or repair. Candidate directions include Wanderer plus Merchant logistics or Detective plus Hound field investigation, but repository support must decide rather than assumption.

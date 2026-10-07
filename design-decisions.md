@@ -513,3 +513,14 @@ The second interdependence proof deliberately does not repeat the Chronicle hand
 The SituationRegistry records case progression and provenance, but it does not become a second patient state, inventory, or relationship model.
 
 Future interdependence slices should prefer this pattern: each profession contributes through a different existing system, and the combined result changes one shared world state.
+
+
+## 2026-10-07 - Professional chains may transform physical world state
+
+Cross-calling work is strongest when each profession contributes through a different authority boundary and the final outcome changes an existing world object.
+
+`The Broken Mantle` uses a named public gas lamp as the repair target and Lamp Shop collar stock as the scarce resource. The Smith owns diagnosis and installation authority. The Merchant owns procurement authority and spends one real stock unit. The SituationRegistry preserves case progression and provenance but does not become a second repair-state or inventory system.
+
+Configured stock capacity remains a mechanical `uses` property while the mutable live count remains separate. An idempotent rebuild may converge the definition but must not replace a collar that was already spent. Likewise, the repaired lamp remains repaired after rebuild or restart.
+
+This is deliberately not a generic crafting engine. Future repair, commission, and production work should first prove additional concrete world relationships before a common abstraction is introduced.
