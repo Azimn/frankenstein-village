@@ -16,11 +16,14 @@ from world.callings import active_calling, record_participation
 from world.object_properties import mechanical_value
 from world.residents import (
     add_resident_commitment,
+    advance_population,
     apply_resident_condition,
     record_player_interaction,
     record_resident_perception,
     resident_state,
     resolve_resident_commitment,
+    save_state,
+    set_resident_deviation,
 )
 from world.situations import (
     TAVERN_COLD_CARE_ID,
@@ -92,6 +95,38 @@ def _same_tavern(mask, patient):
     )
 
 
+def _hold_patient_at_tavern(case):
+    """Keep the unresolved authored patient at the case location."""
+    patient = _patient()
+    if patient is None or case.get("state") == "aftermath":
+        return patient
+    due_day = case.get("deadline_day")
+    due_hour = case.get("deadline_hour")
+    if due_day is None or due_hour is None:
+        return patient
+    set_resident_deviation(
+        patient,
+        "tavern",
+        int(due_day),
+        int(due_hour),
+        "stays by the tavern fire until warm enough to leave",
+    )
+    day, hour = _clock()
+    advance_population(day=day, hour=hour, emit=False)
+    return patient
+
+
+def _release_patient(patient):
+    """Release the authored deviation once the care case closes."""
+    state = resident_state(patient)
+    if not state:
+        return
+    state["routine_override"] = None
+    save_state(patient, state)
+    day, hour = _clock()
+    advance_population(day=day, hour=hour, emit=False)
+
+
 def ensure_tavern_cold_care():
     """Surface the case once without resetting later mutable Resident Life."""
     case = _case()
@@ -131,6 +166,14 @@ def ensure_tavern_cold_care():
         due_hour=due_hour,
         priority=0.8,
     )
+    set_resident_deviation(
+        patient,
+        "tavern",
+        int(due_day),
+        int(due_hour),
+        "stays by the tavern fire until warm enough to leave",
+    )
+    advance_population(day=day, hour=hour, emit=False)
     record_resident_perception(
         patient,
         "physical_condition",
@@ -182,7 +225,10 @@ def ensure_tavern_cold_care():
 
 def care_status():
     ensure_tavern_cold_care()
-    return reconcile_tavern_cold_care()
+    case = reconcile_tavern_cold_care()
+    if case.get("state") != "aftermath":
+        _hold_patient_at_tavern(case)
+    return case
 
 
 def _target_is_patient(target):
@@ -191,8 +237,7 @@ def _target_is_patient(target):
 
 def submit_healer_care_assessment(mask, target):
     """Record the professional assessment but do not spend tavern resources."""
-    ensure_tavern_cold_care()
-    case = reconcile_tavern_cold_care()
+    case = care_status()
     if case.get("state") == "aftermath":
         return None, "This cold-exposure case is already closed."
     if active_calling(mask) != "healer":
@@ -260,8 +305,7 @@ def submit_healer_care_assessment(mask, target):
 
 def provide_innkeep_care(mask, target):
     """Spend one finite stew serving after the Healer establishes the need."""
-    ensure_tavern_cold_care()
-    case = reconcile_tavern_cold_care()
+    case = care_status()
     if case.get("state") == "aftermath":
         mutations = dict(case.get("objective_mutations") or {})
         existing = dict(mutations.get("innkeep_care") or {})
@@ -367,6 +411,7 @@ def provide_innkeep_care(mask, target):
     event_ids.append(event["id"])
     case["event_ids"] = event_ids
     saved = _save(case)
+    _release_patient(target)
 
     record_participation(mask, "recovery_hospitality", calling="innkeep")
     return {"case": saved, "care": care, "created": True}, None
@@ -422,4 +467,6 @@ def reconcile_tavern_cold_care():
     event_ids = list(case.get("event_ids") or [])
     event_ids.append(event["id"])
     case["event_ids"] = event_ids
-    return _save(case)
+    saved = _save(case)
+    _release_patient(patient)
+    return saved
