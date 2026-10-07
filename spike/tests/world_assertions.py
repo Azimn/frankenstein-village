@@ -237,6 +237,13 @@ decline_offer, error = offer_apprenticeship(
     calling_other,
 )
 assert error is None and decline_offer["status"] == "offered"
+pending_switch, error = respecialize_calling(
+    calling_other,
+    "healer",
+    reason="QA pending offer is not an obligation",
+)
+assert error is None and pending_switch["changed"]
+assert active_calling(calling_other) == "healer"
 declined, error = decline_apprenticeship(
     calling_mentor,
     calling_other,
