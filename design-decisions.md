@@ -459,3 +459,12 @@ Participation is recorded from real professional actions but is not itself a hid
 Respecialization preserves prior calling records and rank history, but it is an authored transition rather than a free player command. Only one calling is active at a time, so a character cannot simultaneously exercise every mastered profession or bypass specialization by swapping roles on demand. Returning to an earlier profession restores its historical record rather than erasing biography.
 
 Apprenticeship is persistent bilateral state and must also be bilateral by consent. Master and Apprentice must currently share a calling. A Master may create a persistent offer, but no obligation exists until the Apprentice explicitly accepts it; declining the offer creates no active relation. Either party can end an accepted obligation, and only a live accepted apprenticeship blocks silent respecialization until it is resolved. This is the first interdependence primitive; later professional jobs should build on it rather than inventing temporary role flags.
+
+
+## 2026-10-06 - Specialized calling verbs should change method, not world truth
+
+The first live calling-specific capability is Healer assessment of hidden object toxicity. The capability does not create a Healer-only physics layer and does not alter the object. It changes how safely the mask can learn an existing hidden fact.
+
+This is the preferred pattern for professional specialization. A calling may provide safer methods, better interpretation, institutional authority, or access to work, while the underlying world remains shared. A non-Healer can still encounter toxin through ordinary consequences; a Healer can identify the supported hidden toxin without ingesting it. The social value is reduced risk and professional interpretation, not privileged reality.
+
+Professional participation should record distinct work, not repeated button presses. Re-assessing the same already-known hidden toxin does not create additional participation evidence.
