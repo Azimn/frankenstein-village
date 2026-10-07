@@ -1202,6 +1202,9 @@ from world.situations import (
     situation_status_for_player,
 )
 
+from world.obituary import OBT_ID as OBT_COMPAT_ID
+assert OBT_COMPAT_ID == OBT_ID
+
 situation_registry = get_situation_registry()
 assert set((situation_registry.db.situations or {}).keys()) == {
     TRUNK_ID,
@@ -1548,6 +1551,10 @@ from world.timed_incidents import (
     start_timed_incident,
     status_for_player as timed_status_for_player,
 )
+
+from world.well_boils import WELL_ID as WELL_COMPAT_ID, definition as well_compat_definition
+assert WELL_COMPAT_ID == WELL_BOILS_ID
+assert well_compat_definition()["title"] == "The Well Boils"
 
 assert set((timed_registry.db.incidents or {}).keys()) == {WELL_BOILS_ID}
 assert get_timed_incident(WELL_BOILS_ID)["state"] == "dormant"
