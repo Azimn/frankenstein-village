@@ -499,3 +499,17 @@ A cross-calling dependency is stronger when it changes the world rather than onl
 `Cold Hunter at Supper` uses Resident Life as the patient state and the Tavern's existing finite stew stock as the resource state. The Healer contributes interpretation and recommendation. The Innkeep contributes hospitality and actually spends stock. Neither profession owns a duplicate patient or inventory record.
 
 Professional work should continue to prefer this shape: shared world state, distinct professional contributions, persistent provenance, and consequences in systems that already matter outside the job itself.
+
+
+## 2026-10-07 - Cross-calling work should touch different kinds of world state
+
+The second interdependence proof deliberately does not repeat the Chronicle handoff with different labels.
+
+`Cold Hunter at Supper` binds three existing systems together:
+- Resident Life owns Silas Crowe's cold, wetness, perceptions, affect wake-up, and commitment.
+- The Healer calling owns the professional assessment contribution.
+- The Innkeep calling owns the hospitality contribution and must spend one existing finite stew serving.
+
+The SituationRegistry records case progression and provenance, but it does not become a second patient state, inventory, or relationship model.
+
+Future interdependence slices should prefer this pattern: each profession contributes through a different existing system, and the combined result changes one shared world state.
