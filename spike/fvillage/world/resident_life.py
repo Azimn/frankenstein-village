@@ -17,6 +17,9 @@ SCHEMA_VERSION = 1
 PROFILE_POPULATION = "population"
 PROFILE_AUTHORED_LOCKED = "authored_locked"
 
+# Generic-scheduler residents already serving authored narrative roles.
+AUTHORED_LOCKED_IDS = frozenset({"ilona_szabo"})
+
 BODY_KEYS = frozenset(
     {
         "cold",
