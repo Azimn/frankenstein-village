@@ -23,6 +23,7 @@ from world.situations import (
     TITHE_ID,
     TORN_CHRONICLE_ID,
     WELL_MUSHROOM_WARNING_ID,
+    TAVERN_COLD_CARE_ID,
     get_situation,
     situation_status_for_player,
 )
@@ -89,6 +90,7 @@ def one(key):
 miklos = one("Miklós Farkas")
 smoke = one("SmokeTester")
 healer_tester = one("HealerTester")
+innkeep_tester = one("InnkeepTester")
 state = resident_state(miklos)
 relation = (state.get("relationships") or {}).get(str(smoke.id))
 assert relation, "telnet interactions did not persist a Miklós relationship"
@@ -125,9 +127,15 @@ assert active_rank(healer_tester) == RANK_APPRENTICE
 healer_record = calling_record(healer_tester, "healer")
 assert healer_record["participation"]["assessments"] == 1
 assert healer_record["participation"]["public_health_findings"] == 1
+assert healer_record["participation"]["resident_assessments"] == 1
 assert not getattr(healer_tester.db, "queasy", 0), (
     "safe Healer assessment unexpectedly applied the toxin effect"
 )
+
+assert active_calling(innkeep_tester) == "innkeep"
+assert active_rank(innkeep_tester) == RANK_APPRENTICE
+innkeep_record = calling_record(innkeep_tester, "innkeep")
+assert innkeep_record["participation"]["recovery_hospitality"] == 1
 
 population = list(search.search_tag("resident", category="system"))
 assert len(population) == 36, "resident population changed across restart"
@@ -237,6 +245,53 @@ assert warning_event["publications"]["chronicle_entry_id"] == warning_entry["id"
 assert warning_event["publications"]["harbinger_story_id"] == warning_story["id"]
 assert hidden_mechanical_properties(mushrooms) == {"toxin": 25}
 assert mechanical_properties(mushrooms) == {}
+
+# Resident care interdependence survives restart as Resident Life state plus a
+# provenance record. The current stew stock may have been restocked by Bram,
+# so the authoritative consumption proof is the care event's before/after pair.
+cold_case = get_situation(TAVERN_COLD_CARE_ID)
+assert cold_case["state"] == "aftermath"
+assert cold_case["branch"] == "cared_for"
+cold_mutations = dict(cold_case["objective_mutations"])
+cold_init = dict(cold_mutations["patient_initialized"])
+cold_assessment = dict(cold_mutations["healer_assessment"])
+cold_hospitality = dict(cold_mutations["innkeep_care"])
+assert cold_init["resident_id"] == "silas_crowe"
+assert cold_assessment["mask_id"] == healer_tester.id
+assert cold_assessment["mask"] == "HealerTester"
+assert cold_hospitality["mask_id"] == innkeep_tester.id
+assert cold_hospitality["mask"] == "InnkeepTester"
+assert cold_hospitality["resource_object_key"] == "a bowl of stew"
+assert cold_hospitality["servings_before"] - cold_hospitality["servings_after"] == 1
+assert cold_hospitality["source_healer_event_id"] == cold_assessment["event_id"]
+
+silas = one("Silas Crowe")
+silas_life = resident_state(silas)["life"]
+silas_body = dict(silas_life["body"])
+assert silas_body["cold"] <= 15
+assert silas_body["wet"] <= 10
+assert silas_body["discomfort"] <= 10
+assert any(
+    item.get("key") == "warm_after_hunt"
+    and item.get("status") == "completed"
+    for item in silas_life.get("commitments") or []
+)
+assert any(
+    "hot stew" in str(item.get("summary") or "").lower()
+    for item in silas_life.get("perceptions") or []
+)
+
+cold_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+assessment_event = cold_ledger.get_event(cold_assessment["event_id"])
+hospitality_event = cold_ledger.get_event(cold_hospitality["event_id"])
+assert assessment_event["kind"] == "professional.healer_cold_assessment"
+assert hospitality_event["kind"] == "professional.innkeep_recovery_care"
+assert hospitality_event["payload"]["source_healer_event_id"] == (
+    assessment_event["id"]
+)
+assert hospitality_event["payload"]["servings_before"] - (
+    hospitality_event["payload"]["servings_after"]
+) == 1
 
 # Harbinger The Correction must survive restart as an archive discrepancy.
 # The old story body remains the surviving copy; the claimant's alleged wording
