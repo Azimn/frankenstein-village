@@ -360,8 +360,20 @@ def active_relations(mask, role=None):
     return rows
 
 
-def create_apprenticeship(mentor, apprentice):
-    """Create one same-calling Master-to-Apprentice social relation."""
+def pending_relations(mask, role=None):
+    """Return apprenticeship offers that have not yet been accepted."""
+    state = calling_state(mask)
+    rows = [
+        copy.deepcopy(dict(item))
+        for item in state.get("relations") or []
+        if item.get("status") == "offered"
+    ]
+    if role:
+        rows = [item for item in rows if item.get("role") == role]
+    return rows
+
+
+def _validate_apprenticeship_pair(mentor, apprentice):
     if mentor is apprentice or getattr(mentor, "id", None) == getattr(apprentice, "id", None):
         return None, "A mask cannot apprentice itself."
     mentor_calling = active_calling(mentor)
@@ -372,25 +384,41 @@ def create_apprenticeship(mentor, apprentice):
         return None, "Only a Master in the active calling can take an apprentice."
     if active_rank(apprentice) != RANK_APPRENTICE:
         return None, "The invited mask must currently be an Apprentice in that calling."
+    return mentor_calling, None
 
-    relation_id = _relation_id(mentor_calling, mentor, apprentice)
+
+def offer_apprenticeship(mentor, apprentice):
+    """Create a bilateral apprenticeship offer without imposing the relation."""
+    calling, error = _validate_apprenticeship_pair(mentor, apprentice)
+    if error:
+        return None, error
+
+    relation_id = _relation_id(calling, mentor, apprentice)
     for relation in active_relations(apprentice, role="apprentice"):
-        if relation.get("calling") == mentor_calling:
+        if relation.get("calling") == calling:
+            if relation.get("relation_id") == relation_id:
+                return copy.deepcopy(relation), "That apprenticeship is already active."
+            return None, "That Apprentice already has an active mentor in this calling."
+
+    for relation in pending_relations(apprentice, role="apprentice"):
+        if relation.get("calling") == calling:
             if relation.get("relation_id") == relation_id:
                 return copy.deepcopy(relation), None
-            return None, "That Apprentice already has an active mentor in this calling."
+            return None, "That Apprentice already has a pending mentor offer in this calling."
 
     day, hour = _clock()
     base = {
         "relation_id": relation_id,
-        "calling": mentor_calling,
+        "calling": calling,
         "mentor_mask_id": getattr(mentor, "id", None),
         "mentor_mask": getattr(mentor, "key", None),
         "apprentice_mask_id": getattr(apprentice, "id", None),
         "apprentice_mask": getattr(apprentice, "key", None),
-        "started_day": int(day),
-        "started_hour": int(hour),
-        "status": "active",
+        "offered_day": int(day),
+        "offered_hour": int(hour),
+        "started_day": None,
+        "started_hour": None,
+        "status": "offered",
     }
 
     mentor_state = calling_state(mentor)
@@ -401,16 +429,16 @@ def create_apprenticeship(mentor, apprentice):
     apprentice_state["relations"].append(apprentice_relation)
     mentor_state["history"].append(
         _history_entry(
-            "apprentice_taken",
-            calling=mentor_calling,
+            "apprenticeship_offered",
+            calling=calling,
             counterpart_mask_id=getattr(apprentice, "id", None),
             counterpart_mask=getattr(apprentice, "key", None),
         )
     )
     apprentice_state["history"].append(
         _history_entry(
-            "mentor_joined",
-            calling=mentor_calling,
+            "apprenticeship_received",
+            calling=calling,
             counterpart_mask_id=getattr(mentor, "id", None),
             counterpart_mask=getattr(mentor, "key", None),
         )
@@ -418,6 +446,108 @@ def create_apprenticeship(mentor, apprentice):
     _save(mentor, mentor_state)
     _save(apprentice, apprentice_state)
     return copy.deepcopy(apprentice_relation), None
+
+
+def _transition_offer(mentor, apprentice, *, status, reason=None):
+    calling, error = _validate_apprenticeship_pair(mentor, apprentice)
+    if error and status == "active":
+        return None, error
+
+    relation_id = _relation_id(
+        active_calling(mentor) or active_calling(apprentice),
+        mentor,
+        apprentice,
+    )
+    apprentice_offer = next(
+        (
+            row
+            for row in pending_relations(apprentice, role="apprentice")
+            if row.get("mentor_mask_id") == getattr(mentor, "id", None)
+        ),
+        None,
+    )
+    if not apprentice_offer:
+        return None, "No pending apprenticeship offer connects those masks."
+    relation_id = apprentice_offer["relation_id"]
+
+    day, hour = _clock()
+    changed = False
+    for owner in (mentor, apprentice):
+        state = calling_state(owner)
+        rows = []
+        owner_changed = False
+        for item in state.get("relations") or []:
+            row = copy.deepcopy(dict(item))
+            if row.get("relation_id") == relation_id and row.get("status") == "offered":
+                row["status"] = status
+                if status == "active":
+                    row["started_day"] = int(day)
+                    row["started_hour"] = int(hour)
+                    row["accepted_day"] = int(day)
+                    row["accepted_hour"] = int(hour)
+                else:
+                    row["ended_day"] = int(day)
+                    row["ended_hour"] = int(hour)
+                    row["ended_reason"] = str(reason or status)
+                owner_changed = True
+            rows.append(row)
+        if owner_changed:
+            state["relations"] = rows
+            if status == "active":
+                action = (
+                    "apprentice_taken"
+                    if owner is mentor
+                    else "mentor_joined"
+                )
+            else:
+                action = "apprenticeship_declined"
+            state["history"].append(
+                _history_entry(
+                    action,
+                    calling=apprentice_offer.get("calling"),
+                    relation_id=relation_id,
+                    counterpart_mask_id=(
+                        getattr(apprentice, "id", None)
+                        if owner is mentor
+                        else getattr(mentor, "id", None)
+                    ),
+                    counterpart_mask=(
+                        getattr(apprentice, "key", None)
+                        if owner is mentor
+                        else getattr(mentor, "key", None)
+                    ),
+                    reason=str(reason or status),
+                )
+            )
+            _save(owner, state)
+            changed = True
+    if not changed:
+        return None, "No pending apprenticeship offer connects those masks."
+    return {
+        "relation_id": relation_id,
+        "calling": apprentice_offer.get("calling"),
+        "status": status,
+    }, None
+
+
+def accept_apprenticeship(mentor, apprentice):
+    """Activate a pending offer only after explicit Apprentice acceptance."""
+    return _transition_offer(
+        mentor,
+        apprentice,
+        status="active",
+        reason="accepted_by_apprentice",
+    )
+
+
+def decline_apprenticeship(mentor, apprentice):
+    """Close a pending offer without creating professional obligations."""
+    return _transition_offer(
+        mentor,
+        apprentice,
+        status="declined",
+        reason="declined_by_apprentice",
+    )
 
 
 def end_apprenticeship(mentor, apprentice, *, reason="ended"):
