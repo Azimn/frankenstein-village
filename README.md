@@ -10,6 +10,16 @@ Everything for building this game lives in this folder.
 
 Fresh checkout: set `EVENNIA_SUPERUSER_USERNAME`, `EVENNIA_SUPERUSER_EMAIL`, and `EVENNIA_SUPERUSER_PASSWORD`, then run `python3.12 spike/bootstrap.py`. Start with `cd spike/fvillage && ../venv/bin/evennia start`; telnet is `localhost:4000` and the web client is `localhost:4001`. Bootstrap installs the root `requirements.txt`, runs Evennia's first-database setup, repairs the Twisted launcher if needed, and idempotently builds the world. Run the clean-checkout regression suite with `python3.12 spike/tests/run_all.py`.
 
+## Alpha persistence and recovery
+
+The clean-checkout regression is a development gate, not evidence that an
+internet-hosted instance is ready. Before inviting external players, back up
+the live database, verify an offline restoration, store at least one copy away
+from the host, and test a fresh remote login and restart. The new standard
+library SQLite backup and restore helper lives in
+[`ops/README.md`](ops/README.md). Never commit the live database,
+SQLite journal files, or `secret_settings.py`.
+
 ## Start here (reading order)
 
 1. **`hidden_files/design-doctrine.md`**: Governing design doctrine: USP, emic-first measurement, one-loop principle, Tarn rule, keeper rule, third-place model, and reliability rule. Read this before designing or reviewing systems.

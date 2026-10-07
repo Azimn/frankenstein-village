@@ -108,6 +108,15 @@ def main() -> int:
         game = checkout / "spike" / "fvillage"
         try:
             run(
+                [
+                    sys.executable, "-m", "unittest", "discover",
+                    "-s", "ops/tests", "-p", "test_*.py", "-v",
+                ],
+                cwd=checkout,
+                env=env,
+            )
+            print("OPS_BACKUP_RESTORE_GREEN")
+            run(
                 [sys.executable, "spike/tests/resident_population_sim.py"],
                 cwd=checkout,
                 env=env,
