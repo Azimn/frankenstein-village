@@ -22,6 +22,7 @@ from evennia.utils import search
 REGISTRY_KEY = "situation_registry"
 TRUNK_ID = "DM-Q-0001-WRONG-TRUNK"
 OBT_ID = "DM-Q-0017-OBTUARY"
+WELL_ID = "DM-Q-0018-WELL"
 TITHE_ID = "INC-0006-TITHE-STRONGBOX"
 TORN_CHRONICLE_ID = "INC-0008-TORN-CHRONICLE"
 
@@ -450,7 +451,136 @@ def _new_situation(stable_id, *, day, hour):
         "resolved_day": None,
         "resolved_hour": None,
         "objective_mutations": {},
-        "player_knowledge": {},
+    WELL_ID: {
+        "template_id": "dm-q-0018",
+        "working_title": "The Well Boils",
+        "content_family": "timed_incident",
+        "canonical_status": "working content",
+        "spoiler_tier": 2,
+        "primary_location": "Tribute well",
+        "secondary_locations": ["Village square", "St. Lazarus Church"],
+        "involved_npcs": ["father_andrei", "castle_guard", "villager_witness", "harbinger_reporter"],
+        "factions": ["St. Lazarus", "Castle"],
+        "calling_relevance": ["hound", "chronicler", "merchant", "detective"],
+        "repeatability": "one-shot",
+        "hook": (
+            "Steam thickens around the tribute well as the bell rings. The vapor "
+            "is denser than usual, smelling faintly of ozone and copper. NPCs begin "
+            "converging from their scheduled routines, each with a different theory."
+        ),
+        "autonomy": {
+            "initial_deadline_hours": 4,
+            "left_alone": (
+                "The steam clears without explanation. Father Andrei records it in "
+                "the church ledger as a 'miracle.' The castle guard notes the well "
+                "pump ran unusually hot that evening. The village gossip mill turns "
+                "toward the well for weeks."
+            ),
+        },
+        "choices": {
+            "player_response": {
+                "label": "Player response",
+                "branch_from": "initial",
+                "options": [
+                    {"label": "Approach and examine", "outcome": "investigated"},
+                    {"label": "Document and publish", "outcome": "published"},
+                    {"label": "Report to the church", "outcome": "reported_to_church"},
+                    {"label": "Ignore and continue", "outcome": "ignored"},
+                ],
+            },
+        },
+        "evidence": {
+            "steam_condensation": {
+                "label": "condensation on nearby surfaces",
+                "provenance": "physical",
+                "summary": (
+                    "Metal surfaces within 15 feet show water droplets and slight "
+                    "corrosion. The pattern suggests sustained steam rather than a "
+                    "brief burst."
+                ),
+            },
+            "copper_odor": {
+                "label": "faint copper smell",
+                "provenance": "environmental",
+                "summary": (
+                    "A metallic tang lingers near the well. Could be pipe corrosion, "
+                    "or something more unusual."
+                ),
+            },
+            "well_pump_heat": {
+                "label": "pump temperature",
+                "provenance": "environmental",
+                "summary": (
+                    "The tribute well pump housing is warmer than normal, suggesting "
+                    "unusual electrical load or mechanical friction."
+                ),
+            },
+            "npc_testimony": {
+                "label": "converging witness accounts",
+                "provenance": "witness",
+                "summary": (
+                    "Multiple NPCs arrive within minutes of each other, each with "
+                    "different theories about the cause and meaning of the steam."
+                ),
+            },
+            "harbinger_note": {
+                "label": "reporter's field notes",
+                "provenance": "documentary",
+                "summary": (
+                    "A Harbinger reporter arrives with notebook and pencil. Their "
+                    "initial observations may contradict or support your own."
+                ),
+            },
+            "church_ledger": {
+                "label": "pre-existing ledger entry",
+                "provenance": "documentary",
+                "summary": (
+                    "The church already has an entry for 'unusual well behavior' "
+                    "from a previous week. This incident may be a recurrence."
+                ),
+            },
+        },
+        "npc_beliefs": {
+            "father_andrei": {
+                "initial": "Father Andrei believes this is a miraculous sign, but is cautious about declaring it.",
+            },
+            "castle_guard": {
+                "initial": "The guard is suspicious of any unexplained activity near the tribute well.",
+            },
+            "villager_witness": {
+                "initial": "The villager is torn between superstition and practical explanation (pump failure).",
+            },
+            "harbinger_reporter": {
+                "initial": "The reporter is looking for a story angle that will sell well. They're skeptical but professional.",
+            },
+        },
+        "rumors": [
+            "The steam is a warning from the Castle about tribute quality.",
+            "The well pump is failing and needs replacement.",
+            "Victor Frankenstein is testing the tribute mechanism.",
+            "The Hounds have been sabotaging the tribute for months.",
+            "This is the sign the Chronicle will record as the beginning of 'The Well Era.'",
+        ],
+        "harbinger_consequences": [
+            "The article may be published with your byline or as anonymous source material.",
+            "Later well incidents may be measured against your initial account.",
+            "The Harbinger may cite your observations in a special edition.",
+        ],
+        "chronicle_eligibility": {
+            "primary": "The well boiling incident as recorded in village memory",
+            "secondary": "Your role in documenting or responding to the event",
+        },
+        "follow_up": {
+            "immediate": "NPCs converge and make sense of the event. Church or castle records are updated.",
+            "medium": "The well becomes a focal point for future incidents and rumors.",
+            "long_term": "Your involvement (or lack thereof) creates lasting social consequences.",
+        },
+        "aftermath": {
+            "world_state": "The well remains physically unchanged but becomes a local landmark in conversation.",
+            "npc_effects": "NPCs adjust their theories and future behavior based on your response.",
+            "evidence_state": "First-hand evidence degrades over time; secondhand accounts become rumor.",
+        },
+    },        "player_knowledge": {},
         "choice_history": [],
         "event_ids": [],
         "rumor_ids": [],
