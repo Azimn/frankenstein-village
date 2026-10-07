@@ -420,6 +420,49 @@ assert calling_record(
     "healer",
 )["participation"]["assessments"] == 1
 
+# First cross-calling interdependence case: neither profession can complete the
+# public-health warning alone. Keep these assertions mutation-free so the real
+# telnet pass can exercise the positive two-player workflow.
+from world.well_mushroom_warning import (
+    publish_public_warning,
+    submit_healer_finding,
+    warning_status,
+)
+
+warning_before = warning_status()
+assert warning_before["state"] == "dormant"
+assert not dict(warning_before.get("objective_mutations") or {})
+
+blocked_finding, blocked_finding_error = submit_healer_finding(
+    nonhealer_assessor,
+    mushrooms,
+)
+assert blocked_finding is None
+assert "active healer calling" in blocked_finding_error.lower()
+
+wrong_target, wrong_target_error = submit_healer_finding(
+    healer_assessor,
+    bread,
+)
+assert wrong_target is None
+assert "well" in wrong_target_error.lower()
+
+premature_record, premature_record_error = publish_public_warning(
+    nonhealer_assessor,
+)
+assert premature_record is None
+assert "until a healer" in premature_record_error.lower()
+
+wrong_publisher, wrong_publisher_error = publish_public_warning(
+    healer_assessor,
+)
+assert wrong_publisher is None
+assert "active chronicler calling" in wrong_publisher_error.lower()
+
+warning_after = warning_status()
+assert warning_after["state"] == "dormant"
+assert not dict(warning_after.get("objective_mutations") or {})
+
 # Falsification: change only the bread worth property. Payment must follow the
 # property rather than the historical name-based price table.
 bread_mechanics = mechanical_properties(bread)
@@ -1189,6 +1232,7 @@ from world.situations import (
     TRUNK_ID,
     TITHE_ID,
     TORN_CHRONICLE_ID,
+    WELL_MUSHROOM_WARNING_ID,
     TEMPLATES,
     advance_situations,
     choose,
@@ -1211,6 +1255,7 @@ assert set((situation_registry.db.situations or {}).keys()) == {
     OBT_ID,
     TITHE_ID,
     TORN_CHRONICLE_ID,
+    WELL_MUSHROOM_WARNING_ID,
 }
 situation_original = copy.deepcopy(dict(situation_registry.db.situations or {}))
 situation_metrics_original = copy.deepcopy(dict(situation_registry.db.metrics or {}))

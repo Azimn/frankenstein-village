@@ -23,6 +23,7 @@ REGISTRY_KEY = "situation_registry"
 TRUNK_ID = "DM-Q-0001-WRONG-TRUNK"
 OBT_ID = "DM-Q-0017-OBTUARY"
 WELL_ID = "DM-Q-0018-WELL"
+WELL_MUSHROOM_WARNING_ID = "CIV-HEALTH-0001-WELL-MUSHROOMS"
 TITHE_ID = "INC-0006-TITHE-STRONGBOX"
 TORN_CHRONICLE_ID = "INC-0008-TORN-CHRONICLE"
 
@@ -97,6 +98,42 @@ TEMPLATES = {
                 ),
             },
         },
+    },
+    WELL_MUSHROOM_WARNING_ID: {
+        "template_id": "civic-health-001",
+        "working_title": "A Warning at the Well",
+        "content_family": "civic",
+        "canonical_status": "working content",
+        "spoiler_tier": 0,
+        "primary_location": "Village Square",
+        "secondary_locations": ["Chronicle", "The Harbinger"],
+        "involved_npcs": [],
+        "factions": ["Chronicler"],
+        "calling_relevance": ["healer", "chronicler"],
+        "repeatability": "one-shot",
+        "hook": (
+            "The pale mushrooms beside the village well are ordinary-looking "
+            "enough to invite bad assumptions. A professional health warning "
+            "requires both medical assessment and public record."
+        ),
+        "autonomy": {
+            "initial_deadline_days": 7,
+            "left_alone": (
+                "No institutional warning is issued. The mushrooms remain what "
+                "they are, and people must learn about them by consequence, "
+                "private advice, or later investigation."
+            ),
+        },
+        "choices": {},
+        "evidence": {},
+        "inheritance": (
+            "The object mechanic, professional assessment event, Chronicle "
+            "entry, and Harbinger copy preserve the warning's provenance."
+        ),
+        "legend": (
+            "The well warning becomes a small example of village professions "
+            "depending on one another instead of claiming universal expertise."
+        ),
     },
     TITHE_ID: {
         "template_id": "canon-incident-006",

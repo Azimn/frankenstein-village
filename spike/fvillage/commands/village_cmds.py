@@ -1636,6 +1636,9 @@ class CmdChronicle(Command):
         chronicle evidence C<number>
         chronicle revise C<number> = <situation>/<evidence>
         chronicle petition R<number>
+        chronicle health
+        chronicle health submit <thing>
+        chronicle health publish
 
     A deposition records that you gave an account. It does not turn that
     account into objective truth.
@@ -1664,6 +1667,97 @@ class CmdChronicle(Command):
         )
 
         arg = (self.args or "").strip()
+
+        if arg.lower() == "health":
+            from world.well_mushroom_warning import warning_status
+
+            case = warning_status()
+            mutations = dict(case.get("objective_mutations") or {})
+            finding = dict(mutations.get("healer_finding") or {})
+            record = dict(mutations.get("chronicler_record") or {})
+            lines = ["|yChronicle public-health desk: A Warning at the Well|n"]
+            if not finding:
+                lines.append(
+                    "No professional Healer finding is on file. An active "
+                    "Healer may use |wchronicle health submit <thing>|n after "
+                    "examining the suspected object."
+                )
+            else:
+                lines.append(
+                    f"Healer finding on file from "
+                    f"{finding.get('mask') or 'an unnamed Healer'}: the "
+                    "identified well mushrooms can be toxic."
+                )
+                if not record:
+                    lines.append(
+                        "The finding is not yet a public institutional warning. "
+                        "An active Chronicler may use "
+                        "|wchronicle health publish|n."
+                    )
+            if record:
+                lines.append(
+                    f"Public warning recorded as Chronicle C"
+                    f"{record['chronicle_entry_id']} with Harbinger H"
+                    f"{record['harbinger_story_id']} queued or printed."
+                )
+            self.caller.msg("\n".join(lines))
+            return
+
+        if arg.lower().startswith("health submit "):
+            from world.well_mushroom_warning import submit_healer_finding
+
+            target_name = arg.split(None, 2)[2].strip()
+            matches = self.caller.search(target_name, quiet=True) or []
+            if len(matches) != 1:
+                self.caller.msg(
+                    "Name one nearby object to submit for the health warning."
+                )
+                return
+            result, error = submit_healer_finding(
+                self.caller,
+                matches[0],
+            )
+            if error:
+                self.caller.msg(error)
+                return
+            finding = result["finding"]
+            if result.get("created"):
+                self.caller.msg(
+                    f"Your Healer finding on {finding['object_key']} is filed "
+                    "with the Chronicle desk. The finding is not public yet; "
+                    "an active Chronicler must publish the institutional warning."
+                )
+            else:
+                self.caller.msg(
+                    f"A Healer finding on {finding['object_key']} is already "
+                    "on file. Repetition does not create another contribution."
+                )
+            return
+
+        if arg.lower() in {"health publish", "health record"}:
+            from world.well_mushroom_warning import publish_public_warning
+
+            result, error = publish_public_warning(self.caller)
+            if error:
+                self.caller.msg(error)
+                return
+            record = result["record"]
+            if result.get("created"):
+                self.caller.msg(
+                    f"The public health warning is now part of the record as "
+                    f"Chronicle C{record['chronicle_entry_id']}. Harbinger "
+                    f"H{record['harbinger_story_id']} is queued for publication. "
+                    "The record preserves the Healer source and does not change "
+                    "the mushroom itself."
+                )
+            else:
+                self.caller.msg(
+                    f"The warning is already public as Chronicle C"
+                    f"{record['chronicle_entry_id']} and Harbinger H"
+                    f"{record['harbinger_story_id']}."
+                )
+            return
+
         if arg.lower() in {"gap", "missing pages", "missing page", "stubs"}:
             description = chronicle_gap_description(self.caller)
             if not description:
@@ -1914,8 +2008,9 @@ class CmdChronicle(Command):
             "|wchronicle compare R<number>|n to inspect preserved disagreement, "
             "|wchronicle submit R<number>|n to submit a rumor you actually heard, "
             "|wchronicle petition R<number>|n to ask the archive to canonize a "
-            "popular claim it may refuse, or |wchronicle evidence C<number>|n "
-            "to see evidence your mask can append to an older entry."
+            "popular claim it may refuse, |wchronicle evidence C<number>|n "
+            "to see evidence your mask can append to an older entry, or "
+            "|wchronicle health|n to inspect the cross-calling public-health desk."
         )
         self.caller.msg("\n".join(lines))
 
