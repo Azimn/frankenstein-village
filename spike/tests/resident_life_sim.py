@@ -117,10 +117,11 @@ def main():
         hour=21,
         availability={"village_square": {"available": True}},
     )
-    # Pain is severe enough to protect the body and takes precedence over the
-    # social commitment, so the first actionable goal is home.
+    # Competing motives are allowed. A due high-priority promise can beat
+    # substantial pain instead of the body always acting as a hard override.
     assert override
-    assert override["logical_location"] == miklos_def["home_id"]
+    assert override["logical_location"] == "village_square"
+    assert override["goal_key"] == "commitment:return_lantern"
 
     thoughts = resident_life.first_person_thoughts(
         life,
@@ -143,6 +144,17 @@ def main():
         hour=22,
     )
     assert not resident_life.open_commitments(life)
+    after_promise = resident_life.schedule_override(
+        life,
+        needs,
+        miklos_def,
+        day=4,
+        hour=22,
+        availability={"village_square": {"available": True}},
+    )
+    assert after_promise
+    assert after_promise["logical_location"] == miklos_def["home_id"]
+    assert after_promise["goal_key"] == "protect_body"
 
     before = len(life["affect"])
     resident_life.decay_life_state(life, 5, 21)
