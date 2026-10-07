@@ -479,3 +479,14 @@ Runtime-canon, legacy-routine, and explicitly quest-bound residents are `authore
 Schedules remain defaults rather than destiny for ordinary residents. Existing need overrides retain precedence. High-priority physical or commitment goals may redirect only awake or engaged population residents, and the world remains authoritative about location availability.
 
 Rumor exchange is the first live resident-to-resident social event wired into this layer. Actual transmission updates sparse social history and listener perception; no all-pairs relationship simulation is permitted.
+
+
+## 2026-10-07 - Interdependence means distinct contributions to one world state
+
+Calling specialization should not become nine isolated minigames. A stronger pattern is one persistent need whose completion requires different professional methods.
+
+The first production example is the well mushroom health warning. The Healer can establish the medical finding but cannot make it an institutional public record. The Chronicler can create the public record but cannot fabricate the missing Healer finding. Both contributions are preserved with provenance in one existing situation record.
+
+Professional capability changes method, interpretation, access, and responsibility. It does not create a parallel version of world truth. The mushroom's hidden toxin remains object truth; the Healer contributes assessment; the Chronicler contributes publication.
+
+This pattern should be preferred for future cross-calling work where the world already has the necessary substrates.
