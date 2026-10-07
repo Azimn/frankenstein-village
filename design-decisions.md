@@ -490,3 +490,12 @@ The first production example is the well mushroom health warning. The Healer can
 Professional capability changes method, interpretation, access, and responsibility. It does not create a parallel version of world truth. The mushroom's hidden toxin remains object truth; the Healer contributes assessment; the Chronicler contributes publication.
 
 This pattern should be preferred for future cross-calling work where the world already has the necessary substrates.
+
+
+## 2026-10-07 - Interdependence should touch living state and scarce resources
+
+A cross-calling dependency is stronger when it changes the world rather than only changing permissions.
+
+`Cold Hunter at Supper` uses Resident Life as the patient state and the Tavern's existing finite stew stock as the resource state. The Healer contributes interpretation and recommendation. The Innkeep contributes hospitality and actually spends stock. Neither profession owns a duplicate patient or inventory record.
+
+Professional work should continue to prefer this shape: shared world state, distinct professional contributions, persistent provenance, and consequences in systems that already matter outside the job itself.
