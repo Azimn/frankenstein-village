@@ -712,6 +712,13 @@ def main() -> int:
         require(out, "can be toxic")
         require(out, "learned by direct effect")
 
+        # Chronicler knowledge alone cannot manufacture a professional health
+        # warning. A Healer contribution must exist first.
+        out = c.command("chronicle health publish")
+        require(out, "until a healer has filed")
+        out = c.command("chronicle health")
+        require(out, "no professional healer finding is on file")
+
         # A second independent player account proves the positive Healer path
         # without replacing SmokeTester's accepted Chronicler coverage.
         h = Client(args.host, args.port)
@@ -782,6 +789,62 @@ def main() -> int:
         require(out, "confirms what this mask already learned")
         out = h.command("calling")
         require(out, "assessments 1")
+
+        # The Healer files the professional half. This still does not create a
+        # public warning until the Chronicler performs the institutional half.
+        out = h.command("chronicle health submit mushrooms")
+        require(out, "healer finding")
+        require(out, "is filed with the chronicle desk")
+        require(out, "not public yet")
+        require(out, "active chronicler must publish")
+
+        out = h.command("calling")
+        require(out, "assessments 1")
+        require(out, "public health findings 1")
+
+        out = c.command("chronicle health")
+        require(out, "healertester")
+        require(out, "can be toxic")
+        require(out, "not yet a public institutional warning")
+
+        out = c.command("chronicle health publish")
+        require(out, "public health warning is now part of the record")
+        warning_c = re.search(r"Chronicle C(\d+)", out, re.I)
+        warning_h = re.search(r"Harbinger H(\d+)", out, re.I)
+        if not warning_c or not warning_h:
+            raise AssertionError(
+                "cross-calling warning exposed no Chronicle/Harbinger handles"
+            )
+        warning_chronicle_id = warning_c.group(1)
+        warning_story_id = warning_h.group(1)
+
+        out = c.command(f"chronicle C{warning_chronicle_id}")
+        require(out, "health warning issued for well mushrooms")
+        require(out, "healertester")
+        require(out, "can be toxic")
+        require(out, "does not certify other mushrooms as safe")
+        require(out, "record status: verified event")
+        if "25" in out:
+            raise AssertionError(
+                "public Chronicle leaked internal toxin magnitude"
+            )
+
+        out = c.command(f"harbinger H{warning_story_id}")
+        require(out, "health warning issued for well mushrooms")
+        require(out, "healertester")
+        require(out, "can be toxic")
+        if "25" in out:
+            raise AssertionError(
+                "Harbinger warning leaked internal toxin magnitude"
+            )
+
+        out = c.command("calling")
+        require(out, "public health records 1")
+
+        out = h.command("chronicle health submit mushrooms")
+        require(out, "already on file")
+        out = h.command("calling")
+        require(out, "public health findings 1")
 
         out = c.command("north")
         require(out, "inn hallway")
