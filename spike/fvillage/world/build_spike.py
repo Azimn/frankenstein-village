@@ -1160,6 +1160,12 @@ print(
     f"({_situations['created']} created)."
 )
 
+from world.tavern_care import ensure_tavern_cold_care
+_cold_care = ensure_tavern_cold_care()
+if _cold_care.get("created"):
+    print("tavern care case surfaced: Cold Hunter at Supper.")
+else:
+    print("tavern care case exists.")
 
 from world.seasonal_frameworks import ensure_seasonal_frameworks
 _seasonal = ensure_seasonal_frameworks()
