@@ -20,6 +20,7 @@ from evennia.utils import search
 
 
 REGISTRY_KEY = "situation_registry"
+TRUNK_ID = "DM-Q-0001-WRONG-TRUNK"
 TITHE_ID = "INC-0006-TITHE-STRONGBOX"
 TORN_CHRONICLE_ID = "INC-0008-TORN-CHRONICLE"
 
@@ -34,6 +35,67 @@ STATE_ORDER = {
 }
 
 TEMPLATES = {
+    TRUNK_ID: {
+        "template_id": "dm-q-0001",
+        "working_title": "The Wrong Trunk",
+        "content_family": "newcomer",
+        "canonical_status": "working content",
+        "spoiler_tier": 1,
+        "primary_location": "Inn Between",
+        "secondary_locations": ["Village Square"],
+        "involved_npcs": ["porter", "innkeeper", "harbinger_worker"],
+        "factions": [],
+        "calling_relevance": ["wanderer", "detective", "chronicler"],
+        "repeatability": "one-shot",
+        "hook": (
+            "A trunk arrives at the Inn Between, tagged with your name but bearing "
+            "older initials beneath. Inside, old travel tags, a silver locket, and "
+            "wear marks tell a story that predates your arrival."
+        ),
+        "autonomy": {
+            "initial_deadline_days": 7,
+            "left_alone": (
+                "The Innkeeper moves the trunk to long-term storage. Rumor suggests "
+                "the owner never returned — or left without telling."
+            ),
+        },
+        "choices": {},  # No explicit door-closing choices; autonomous progression handles outcomes
+        "evidence": {
+            "tag": {
+                "label": "old travel tag",
+                "provenance": "physical",
+                "summary": (
+                    "A faded paper tag showing initials 'V.D.' and a location code "
+                    "too worn to read. Once pinned to a suitcase handle."
+                ),
+            },
+            "locket": {
+                "label": "small silver locket",
+                "provenance": "physical",
+                "summary": (
+                    "A tarnished oval locket, no engraving visible. The clasp shows "
+                    "the same wear as the trunk's latch: months or years of use."
+                ),
+            },
+            "receipt": {
+                "label": "travel receipt",
+                "provenance": "documentary",
+                "summary": (
+                    "A folded receipt from a coach departing Borgo Pass three months "
+                    "ago. The passenger name line is blank; only the date, route "
+                    "number, and fare stamp remain."
+                ),
+            },
+            "wear_marks": {
+                "label": "wear marks on trunk",
+                "provenance": "environmental",
+                "summary": (
+                    "A circular dent near the bottom, scuffs from cobblestone, and "
+                    "a faint oil stain on the underside suggesting recent movement."
+                ),
+            },
+        },
+    },
     TITHE_ID: {
         "template_id": "canon-incident-006",
         "working_title": "The Tithe Strongbox",
