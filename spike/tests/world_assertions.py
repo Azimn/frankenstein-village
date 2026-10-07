@@ -95,12 +95,15 @@ from world.callings import (
     RANK_MASTER,
     active_calling,
     active_rank,
+    accept_apprenticeship,
     active_relations,
     calling_record,
     calling_state,
     choose_calling,
-    create_apprenticeship,
+    decline_apprenticeship,
     end_apprenticeship,
+    offer_apprenticeship,
+    pending_relations,
     promote_to_master,
     record_participation,
     respecialize_calling,
@@ -131,6 +134,11 @@ calling_apprentice = SimpleNamespace(
 calling_other = SimpleNamespace(
     id=910003,
     key="QA Other",
+    db=SimpleNamespace(),
+)
+calling_wrong = SimpleNamespace(
+    id=910004,
+    key="QA Wrong Calling",
     db=SimpleNamespace(),
 )
 
@@ -179,26 +187,40 @@ assert master_record["rank"] == RANK_MASTER
 assert master_record["mastery_source_event_id"] == 4242
 assert active_rank(calling_mentor) == RANK_MASTER
 
-relation, error = create_apprenticeship(
+offer, error = offer_apprenticeship(
     calling_mentor,
     calling_apprentice,
 )
 assert error is None
-assert relation["calling"] == "chronicler"
-assert relation["role"] == "apprentice"
+assert offer["calling"] == "chronicler"
+assert offer["role"] == "apprentice"
+assert offer["status"] == "offered"
+assert active_relations(calling_mentor) == []
+assert active_relations(calling_apprentice) == []
+assert len(pending_relations(calling_mentor, role="mentor")) == 1
+assert len(pending_relations(calling_apprentice, role="apprentice")) == 1
+
+same_offer, error = offer_apprenticeship(
+    calling_mentor,
+    calling_apprentice,
+)
+assert error is None
+assert same_offer["relation_id"] == offer["relation_id"]
+assert len(pending_relations(calling_mentor, role="mentor")) == 1
+
+# A pending offer is not an obligation. Acceptance is the state transition
+# that creates the bilateral apprenticeship and its respecialization lock.
+accepted, error = accept_apprenticeship(
+    calling_mentor,
+    calling_apprentice,
+)
+assert error is None
+assert accepted["status"] == "active"
+assert pending_relations(calling_mentor) == []
+assert pending_relations(calling_apprentice) == []
 assert len(active_relations(calling_mentor, role="mentor")) == 1
 assert len(active_relations(calling_apprentice, role="apprentice")) == 1
 
-same_relation, error = create_apprenticeship(
-    calling_mentor,
-    calling_apprentice,
-)
-assert error is None
-assert same_relation["relation_id"] == relation["relation_id"]
-assert len(active_relations(calling_mentor, role="mentor")) == 1
-
-# A live apprenticeship must be closed explicitly before either side can use
-# respecialization to leave the professional obligation behind.
 blocked, blocked_error = respecialize_calling(
     calling_apprentice,
     "healer",
@@ -207,9 +229,25 @@ blocked, blocked_error = respecialize_calling(
 assert blocked is None
 assert "end the active apprenticeship" in blocked_error.lower()
 
-wrong_relation, wrong_error = create_apprenticeship(
+# Declining a different offer must never create the professional obligation.
+other_choice, error = choose_calling(calling_other, "chronicler")
+assert error is None and other_choice["changed"]
+decline_offer, error = offer_apprenticeship(
     calling_mentor,
     calling_other,
+)
+assert error is None and decline_offer["status"] == "offered"
+declined, error = decline_apprenticeship(
+    calling_mentor,
+    calling_other,
+)
+assert error is None and declined["status"] == "declined"
+assert pending_relations(calling_other) == []
+assert active_relations(calling_other) == []
+
+wrong_relation, wrong_error = offer_apprenticeship(
+    calling_mentor,
+    calling_wrong,
 )
 assert wrong_relation is None
 assert "same calling" in wrong_error.lower()
