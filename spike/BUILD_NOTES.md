@@ -825,3 +825,22 @@ Execution contract:
 - All growing collections are capped.
 
 The clean-checkout gate runs the pure-stdlib `resident_life_sim.py` before Evennia bootstrap and also exercises the integration through live world assertions.
+
+
+## 2026-10-07 - Cross-calling public-health warning
+
+The first production interdependence slice now requires two different active callings to complete one persistent world need.
+
+Execution contract:
+- The shared case is `A Warning at the Well`, stored in the existing SituationRegistry as `CIV-HEALTH-0001-WELL-MUSHROOMS`.
+- The well mushroom remains the single source of mechanical truth. Its hidden `toxin` property is not copied into a second diagnosis system.
+- An active Healer uses `chronicle health submit <thing>` to file a professional finding. The command reuses the existing Healer assessment capability and records a private canonical event.
+- A Healer finding alone does not create a public warning, Chronicle entry, or Harbinger story.
+- An active Chronicler uses `chronicle health publish` to convert the filed finding into one canonical public-warning event.
+- That event projects through the existing publication pipeline into a verified Chronicle entry and queued Harbinger story.
+- Public prose states that the identified mushrooms can be toxic and names the Healer source. It does not expose the internal toxin magnitude and does not certify unrelated mushrooms as safe.
+- Healer and Chronicler contributions remain separately attributed in persistent situation state.
+- Repeating either completed contribution is idempotent and does not farm professional participation.
+- The object remains mechanically unchanged before and after publication.
+
+Regression coverage proves neither profession can complete the case alone, the wrong object is rejected, the two-account telnet path requires a Healer finding before Chronicler publication, both participation records persist, public records preserve provenance without leaking toxin magnitude, and the full case survives a real server restart.
