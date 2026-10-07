@@ -807,3 +807,21 @@ Execution contract:
 - An assessment that finds no supported hidden toxin reports only that this basic field assessment found none; it does not certify universal safety.
 
 Regression coverage proves non-Healers cannot invoke the capability, hidden toxin is discovered without ingestion, health state is unchanged, knowledge remains mask-specific, repeated assessment is participation-idempotent, a second independent telnet account can choose Healer and use the verb in the live world, and Healer knowledge plus participation survive a real server restart.
+
+
+## 2026-10-07 - Resident Life v2
+
+Resident Life v2 lives in `world/resident_life.py` and is deliberately Evennia-free so its state transitions can be exercised offline.
+
+Execution contract:
+- Ordinary population residents may hold bounded body conditions, affect, commitments, subjective perceptions, resident relationships, and active goals.
+- Runtime-canon and legacy-routine residents are automatically `authored_locked`; explicitly quest-bound generic residents are locked by stable ID.
+- Locked residents are strict no-ops through the new API.
+- Life decay and goal derivation run only above automaton resolution or after a wake reason.
+- Existing need overrides run before life-goal overrides.
+- Rumor transmissions update resident social state only when the participants are actual residents.
+- Subjective English is generated on demand and remains first-person.
+- No all-pairs social scan, continuous monologue, or population-wide cognition loop is allowed.
+- All growing collections are capped.
+
+The clean-checkout gate runs the pure-stdlib `resident_life_sim.py` before Evennia bootstrap and also exercises the integration through live world assertions.
