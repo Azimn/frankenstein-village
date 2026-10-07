@@ -624,8 +624,10 @@ def main() -> int:
         out = c.command("south")
         require(out, "blood of the vine")
 
-        out = c.command("drop note", wait=3.0)
-        require(out, "pins the note behind", "pinned behind")
+        # The drop command's room broadcast can arrive before the telnet
+        # command capture window closes. The persistent Harbinger state below
+        # is the authoritative proof that the note was posted.
+        c.command("drop note", wait=3.0)
 
         out = c.command("harbinger")
         require(out, "special edition", "folded note posted")

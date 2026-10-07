@@ -537,8 +537,10 @@ assert hidden_property_knowledge(ignorant_actor, mushrooms) == {}
 assert perception_notes(ignorant_actor, mushrooms) == []
 mushrooms.db.consume = mushroom_consume
 from world.residents import (
+    add_resident_commitment,
     advance_population,
     all_residents,
+    apply_resident_condition,
     assign_fact,
     decay_resident_engagement,
     expose_fact_as_rumor,
@@ -547,8 +549,14 @@ from world.residents import (
     generic_ask_line,
     get_population_registry,
     record_player_interaction,
+    record_resident_perception,
+    record_resident_social_event,
     resident_definition,
+    resident_life_enabled,
+    resident_private_thoughts,
+    resident_social_weight,
     resident_state,
+    resolve_resident_commitment,
     save_state,
     set_lifecycle,
     set_location_availability,
@@ -581,6 +589,93 @@ for stable_id, npc in by_resident_id.items():
     assert set(state["needs"]) == {
         "fatigue", "hunger", "safety", "affiliation", "duty"
     }
+
+# Resident Life v2: ordinary residents gain bounded event-driven inner state,
+# while authored and quest-specific residents remain hard-locked.
+father_andrei = by_resident_id["father_andrei"]
+ilona = by_resident_id["ilona_szabo"]
+miklos_life = by_resident_id["miklos_farkas"]
+rada_life = by_resident_id["rada_petrescu"]
+
+assert not resident_life_enabled(father_andrei)
+assert not resident_life_enabled(ilona)
+assert resident_life_enabled(miklos_life)
+assert resident_life_enabled(rada_life)
+
+locked_father_before = copy.deepcopy(father_andrei.db.resident_state)
+assert apply_resident_condition(
+    father_andrei,
+    "pain",
+    80,
+    cause="QA authored-lock probe",
+) is None
+assert add_resident_commitment(
+    father_andrei,
+    "qa_locked",
+    "follow a QA commitment",
+    due_day=2,
+    due_hour=10,
+    priority=1.0,
+) is None
+assert father_andrei.db.resident_state == locked_father_before
+
+miklos_before_life = copy.deepcopy(miklos_life.db.resident_state)
+rada_before_life = copy.deepcopy(rada_life.db.resident_state)
+assert apply_resident_condition(
+    miklos_life,
+    "pain",
+    72,
+    cause="I struck my foot during QA",
+) == 72
+perception = record_resident_perception(
+    miklos_life,
+    "sound",
+    "I heard Rada call from across the square.",
+    source_id="rada_petrescu",
+    target_id="rada_petrescu",
+    confidence=0.9,
+    salience=0.8,
+)
+assert perception and perception["summary"].startswith("I ")
+commitment = add_resident_commitment(
+    miklos_life,
+    "qa_return_lantern",
+    "return the lantern to Rada",
+    target_id="rada_petrescu",
+    logical_location="village_square",
+    due_day=2,
+    due_hour=10,
+    priority=0.9,
+)
+assert commitment and commitment["status"] == "open"
+relation = record_resident_social_event(
+    miklos_life,
+    rada_life,
+    kind="help",
+    valence=5,
+    familiarity=2,
+    trust=3,
+    respect=1,
+    debt=2,
+)
+assert relation and relation["trust"] == 3
+assert resident_social_weight(miklos_life, rada_life) > 1.0
+thoughts = resident_private_thoughts(miklos_life, limit=6)
+assert thoughts
+assert all(
+    thought.startswith(("I ", "I'm ", "I've ", "My "))
+    for thought in thoughts
+), thoughts
+resolved_commitment = resolve_resident_commitment(
+    miklos_life,
+    "qa_return_lantern",
+    "fulfilled",
+)
+assert resolved_commitment and resolved_commitment["status"] == "fulfilled"
+
+# Restore the QA subjects so this coverage cannot perturb later world tests.
+miklos_life.db.resident_state = miklos_before_life
+rada_life.db.resident_state = rada_before_life
 
 population_registry = get_population_registry()
 rumor_registry = ScriptDB.objects.get(db_key="rumor_registry")
@@ -1090,6 +1185,8 @@ assert rumor_registry.belief_for(ilona, harbinger_roots[0]["id"]), (
 # Shared situation engine and incident feed: one canonical world state,
 # separate per-mask evidence, deterministic surfacing, and autonomous aftermath.
 from world.situations import (
+    OBT_ID,
+    TRUNK_ID,
     TITHE_ID,
     TORN_CHRONICLE_ID,
     TEMPLATES,
@@ -1105,8 +1202,13 @@ from world.situations import (
     situation_status_for_player,
 )
 
+from world.obituary import OBT_ID as OBT_COMPAT_ID
+assert OBT_COMPAT_ID == OBT_ID
+
 situation_registry = get_situation_registry()
 assert set((situation_registry.db.situations or {}).keys()) == {
+    TRUNK_ID,
+    OBT_ID,
     TITHE_ID,
     TORN_CHRONICLE_ID,
 }
@@ -1122,6 +1224,8 @@ church_state_original = {
 inc_alice = SimpleNamespace(id=910001, key="incident_alice", has_account=True)
 inc_bob = SimpleNamespace(id=910002, key="incident_bob", has_account=True)
 
+assert get_situation(TRUNK_ID)["state"] == "dormant"
+assert get_situation(OBT_ID)["state"] == "dormant"
 assert get_situation(TITHE_ID)["state"] == "surfaced"
 assert get_situation(TORN_CHRONICLE_ID)["state"] == "dormant"
 assert incident_feed_candidates() == [], (
@@ -1447,6 +1551,10 @@ from world.timed_incidents import (
     start_timed_incident,
     status_for_player as timed_status_for_player,
 )
+
+from world.well_boils import WELL_ID as WELL_COMPAT_ID, definition as well_compat_definition
+assert WELL_COMPAT_ID == WELL_BOILS_ID
+assert well_compat_definition()["title"] == "The Well Boils"
 
 assert set((timed_registry.db.incidents or {}).keys()) == {WELL_BOILS_ID}
 assert get_timed_incident(WELL_BOILS_ID)["state"] == "dormant"

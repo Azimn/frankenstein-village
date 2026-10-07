@@ -284,12 +284,21 @@ def propagate_colocated_npcs(*, announce=False, max_per_room=1):
     """Run bounded rumor traffic among truly co-located participating NPCs."""
     registry = get_rumor_registry()
     try:
-        from world.residents import is_resident, resident_logical_location
+        from world.residents import (
+            is_resident,
+            record_resident_perception,
+            record_resident_social_event,
+            resident_logical_location,
+            resident_social_weight,
+        )
     except Exception:
         is_resident = lambda _obj: False
         resident_logical_location = lambda obj: getattr(
             getattr(obj, "location", None), "key", None
         )
+        record_resident_perception = lambda *_args, **_kwargs: None
+        record_resident_social_event = lambda *_args, **_kwargs: None
+        resident_social_weight = lambda *_args, **_kwargs: 1.0
 
     by_room = defaultdict(list)
     for npc in _participants():
@@ -317,7 +326,16 @@ def propagate_colocated_npcs(*, announce=False, max_per_room=1):
             listeners = [npc for npc in group if npc.id != speaker.id]
             if not listeners:
                 break
-            listener = random.choice(listeners)
+            if is_resident(speaker):
+                weights = [
+                    resident_social_weight(speaker, npc)
+                    if is_resident(npc)
+                    else 1.0
+                    for npc in listeners
+                ]
+                listener = random.choices(listeners, weights=weights, k=1)[0]
+            else:
+                listener = random.choice(listeners)
             beliefs = list(registry.beliefs_for(speaker).values())
             if not beliefs:
                 break
@@ -335,6 +353,35 @@ def propagate_colocated_npcs(*, announce=False, max_per_room=1):
             )
             if result:
                 results.append(result)
+                if is_resident(speaker) and is_resident(listener):
+                    record_resident_social_event(
+                        speaker,
+                        listener,
+                        kind="rumor_shared",
+                        valence=0.05,
+                        familiarity=0.35,
+                        trust=0.02,
+                    )
+                    record_resident_social_event(
+                        listener,
+                        speaker,
+                        kind="rumor_received",
+                        valence=0.03,
+                        familiarity=0.45,
+                        trust=0.02,
+                    )
+                    record_resident_perception(
+                        listener,
+                        "hearsay",
+                        f"I heard {speaker.key} repeat a rumor.",
+                        source_id=getattr(speaker.db, "resident_id", None),
+                        target_id=result.get("rumor_id"),
+                        confidence=float(result.get("confidence") or 0.5),
+                        salience=min(
+                            1.0,
+                            0.25 + float(result.get("emotional_charge") or 0.0),
+                        ),
+                    )
                 if announce and speaker.location:
                     # Offstage projections never emit ambient gossip because
                     # nobody in another logical home can witness it.

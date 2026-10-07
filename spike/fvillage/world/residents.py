@@ -31,6 +31,23 @@ from world.resident_data import (
 )
 
 
+from world.resident_life import (
+    add_affect_episode,
+    add_commitment as life_add_commitment,
+    apply_body_delta,
+    decay_life_state,
+    first_person_thoughts,
+    fresh_life_state,
+    merge_life_state,
+    record_perception,
+    record_social_event,
+    relationship_for as resident_relationship_state,
+    resolve_commitment as life_resolve_commitment,
+    schedule_override as life_schedule_override,
+    social_weight as life_social_weight,
+)
+
+
 REGISTRY_KEY = "resident_population"
 DEPTH_ORDER = {"D": 0, "C": 1, "B": 2, "A": 3}
 UP = {"D": 8.0, "C": 16.0, "B": 40.0}
@@ -89,6 +106,7 @@ def _fresh_state(definition):
     return {
         "schema_version": SCHEMA_VERSION,
         "stable_id": definition["stable_id"],
+        "life": fresh_life_state(definition),
         "simulation_resolution": "automaton",
         "engagement_tier": "D",
         "character_depth": initial_depth,
@@ -148,6 +166,8 @@ def _merge_state(definition, existing):
                 state[key] = merged
             else:
                 state[key] = value
+    old_life = dict(existing).get("life") if existing else None
+    state["life"] = merge_life_state(definition, old_life)
     state["schema_version"] = SCHEMA_VERSION
     state["stable_id"] = definition["stable_id"]
     state["interests"] = list(state.get("interests") or _initial_interests(definition["stable_id"]))
@@ -422,6 +442,210 @@ def apply_need_delta(npc, **deltas):
     return needs
 
 
+def resident_life_enabled(npc):
+    state = resident_state(npc)
+    return bool(state and (state.get("life") or {}).get("enabled"))
+
+
+def record_resident_perception(
+    npc,
+    kind,
+    summary,
+    *,
+    source_id=None,
+    target_id=None,
+    confidence=0.7,
+    salience=0.5,
+):
+    state = resident_state(npc)
+    if not state or not (state.get("life") or {}).get("enabled"):
+        return None
+    day, hour = _clock()
+    record = record_perception(
+        state["life"],
+        kind=kind,
+        summary=summary,
+        source_id=source_id,
+        target_id=target_id,
+        confidence=confidence,
+        salience=salience,
+        day=day,
+        hour=hour,
+    )
+    if record and salience >= 0.7:
+        state["wake_reasons"] = list(state.get("wake_reasons") or []) + [
+            "salient perception"
+        ]
+    save_state(npc, state)
+    return record
+
+
+def apply_resident_condition(npc, condition, delta, *, cause=None, target_id=None):
+    state = resident_state(npc)
+    if not state or not (state.get("life") or {}).get("enabled"):
+        return None
+    before = float((state["life"].get("body") or {}).get(condition, 0.0))
+    apply_body_delta(state["life"], **{condition: delta})
+    after = float((state["life"].get("body") or {}).get(condition, before))
+    if after >= 35 and after > before and condition in {"pain", "injury", "illness", "cold"}:
+        day, hour = _clock()
+        add_affect_episode(
+            state["life"],
+            "distress",
+            min(100.0, after),
+            cause=cause or f"my {condition}",
+            target_id=target_id,
+            day=day,
+            hour=hour,
+            half_life_hours=6.0,
+        )
+        state["wake_reasons"] = list(state.get("wake_reasons") or []) + [
+            f"physical condition: {condition}"
+        ]
+    save_state(npc, state)
+    return after
+
+
+def add_resident_commitment(
+    npc,
+    key,
+    summary,
+    *,
+    target_id=None,
+    logical_location=None,
+    due_day=None,
+    due_hour=None,
+    priority=0.5,
+):
+    state = resident_state(npc)
+    if not state or not (state.get("life") or {}).get("enabled"):
+        return None
+    day, hour = _clock()
+    record = life_add_commitment(
+        state["life"],
+        key,
+        summary,
+        target_id=target_id,
+        logical_location=logical_location,
+        due_day=due_day,
+        due_hour=due_hour,
+        priority=priority,
+        day=day,
+        hour=hour,
+    )
+    if record:
+        state["wake_reasons"] = list(state.get("wake_reasons") or []) + [
+            "open commitment"
+        ]
+    save_state(npc, state)
+    return record
+
+
+def resolve_resident_commitment(npc, key, status):
+    state = resident_state(npc)
+    if not state or not (state.get("life") or {}).get("enabled"):
+        return None
+    day, hour = _clock()
+    record = life_resolve_commitment(
+        state["life"],
+        key,
+        status,
+        day=day,
+        hour=hour,
+    )
+    save_state(npc, state)
+    return record
+
+
+def record_resident_social_event(
+    npc,
+    other,
+    *,
+    kind,
+    valence=0.0,
+    familiarity=0.5,
+    trust=0.0,
+    respect=0.0,
+    fear=0.0,
+    grievance=0.0,
+    debt=0.0,
+):
+    if not is_resident(npc) or not is_resident(other):
+        return None
+    state = resident_state(npc)
+    other_definition = resident_definition(other)
+    if (
+        not state
+        or not (state.get("life") or {}).get("enabled")
+        or not other_definition
+    ):
+        return None
+    day, hour = _clock()
+    rel = record_social_event(
+        state["life"],
+        other_definition["stable_id"],
+        kind=kind,
+        day=day,
+        valence=valence,
+        familiarity=familiarity,
+        trust=trust,
+        respect=respect,
+        fear=fear,
+        grievance=grievance,
+        debt=debt,
+    )
+    if kind in {"help", "gift"} and rel:
+        add_affect_episode(
+            state["life"],
+            "gratitude",
+            min(100.0, 25.0 + max(0.0, float(valence)) * 2.0),
+            cause=f"{other.key} helped me",
+            target_id=other_definition["stable_id"],
+            day=day,
+            hour=hour,
+            half_life_hours=12.0,
+        )
+    elif kind in {"harm", "betrayal", "threat"} and rel:
+        add_affect_episode(
+            state["life"],
+            "fear" if fear > grievance else "anger",
+            min(100.0, 30.0 + max(float(fear), float(grievance))),
+            cause=f"what {other.key} did",
+            target_id=other_definition["stable_id"],
+            day=day,
+            hour=hour,
+            half_life_hours=18.0,
+        )
+    save_state(npc, state)
+    return rel
+
+
+def resident_social_weight(npc, other):
+    state = resident_state(npc)
+    other_definition = resident_definition(other)
+    if (
+        not state
+        or not (state.get("life") or {}).get("enabled")
+        or not other_definition
+    ):
+        return 1.0
+    return life_social_weight(state["life"], other_definition["stable_id"])
+
+
+def resident_private_thoughts(npc, *, limit=4):
+    state = resident_state(npc)
+    if not state or not (state.get("life") or {}).get("enabled"):
+        return []
+    day, hour = _clock()
+    return first_person_thoughts(
+        state["life"],
+        state.get("needs") or {},
+        day=day,
+        hour=hour,
+        limit=limit,
+    )
+
+
 def _need_override(definition, state):
     """Cheap utility boundary used only for awake or engaged residents."""
     metrics = dict(state.get("metrics") or {})
@@ -482,6 +706,7 @@ def advance_population(*, day=None, hour=None, emit=True):
         target = _resolve_target(definition, state, day, hour, availability)
         awake = bool(state.get("wake_reasons"))
         if state.get("simulation_resolution") != "automaton" or awake:
+            decay_life_state(state.get("life"), day, hour)
             before = int((state.get("metrics") or {}).get("decision_evaluations") or 0)
             override = _need_override(definition, state)
             after = int((state.get("metrics") or {}).get("decision_evaluations") or 0)
@@ -496,6 +721,24 @@ def advance_population(*, day=None, hour=None, emit=True):
                     "reason": reason,
                     "activity": "returns home because something more immediate matters",
                 }
+            else:
+                life_override = life_schedule_override(
+                    state.get("life"),
+                    state.get("needs") or {},
+                    definition,
+                    day=day,
+                    hour=hour,
+                    availability=availability,
+                )
+                if life_override:
+                    target = {
+                        **target,
+                        "desired_location": target.get("desired_location"),
+                        "logical_location": life_override["logical_location"],
+                        "source": "life_goal_override",
+                        "reason": life_override["reason"],
+                        "activity": "changes course because something personally important takes priority",
+                    }
             state["wake_reasons"] = []
 
         previous = dict(state.get("routine") or {})
@@ -680,6 +923,29 @@ def record_player_interaction(npc, player, *, kind="talk", depth=1.0):
     metrics = dict(state.get("metrics") or {})
     metrics["player_interactions"] = int(metrics.get("player_interactions") or 0) + 1
     state["metrics"] = metrics
+    if (state.get("life") or {}).get("enabled"):
+        record_perception(
+            state["life"],
+            kind="player_interaction",
+            summary=f"I interacted with {player.key}.",
+            source_id=str(player.id),
+            target_id=str(player.id),
+            confidence=1.0,
+            salience=min(1.0, 0.25 + amount / 10.0),
+            day=day,
+            hour=hour,
+        )
+        if kind in {"gift", "help"}:
+            add_affect_episode(
+                state["life"],
+                "gratitude",
+                min(100.0, 20.0 + amount * 8.0),
+                cause=f"{player.key} {kind}ed me",
+                target_id=str(player.id),
+                day=day,
+                hour=hour,
+                half_life_hours=12.0,
+            )
     save_state(npc, state)
 
     if first or (kind in {"gift", "help"} and DEPTH_ORDER[state["character_depth"]] >= 2):
