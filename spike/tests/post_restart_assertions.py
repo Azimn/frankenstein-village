@@ -273,7 +273,7 @@ assert silas_body["wet"] <= 10
 assert silas_body["discomfort"] <= 10
 assert any(
     item.get("key") == "warm_after_hunt"
-    and item.get("status") == "completed"
+    and item.get("status") == "fulfilled"
     for item in silas_life.get("commitments") or []
 )
 assert any(
