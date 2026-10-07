@@ -844,3 +844,21 @@ Execution contract:
 - The object remains mechanically unchanged before and after publication.
 
 Regression coverage proves neither profession can complete the case alone, the wrong object is rejected, the two-account telnet path requires a Healer finding before Chronicler publication, both participation records persist, public records preserve provenance without leaking toxin magnitude, and the full case survives a real server restart.
+
+
+## 2026-10-07 - Resident Life care interdependence
+
+`Cold Hunter at Supper` is the second structural interdependence slice and the first one that spends a finite resource on a living resident.
+
+Execution contract:
+- Silas Crowe, an ordinary Resident Life participant, is surfaced once with bounded cold, wetness, discomfort, a first-person perception, and a commitment to warm up at the Tavern.
+- Initialization is idempotent. Rebuilding the world never reapplies the condition after the case already exists.
+- The case has a four-village-hour window. If nobody completes care, routine reconciliation lets Silas recover naturally and closes the case without professional credit.
+- `care` shows the current case without exposing raw condition numbers.
+- An active Healer who is physically present with Silas may use `care assess Silas Crowe`. This records a professional recommendation but spends no resource.
+- An active Innkeep may use `care serve Silas Crowe` only after the Healer assessment. The action consumes exactly one live serving from the existing bowl of stew, reduces the existing Resident Life condition, resolves Silas's commitment, and records a helping interaction.
+- The Healer and Innkeep contributions have distinct canonical events and participation counters. Neither calling can complete the case alone.
+- Current stew stock may later be replenished by Bram. The persistent care event preserves the before/after serving count so resource expenditure remains auditable after restock.
+- No parallel patient, inventory, or relationship model is introduced.
+
+Regression coverage includes build-time Resident Life state, calling authority gates, a real three-account telnet collaboration, idempotent participation, finite stew consumption, first-person recovery state, and full restart persistence.
