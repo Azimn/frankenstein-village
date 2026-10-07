@@ -468,3 +468,14 @@ The first live calling-specific capability is Healer assessment of hidden object
 This is the preferred pattern for professional specialization. A calling may provide safer methods, better interpretation, institutional authority, or access to work, while the underlying world remains shared. A non-Healer can still encounter toxin through ordinary consequences; a Healer can identify the supported hidden toxin without ingesting it. The social value is reduced risk and professional interpretation, not privileged reality.
 
 Professional participation should record distinct work, not repeated button presses. Re-assessing the same already-known hidden toxin does not create additional participation evidence.
+
+
+## 2026-10-07 - Resident Life v2 deepens ordinary residents, never authored NPCs
+
+The population simulation may now persist lightweight physical conditions, bounded affect episodes, commitments, first-person perceptions, and sparse resident-to-resident relationships for ordinary residents. These systems are event-driven and bounded. They do not create a continuously thinking NPC loop.
+
+Runtime-canon, legacy-routine, and explicitly quest-bound residents are `authored_locked`. Resident Life v2 is a hard no-op for those characters unless a later design decision explicitly opts one into a tested hybrid profile. Ilona Szabó is explicitly locked because she already serves authored Chronicle content despite using the generic population scheduler.
+
+Schedules remain defaults rather than destiny for ordinary residents. Existing need overrides retain precedence. High-priority physical or commitment goals may redirect only awake or engaged population residents, and the world remains authoritative about location availability.
+
+Rumor exchange is the first live resident-to-resident social event wired into this layer. Actual transmission updates sparse social history and listener perception; no all-pairs relationship simulation is permitted.
