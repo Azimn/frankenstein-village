@@ -1232,6 +1232,7 @@ from world.situations import (
     TRUNK_ID,
     TITHE_ID,
     TORN_CHRONICLE_ID,
+    WELL_MUSHROOM_WARNING_ID,
     TEMPLATES,
     advance_situations,
     choose,
@@ -1254,6 +1255,7 @@ assert set((situation_registry.db.situations or {}).keys()) == {
     OBT_ID,
     TITHE_ID,
     TORN_CHRONICLE_ID,
+    WELL_MUSHROOM_WARNING_ID,
 }
 situation_original = copy.deepcopy(dict(situation_registry.db.situations or {}))
 situation_metrics_original = copy.deepcopy(dict(situation_registry.db.metrics or {}))
