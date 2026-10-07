@@ -253,3 +253,14 @@ The next population-depth slice adds event-driven physical condition, affect, co
 The integration does not replace the existing D/C/B/A resolution system. It extends it. D-tier continuity remains schedule-only and cheap; richer life-state processing happens only when a resident is already engaged or receives a concrete wake reason.
 
 The current authored lock includes all runtime-canon and legacy-routine residents plus Ilona Szabó, who is already bound into authored Chronicle content. Future quest NPCs should be locked at definition time before new situation content ships.
+
+
+## 2026-10-07 continuation: first structural interdependence slice
+
+The first cross-calling production need is now `A Warning at the Well`.
+
+It reuses the existing SituationRegistry, Healer hidden-toxin assessment, world event ledger, Chronicle, Harbinger, and calling participation records. A Healer must file the professional finding before a Chronicler can publish the institutional warning. Neither calling can complete the case alone.
+
+The warning preserves the distinction between object truth, professional interpretation, and public record. No generic job framework was added.
+
+After this slice is accepted, inspect the current economy, procurement, Resident Life, and object-property substrates for the next smallest two-calling need. Prefer a case with a real resource, resident, institution, or deadline over an abstract work-order system.
