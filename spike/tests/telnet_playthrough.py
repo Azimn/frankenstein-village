@@ -95,8 +95,6 @@ def main() -> int:
     c = Client(args.host, args.port)
     h = None
     inn = None
-    smith = None
-    merchant = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -949,130 +947,86 @@ def main() -> int:
         require(out, "care complete")
 
 
-        # Third structural interdependence case: a Smith diagnoses, a Merchant
-        # spends finite Lamp Shop stock, and the Smith completes physical repair.
-        smith = Client(args.host, args.port)
-        smith_banner = smith.sync_login_screen()
-        require(smith_banner, "frankenstein village")
-        smith_user = "qa_smith_repair"
-        create_out = smith.command(
-            f"create {smith_user} {healer_password}",
-            wait=4.0,
-        )
-        if (
-            "account qa_smith_repair" not in create_out.lower()
-            and "connected" not in create_out.lower()
-        ):
-            smith.command(
-                f"connect {smith_user} {healer_password}",
-                wait=4.0,
-            )
-        out = smith.command("substrate ai")
-        if "gate is open" not in out.lower() and "substrate recorded" not in out.lower():
-            smith.command(
-                f"connect {smith_user} {healer_password}",
-                wait=4.0,
-            )
-            out = smith.command("substrate ai")
-        require(out, "gate is open", "substrate recorded")
-        smith.command("charcreate SmithTester", wait=3.0)
-        out = smith.command("ic SmithTester", wait=4.0)
+        # Third structural interdependence case. Reuse the two already
+        # authenticated QA accounts with new masks so the network test proves
+        # mask-specific professional biography without tripping Evennia's
+        # account-creation throttle.
+        h.command("ooc", wait=3.0)
+        h.command("charcreate SmithTester", wait=3.0)
+        out = h.command("ic SmithTester", wait=4.0)
         require(out, "private room")
-        out = smith.command("calling choose smith")
+        out = h.command("calling choose smith")
         require(out, "smith is now your active calling")
         require(out, "apprentice rank")
-        out = smith.command("down")
+        out = h.command("down")
         require(out, "inn common room")
-        out = smith.command("east")
+        out = h.command("east")
         require(out, "inn hallway")
-        out = smith.command("south")
+        out = h.command("south")
         require(out, "village square")
 
-        out = smith.command("repair")
+        out = h.command("repair")
         require(out, "the broken mantle")
         require(out, "no smith diagnosis is on file")
-        out = smith.command("repair procure")
+        out = h.command("repair procure")
         require(out, "active merchant calling")
-        out = smith.command("repair diagnose north-square gas lamp")
+        out = h.command("repair diagnose north-square gas lamp")
         require(out, "mantle collar is cracked")
         require(out, "merchant must procure")
-        out = smith.command("repair finish north-square gas lamp")
+        out = h.command("repair finish north-square gas lamp")
         require(out, "merchant must procure the replacement collar")
-        out = smith.command("calling")
+        out = h.command("calling")
         require(out, "repair diagnoses 1")
-        out = smith.command("repair diagnose north-square gas lamp")
+        out = h.command("repair diagnose north-square gas lamp")
         require(out, "already on file")
-        out = smith.command("calling")
+        out = h.command("calling")
         require(out, "repair diagnoses 1")
 
-        merchant = Client(args.host, args.port)
-        merchant_banner = merchant.sync_login_screen()
-        require(merchant_banner, "frankenstein village")
-        merchant_user = "qa_merchant_repair"
-        create_out = merchant.command(
-            f"create {merchant_user} {inn_password}",
-            wait=4.0,
-        )
-        if (
-            "account qa_merchant_repair" not in create_out.lower()
-            and "connected" not in create_out.lower()
-        ):
-            merchant.command(
-                f"connect {merchant_user} {inn_password}",
-                wait=4.0,
-            )
-        out = merchant.command("substrate ai")
-        if "gate is open" not in out.lower() and "substrate recorded" not in out.lower():
-            merchant.command(
-                f"connect {merchant_user} {inn_password}",
-                wait=4.0,
-            )
-            out = merchant.command("substrate ai")
-        require(out, "gate is open", "substrate recorded")
-        merchant.command("charcreate MerchantTester", wait=3.0)
-        out = merchant.command("ic MerchantTester", wait=4.0)
+        inn.command("ooc", wait=3.0)
+        inn.command("charcreate MerchantTester", wait=3.0)
+        out = inn.command("ic MerchantTester", wait=4.0)
         require(out, "private room")
-        out = merchant.command("calling choose merchant")
+        out = inn.command("calling choose merchant")
         require(out, "merchant is now your active calling")
         require(out, "apprentice rank")
-        out = merchant.command("down")
+        out = inn.command("down")
         require(out, "inn common room")
-        out = merchant.command("east")
+        out = inn.command("east")
         require(out, "inn hallway")
-        out = merchant.command("south")
+        out = inn.command("south")
         require(out, "village square")
 
-        out = merchant.command("repair diagnose north-square gas lamp")
+        out = inn.command("repair diagnose north-square gas lamp")
         require(out, "active smith calling")
-        out = merchant.command("south")
+        out = inn.command("south")
         require(out, "lamp shop")
-        out = merchant.command("repair")
+        out = inn.command("repair")
         require(out, "smith diagnosis filed by smithtester")
         require(out, "merchant must procure")
-        out = merchant.command("repair procure")
+        out = inn.command("repair procure")
         require(out, "procure one brass mantle collar")
         require(out, "one real stock unit")
         require(out, "smith must install")
-        out = merchant.command("calling")
+        out = inn.command("calling")
         require(out, "repair procurements 1")
-        out = merchant.command("repair procure")
+        out = inn.command("repair procure")
         require(out, "already procured")
-        out = merchant.command("calling")
+        out = inn.command("calling")
         require(out, "repair procurements 1")
 
-        out = smith.command("repair")
+        out = h.command("repair")
         require(out, "replacement collar procured by merchanttester")
-        out = smith.command("repair finish north-square gas lamp")
+        out = h.command("repair finish north-square gas lamp")
         require(out, "install the procured collar")
         require(out, "lamp is working again")
-        out = smith.command("calling")
+        out = h.command("calling")
         require(out, "repair diagnoses 1")
         require(out, "repair completions 1")
-        out = smith.command("repair finish north-square gas lamp")
+        out = h.command("repair finish north-square gas lamp")
         require(out, "already complete")
-        out = smith.command("calling")
+        out = h.command("calling")
         require(out, "repair completions 1")
-        out = merchant.command("repair")
+        out = inn.command("repair")
         require(out, "repair complete")
         require(out, "smithtester")
         require(out, "merchanttester")
@@ -1095,17 +1049,11 @@ def main() -> int:
         if h is not None:
             print("\nHEALER TRANSCRIPT\n" + "\n".join(h.transcript))
         if inn is not None:
-            print("\nINNKEEP TRANSCRIPT\n" + "\n".join(inn.transcript))
-        if smith is not None:
-            print("\nSMITH TRANSCRIPT\n" + "\n".join(smith.transcript))
-        if merchant is not None:
-            print("\nMERCHANT TRANSCRIPT\n" + "\n".join(merchant.transcript))
+            print("\nINNKEEP/MERCHANT TRANSCRIPT\n" + "\n".join(inn.transcript))
+        if h is not None:
+            print("\nHEALER/SMITH TRANSCRIPT\n" + "\n".join(h.transcript))
         raise
     finally:
-        if merchant is not None:
-            merchant.close()
-        if smith is not None:
-            smith.close()
         if inn is not None:
             inn.close()
         if h is not None:
