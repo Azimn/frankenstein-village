@@ -22,6 +22,7 @@ from world.residents import facts_known_by_player, resident_state
 from world.situations import (
     TITHE_ID,
     TORN_CHRONICLE_ID,
+    WELL_MUSHROOM_WARNING_ID,
     get_situation,
     situation_status_for_player,
 )
@@ -105,6 +106,7 @@ assert active_rank(smoke) == RANK_APPRENTICE
 smoke_chronicler = calling_record(smoke, "chronicler")
 assert smoke_chronicler["participation"]["evidence_revisions"] == 1
 assert smoke_chronicler["participation"]["signed_accounts"] == 1
+assert smoke_chronicler["participation"]["public_health_records"] == 1
 assert calling_record(smoke, "performer") is None
 smoke_calling_history = calling_state(smoke)["history"]
 assert any(
@@ -122,6 +124,7 @@ assert active_calling(healer_tester) == "healer"
 assert active_rank(healer_tester) == RANK_APPRENTICE
 healer_record = calling_record(healer_tester, "healer")
 assert healer_record["participation"]["assessments"] == 1
+assert healer_record["participation"]["public_health_findings"] == 1
 assert not getattr(healer_tester.db, "queasy", 0), (
     "safe Healer assessment unexpectedly applied the toxin effect"
 )
@@ -184,6 +187,56 @@ assert any(
     and entry.get("claim_status") == "reported_account"
     for entry in entries
 ), "player Chronicle deposition did not survive restart"
+
+# Cross-calling public-health work survives restart as one shared situation.
+# The Healer finding and Chronicler publication remain separately attributed,
+# while public prose does not expose the internal toxin magnitude.
+warning_case = get_situation(WELL_MUSHROOM_WARNING_ID)
+assert warning_case["state"] == "aftermath"
+assert warning_case["branch"] == "public_warning"
+warning_mutations = dict(warning_case["objective_mutations"])
+warning_finding = dict(warning_mutations["healer_finding"])
+warning_record = dict(warning_mutations["chronicler_record"])
+assert warning_finding["mask_id"] == healer_tester.id
+assert warning_finding["mask"] == "HealerTester"
+assert warning_finding["property"] == "toxin"
+assert warning_finding["value"] == 25
+assert warning_record["mask_id"] == smoke.id
+assert warning_record["mask"] == "SmokeTester"
+
+warning_entry = next(
+    entry
+    for entry in entries
+    if entry["id"] == warning_record["chronicle_entry_id"]
+)
+assert warning_entry["claim_status"] == "verified_event"
+assert "health warning issued for well mushrooms" in warning_entry["title"].lower()
+assert "healertester" in warning_entry["text"].lower()
+assert "can be toxic" in warning_entry["text"].lower()
+assert "other mushrooms as safe" in warning_entry["text"].lower()
+assert "25" not in warning_entry["text"]
+
+warning_story = get_story(warning_record["harbinger_story_id"])
+assert warning_story
+assert "health warning issued for well mushrooms" in warning_story["headline"].lower()
+assert "healertester" in warning_story["body"].lower()
+assert "can be toxic" in warning_story["body"].lower()
+assert "25" not in warning_story["body"]
+assert warning_story["status"] in {"pending", "published"}
+
+warning_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+finding_event = warning_ledger.get_event(warning_finding["event_id"])
+warning_event = warning_ledger.get_event(warning_record["event_id"])
+assert finding_event["kind"] == "professional.healer_finding_submitted"
+assert finding_event["payload"]["mechanical_value"] == 25
+assert finding_event["payload"]["harbinger"] is False
+assert finding_event["payload"]["chronicle_eligible"] is False
+assert warning_event["kind"] == "professional.public_health_warning"
+assert warning_event["payload"]["source_healer_mask_id"] == healer_tester.id
+assert warning_event["publications"]["chronicle_entry_id"] == warning_entry["id"]
+assert warning_event["publications"]["harbinger_story_id"] == warning_story["id"]
+assert hidden_mechanical_properties(mushrooms) == {"toxin": 25}
+assert mechanical_properties(mushrooms) == {}
 
 # Harbinger The Correction must survive restart as an archive discrepancy.
 # The old story body remains the surviving copy; the claimant's alleged wording
