@@ -94,6 +94,7 @@ def main() -> int:
 
     c = Client(args.host, args.port)
     h = None
+    inn = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -848,6 +849,103 @@ def main() -> int:
         out = h.command("calling")
         require(out, "public health findings 1")
 
+        # Second structural interdependence case: an ordinary Resident Life
+        # participant needs two professions and one real finite tavern resource.
+        out = h.command("east")
+        require(out, "blood of the vine")
+        out = h.command("care")
+        require(out, "cold hunter at supper")
+        require(out, "silas crowe")
+        require(out, "no healer assessment is on file")
+
+        out = h.command("care serve Silas Crowe")
+        require(out, "active innkeep calling")
+
+        out = h.command("care assess Silas Crowe")
+        require(out, "assess silas crowe's cold exposure")
+        require(out, "warm food")
+        require(out, "still needs an innkeep")
+
+        out = h.command("calling")
+        require(out, "resident assessments 1")
+
+        out = h.command("care assess Silas Crowe")
+        require(out, "already on file")
+        out = h.command("calling")
+        require(out, "resident assessments 1")
+
+        # A third independent account proves the Innkeep contribution cannot
+        # be replaced by the Healer or the existing Chronicler mask.
+        inn = Client(args.host, args.port)
+        inn_banner = inn.sync_login_screen()
+        require(inn_banner, "frankenstein village")
+        inn_user = "qa_innkeep_care"
+        inn_password = "InnkeepSmoke2026!"
+        create_out = inn.command(
+            f"create {inn_user} {inn_password}",
+            wait=4.0,
+        )
+        if (
+            "account qa_innkeep_care" not in create_out.lower()
+            and "connected" not in create_out.lower()
+        ):
+            inn.command(
+                f"connect {inn_user} {inn_password}",
+                wait=4.0,
+            )
+
+        out = inn.command("substrate ai")
+        if "gate is open" not in out.lower() and "substrate recorded" not in out.lower():
+            inn.command(
+                f"connect {inn_user} {inn_password}",
+                wait=4.0,
+            )
+            out = inn.command("substrate ai")
+        require(out, "gate is open", "substrate recorded")
+
+        inn.command("charcreate InnkeepTester", wait=3.0)
+        out = inn.command("ic InnkeepTester", wait=4.0)
+        require(out, "private room")
+
+        out = inn.command("calling choose innkeep")
+        require(out, "innkeep is now your active calling")
+        require(out, "apprentice rank")
+
+        out = inn.command("down")
+        require(out, "inn common room")
+        out = inn.command("east")
+        require(out, "inn hallway")
+        out = inn.command("south")
+        require(out, "village square")
+        out = inn.command("east")
+        require(out, "blood of the vine")
+
+        out = inn.command("care")
+        require(out, "healer assessment filed by healertester")
+        require(out, "hospitality is still needed")
+        require(out, "spends one actual serving of stew")
+
+        out = inn.command("care serve Silas Crowe")
+        require(out, "hot bowl from the tavern stock")
+        require(out, "one stew serving is spent")
+        require(out, "care case is complete")
+
+        out = inn.command("calling")
+        require(out, "recovery hospitality 1")
+
+        out = inn.command("care")
+        require(out, "care complete")
+        require(out, "healer assessed him")
+        require(out, "innkeep spent a real tavern meal")
+
+        out = inn.command("care serve Silas Crowe")
+        require(out, "tavern care is already complete")
+        out = inn.command("calling")
+        require(out, "recovery hospitality 1")
+
+        out = h.command("care")
+        require(out, "care complete")
+
         out = c.command("north")
         require(out, "inn hallway")
         out = c.command("west")
@@ -865,8 +963,12 @@ def main() -> int:
         print("\nFULL TRANSCRIPT\n" + "\n".join(c.transcript))
         if h is not None:
             print("\nHEALER TRANSCRIPT\n" + "\n".join(h.transcript))
+        if inn is not None:
+            print("\nINNKEEP TRANSCRIPT\n" + "\n".join(inn.transcript))
         raise
     finally:
+        if inn is not None:
+            inn.close()
         if h is not None:
             h.close()
         c.close()
