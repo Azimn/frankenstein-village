@@ -233,3 +233,14 @@ After hidden-property perception, the next dependency is now implemented as a mi
 The core provides the nine canon callings, one active profession per mask, Apprentice/Master rank records, append-only respecialization history, participation counters from real work, authored-only Master promotion, authored-only respecialization after the initial player choice, and persistent Master/Apprentice relations. Apprenticeship begins as a persistent offer and requires explicit Apprentice acceptance before it becomes an active obligation. Declined offers create no obligation. Active apprenticeship obligations must be ended explicitly before respecialization.
 
 This slice intentionally does not invent rank thresholds, combat bonuses, or a complete professional job economy. After it is accepted, inspect the current calling packs and systemic-object substrate to select the smallest real cross-calling work item or specialized capability that proves structural interdependence. Reuse `world/callings.py`; do not create a second profession state model.
+
+
+## Calling specialization continuation: Healer assessment
+
+The calling core is now being exercised by a real specialized capability rather than only identity and relationship state.
+
+The first vertical slice is active-Healer assessment over the existing hidden-property system. `assess <thing>` can teach the current Healer mask that a supported hidden toxin is present without applying the toxic effect. The object remains unchanged, ordinary look remains unchanged, and the finding stays mask-specific. Only first discovery records Healer participation.
+
+This intentionally establishes the pattern that callings change method, interpretation, access, and responsibility rather than owning separate world truth.
+
+After this slice is accepted, the next dependency should be a genuinely cross-calling work item that requires at least two professional contributions to one persistent world need. Inspect current runtime locations and existing systems before selecting the example. Prefer reusing current Harbinger, economy, object-property, event, and resident substrates over creating a generic job framework prematurely.

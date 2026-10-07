@@ -93,6 +93,7 @@ def main() -> int:
     args = parser.parse_args()
 
     c = Client(args.host, args.port)
+    h = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -709,6 +710,77 @@ def main() -> int:
         require(out, "can be toxic")
         require(out, "learned by direct effect")
 
+        # A second independent player account proves the positive Healer path
+        # without replacing SmokeTester's accepted Chronicler coverage.
+        h = Client(args.host, args.port)
+        healer_banner = h.sync_login_screen()
+        require(healer_banner, "frankenstein village")
+        healer_user = "qa_healer_assessor"
+        healer_password = "HealerSmoke2026!"
+        create_out = h.command(
+            f"create {healer_user} {healer_password}",
+            wait=4.0,
+        )
+        if (
+            "account qa_healer_assessor" not in create_out.lower()
+            and "connected" not in create_out.lower()
+        ):
+            h.command(
+                f"connect {healer_user} {healer_password}",
+                wait=4.0,
+            )
+
+        out = h.command("substrate ai")
+        if "gate is open" not in out.lower() and "substrate recorded" not in out.lower():
+            h.command(
+                f"connect {healer_user} {healer_password}",
+                wait=4.0,
+            )
+            out = h.command("substrate ai")
+        require(out, "gate is open", "substrate recorded")
+
+        h.command("charcreate HealerTester", wait=3.0)
+        out = h.command("ic HealerTester", wait=4.0)
+        require(out, "private room")
+
+        out = h.command("calling choose healer")
+        require(out, "healer is now your active calling")
+        require(out, "apprentice rank")
+
+        out = h.command("down")
+        require(out, "inn common room")
+        out = h.command("east")
+        require(out, "inn hallway")
+        out = h.command("south")
+        require(out, "village square")
+
+        out = h.command("look mushrooms")
+        require(out, "cluster of pale mushrooms")
+        if "toxic" in out.lower():
+            raise AssertionError(
+                "ordinary look leaked hidden toxin to the Healer"
+            )
+
+        out = h.command("assess mushrooms")
+        require(out, "healer assessment identifies a toxic property")
+        require(out, "without requiring you to taste it")
+        require(out, "this mask now remembers")
+
+        out = h.command("examine mushrooms")
+        require(out, "what this mask has learned")
+        require(out, "can be toxic")
+        require(out, "learned by healer assessment")
+
+        out = h.command("calling")
+        require(out, "active calling: healer")
+        require(out, "recorded participation")
+        require(out, "assessments 1")
+
+        out = h.command("assess mushrooms")
+        require(out, "confirms what this mask already learned")
+        out = h.command("calling")
+        require(out, "assessments 1")
+
         out = c.command("north")
         require(out, "inn hallway")
         out = c.command("west")
@@ -724,8 +796,12 @@ def main() -> int:
         return 0
     except Exception:
         print("\nFULL TRANSCRIPT\n" + "\n".join(c.transcript))
+        if h is not None:
+            print("\nHEALER TRANSCRIPT\n" + "\n".join(h.transcript))
         raise
     finally:
+        if h is not None:
+            h.close()
         c.close()
 
 

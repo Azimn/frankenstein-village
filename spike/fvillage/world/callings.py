@@ -643,3 +643,55 @@ def withdraw_apprenticeship(apprentice, *, reason="withdrawn_by_apprentice"):
         "counterpart_missing": True,
     }, None
 
+HEALER_ASSESSABLE_PROPERTIES = ("toxin",)
+
+
+def assess_hidden_object(mask, obj):
+    """Use active Healer knowledge to assess supported hidden object mechanics.
+
+    This is a perception capability, not a physics override. The object keeps
+    the same hidden mechanical truth. A successful assessment teaches only the
+    assessing mask, and repeated assessment of the same known property does not
+    manufacture additional participation evidence.
+    """
+    if active_calling(mask) != "healer":
+        return (
+            None,
+            "A basic professional assessment of hidden toxicity requires an "
+            "active Healer calling.",
+        )
+
+    from world.object_properties import (
+        is_hidden_mechanical_property,
+        learn_hidden_property,
+    )
+
+    discoveries = []
+    learned_any = False
+    for property_name in HEALER_ASSESSABLE_PROPERTIES:
+        if not is_hidden_mechanical_property(obj, property_name):
+            continue
+        record, learned = learn_hidden_property(
+            mask,
+            obj,
+            property_name,
+            source="healer_assessment",
+        )
+        if record:
+            discoveries.append(record)
+        learned_any = learned_any or bool(learned)
+
+    if learned_any:
+        record_participation(
+            mask,
+            "assessments",
+            calling="healer",
+        )
+
+    return {
+        "object_id": getattr(obj, "id", None),
+        "object_key": getattr(obj, "key", None),
+        "discoveries": discoveries,
+        "learned": learned_any,
+    }, None
+

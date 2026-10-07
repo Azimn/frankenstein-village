@@ -789,3 +789,21 @@ Execution contract:
 - These relations provide the first persistent interdependence primitive. They are not party membership and grant no combat bonus.
 
 Regression coverage proves invalid calling rejection, participation isolation, authored Master promotion, offer idempotence, explicit acceptance and decline, obligation-aware respecialization only after acceptance, historical Master retention with one active professional identity, real telnet calling selection, real Chronicle participation, and persistence through a real server restart.
+
+
+## 2026-10-06 - Healer hidden-toxin assessment
+
+The first specialized calling capability now connects the calling core to the systemic-object perception layer.
+
+Execution contract:
+- `assess <thing>` is an in-character professional verb.
+- The first production assessment capability requires the mask's active calling to be Healer.
+- Apprentice Healers may perform the basic field assessment; Master remains an authored authority ceiling for later responsibilities rather than a prerequisite for this foundational verb.
+- The current supported finding is hidden `toxin`. The assessment reads the same hidden mechanic used by simulation and does not create a second diagnosis truth layer.
+- A successful assessment records mask-specific object knowledge with provenance `healer_assessment`; ordinary `look` remains unchanged and other masks learn nothing automatically.
+- Assessment never applies the toxin or otherwise mutates the assessor's health state.
+- The command does not expose the internal numeric toxin magnitude to the player. It records the qualitative fact that the object can be toxic.
+- Only first discovery increments Healer `assessments` participation. Repeating the same assessment confirms existing knowledge without farming professional evidence.
+- An assessment that finds no supported hidden toxin reports only that this basic field assessment found none; it does not certify universal safety.
+
+Regression coverage proves non-Healers cannot invoke the capability, hidden toxin is discovered without ingestion, health state is unchanged, knowledge remains mask-specific, repeated assessment is participation-idempotent, a second independent telnet account can choose Healer and use the verb in the live world, and Healer knowledge plus participation survive a real server restart.

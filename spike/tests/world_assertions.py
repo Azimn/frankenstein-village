@@ -97,6 +97,7 @@ from world.callings import (
     active_rank,
     accept_apprenticeship,
     active_relations,
+    assess_hidden_object,
     calling_record,
     calling_state,
     choose_calling,
@@ -348,6 +349,76 @@ assert "toxic" not in dict(mushrooms.db.consume or {}), (
 assert bread.db.servings == 2, (
     "mechanical uses configuration reset mutable serving state"
 )
+
+# First specialized-calling integration: an active Healer can safely identify
+# supported hidden toxin without ingesting the object. The finding remains
+# mask-specific knowledge and only first discovery counts as participation.
+healer_assessor = SimpleNamespace(
+    id=910005,
+    key="QA Healer",
+    db=SimpleNamespace(),
+)
+nonhealer_assessor = SimpleNamespace(
+    id=910006,
+    key="QA Chronicler Assessor",
+    db=SimpleNamespace(),
+)
+healer_choice, error = choose_calling(healer_assessor, "healer")
+assert error is None and healer_choice["changed"]
+nonhealer_choice, error = choose_calling(nonhealer_assessor, "chronicler")
+assert error is None and nonhealer_choice["changed"]
+
+blocked_assessment, blocked_assessment_error = assess_hidden_object(
+    nonhealer_assessor,
+    mushrooms,
+)
+assert blocked_assessment is None
+assert "active healer calling" in blocked_assessment_error.lower()
+assert hidden_property_knowledge(nonhealer_assessor, mushrooms) == {}
+
+queasy_before_assessment = getattr(healer_assessor.db, "queasy", None)
+assessment, assessment_error = assess_hidden_object(
+    healer_assessor,
+    mushrooms,
+)
+assert assessment_error is None
+assert assessment["learned"]
+assert len(assessment["discoveries"]) == 1
+assert assessment["discoveries"][0]["property"] == "toxin"
+assert assessment["discoveries"][0]["value"] == 25
+assert assessment["discoveries"][0]["source"] == "healer_assessment"
+assert getattr(healer_assessor.db, "queasy", None) == queasy_before_assessment
+assert hidden_property_knowledge(
+    healer_assessor,
+    mushrooms,
+)["toxin"]["source"] == "healer_assessment"
+assert calling_record(
+    healer_assessor,
+    "healer",
+)["participation"]["assessments"] == 1
+
+repeat_assessment, repeat_assessment_error = assess_hidden_object(
+    healer_assessor,
+    mushrooms,
+)
+assert repeat_assessment_error is None
+assert not repeat_assessment["learned"]
+assert calling_record(
+    healer_assessor,
+    "healer",
+)["participation"]["assessments"] == 1
+
+clean_assessment, clean_assessment_error = assess_hidden_object(
+    healer_assessor,
+    bread,
+)
+assert clean_assessment_error is None
+assert clean_assessment["discoveries"] == []
+assert not clean_assessment["learned"]
+assert calling_record(
+    healer_assessor,
+    "healer",
+)["participation"]["assessments"] == 1
 
 # Falsification: change only the bread worth property. Payment must follow the
 # property rather than the historical name-based price table.
