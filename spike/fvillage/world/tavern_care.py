@@ -308,7 +308,7 @@ def provide_innkeep_care(mask, target):
             )
             body = _body(target)
 
-    resolve_resident_commitment(target, COMMITMENT_KEY, "completed")
+    resolve_resident_commitment(target, COMMITMENT_KEY, "fulfilled")
     record_resident_perception(
         target,
         "care",
@@ -399,7 +399,7 @@ def reconcile_tavern_cold_care():
                 cause="time by the tavern fire",
             )
             body = _body(patient)
-    resolve_resident_commitment(patient, COMMITMENT_KEY, "self_recovered")
+    resolve_resident_commitment(patient, COMMITMENT_KEY, "fulfilled")
 
     from world.events import publish_world_event
 
