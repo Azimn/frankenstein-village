@@ -141,8 +141,9 @@ class CmdCare(Command):
             submit_healer_care_assessment,
         )
 
+        case = care_status()
+
         if not raw:
-            case = care_status()
             mutations = dict(case.get("objective_mutations") or {})
             initialization = dict(mutations.get("patient_initialized") or {})
             assessment = dict(mutations.get("healer_assessment") or {})
