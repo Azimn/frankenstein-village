@@ -24,6 +24,7 @@ from world.situations import (
     TORN_CHRONICLE_ID,
     WELL_MUSHROOM_WARNING_ID,
     TAVERN_COLD_CARE_ID,
+    LAMP_REPAIR_ID,
     get_situation,
     situation_status_for_player,
 )
@@ -91,6 +92,8 @@ miklos = one("Miklós Farkas")
 smoke = one("SmokeTester")
 healer_tester = one("HealerTester")
 innkeep_tester = one("InnkeepTester")
+smith_tester = one("SmithTester")
+merchant_tester = one("MerchantTester")
 state = resident_state(miklos)
 relation = (state.get("relationships") or {}).get(str(smoke.id))
 assert relation, "telnet interactions did not persist a Miklós relationship"
@@ -292,6 +295,50 @@ assert hospitality_event["payload"]["source_healer_event_id"] == (
 assert hospitality_event["payload"]["servings_before"] - (
     hospitality_event["payload"]["servings_after"]
 ) == 1
+
+# Smith and Merchant repair work survives restart as professional history,
+# finite stock depletion, linked provenance, and transformed object state.
+assert active_calling(smith_tester) == "smith"
+assert active_rank(smith_tester) == RANK_APPRENTICE
+assert calling_record(smith_tester, "smith")["participation"]["repair_diagnoses"] == 1
+assert calling_record(smith_tester, "smith")["participation"]["repair_completions"] == 1
+assert active_calling(merchant_tester) == "merchant"
+assert active_rank(merchant_tester) == RANK_APPRENTICE
+assert calling_record(merchant_tester, "merchant")["participation"]["repair_procurements"] == 1
+
+lamp_repair_case = get_situation(LAMP_REPAIR_ID)
+assert lamp_repair_case["state"] == "aftermath"
+assert lamp_repair_case["branch"] == "repaired"
+lamp_mutations = dict(lamp_repair_case["objective_mutations"])
+lamp_diagnosis = dict(lamp_mutations["smith_diagnosis"])
+lamp_procurement = dict(lamp_mutations["merchant_procurement"])
+lamp_completion = dict(lamp_mutations["smith_repair"])
+assert lamp_diagnosis["mask_id"] == smith_tester.id
+assert lamp_procurement["mask_id"] == merchant_tester.id
+assert lamp_completion["mask_id"] == smith_tester.id
+assert lamp_procurement["units_before"] - lamp_procurement["units_after"] == 1
+assert lamp_procurement["source_smith_event_id"] == lamp_diagnosis["event_id"]
+assert lamp_completion["source_smith_diagnosis_event_id"] == lamp_diagnosis["event_id"]
+assert lamp_completion["source_merchant_event_id"] == lamp_procurement["event_id"]
+
+north_square_lamp = one("north-square gas lamp")
+repair_stock = one("a tray of brass mantle collars")
+assert north_square_lamp.db.repair_state == "working"
+assert north_square_lamp.db.repair_fault is None
+assert "steady yellow flame" in (north_square_lamp.db.desc or "").lower()
+assert repair_stock.db.units == lamp_procurement["units_after"]
+assert mechanical_properties(repair_stock) == {"uses": 4, "worth": 7}
+
+repair_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+diagnosis_event = repair_ledger.get_event(lamp_diagnosis["event_id"])
+procurement_event = repair_ledger.get_event(lamp_procurement["event_id"])
+completion_event = repair_ledger.get_event(lamp_completion["event_id"])
+assert diagnosis_event["kind"] == "professional.smith_lamp_diagnosis"
+assert procurement_event["kind"] == "professional.merchant_repair_procurement"
+assert completion_event["kind"] == "professional.smith_lamp_repair_completed"
+assert procurement_event["payload"]["source_smith_event_id"] == diagnosis_event["id"]
+assert completion_event["payload"]["source_merchant_event_id"] == procurement_event["id"]
+assert completion_event["consequence"]["repair_state"] == "working"
 
 # Harbinger The Correction must survive restart as an archive discrepancy.
 # The old story body remains the surviving copy; the claimant's alleged wording

@@ -25,6 +25,7 @@ OBT_ID = "DM-Q-0017-OBTUARY"
 WELL_ID = "DM-Q-0018-WELL"
 WELL_MUSHROOM_WARNING_ID = "CIV-HEALTH-0001-WELL-MUSHROOMS"
 TAVERN_COLD_CARE_ID = "CIV-CARE-0002-COLD-HUNTER"
+LAMP_REPAIR_ID = "CIV-REPAIR-0003-BROKEN-MANTLE"
 TITHE_ID = "INC-0006-TITHE-STRONGBOX"
 TORN_CHRONICLE_ID = "INC-0008-TORN-CHRONICLE"
 
@@ -168,6 +169,41 @@ TEMPLATES = {
         "legend": (
             "A simple cold evening becomes proof that professional care can "
             "cross callings without inventing a class quest ladder."
+        ),
+    },
+    LAMP_REPAIR_ID: {
+        "template_id": "civic-repair-003",
+        "working_title": "The Broken Mantle",
+        "content_family": "civic",
+        "canonical_status": "working content",
+        "spoiler_tier": 0,
+        "primary_location": "Village Square",
+        "secondary_locations": ["The Lamp Shop"],
+        "involved_npcs": ["miklos_farkas", "lucian_deville"],
+        "factions": [],
+        "calling_relevance": ["smith", "merchant"],
+        "repeatability": "one-shot",
+        "hook": (
+            "A specific public gas lamp will not hold a flame. A Smith must "
+            "identify the failed fitting, a Merchant must source the correct "
+            "replacement from finite Lamp Shop stock, and a Smith must install it."
+        ),
+        "autonomy": {
+            "initial_deadline_hours": 12,
+            "left_alone": (
+                "The repair window closes with the lamp still dark. Any material "
+                "already procured remains spent and the physical failure persists."
+            ),
+        },
+        "choices": {},
+        "evidence": {},
+        "inheritance": (
+            "The lamp owns physical repair state, Lamp Shop stock owns supply, "
+            "and the situation preserves professional provenance."
+        ),
+        "legend": (
+            "The Broken Mantle turns diagnosis and procurement into a persistent "
+            "physical object transformation."
         ),
     },
     TITHE_ID: {

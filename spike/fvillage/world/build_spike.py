@@ -294,6 +294,26 @@ def get_or_create_scenery(key, location, desc, aliases=()):
     return obj
 
 
+# A named public lamp is the physical target for a persistent repair case.
+_lamp_matches = [o for o in square.contents if o.key == "north-square gas lamp"]
+if _lamp_matches:
+    north_square_lamp = _lamp_matches[0]
+else:
+    north_square_lamp = create.create_object(
+        "evennia.objects.objects.DefaultObject",
+        key="north-square gas lamp",
+        location=square,
+        aliases=["north square lamp", "public gas lamp", "broken lamp"],
+    )
+    north_square_lamp.locks.add(
+        "get:false();give:false();drop:false();control:perm(Admin)"
+    )
+    print("public repair lamp created: north-square gas lamp")
+if north_square_lamp.db.repair_state is None:
+    north_square_lamp.db.repair_state = "broken"
+if north_square_lamp.db.repair_fault is None and north_square_lamp.db.repair_state != "working":
+    north_square_lamp.db.repair_fault = "cracked mantle collar"
+
 # the hanging sign: the Blood of the Vine announces itself (square, eastward)
 get_or_create_scenery(
     "a hanging sign", square,
@@ -674,6 +694,27 @@ _curio(
     "has yet settled what a truth is worth here, or to whom it would "
     "be told. Lucian is in no hurry to decide.",
 )
+# Finite repair stock. Configuration does not refill the mutable live counter.
+_repair_stock_matches = [
+    o for o in lamp_shop.contents if o.key == "a tray of brass mantle collars"
+]
+if _repair_stock_matches:
+    repair_stock = _repair_stock_matches[0]
+else:
+    repair_stock = create.create_object(
+        "evennia.objects.objects.DefaultObject",
+        key="a tray of brass mantle collars",
+        location=lamp_shop,
+        aliases=["mantle collars", "brass collars", "repair collars"],
+    )
+    repair_stock.locks.add(
+        "get:false();give:false();drop:false();control:perm(Admin)"
+    )
+    print("repair stock created: brass mantle collars")
+configure_mechanical_properties(repair_stock, {"uses": 4, "worth": 7})
+if repair_stock.db.units is None:
+    repair_stock.db.units = 4
+
 _curio(
     "a black candle", ["black candle", "candle"],
     "A black candle, never lit, and not for lighting — ask Lucian and "
@@ -1166,6 +1207,19 @@ if _cold_care.get("created"):
     print("tavern care case surfaced: Cold Hunter at Supper.")
 else:
     print("tavern care case exists.")
+
+from world.repair_case import (
+    ensure_lamp_repair_case,
+    sync_lamp_description,
+    sync_stock_description,
+)
+sync_lamp_description(north_square_lamp)
+sync_stock_description(repair_stock)
+_lamp_repair = ensure_lamp_repair_case()
+if _lamp_repair.get("created"):
+    print("repair case surfaced: The Broken Mantle.")
+else:
+    print("repair case exists.")
 
 from world.seasonal_frameworks import ensure_seasonal_frameworks
 _seasonal = ensure_seasonal_frameworks()

@@ -250,6 +250,131 @@ class CmdCare(Command):
             )
 
 
+class CmdRepair(Command):
+    """Work the current Smith and Merchant public-lamp repair case."""
+
+    key = "repair"
+    help_category = "Village"
+
+    def func(self):
+        if not _require_ic(self.caller):
+            return
+        from world.repair_case import (
+            complete_smith_lamp_repair,
+            procure_merchant_repair_part,
+            repair_status,
+            submit_smith_repair_diagnosis,
+        )
+        raw = (self.args or "").strip()
+        if not raw:
+            case = repair_status()
+            mutations = dict(case.get("objective_mutations") or {})
+            if case.get("state") == "aftermath":
+                if case.get("branch") == "repaired":
+                    diagnosis = dict(mutations.get("smith_diagnosis") or {})
+                    procurement = dict(mutations.get("merchant_procurement") or {})
+                    self.caller.msg(
+                        "|wThe Broken Mantle|n\nRepair complete. "
+                        f"{diagnosis.get('mask', 'A Smith')} diagnosed the fault and "
+                        f"{procurement.get('mask', 'a Merchant')} procured the "
+                        "replacement. The north-square gas lamp is working again."
+                    )
+                else:
+                    self.caller.msg(
+                        "|wThe Broken Mantle|n\nThe repair window closed. "
+                        "The north-square gas lamp remains dark."
+                    )
+                return
+            diagnosis = dict(mutations.get("smith_diagnosis") or {})
+            procurement = dict(mutations.get("merchant_procurement") or {})
+            lines = [
+                "|wThe Broken Mantle|n",
+                "The north-square gas lamp is dark and needs professional work.",
+            ]
+            if diagnosis:
+                lines.append(
+                    f"Smith diagnosis filed by {diagnosis.get('mask')}: "
+                    "the mantle collar is cracked."
+                )
+            else:
+                lines.append("No Smith diagnosis is on file. A Smith must inspect the lamp.")
+            if procurement:
+                lines.append(
+                    f"Replacement collar procured by {procurement.get('mask')}. "
+                    "A Smith must install it at the lamp."
+                )
+            elif diagnosis:
+                lines.append(
+                    "A Merchant must procure one replacement collar from the Lamp Shop."
+                )
+            self.caller.msg("\n".join(lines))
+            return
+
+        action, _, argument = raw.partition(" ")
+        action = action.lower()
+        argument = argument.strip()
+        if action in {"diagnose", "inspect"}:
+            if not argument:
+                self.caller.msg("Usage: repair diagnose <thing>")
+                return
+            target = self.caller.search(argument)
+            if not target:
+                return
+            result, error = submit_smith_repair_diagnosis(self.caller, target)
+            if error:
+                self.caller.msg(error)
+            elif result.get("created"):
+                self.caller.msg(
+                    "You diagnose the north-square gas lamp: the mantle collar "
+                    "is cracked. A Merchant must procure one replacement collar "
+                    "from the Lamp Shop."
+                )
+            else:
+                self.caller.msg("That Smith diagnosis is already on file.")
+            return
+
+        if action in {"procure", "source"}:
+            result, error = procure_merchant_repair_part(self.caller)
+            if error:
+                self.caller.msg(error)
+            elif result.get("created"):
+                self.caller.msg(
+                    "You procure one brass mantle collar from the Lamp Shop "
+                    "stock. One real stock unit is reserved for the case. "
+                    "A Smith must install it at the square lamp."
+                )
+            else:
+                self.caller.msg("The replacement collar is already procured.")
+            return
+
+        if action in {"finish", "install", "complete"}:
+            if not argument:
+                self.caller.msg("Usage: repair finish <thing>")
+                return
+            target = self.caller.search(argument)
+            if not target:
+                return
+            result, error = complete_smith_lamp_repair(self.caller, target)
+            if error:
+                self.caller.msg(error)
+            elif result.get("created"):
+                self.caller.msg(
+                    "You install the procured collar and repair the north-square "
+                    "gas lamp. The lamp is working again."
+                )
+            else:
+                self.caller.msg(
+                    "The Broken Mantle repair is already complete. "
+                    "No additional stock or professional credit is spent."
+                )
+            return
+
+        self.caller.msg(
+            "Usage: repair | repair diagnose <thing> | repair procure | "
+            "repair finish <thing>"
+        )
+
+
 class CmdCalling(Command):
     """Choose and inspect a social profession.
 

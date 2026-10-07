@@ -405,6 +405,11 @@ def tick():
     except Exception:
         pass
     try:
+        from world.repair_case import reconcile_lamp_repair_case
+        reconcile_lamp_repair_case()
+    except Exception:
+        pass
+    try:
         clock = ScriptDB.objects.get(db_key="village_time")
         day = clock.db.day or 1
         hour = clock.db.hour if clock.db.hour is not None else 21
