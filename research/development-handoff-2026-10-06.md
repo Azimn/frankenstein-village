@@ -264,3 +264,14 @@ It reuses the existing SituationRegistry, Healer hidden-toxin assessment, world 
 The warning preserves the distinction between object truth, professional interpretation, and public record. No generic job framework was added.
 
 After this slice is accepted, inspect the current economy, procurement, Resident Life, and object-property substrates for the next smallest two-calling need. Prefer a case with a real resource, resident, institution, or deadline over an abstract work-order system.
+
+
+## 2026-10-07 continuation: Resident Life plus finite-resource interdependence
+
+The second cross-calling case is `Cold Hunter at Supper`.
+
+Silas Crowe is an ordinary Resident Life participant who surfaces cold and wet at the Blood of the Vine. A Healer must assess him first. An Innkeep then spends one real serving from the existing stew object to complete the care case. The action reduces Silas's existing Resident Life condition, resolves his existing commitment, and persists both professional contributions.
+
+The case also has a four-hour village deadline and a self-recovery path if nobody completes coordinated care. No patient subsystem, job inventory, or generic work-order engine was added.
+
+After this slice is accepted, prefer the next dependency that adds a new kind of professional relationship to existing world state, rather than repeating the same two-step gate with different labels.

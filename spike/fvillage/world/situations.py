@@ -24,6 +24,7 @@ TRUNK_ID = "DM-Q-0001-WRONG-TRUNK"
 OBT_ID = "DM-Q-0017-OBTUARY"
 WELL_ID = "DM-Q-0018-WELL"
 WELL_MUSHROOM_WARNING_ID = "CIV-HEALTH-0001-WELL-MUSHROOMS"
+TAVERN_COLD_CARE_ID = "CIV-CARE-0002-COLD-HUNTER"
 TITHE_ID = "INC-0006-TITHE-STRONGBOX"
 TORN_CHRONICLE_ID = "INC-0008-TORN-CHRONICLE"
 
@@ -133,6 +134,40 @@ TEMPLATES = {
         "legend": (
             "The well warning becomes a small example of village professions "
             "depending on one another instead of claiming universal expertise."
+        ),
+    },
+    TAVERN_COLD_CARE_ID: {
+        "template_id": "civic-care-002",
+        "working_title": "Cold Hunter at Supper",
+        "content_family": "civic",
+        "canonical_status": "working content",
+        "spoiler_tier": 0,
+        "primary_location": "The Blood of the Vine",
+        "secondary_locations": ["Village Square"],
+        "involved_npcs": ["silas_crowe"],
+        "factions": [],
+        "calling_relevance": ["healer", "innkeep"],
+        "repeatability": "one-shot",
+        "hook": (
+            "Silas Crowe comes in from the damp evening shivering hard enough "
+            "that ordinary supper becomes a small village responsibility."
+        ),
+        "autonomy": {
+            "initial_deadline_hours": 4,
+            "left_alone": (
+                "Silas eventually warms on his own and goes home. No profession "
+                "receives credit for care and the tavern spends no reserved meal."
+            ),
+        },
+        "choices": {},
+        "evidence": {},
+        "inheritance": (
+            "Resident Life keeps Silas's physical state; the situation keeps "
+            "professional contributions and resource provenance."
+        ),
+        "legend": (
+            "A simple cold evening becomes proof that professional care can "
+            "cross callings without inventing a class quest ladder."
         ),
     },
     TITHE_ID: {
@@ -619,8 +654,10 @@ def surface_incident_feed(*, day=None, hour=None, max_active=1):
     registry = _registry()
     situations = copy.deepcopy(dict(registry.db.situations or {}))
     active = sum(
-        1 for situation in situations.values()
-        if dict(situation).get("state") in ACTIVE_STATES
+        1
+        for stable_id, situation in situations.items()
+        if dict(TEMPLATES.get(stable_id, {}).get("feed") or {})
+        and dict(situation).get("state") in ACTIVE_STATES
     )
     slots = max(0, int(max_active) - active)
     if not slots:

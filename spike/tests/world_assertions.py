@@ -1233,6 +1233,7 @@ from world.situations import (
     TITHE_ID,
     TORN_CHRONICLE_ID,
     WELL_MUSHROOM_WARNING_ID,
+    TAVERN_COLD_CARE_ID,
     TEMPLATES,
     advance_situations,
     choose,
@@ -1256,6 +1257,7 @@ assert set((situation_registry.db.situations or {}).keys()) == {
     TITHE_ID,
     TORN_CHRONICLE_ID,
     WELL_MUSHROOM_WARNING_ID,
+    TAVERN_COLD_CARE_ID,
 }
 situation_original = copy.deepcopy(dict(situation_registry.db.situations or {}))
 situation_metrics_original = copy.deepcopy(dict(situation_registry.db.metrics or {}))
@@ -1273,6 +1275,48 @@ assert get_situation(TRUNK_ID)["state"] == "dormant"
 assert get_situation(OBT_ID)["state"] == "dormant"
 assert get_situation(TITHE_ID)["state"] == "surfaced"
 assert get_situation(TORN_CHRONICLE_ID)["state"] == "dormant"
+assert get_situation(TAVERN_COLD_CARE_ID)["state"] == "surfaced"
+
+# The second structural interdependence case is already real world state at
+# build time. Resident Life owns Silas's condition and the situation owns only
+# case/provenance state. Unqualified masks cannot perform either profession.
+from world.tavern_care import (
+    care_status,
+    provide_innkeep_care,
+    submit_healer_care_assessment,
+)
+
+silas_care = one("Silas Crowe")
+cold_case = care_status()
+cold_mutations = dict(cold_case.get("objective_mutations") or {})
+assert cold_mutations["patient_initialized"]["resident_id"] == "silas_crowe"
+silas_body = dict((resident_state(silas_care)["life"].get("body") or {}))
+assert silas_body["cold"] >= 35
+assert silas_body["wet"] >= 30
+assert any(
+    item.get("key") == "warm_after_hunt"
+    and item.get("status") == "open"
+    for item in resident_state(silas_care)["life"].get("commitments") or []
+)
+care_unqualified = SimpleNamespace(
+    id=919999,
+    key="care_unqualified",
+    db=SimpleNamespace(),
+)
+blocked_assessment, blocked_assessment_error = submit_healer_care_assessment(
+    care_unqualified,
+    silas_care,
+)
+assert blocked_assessment is None
+assert "active healer calling" in blocked_assessment_error.lower()
+blocked_hospitality, blocked_hospitality_error = provide_innkeep_care(
+    care_unqualified,
+    silas_care,
+)
+assert blocked_hospitality is None
+assert "active innkeep calling" in blocked_hospitality_error.lower()
+assert care_status()["state"] == "surfaced"
+
 assert incident_feed_candidates() == [], (
     "dependent incident surfaced before its prerequisite aftermath"
 )
