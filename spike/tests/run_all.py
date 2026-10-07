@@ -111,6 +111,11 @@ def main() -> int:
                 cwd=checkout,
                 env=env,
             )
+            run(
+                [sys.executable, "spike/tests/resident_life_sim.py"],
+                cwd=checkout,
+                env=env,
+            )
             run([sys.executable, "spike/bootstrap.py"], cwd=checkout, env=env)
 
             evennia = venv_bin(checkout, "evennia")
