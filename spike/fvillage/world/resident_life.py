@@ -49,7 +49,8 @@ def profile_for(definition):
     # Existing runtime-canon and legacy-routine residents are deliberately
     # protected.  Resident Life v2 must not take control of authored quest NPCs.
     if (
-        definition.get("provenance") == "runtime_canon"
+        definition.get("stable_id") in AUTHORED_LOCKED_IDS
+        or definition.get("provenance") == "runtime_canon"
         or definition.get("schedule_engine") == "legacy"
     ):
         return PROFILE_AUTHORED_LOCKED
