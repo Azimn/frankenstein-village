@@ -34,8 +34,10 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         #
         # any commands you add below will overload the default ones.
         #
+        from commands.newcomer import CmdGuide
         from commands.village_cmds import CmdReport, CmdRumors, CmdRetell, CmdHarbinger, CmdChronicle, CmdJournal, CmdDecide, CmdWorldEvent, CmdSecrets, CmdMystery, CmdTheory, CmdTalk, CmdAsk, CmdRead, CmdTime, CmdCalendar, CmdListen, CmdSmell, CmdDiary, CmdPet, CmdThrow, CmdRoll, CmdDraw, CmdSit, CmdStand, CmdPlay, CmdPractice, CmdDuet, CmdScore, CmdEat, CmdDrink, CmdConfess, CmdOOCOverride, CmdICOverride, CmdExamine, CmdAssess, CmdCare, CmdRepair, CmdCalling, CmdPurse, CmdTake
 
+        self.add(CmdGuide())
         self.add(CmdReport())
         self.add(CmdRumors())
         self.add(CmdRetell())
