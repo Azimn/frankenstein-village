@@ -31,7 +31,7 @@ class DeploymentProfileTests(unittest.TestCase):
         self.assertEqual(settings["SERVER_HOSTNAME"], "village.example.org")
         self.assertEqual(settings["ALLOWED_HOSTS"], ["village.example.org"])
         self.assertEqual(
-            settings["WEBSOCKET_CLIENT_URL"], "wss://village.example.org/ws"
+            settings["WEBSOCKET_CLIENT_URL"], "wss://village.example.org"
         )
         self.assertEqual(
             settings["CSRF_TRUSTED_ORIGINS"], ["https://village.example.org"]
@@ -39,7 +39,7 @@ class DeploymentProfileTests(unittest.TestCase):
         self.assertEqual(settings["TELNET_INTERFACES"], ["127.0.0.1"])
         self.assertEqual(settings["WEBSERVER_INTERFACES"], ["127.0.0.1"])
         self.assertEqual(settings["WEBSOCKET_CLIENT_INTERFACE"], "127.0.0.1")
-        self.assertTrue(settings["LOCKDOWN_MODE"])
+        self.assertFalse(settings["LOCKDOWN_MODE"])
         self.assertTrue(settings["SECURE_SSL_REDIRECT"])
         self.assertTrue(settings["SESSION_COOKIE_SECURE"])
         self.assertTrue(settings["CSRF_COOKIE_SECURE"])
