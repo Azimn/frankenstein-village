@@ -13,10 +13,41 @@ from pathlib import Path
 
 from evennia import Command
 from evennia.commands.default.muxcommand import MuxCommand
-from evennia.commands.default.general import CmdLook
+from evennia.commands.default.general import CmdLook, CmdGet, CmdDrop, CmdGive
 
 
-class CmdExamine(CmdLook):
+class CmdVillageLook(CmdLook):
+    """Look at your surroundings, or at something closely.
+
+    Usage:
+        look
+        look <thing>
+
+    Observes your location or things in your vicinity. Travelers' fingers
+    type all kinds of things first — "look around" and "look at the
+    <thing>" are understood the same as "look" and "look <thing>".
+    """
+
+    key = "look"
+    help_category = "General"
+
+    def func(self):
+        args = (self.args or "").strip()
+        low = args.lower()
+        if low == "around":
+            # "look around" is just "look" with extra steps.
+            self.args = ""
+        elif low.startswith("at "):
+            # "look at the keeper" -> "look keeper". Strip a following
+            # "the " too; no scenery is ever named "the <x>".
+            rest = args[3:].strip()
+            if rest.lower().startswith("the "):
+                rest = rest[4:].strip()
+            self.args = rest
+        super().func()
+
+
+class CmdExamine(CmdVillageLook):
     """Look at something closely. (An alias for look, for travelers
     whose fingers type it first.)
 
@@ -26,6 +57,334 @@ class CmdExamine(CmdLook):
 
     key = "examine"
     aliases = ["exam", "ex"]
+
+
+def _singularize_word(word):
+    """Naive singularization for the newbie-fingers numbered-grammar fix
+    (build-loop #16d). Covers regular plural shapes only: "spoons" ->
+    "spoon", "watches" -> "watch", "stories" -> "story". Words that don't
+    look plural ("moss", "bread", "me") are returned unchanged. Irregular
+    plurals ("children", "feet") are out of scope — the player's original
+    wording is always tried first, so a miss here just falls through to
+    the normal not-found line."""
+    w = word.lower()
+    if w.endswith("ies") and len(w) > 3:
+        return w[:-3] + "y"
+    for end in ("sses", "shes", "ches", "xes", "zes"):
+        if w.endswith(end) and len(w) > len(end):
+            return w[:-2]
+    if w.endswith("s") and not w.endswith("ss") and len(w) > 1:
+        return w[:-1]
+    return w
+
+
+def _singularize(arg):
+    """Singularize each word of a player-typed object target."""
+    return " ".join(_singularize_word(w) for w in str(arg).split())
+
+
+def _quiet_stack_search(caller, arg, location=None, nofound_string=None,
+                        multimatch_string=None, stacked=0):
+    """Search quietly first; resolve identical stacks to one, quietly.
+
+    Build-loop #16c: Evennia's search wall ("You carry more than one
+    spoon") is right when the matches are genuinely different objects, but
+    two or more identical carried items (same key — "a cluster of
+    mushrooms", "a rough wooden spoon") are a stack, and the wall made
+    `drop spoon`, `get spoon`, and `give spoon to <x>` die. This
+    generalizes the #15 sell-mushrooms quiet-search-first pattern to
+    drop/get/give:
+
+    - search quiet=True first;
+    - a single match, or a numbered selection (`stacked`), passes through;
+    - a multi-match where every candidate shares the first candidate's key
+      is an identical stack: return just the first one, quietly;
+    - anything else (nothing found, or genuinely different objects):
+      re-run the search non-quietly so the player gets the normal wall or
+      the not-found line, and return None.
+    Build-loop #16d: before that last step, a plural->singular fallback
+    ("spoons" -> "spoon") handles numbered-grammar plurals ("get 2
+    spoons") that would otherwise die with "Could not find 'spoons'".
+    """
+    from evennia.utils import utils
+
+    found = caller.search(arg, location=location, quiet=True, stacked=stacked)
+    objs = list(utils.make_iter(found)) if found else []
+    if not objs:
+        # #16d: plural count phrasing — "get 2 spoons" searches "spoons",
+        # which matches no key (Evennia's fuzzy match needs a word
+        # starting with the query). Try the singularized form as a quiet
+        # fallback; the player's original wording is kept for the
+        # not-found line below, and behavior is unchanged whenever the
+        # original wording finds anything.
+        singular = _singularize(arg)
+        if singular != str(arg).lower():
+            found = caller.search(singular, location=location, quiet=True,
+                                  stacked=stacked)
+            objs = list(utils.make_iter(found)) if found else []
+    if stacked and objs:
+        # Numbered selection ("2 spoons", "spoon-2"): the search already
+        # resolved the count (identical stack or single match) — pass
+        # the result through unchanged.
+        return objs
+    if len(objs) == 1:
+        return objs
+    if objs and all(o.key == objs[0].key for o in objs[1:]):
+        # Identical stack: take the first one, quietly (the #15 pattern).
+        return [objs[0]]
+    # Nothing found, or genuinely different objects: re-run the search
+    # non-quietly so the player gets the normal not-found line or the
+    # disambiguation wall, and return None.
+    caller.search(arg, location=location, nofound_string=nofound_string,
+                  multimatch_string=multimatch_string, stacked=stacked)
+    return None
+
+
+class CmdVillageGet(CmdGet):
+    """Pick up something (identical stacks resolve quietly).
+
+    Usage:
+        get <obj>
+
+    Overloads Evennia's default get: when the match is a stack of
+    identical items ("get spoon" with two rough wooden spoons on the
+    ground), take one instead of dying on the search wall. Genuinely
+    ambiguous targets still get the wall. Everything else is the default
+    get, unchanged.
+    """
+
+    key = "get"
+    help_category = "General"
+
+    def func(self):
+        """Mirror of the parent CmdGet.func with the search swapped for
+        _quiet_stack_search (build-loop #16c)."""
+        caller = self.caller
+
+        if not self.args:
+            self.msg("Get what?")
+            return
+        objs = _quiet_stack_search(caller, self.args,
+                                   location=caller.location,
+                                   stacked=self.number)
+        if not objs:
+            return
+
+        if len(objs) == 1 and caller == objs[0]:
+            self.msg("You can't get yourself.")
+            return
+
+        # if we aren't allowed to get any of the objects, cancel the get
+        for obj in objs:
+            # check the locks
+            if not obj.access(caller, "get"):
+                if obj.db.get_err_msg:
+                    self.msg(obj.db.get_err_msg)
+                else:
+                    self.msg("You can't get that.")
+                return
+            # calling at_pre_get hook method
+            if not obj.at_pre_get(caller):
+                return
+
+        moved = []
+        # attempt to move all of the objects
+        for obj in objs:
+            if obj.move_to(caller, quiet=True, move_type="get"):
+                moved.append(obj)
+                # calling at_get hook method
+                obj.at_get(caller)
+
+        if not moved:
+            # none of the objects were successfully moved
+            self.msg("That can't be picked up.")
+        else:
+            obj_name = moved[0].get_numbered_name(len(moved), caller,
+                                                  return_string=True)
+            caller.location.msg_contents(
+                f"$You() $conj(pick) up {obj_name}.", from_obj=caller)
+
+
+class CmdVillageDrop(CmdDrop):
+    """Drop something (identical carried stacks resolve quietly).
+
+    Usage:
+        drop <obj>
+
+    Overloads Evennia's default drop: when the match is a stack of
+    identical carried items ("drop spoon" with two rough wooden spoons
+    in hand), drop one instead of dying on "You carry more than one
+    spoon". Genuinely ambiguous targets still get the wall. Everything
+    else is the default drop, unchanged.
+    """
+
+    key = "drop"
+    help_category = "General"
+
+    def func(self):
+        """Mirror of the parent CmdDrop.func with the search swapped for
+        _quiet_stack_search (build-loop #16c)."""
+        caller = self.caller
+        if not self.args:
+            caller.msg("Drop what?")
+            return
+
+        # Because the DROP command by definition looks for items
+        # in inventory, call the search function using location = caller
+        objs = _quiet_stack_search(
+            caller, self.args,
+            location=caller,
+            nofound_string=f"You aren't carrying {self.args}.",
+            multimatch_string=f"You carry more than one {self.args}:",
+            stacked=self.number,
+        )
+        if not objs:
+            return
+
+        # if any objects fail the drop permission check, cancel the drop
+        for obj in objs:
+            # Call the object's at_pre_drop() method.
+            if not obj.at_pre_drop(caller):
+                return
+
+        # do the actual dropping
+        moved = []
+        for obj in objs:
+            if obj.move_to(caller.location, quiet=True, move_type="drop"):
+                moved.append(obj)
+                # Call the object's at_drop() method.
+                obj.at_drop(caller)
+
+        if not moved:
+            # none of the objects were successfully moved
+            self.msg("That can't be dropped.")
+        else:
+            obj_name = moved[0].get_numbered_name(len(moved), caller,
+                                                  return_string=True)
+            caller.location.msg_contents(
+                f"$You() $conj(drop) {obj_name}.", from_obj=caller)
+
+
+class CmdVillageGive(CmdGive):
+    """Give something to someone (identical carried stacks resolve quietly).
+
+    Usage:
+        give <inventory obj> <to||=> <target>
+
+    Overloads Evennia's default give: when the match is a stack of
+    identical carried items ("give spoon to Bram" with two rough wooden
+    spoons in hand), give one instead of dying on the search wall.
+    Genuinely ambiguous targets still get the wall. Everything else is
+    the default give, unchanged.
+    """
+
+    key = "give"
+    help_category = "General"
+
+    def func(self):
+        """Mirror of the parent CmdGive.func with the search swapped for
+        _quiet_stack_search (build-loop #16c)."""
+        caller = self.caller
+        if not self.args or not self.rhs:
+            caller.msg("Usage: give <inventory object> = <target>")
+            return
+        # find the thing(s) to give away
+        to_give = _quiet_stack_search(
+            caller, self.lhs,
+            location=caller,
+            nofound_string=f"You aren't carrying {self.lhs}.",
+            multimatch_string=f"You carry more than one {self.lhs}:",
+            stacked=self.number,
+        )
+        if not to_give:
+            return
+        # find the target to give to
+        target = caller.search(self.rhs)
+        if not target:
+            return
+
+        singular, plural = to_give[0].get_numbered_name(len(to_give), caller)
+        if target == caller:
+            caller.msg(
+                f"You keep {plural if len(to_give) > 1 else singular} "
+                "to yourself.")
+            return
+
+        # if any of the objects aren't allowed to be given, cancel the give
+        for obj in to_give:
+            # calling at_pre_give hook method
+            if not obj.at_pre_give(caller, target):
+                return
+
+        # do the actual moving
+        moved = []
+        for obj in to_give:
+            if obj.move_to(target, quiet=True, move_type="give"):
+                moved.append(obj)
+                # Call the object's at_give() method.
+                obj.at_give(caller, target)
+
+        if not moved:
+            caller.msg(
+                f"You could not give that to "
+                f"{target.get_display_name(caller)}.")
+        else:
+            obj_name = to_give[0].get_numbered_name(len(moved), caller,
+                                                    return_string=True)
+            caller.msg(
+                f"You give {obj_name} to {target.get_display_name(caller)}.")
+            target.msg(
+                f"{caller.get_display_name(target)} gives you {obj_name}.")
+
+
+class CmdGo(Command):
+    """
+    Go somewhere, in words.
+
+    Usage:
+        go <direction or exit>
+
+    Newbie fingers type "go north" where veterans type "north" — both
+    work. "walk", "move", and "head" are the same verb. "go through
+    the door" and "go to the square" are forgiven their prepositions.
+    """
+
+    key = "go"
+    aliases = ["walk", "move", "head"]
+    help_category = "General"
+
+    def func(self):
+        hint = "Go where? Name a direction or an exit — go north, or just north."
+        if not self.args:
+            self.caller.msg(hint)
+            return
+        dest = self.args.strip()
+        low = dest.lower()
+        for prefix in ("to ", "through ", "toward ", "towards "):
+            if low.startswith(prefix):
+                dest = dest[len(prefix):].strip()
+                low = dest.lower()
+                break
+        # "go through the door" / "go to the square"
+        if low.startswith("the "):
+            dest = dest[4:].strip()
+        if not dest:
+            self.caller.msg(hint)
+            return
+        loc = self.caller.location
+        exits = list(loc.exits) if loc else []
+        exit_ids = {e.id for e in exits}
+        target = self.caller.search(dest, location=loc, quiet=True)
+        if isinstance(target, list):
+            cands = [t for t in target if t.id in exit_ids]
+            target = cands[0] if cands else None
+        if target is None or target.id not in exit_ids:
+            ways = ", ".join(e.key for e in exits) if exits else "no visible ways out"
+            self.caller.msg(f"You can't go that way. From here you can go: {ways}.")
+            return
+        # Re-run the parser with the bare exit name: exactly what the
+        # traveler would have typed, locks and threshold hooks included.
+        self.caller.execute_cmd(target.key)
 
 
 class CmdPurse(Command):
@@ -201,7 +560,7 @@ class CmdRumors(Command):
     """
 
     key = "rumors"
-    aliases = ["rumour", "gossip"]
+    aliases = ["rumour", "rumours", "gossip"]
     help_category = "Village"
 
     # How long one "talk of the tavern" lasts before the conversation
@@ -253,6 +612,19 @@ class CmdRumors(Command):
         )
 
 
+def _display_name(target):
+    """Name a talk/ask target without a mangled article.
+
+    Proper names ("M.", "Bram", "Lucian DeVille") take no article;
+    common nouns ("bowl of stew", "folded note") take "The". The rule
+    is deliberately naive: a leading capital means a name.
+    """
+    key = target.key
+    if key[:1].isupper():
+        return key
+    return f"The {key}"
+
+
 class CmdTalk(Command):
     """
     Talk to someone.
@@ -260,17 +632,29 @@ class CmdTalk(Command):
     Usage:
         talk <target>
 
-    Have a word with one of the village's residents.
+    Have a word with one of the village's residents. "talk to M."
+    works too — the "to" is forgiven.
     """
 
     key = "talk"
+    aliases = ["speak"]
     help_category = "Village"
 
     def func(self):
         if not self.args:
             self.caller.msg("Talk to whom?")
             return
-        target = self.caller.search(self.args.strip(), quiet=True)
+        args = self.args.strip()
+        # Newbie fingers type "talk to M." — forgive the preposition.
+        if args.lower().startswith("to "):
+            args = args[3:].strip()
+        # ... and "talk to the keeper".
+        if args.lower().startswith("the "):
+            args = args[4:].strip()
+        if not args:
+            self.caller.msg("Talk to whom?")
+            return
+        target = self.caller.search(args, quiet=True)
         # allow a list result from search
         if isinstance(target, list):
             targets = target
@@ -283,7 +667,7 @@ class CmdTalk(Command):
         # nonsense "<you> has nothing to say right now."
         targets = [t for t in targets if t != self.caller]
         if not targets:
-            self.caller.msg(f"You don't see '{self.args.strip()}' here.")
+            self.caller.msg(f"You don't see '{args}' here.")
             return
         target = targets[0]
         if hasattr(target, "talk_to"):
@@ -294,7 +678,7 @@ class CmdTalk(Command):
                 "try whispering to them instead."
             )
         else:
-            self.caller.msg(f"The {target.key} is silent.")
+            self.caller.msg(f"{_display_name(target)} is silent.")
 
 
 class CmdAsk(Command):
@@ -346,7 +730,7 @@ class CmdAsk(Command):
                 f"{target.key} is a fellow traveler — ask them with say or whisper."
             )
         else:
-            self.caller.msg(f"The {target.key} has nothing to say about that.")
+            self.caller.msg(f"{_display_name(target)} has nothing to say about that.")
 
 
 class CmdRead(Command):
@@ -633,6 +1017,19 @@ class CmdThrow(Command):
         loc.msg_contents(outcome, exclude=[])
 
 
+# Player-vs-player dice: challenge/accept flow, single throw each, ties
+# re-throw (max three, then the night keeps its own score). An optional
+# coin stake ("roll dice vs <player> for 5 kr") puts both purses on the
+# bar — winner takes the pot, and the win feeds the tavern rumor pool.
+# Honor games (no stake) cost nothing but pride. Bram caps the action
+# at _DICE_STAKE_CAP kr: the bar's not a bank.
+_DICE_KEEPER_NAMES = (
+    "keeper", "the keeper", "the tavern keeper",
+    "barkeep", "barkeeper", "bram",
+)
+_DICE_STAKE_CAP = 25  # house limit on a PvP throw, in kr
+
+
 class CmdRoll(Command):
     """
     Roll the bone dice.
@@ -640,10 +1037,14 @@ class CmdRoll(Command):
     Usage:
         roll dice
         roll dice vs keeper
+        roll dice vs <player> [for <n> kr]
+        roll dice answer
+        roll dice decline
 
     The dice cup lives behind the bar in the Tavern. Shake it on your
     own, or call out the keeper — two dice, high hand wins, and losers
-    buy the round. That's the house rule.
+    buy the round. That's the house rule. Or call out another player:
+    honor, or copper on the bar.
     """
 
     key = "roll"
@@ -663,6 +1064,12 @@ class CmdRoll(Command):
                 "Roll what? The dice cup's behind the bar in the Tavern. "
                 "(Try: roll dice.)"
             )
+            return
+        if arg in ("dice accept", "dice answer"):
+            self._answer_dice()
+            return
+        if arg == "dice decline":
+            self._decline_dice()
             return
         # The keeper notices who plays.
         for obj in loc.contents:
@@ -704,6 +1111,19 @@ class CmdRoll(Command):
         self.caller.location.msg_contents(f"{shake} {rest}", exclude=[])
 
     def _duel(self, target):
+        # Optional coin stake: "rs_tester2 for 5 kr".
+        stake = 0
+        name = target
+        m = re.search(r"\bfor\s+(\d+)\s*(?:kr)?\s*$", target)
+        if m:
+            stake = int(m.group(1))
+            name = target[: m.start()].strip()
+        if name in _DICE_KEEPER_NAMES:
+            self._keeper_duel()
+        else:
+            self._challenge_dice(name, stake)
+
+    def _keeper_duel(self):
         keeper = None
         for obj in self.caller.location.contents:
             if obj.key == "Bram":
@@ -720,16 +1140,6 @@ class CmdRoll(Command):
                 "Bram folds his arms. 'You still owe the house a round, "
                 "friend. Buy a drink and we'll call it even — then we'll "
                 "talk dice.'"
-            )
-            return
-        if target not in (
-            "keeper", "the keeper", "the tavern keeper",
-            "barkeep", "barkeeper",
-        ):
-            self.caller.msg(
-                "The keeper raises an eyebrow. 'Dice is a two-hand "
-                "game, and my hands are the ones behind this bar. "
-                "Against me, or on your own.'"
             )
             return
         from evennia.contrib.rpg.dice import roll as roll_bones
@@ -802,6 +1212,264 @@ class CmdRoll(Command):
             )
         self.caller.location.msg_contents(
             f"{opener}\n{outcome}", exclude=[]
+        )
+
+    def _challenge_dice(self, name, stake):
+        import time
+
+        me = self.caller
+        loc = me.location
+        if not name:
+            me.msg("Throw dice against whom? (Try: roll dice vs <player>.)")
+            return
+        if stake > _DICE_STAKE_CAP:
+            me.msg(
+                f"Bram shakes his head. 'House limit's {_DICE_STAKE_CAP} kr "
+                "on a throw, friend. The bar's not a bank.'"
+            )
+            return
+        if stake and (me.db.dice_debts or 0) > 0:
+            me.msg(
+                "Bram folds his arms. 'You still owe the house a round, "
+                "friend. Settle up before you put copper on the bar.'"
+            )
+            return
+        if stake and purse_of(me) < stake:
+            me.msg(
+                f"Your purse won't cover {fmt_coins(stake)} — the game's "
+                "off before it starts."
+            )
+            return
+        target = me.search(name, quiet=True)
+        if isinstance(target, list):
+            target = target[0] if target else None
+        if not target or not hasattr(target, "db"):
+            me.msg(f"'{name.strip()}' isn't here to throw dice against.")
+            return
+        if target == me:
+            me.msg("Dice against yourself? Even the cat won't watch that.")
+            return
+        if not getattr(target, "account", None):
+            # NPCs (the cat, anyone unplayed) can't hold up their end.
+            me.msg(
+                f"{target.key} can't answer that — challenge one of "
+                "the living."
+            )
+            return
+        if target.db.dice_invite:
+            other = (target.db.dice_invite or {}).get("from", "someone")
+            me.msg(
+                f"{target.key} already has dice on the table with {other} "
+                "— let them answer first."
+            )
+            return
+        target.db.dice_invite = {
+            "from": me.key, "at": time.time(), "stake": stake}
+        tkey = target.key
+        if stake:
+            line = (
+                f"{me.key} slides the dice cup across the bar to {tkey}. "
+                f"'Dice — {fmt_coins(stake)} a hand, high hand takes it. "
+                "You in?'"
+            )
+            prompt = (
+                f"{me.key} challenges you to dice for {fmt_coins(stake)}. "
+                "(roll dice answer / roll dice decline)"
+            )
+        else:
+            line = (
+                f"{me.key} slides the dice cup across the bar to {tkey}. "
+                "'Dice. Two bones, high hand. You in?'"
+            )
+            prompt = (
+                f"{me.key} challenges you to dice. "
+                "(roll dice answer / roll dice decline)"
+            )
+        loc.msg_contents(line)
+        target.msg(prompt)
+
+    def _answer_dice(self):
+        import time
+
+        from evennia.contrib.rpg.dice import roll as roll_bones
+
+        me = self.caller
+        loc = me.location
+        invite = me.db.dice_invite
+        if not invite:
+            me.msg("No one's challenged you to dice.")
+            return
+        me.db.dice_invite = None
+        inv = dict(invite)
+        if time.time() - float(inv.get("at", 0)) > _CHALLENGE_TTL:
+            me.msg("That challenge's gone cold.")
+            return
+        challenger = me.search(inv.get("from", ""), quiet=True)
+        if isinstance(challenger, list):
+            challenger = challenger[0] if challenger else None
+        if (
+            not challenger
+            or challenger.location != loc
+            or not hasattr(challenger, "db")
+        ):
+            me.msg("The challenger's moved on — the game's gone cold.")
+            return
+        stake = int(inv.get("stake", 0) or 0)
+        # Crossed challenges collapse into the one game.
+        if (challenger.db.dice_invite or {}).get("from") == me.key:
+            challenger.db.dice_invite = None
+        # Copper on the bar: both purses, both debts — checked now,
+        # because purses move between challenge and answer.
+        if stake:
+            owing = next(
+                (p for p in (me, challenger)
+                 if (p.db.dice_debts or 0) > 0),
+                None,
+            )
+            if owing is not None:
+                loc.msg_contents(
+                    "Bram folds his arms. 'Debts to the house first — "
+                    "settle your round, then throw.'"
+                )
+                return
+            light = next(
+                (p for p in (me, challenger) if purse_of(p) < stake),
+                None,
+            )
+            if light is not None:
+                loc.msg_contents(
+                    "Bram counts the copper twice and shakes his head. "
+                    f"'{light.key}'s purse came up light. The game's off.'"
+                )
+                return
+            challenger.db.coins_kr = purse_of(challenger) - stake
+            me.db.coins_kr = purse_of(me) - stake
+        keeper = None
+        for obj in loc.contents:
+            if obj.key == "Bram":
+                keeper = obj
+                break
+        if keeper is not None:
+            if stake:
+                loc.msg_contents(
+                    "Bram rakes the cup to the middle of the bar and "
+                    f"counts the copper twice. '{fmt_coins(stake)} a hand, "
+                    "both purses on the bar. Two dice apiece, high hand "
+                    "takes the pot.'"
+                )
+            else:
+                loc.msg_contents(
+                    "Bram rakes the cup to the middle of the bar. 'Honor, "
+                    "then — no copper on it. Two dice apiece, high hand "
+                    "takes the bragging.'"
+                )
+            keeper.note_interest(challenger, "dice")
+            keeper.note_interest(me, "dice")
+        else:
+            loc.msg_contents(
+                "The dice cup sits in the middle of the bar. Two dice "
+                "apiece, high hand takes it."
+            )
+        cat = next(
+            (o for o in loc.contents if o.key == "the tavern cat"), None
+        )
+        if cat is not None:
+            loc.msg_contents(
+                "The tavern cat opens one eye at the rattle of bone, "
+                "then thinks better of it."
+            )
+        ckey, mkey = challenger.key, me.key
+        throws = 0
+        while True:
+            _, _, _, cbones = roll_bones(2, 6, return_tuple=True)
+            _, _, _, mbones = roll_bones(2, 6, return_tuple=True)
+            ctot = int(cbones[0]) + int(cbones[1])
+            mtot = int(mbones[0]) + int(mbones[1])
+            throws += 1
+            loc.msg_contents(
+                f"{ckey} shakes and throws — a {int(cbones[0])} and a "
+                f"{int(cbones[1])}, {ctot} all told. "
+                f"{mkey} takes the cup — a {int(mbones[0])} and a "
+                f"{int(mbones[1])}, {mtot}."
+            )
+            if ctot != mtot:
+                break
+            if throws >= 3:
+                break
+            if keeper is not None:
+                loc.msg_contents(
+                    f"Both show {ctot}. Bram bares his teeth. 'The dice "
+                    "aren't finished arguing. Again.'"
+                )
+            else:
+                loc.msg_contents(
+                    f"Both show {ctot}. The dice aren't finished "
+                    "arguing — throw again."
+                )
+        if ctot == mtot:
+            # Three ties: the night keeps its own score; stakes returned.
+            if stake:
+                challenger.db.coins_kr = purse_of(challenger) + stake
+                me.db.coins_kr = purse_of(me) + stake
+            if keeper is not None:
+                loc.msg_contents(
+                    "Three throws, three ties. Bram pushes the copper "
+                    "back across the bar. 'The night keeps its own score. "
+                    "Drink up.'"
+                )
+            else:
+                loc.msg_contents(
+                    "Three throws, three ties. The copper goes back in "
+                    "the purses. The night keeps its own score."
+                )
+            return
+        winner = challenger if ctot > mtot else me
+        loser = me if ctot > mtot else challenger
+        wkey, lkey = winner.key, loser.key
+        wtot, ltot = (ctot, mtot) if ctot > mtot else (mtot, ctot)
+        if stake:
+            pot = 2 * stake
+            winner.db.coins_kr = purse_of(winner) + pot
+            ale = TAVERN_PRICES["ale"]
+            loc.msg_contents(
+                f"The dice settle — {wkey} {wtot}, {lkey} {ltot}. {wkey} "
+                f"takes the pot: {fmt_coins(pot)}. Bram slides the copper "
+                f"across the bar. '{lkey} — the ale's still "
+                f"{fmt_coins(ale)}. Drown it properly.'"
+            )
+            try:
+                from world.events import publish_world_event
+
+                publish_world_event(
+                    "dice-duel",
+                    actor=winner,
+                    payload={"winner": wkey, "loser": lkey,
+                             "stake_kr": stake},
+                    rumor=(
+                        f"{wkey} beat {lkey} at dice for "
+                        f"{fmt_coins(stake)} a hand, at the bar."
+                    ),
+                )
+            except Exception:
+                pass
+        else:
+            loc.msg_contents(
+                f"The dice settle — {wkey} {wtot}, {lkey} {ltot}. {wkey} "
+                f"takes it. The bar raises a cup to {lkey}, and the night "
+                "moves on."
+            )
+
+    def _decline_dice(self):
+        me = self.caller
+        invite = me.db.dice_invite
+        if not invite:
+            me.msg("No one's challenged you to dice.")
+            return
+        me.db.dice_invite = None
+        inviter = dict(invite).get("from", "someone")
+        me.location.msg_contents(
+            f"{me.key} pushes the cup back toward {inviter}. 'Another "
+            "night — my luck's still out walking.'"
         )
 
 
@@ -1962,6 +2630,12 @@ class CmdSit(Command):
             f"{self.caller.key} sits down {phrase}.",
             exclude=[self.caller],
         )
+        # Backlog #10: NPCs notice sitting. Typeclasses carry the
+        # behavior — the command just offers the moment.
+        for obj in list(self.caller.location.contents):
+            notice = getattr(obj, "notice_sitting", None)
+            if callable(notice):
+                notice(self.caller, target.key)
 
 
 class CmdStand(Command):
@@ -2148,6 +2822,118 @@ def _pay_for_fare(caller, item):
             "We're even.\""
         )
     return True, price
+
+
+# --- the earning loop: Bram buys -------------------------------------------
+# The village's first way to earn coin rather than spend it: Bram buys
+# clusters of the well mushrooms for the stew pot, 4 krajczár each — the
+# price of bread, chalked on the board. The spec lives here so the build
+# script (world/build_spike.py) and the sell command share one source of
+# truth; the command regrows the square's cluster after a sale.
+MUSHROOM_BUY_KR = 4
+# Bram's basket holds five clusters a village-day — the friction on the
+# pick -> sell -> regrow loop (build-backlog #14). Keyed off the village
+# clock's day counter so the basket is full again "tomorrow" without
+# anyone having to remember to empty it; a rebuild never resets it
+# mid-session (same standing rule as db.servings).
+MUSHROOM_BASKET_CAP = 5
+
+
+def _basket_today(keeper):
+    """Return (day, count) of today's mushroom buys for Bram.
+
+    Rolls over at midnight: a stale basket belongs to a past day, so it
+    starts the count at zero. The basket lives on the keeper so a rebuild
+    can never silently wipe a day's honest limit.
+    """
+    from evennia.scripts.models import ScriptDB
+
+    try:
+        today = ScriptDB.objects.get(db_key="village_time").db.day or 1
+    except Exception:
+        today = 1
+    basket = keeper.db.mushroom_basket
+    # Stored attribute dicts come back as Evennia _SaverDict — a
+    # MutableMapping, NOT a dict subclass — so duck-type the shape instead
+    # of isinstance-checking (2026-10-05: isinstance(basket, dict) was False
+    # for _SaverDict and silently zeroed the count on every read).
+    try:
+        bday = basket.get("day")
+        bcount = basket.get("count", 0)
+    except AttributeError:
+        bday, bcount = None, 0
+    if bday != today:
+        return today, 0
+    return today, bcount or 0
+
+WELL_MUSHROOMS_DESC = (
+    "A cluster of pale mushrooms pushing up where the well's damp stones "
+    "meet the cobbles. Some are kind and some are not, and only somebody's "
+    "grandmother could name each one with confidence."
+)
+
+WELL_MUSHROOMS_CONSUME = {
+    "nourish": 5,
+    "toxic": 25,
+    "flavor": "You eat a cap. Earthy at first, peppery after — and then "
+              "your stomach files a formal complaint. The square has two "
+              "of everything for a while.",
+    "room": "eats one of the well mushrooms, and goes a remarkable shade "
+            "of green.",
+    "surprises": [
+        {"chance": 25, "key": "kind",
+         "text": "A kind one — earthy, peppery, entirely friendly. This "
+                 "time. Your stomach only grumbles a little.",
+         "room": "eats a well mushroom, and looks relieved to be fine."},
+        {"chance": 30, "key": "unkind",
+         "text": "The cap is peppery going down and mutinous coming back. "
+                 "You sit down on the damp stones and wait for the world "
+                 "to settle.",
+         "room": "eats a well mushroom and has to sit down on the damp "
+                 "stones.",
+         "rumor": "Someone ate the mushrooms by the well and spent the "
+                  "afternoon green. The keeper's expression did not change.",
+         "effect": "queasy"},
+    ],
+}
+
+
+def ensure_well_mushrooms():
+    """The well's damp stones always grow mushrooms — re-sync the stand-in.
+
+    Creates the cluster on the square if none is there; never duplicates.
+    Used by the build script and by CmdSell (a sale leaves the square
+    bare, and the well regrows). Returns the object.
+
+    The spike's Object typeclass (typeclasses.objects.Object) carries the
+    stacked-name grammar fix (build-loop #16: "two clusters of
+    mushrooms", not "two a clusters of mushrooms"); legacy DefaultObject
+    clusters are migrated in place.
+    """
+    from evennia.utils import create, search
+
+    SPIKE_ITEM = "typeclasses.objects.Object"
+    wells = search.search_object("village well")
+    square = wells[0].location if wells else None
+    if square:
+        found = [
+            o for o in square.contents
+            if o.key == "a cluster of mushrooms"
+        ]
+        if found:
+            if found[0].typeclass_path != SPIKE_ITEM:
+                found[0].swap_typeclass(SPIKE_ITEM, clean_attributes=False)
+            return found[0]
+    mushrooms = create.create_object(
+        SPIKE_ITEM,
+        key="a cluster of mushrooms", location=square,
+        aliases=["mushrooms", "cluster", "toadstools"],
+    )
+    mushrooms.db.desc = WELL_MUSHROOMS_DESC
+    mushrooms.tags.add("consumable")
+    mushrooms.tags.add("food")  # the eat gate
+    mushrooms.db.consume = WELL_MUSHROOMS_CONSUME
+    return mushrooms
 
 
 def _fare_short(item):
@@ -2403,6 +3189,801 @@ class CmdDrink(Command):
             self.caller.msg(
                 f"({fmt_coins(price)} — purse: {fmt_coins(purse_of(self.caller))}.)"
             )
+
+
+class CmdSell(Command):
+    """
+    Sell foraged goods to Bram.
+
+    Usage:
+        sell mushrooms
+
+    The village's first earning loop: Bram buys clusters of the well
+    mushrooms for the stew pot — 4 krajczár each, chalked on the board.
+    Pick a cluster at the square, bring it to the Blood of the Vine, and
+    sell. The well grows more. Bram's basket holds five a village-day.
+    """
+
+    key = "sell"
+    help_category = "Village"
+
+    def func(self):
+        loc = self.caller.location
+        if not loc or not loc.tags.has("tavern", category="place"):
+            self.caller.msg(
+                "Sell them to whom? Bram buys behind the bar in the Tavern."
+            )
+            return
+        keeper = next((o for o in loc.contents if o.key == "Bram"), None)
+        if keeper is None:
+            self.caller.msg("Bram's not behind the bar just now.")
+            return
+        arg = (self.args or "").strip().lower()
+        if not any(w in arg for w in ("mushroom", "toadstool", "cluster")):
+            self.caller.msg(
+                "Bram wipes a glass. \"Bring me mushrooms and I'll pay for "
+                "them. That's the whole of my buying.\""
+            )
+            return
+        found = self.caller.search(arg, quiet=True)
+        if isinstance(found, list):
+            candidates = found
+        elif found:
+            candidates = [found]
+        else:
+            candidates = []
+        # Sell the first carried well-mushroom cluster: two or more carried
+        # used to hit search disambiguation ("More than one match") and the
+        # sale died silently (build-backlog #15).
+        item = next(
+            (
+                o
+                for o in candidates
+                if o.key == "a cluster of mushrooms"
+                and o.location is self.caller
+            ),
+            None,
+        )
+        if item is None:
+            if candidates:
+                self.caller.msg(
+                    "Bram glances over. \"Those aren't the well mushrooms. I "
+                    "only pay for the well mushrooms — pick a cluster at the "
+                    "square.\""
+                )
+            else:
+                self.caller.msg("You aren't carrying anything like that.")
+            return
+        till = keeper.db.till_kr
+        if till is None:
+            till = 50  # the house float
+            keeper.db.till_kr = till
+        today, bought = _basket_today(keeper)
+        if bought >= MUSHROOM_BASKET_CAP:
+            self.caller.msg(
+                "Bram pats the basket and shakes his head. \"Basket's full "
+                "for today, friend. The pot's got enough. Bring more "
+                "tomorrow.\""
+            )
+            return
+        if till < MUSHROOM_BUY_KR:
+            self.caller.msg(
+                "Bram pats his till and shakes his head. \"Till's light, "
+                "friend. Buy a drink — or come back when the house has "
+                "taken more coin.\""
+            )
+            return
+        keeper.db.till_kr = till - MUSHROOM_BUY_KR
+        keeper.db.mushroom_basket = {"day": today, "count": bought + 1}
+        purse = purse_of(self.caller)
+        self.caller.db.coins_kr = purse + MUSHROOM_BUY_KR
+        if hasattr(keeper, "note_interest"):
+            keeper.note_interest(self.caller, "mushrooms")
+        item.delete()
+        ensure_well_mushrooms()
+        name = self.caller.key
+        self.caller.msg(
+            "Bram turns the cluster over in his palm, sniffing. \"For the "
+            "pot.\" He slides four krajczár across the bar. \"Some are kind "
+            "and some are not — your grandmother'd know the kind from the "
+            "unkind. She isn't here, so we'll trust the soup.\"\n"
+            f"({fmt_coins(MUSHROOM_BUY_KR)} — purse: "
+            f"{fmt_coins(purse + MUSHROOM_BUY_KR)}.)"
+        )
+        loc.msg_contents(
+            f"{name} sells Bram a cluster of well mushrooms. Four krajczár "
+            "slide across the bar, and the keeper drops the cluster into "
+            "a basket bound for the pot.",
+            exclude=[self.caller],
+        )
+
+
+# -- Whittling ---------------------------------------------------------------
+# The hearthside hobby: a basket of whittling sticks by the tavern hearth,
+# `whittle <spoon|whistle|horse|comb>`, three sessions to finish a piece.
+# Solo work, visible to spectators; finished pieces carry tags
+# ("whittled", "crafted") and a maker so the later crafting chains have
+# something to consume. Quality is count-gated (rough < 3, neat < 6,
+# fine after) — the lightest possible version of the fiddle's mastery
+# loop: rank changes the text, not just the score.
+
+_WHITTLE_SESSIONS = 3
+
+
+def whittle_quality(finished_count):
+    """Named quality for finished whittling, by pieces completed."""
+    finished_count = int(finished_count or 0)
+    if finished_count >= 6:
+        return "fine"
+    if finished_count >= 3:
+        return "neat"
+    return "rough"
+
+
+_WOODWORK = {
+    "spoon": {
+        "word": "spoon",
+        "start": "You take a straight stick from the basket by the hearth "
+                 "and settle in. A spoon — the village is never short of "
+                 "soup, and never long on spoons.",
+        "stages": [
+            "Shavings curl off the stick like pale ribbon. One end thins, "
+            "the other swells — a spoon's shape, if you're generous.",
+            "You hollow the bowl with the knife's tip, patient as "
+            "January. The grain runs true and doesn't fight you.",
+            "A last run of smoothing strokes along the handle. The knife "
+            "has stopped arguing; the spoon knows what it is now.",
+        ],
+        "finish": None,  # resolved by _whittle_finish_line below
+        "made": "a {q} wooden spoon",
+        "note": "The bowl is a touch lopsided; it will serve soup faithfully.",
+    },
+    "whistle": {
+        "word": "whistle",
+        "start": "You take a short stick from the basket by the hearth. "
+                 "A whistle — for the walk home, or for unsettling the cat.",
+        "stages": [
+            "You bore the stick's heart out with the knife's point, and it "
+            "takes it without splitting. Good wood.",
+            "The notch goes in with two careful cuts. You test the lip "
+            "against your thumb — the shape's nearly there.",
+            "One more shaving off the mouthpiece. The whistle looks ready "
+            "to sing.",
+        ],
+        "finish": None,
+        "made": "a {q} wooden whistle",
+        "note": "The mouthpiece is shaped for a tune nobody's taught it yet.",
+    },
+    "horse": {
+        "word": "horse",
+        "start": "You take a crooked stick from the basket by the hearth — "
+                 "the kind with opinions. A horse.",
+        "stages": [
+            "The knife finds four legs in the stick, roughly, the way a "
+            "cloud finds a ship. Close enough to ride.",
+            "A neck rises out of the shavings. The ears come next, two "
+            "quick flicks of the wrist, and it stops being a stick.",
+            "You notch a mane and round the hooves. It stands — mostly. "
+            "Horses stand, and so does this one.",
+        ],
+        "finish": None,
+        "made": "a {q} little wooden horse",
+        "note": "Four legs, a neck, two ears, and the confidence of a much "
+                "larger animal.",
+    },
+    "comb": {
+        "word": "comb",
+        "start": "You take a flat stick from the basket by the hearth. "
+                 "A comb — plain work, and everybody wants one.",
+        "stages": [
+            "You saw the teeth in with patient little cuts, one for each "
+            "notch of the day you've had.",
+            "The teeth stand in a row now, uneven as a village choir. "
+            "Another pass evens them.",
+            "A final rounding of the back so it won't snag. The teeth are "
+            "true enough to trust.",
+        ],
+        "finish": None,
+        "made": "a {q} wooden comb",
+        "note": "The teeth stand in a patient row, true enough to trust.",
+    },
+}
+
+_WHITTLE_FINISH = {
+    "spoon": "You hold up the spoon: {q} work, and yours from first cut "
+             "to last.",
+    "whistle": {
+        "rough": "You blow, softly: the whistle gives a hoarse, honest peep.",
+        "neat": "You blow, softly: the whistle answers clear as a wren.",
+        "fine": "You blow, softly: the whistle sings like a bird with opinions.",
+    },
+    "horse": {
+        "rough": "You set the horse on the hearthstone. It stands, leaning "
+                 "a little left, the way tired horses do.",
+        "neat": "You set the horse on the hearthstone. It stands square, "
+                "head up, ready for imaginary roads.",
+        "fine": "You set the horse on the hearthstone. It stands somehow "
+                "mid-gallop, though its hooves don't move.",
+    },
+    "comb": {
+        "rough": "You test it once, drawing it through your hair. It "
+                 "catches — honest work, not gentle work.",
+        "neat": "You test it once, drawing it through your hair. It "
+                "glides, catching only once.",
+        "fine": "You test it once, drawing it through your hair. It "
+                "glides like water over stone.",
+    },
+}
+
+_WHITTLE_QUALITY_NOTES = {
+    "rough": "The cuts show, honest and uneven — first work, and the "
+             "village forgives first work.",
+    "neat": "The lines are clean, the edges smoothed — somebody took "
+             "their time.",
+    "fine": "Smooth as river stone, the grain shining through — patient "
+             "hands made this.",
+}
+
+
+def _whittle_finish_line(piece, quality):
+    tmpl = _WHITTLE_FINISH[piece]
+    if isinstance(tmpl, dict):
+        return tmpl[quality]
+    return tmpl.format(q=quality)
+
+
+class CmdWhittle(Command):
+    """
+    Whittling — the hearthside hobby.
+
+    Usage:
+        whittle <spoon|whistle|horse|comb>
+        whittle                (continue what you're carving)
+        whittle abandon        (feed the half-made piece to the fire)
+
+    Take a stick from the basket by the tavern hearth and carve. Three
+    sessions of whittling finish a piece, which goes into your hands —
+    tagged for the crafting chains to come. Bram notices who whittles.
+    """
+
+    key = "whittle"
+    help_category = "Village"
+
+    def func(self):
+        loc = self.caller.location
+        if not loc or not loc.tags.has("tavern", category="place"):
+            self.caller.msg(
+                "Whittle what, where? The whittling basket is by the hearth "
+                "in the Tavern."
+            )
+            return
+        arg = (self.args or "").strip().lower()
+        name = self.caller.key
+        cur = dict(self.caller.db.whittle or {})
+
+        if arg == "abandon":
+            if not cur.get("piece"):
+                self.caller.msg("You're not whittling anything.")
+                return
+            word = _WOODWORK[cur["piece"]]["word"]
+            self.caller.db.whittle = None
+            self.caller.msg(
+                f"The half-carved {word} goes into the hearth. The fire "
+                "takes it without comment."
+            )
+            loc.msg_contents(
+                f"{name} tosses a half-carved {word} into the hearth.",
+                exclude=[self.caller],
+            )
+            return
+
+        piece = None
+        if arg:
+            for key in _WOODWORK:
+                if key in arg or arg in key:
+                    piece = key
+                    break
+        cur_piece = cur.get("piece")
+        if piece and cur_piece and piece != cur_piece:
+            cur_word = _WOODWORK[cur_piece]["word"]
+            self.caller.msg(
+                f"You're already carving a {cur_word}. One thing at a "
+                "time — see it through, or `whittle abandon` to feed it "
+                "to the fire."
+            )
+            return
+
+        # The keeper notices who whittles.
+        keeper = None
+        for obj in loc.contents:
+            if obj.key == "Bram" and hasattr(obj, "note_interest"):
+                obj.note_interest(self.caller, "whittling")
+                keeper = obj
+                break
+
+        if not cur_piece:
+            if not piece:
+                self.caller.msg(
+                    "Whittle what? The basket by the hearth holds sticks "
+                    "for spoons, whistles, horses, and combs. "
+                    "(Try: whittle spoon.)"
+                )
+                return
+            cur = {"piece": piece, "sessions": 1}
+            self.caller.db.whittle = cur
+            self.caller.msg(
+                _WOODWORK[piece]["start"] + "\n"
+                + _WOODWORK[piece]["stages"][0]
+            )
+            loc.msg_contents(
+                f"{name} settles by the hearth with a stick and a knife, "
+                "and begins to whittle.",
+                exclude=[self.caller],
+            )
+            return
+
+        sessions = int(cur.get("sessions", 0)) + 1
+        if sessions >= _WHITTLE_SESSIONS:
+            self._finish(cur_piece, keeper)
+            return
+        cur["sessions"] = sessions
+        self.caller.db.whittle = cur
+        word = _WOODWORK[cur_piece]["word"]
+        self.caller.msg(
+            _WOODWORK[cur_piece]["stages"][sessions - 1]
+            + f" (The {word} is taking shape — whittle on.)"
+        )
+        loc.msg_contents(
+            f"{name} whittles on — pale shavings curling down onto the "
+            "hearthstones.",
+            exclude=[self.caller],
+        )
+
+    def _finish(self, piece, keeper):
+        from evennia.utils import create
+
+        loc = self.caller.location
+        name = self.caller.key
+        finished = int(self.caller.db.whittle_done or 0)
+        quality = whittle_quality(finished)
+        spec = _WOODWORK[piece]
+        key = spec["made"].format(q=quality)
+        desc = (
+            f"{key[0].upper() + key[1:]}, whittled by {name}. "
+            f"{spec['note']} {_WHITTLE_QUALITY_NOTES[quality]}"
+        )
+        obj = create.create_object(
+            # Build-loop #16b: the spike Object typeclass carries the
+            # stacked-name grammar fix ("two rough wooden spoons", not
+            # "two a rough wooden spoons") for identical carried pieces.
+            "typeclasses.objects.Object",
+            key=key, location=self.caller,
+            aliases=[spec["word"], f"whittled {spec['word']}",
+                     f"wooden {spec['word']}"],
+        )
+        obj.db.desc = desc
+        obj.tags.add("whittled", category="craft")
+        obj.tags.add("crafted", category="craft")
+        obj.db.made_by = name
+        obj.db.quality = quality
+        self.caller.db.whittle = None
+        self.caller.db.whittle_done = finished + 1
+        self.caller.msg(_whittle_finish_line(piece, quality))
+        loc.msg_contents(
+            f"{name} holds up the finished {spec['word']}.",
+            exclude=[self.caller],
+        )
+
+
+# -- Whistle toot ------------------------------------------------------------
+# The finished whistle should sound. `toot` / `blow whistle` finds a
+# carried, finished whittled whistle and voices its quality line
+# (already heard once at the finish bench) — now as a second instrument
+# voice in the music/attunement loop, spectator-visible. The tavern cat
+# reacts per quality, paying off the basket line about "unsettling the
+# cat"; Bram notes "whistling" for returnee greetings.
+
+_WHISTLE_TOOT_SPECTATOR = {
+    "rough": "toots a rough wooden whistle — a hoarse, honest peep.",
+    "neat": "lifts a neat wooden whistle — it answers clear as a wren.",
+    "fine": "lifts a fine wooden whistle — and it sings like a bird with opinions.",
+}
+
+_WHISTLE_CAT = {
+    "rough": "The tavern cat opens one eye, decides this is beneath it, "
+             "and closes it again.",
+    "neat": "The tavern cat's ears come up, curious, following the note.",
+    "fine": "The tavern cat sits bolt upright, tail straight, like it has "
+            "been called to something it cannot name.",
+}
+
+
+class CmdToot(Command):
+    """
+    Toot.
+
+    Usage:
+        toot
+        blow whistle
+
+    Lift a finished, whittled whistle you carry and blow it. The sound
+    is the whistle's quality — rough peeps, neat rings, fine sings.
+    Works anywhere; the tavern cat notices.
+    """
+
+    key = "toot"
+    aliases = ["blow whistle"]
+    help_category = "Village"
+
+    def func(self):
+        loc = self.caller.location
+        name = self.caller.key
+        whistle = None
+        for obj in self.caller.contents:
+            if not obj.tags.has("whittled", category="craft"):
+                continue
+            if "whistle" in obj.key.lower() or any(
+                "whistle" in a.lower() for a in obj.aliases.all()
+            ):
+                whistle = obj
+                break
+        if whistle is None:
+            self.caller.msg(
+                "You've no whistle to blow. The basket by the tavern "
+                "hearth holds sticks — `whittle whistle` starts one."
+            )
+            return
+        quality = str(whistle.db.quality or "rough")
+        if quality not in _WHITTLE_FINISH["whistle"]:
+            quality = "rough"
+        self.caller.msg(_WHITTLE_FINISH["whistle"][quality])
+        if loc:
+            loc.msg_contents(
+                f"{name} {_WHISTLE_TOOT_SPECTATOR[quality]}",
+                exclude=[self.caller],
+            )
+            cat = None
+            keeper = None
+            for obj in loc.contents:
+                if obj.key == "the tavern cat":
+                    cat = obj
+                elif obj.key == "Bram" and hasattr(obj, "note_interest"):
+                    keeper = obj
+            if cat is not None:
+                loc.msg_contents(_WHISTLE_CAT[quality])
+            if keeper is not None:
+                keeper.note_interest(self.caller, "whistling")
+
+
+# -- arm wrestling ------------------------------------------------------
+# Confrontation-lite: a social bout at the usual table in the Tavern.
+# Challenge/accept flow, then both players `wrestle push` each round;
+# the strain tells, best of three. Bram referees; the cat judges; the
+# winner's name feeds the tavern rumor pool; Bram notes "wrestling"
+# for returnee greetings.
+
+_WRESTLE_STRAIN = [
+    "Knuckles whiten. Somewhere in the room, a cup stops moving.",
+    "The usual table groans in a joint it didn't know it had.",
+    "Nobody at the bar is breathing.",
+]
+
+_WRESTLE_TIE = (
+    "Locked — shoulders trembling, neither hand moving a hair's breadth."
+)
+
+_CHALLENGE_TTL = 600  # an unanswered challenge lapses after ten minutes
+
+
+class CmdWrestle(Command):
+    """
+    Arm wrestle.
+
+    Usage:
+        wrestle <player>
+        wrestle answer
+        wrestle decline
+        wrestle push
+        wrestle quit
+
+    Challenge someone in the Tavern to a bout at the usual table. Once
+    both wrestlers are seated, each `wrestle push`es every round — the
+    strain tells, best of three. Bram referees. House custom: the winner
+    buys the loser a drink.
+    """
+
+    key = "wrestle"
+    aliases = ["arm wrestle"]
+    help_category = "Village"
+
+    # -- helpers ------------------------------------------------------
+
+    def _find_keeper(self):
+        for obj in self.caller.location.contents:
+            if obj.key == "Bram":
+                return obj
+        return None
+
+    def _pair(self, me):
+        """Return (partner_obj, state) or (None, None).
+
+        state is a plain dict copy: {"a": key, "b": key,
+        "rounds": {key: n}, "rolls": {key: n or None}}.
+        """
+        state = me.db.wrestle
+        if not state:
+            return None, None
+        other_key = state.get("b") if state.get("a") == me.key else state.get("a")
+        found = me.search(other_key, quiet=True)
+        if isinstance(found, list):
+            found = found[0] if found else None
+        if not found or found.location != me.location:
+            return None, None
+        return found, dict(state)
+
+    def _sync(self, me, partner, state):
+        me.db.wrestle = dict(state)
+        partner.db.wrestle = dict(state)
+
+    def _clear(self, me, partner):
+        me.db.wrestle = None
+        partner.db.wrestle = None
+
+    # -- dispatch -----------------------------------------------------
+
+    def func(self):
+        me = self.caller
+        loc = me.location
+        if not loc or not loc.tags.has("tavern", category="place"):
+            me.msg(
+                "Arm wrestling wants the Tavern — the usual table's there."
+            )
+            return
+        arg = (self.args or "").strip().lower()
+        if not arg:
+            me.msg(
+                "Wrestle whom? (Try: wrestle <player>.) Once you're in "
+                "a bout, `wrestle push` each round."
+            )
+            return
+        if arg in ("answer", "accept"):
+            self._answer()
+            return
+        if arg == "decline":
+            self._decline()
+            return
+        if arg in ("quit", "end", "leave"):
+            self._quit()
+            return
+        if arg == "push":
+            self._push()
+            return
+        self._challenge(arg)
+
+    # -- challenge flow -------------------------------------------------
+
+    def _challenge(self, arg):
+        import time
+
+        me = self.caller
+        if me.db.wrestle:
+            me.msg(
+                "You're already mid-bout — finish it first (`wrestle "
+                "quit` to walk away)."
+            )
+            return
+        target = me.search(arg, quiet=True)
+        if isinstance(target, list):
+            target = target[0] if target else None
+        if not target or not hasattr(target, "db"):
+            me.msg(f"'{arg.strip()}' isn't here to wrestle.")
+            return
+        if target == me:
+            me.msg("Wrestle yourself? The cat declines to referee.")
+            return
+        if not getattr(target, "account", None):
+            # NPCs (the cat, Bram, anyone unplayed) can't hold up their end
+            me.msg(
+                f"{target.key} can't answer that — challenge one of "
+                "the living."
+            )
+            return
+        if target.db.wrestle:
+            me.msg(
+                f"{target.key} is already mid-bout. Wait for the table "
+                "to clear."
+            )
+            return
+        target.db.wrestle_invite = {"from": me.key, "at": time.time()}
+        me.location.msg_contents(
+            f"{me.key} turns to {target.key} at the usual table. "
+            "'Arm wrestling. You in?'"
+        )
+        target.msg(
+            f"{me.key} challenges you to arm wrestling. "
+            "(wrestle answer / wrestle decline)"
+        )
+
+    def _answer(self):
+        import time
+
+        me = self.caller
+        if me.db.wrestle:
+            me.msg("You're already mid-bout — finish it first.")
+            return
+        invite = me.db.wrestle_invite
+        if not invite:
+            me.msg("No one's challenged you to wrestle.")
+            return
+        me.db.wrestle_invite = None
+        if time.time() - float(invite.get("at", 0)) > _CHALLENGE_TTL:
+            me.msg("That challenge's gone cold.")
+            return
+        inviter = me.search(invite.get("from", ""), quiet=True)
+        if isinstance(inviter, list):
+            inviter = inviter[0] if inviter else None
+        if (
+            not inviter
+            or inviter.location != me.location
+            or inviter.db.wrestle
+            or not hasattr(inviter, "db")
+        ):
+            me.msg("The challenger has moved on — the bout's gone cold.")
+            return
+        state = {
+            "a": inviter.key,
+            "b": me.key,
+            "rounds": {inviter.key: 0, me.key: 0},
+            "rolls": {inviter.key: None, me.key: None},
+        }
+        self._sync(inviter, me, state)
+        loc = me.location
+        loc.msg_contents(
+            f"{me.key} takes the seat across from {inviter.key} at the "
+            "usual table. Hands grip."
+        )
+        keeper = self._find_keeper()
+        if keeper is not None:
+            loc.msg_contents(
+                'Bram plants a hand on the usual table. "Right. Elbows '
+                'down, and no rising from your seats. Best of three — '
+                'and the table tells no lies."'
+            )
+            keeper.note_interest(inviter, "wrestling")
+            keeper.note_interest(me, "wrestling")
+        cat = next(
+            (o for o in loc.contents if o.key == "the tavern cat"), None
+        )
+        if cat is not None:
+            loc.msg_contents(
+                "The tavern cat relocates to the high shelf, out of "
+                "elbow range."
+            )
+        loc.msg_contents("Round one. (wrestle push)")
+
+    def _decline(self):
+        me = self.caller
+        invite = me.db.wrestle_invite
+        if not invite:
+            me.msg("No one's challenged you to wrestle.")
+            return
+        me.db.wrestle_invite = None
+        inviter = invite.get("from", "someone")
+        me.location.msg_contents(
+            f"{me.key} shakes their head at {inviter}. 'Another night "
+            "— my wrist still remembers the last one.'"
+        )
+
+    def _quit(self):
+        me = self.caller
+        partner, _state = self._pair(me)
+        if partner is None:
+            if me.db.wrestle:
+                me.db.wrestle = None
+                me.msg("The bout's gone cold — the room moved on.")
+            else:
+                me.msg("You're not wrestling anyone.")
+            return
+        self._clear(me, partner)
+        me.location.msg_contents(
+            f"{me.key} steps back from the usual table. 'Enough — my "
+            "wrist thanks me.'"
+        )
+
+    # -- rounds ---------------------------------------------------------
+
+    def _push(self):
+        from evennia.contrib.rpg.dice import roll as roll_bones
+
+        me = self.caller
+        partner, state = self._pair(me)
+        if partner is None:
+            if me.db.wrestle:
+                me.db.wrestle = None
+                me.msg("The bout's gone cold — the room moved on.")
+            else:
+                me.msg("You're not wrestling anyone.")
+            return
+        rounds = dict(state.get("rounds", {}))
+        rolls = dict(state.get("rolls", {}))
+        if rolls.get(me.key) is not None:
+            me.msg(
+                f"You've already pushed — the table waits on "
+                f"{partner.key}."
+            )
+            return
+        _, _, _, bones = roll_bones(2, 6, return_tuple=True)
+        rolls[me.key] = int(bones[0]) + int(bones[1])
+        state["rounds"] = rounds
+        state["rolls"] = rolls
+        me.msg("You bear down — tendons stand out like rope.")
+        me.location.msg_contents(f"{me.key} bears down.", exclude=[me])
+        if rolls.get(partner.key) is None:
+            self._sync(me, partner, state)
+            return
+        # Both pushed: the strain tells.
+        ra, rb = rolls[me.key], rolls[partner.key]
+        completed = rounds.get(me.key, 0) + rounds.get(partner.key, 0)
+        loc = me.location
+        loc.msg_contents(
+            f"The strain tells: {me.key} {ra}, {partner.key} {rb}."
+        )
+        if ra == rb:
+            state["rolls"] = {me.key: None, partner.key: None}
+            self._sync(me, partner, state)
+            loc.msg_contents(f"{_WRESTLE_TIE} Push again.")
+            return
+        winner = me if ra > rb else partner
+        loser = partner if ra > rb else me
+        wkey, lkey = winner.key, loser.key
+        rounds[wkey] = rounds.get(wkey, 0) + 1
+        state["rounds"] = rounds
+        state["rolls"] = {me.key: None, partner.key: None}
+        self._sync(me, partner, state)
+        loc.msg_contents(
+            _WRESTLE_STRAIN[min(completed, len(_WRESTLE_STRAIN) - 1)]
+        )
+        wr, lr = rounds.get(wkey, 0), rounds.get(lkey, 0)
+        if wr >= 2:
+            self._finish(me, partner, winner, loser)
+            return
+        score = (
+            f"One to {wkey}, none to {lkey}."
+            if (wr, lr) == (1, 0)
+            else "One apiece. The table's not done with them."
+        )
+        loc.msg_contents(f"{wkey} takes the round. {score} (wrestle push)")
+
+    def _finish(self, me, partner, winner, loser):
+        loc = me.location
+        wkey, lkey = winner.key, loser.key
+        self._clear(me, partner)
+        keeper = self._find_keeper()
+        loc.msg_contents(
+            f"{wkey}'s hand meets the wood. The room lets out its breath."
+        )
+        if keeper is not None:
+            loc.msg_contents(
+                f'Bram raps the table. "There it is. {wkey}, you buy '
+                f'{lkey} a drink — house custom."'
+            )
+        loc.msg_contents(
+            f"{lkey} shakes out the hand, grinning despite itself."
+        )
+        try:
+            from world.events import publish_world_event
+
+            publish_world_event(
+                "arm-wrestling",
+                actor=winner,
+                payload={"winner": wkey, "loser": lkey},
+                rumor=(
+                    f"{wkey} beat {lkey} at arm wrestling, at the usual "
+                    "table."
+                ),
+            )
+        except Exception:
+            pass
 
 
 class CmdConfess(Command):

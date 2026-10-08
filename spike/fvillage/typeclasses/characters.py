@@ -125,6 +125,22 @@ STEW_DEFLECTIONS = [
     "door's right there, and the evening's yours.",
 ]
 
+# Posture awareness (backlog #10): the NPCs notice sitting. The keeper reads
+# a bar-sitter as business ("what'll it be?" energy, work-talk); M. reads
+# a hearth-sitter as someone settling in backstage. Neither leaves their
+# feet — they speak where they stand.
+BAR_SIT_NOTICES = [
+    "Ah — a bar-sitter. The stool's yours now. What'll it be?",
+    "Sitting down means business in this house. Name your drink.",
+    "The bar side is the working side — yours is that stool. What'll it be?",
+]
+HEARTH_SIT_NOTICES = [
+    "Warm yourself, love. You're backstage here — nothing asked of you but "
+    "your manners. The front door's there when you're ready for the world.",
+    "That seat's heard a hundred plans, love, and kept every one of them. "
+    "Rest. The village keeps.",
+]
+
 
 class Character(DefaultCharacter):
     """Standard character (kept for Evennia's default typeclass path)."""
@@ -385,6 +401,17 @@ class Innkeeper(SpikeCharacter):
         self.location.msg_contents(
             f"M. leans on the bar, talking to {char.key}.",
             exclude=[char],
+        )
+
+    def notice_sitting(self, char, seat_key):
+        """React when a player sits (posture, backlog #10). M. comments
+        on hearth-sitters; other seats get no reaction."""
+        if seat_key != "hearth" or self.location != char.location:
+            return
+        line = random.choice(HEARTH_SIT_NOTICES)
+        self.location.msg_contents(
+            f'M. glances over. "{line}"',
+            exclude=[],
         )
 
     # -- Room Six: M. answers questions ------------------------------------
@@ -682,6 +709,23 @@ class TavernKeeper(SpikeCharacter):
             elif topic == "stew":
                 parts.append("Still on about the stew, eh? House rule stands.")
                 greeted = True
+            elif topic == "whittling":
+                parts.append("The shavings have missed you.")
+                greeted = True
+            elif topic == "whistling":
+                parts.append("Haven't heard the whistle in a while.")
+                greeted = True
+            elif topic == "wrestling":
+                parts.append("The table's missed you.")
+                greeted = True
+            elif topic == "mushrooms":
+                parts.append(
+                    "Brought mushrooms, have you? The pot's always hungry."
+                )
+                greeted = True
+            elif topic == "barstool":
+                parts.append("The barstool's missed you.")
+                greeted = True
         if not greeted and mem.get("visits", 0) >= 4:
             parts.append("The usual table's free.")
         if not parts:
@@ -694,6 +738,19 @@ class TavernKeeper(SpikeCharacter):
         self.location.msg_contents(
             f"Bram leans on the bar, talking to {char.key}.",
             exclude=[char],
+        )
+
+    def notice_sitting(self, char, seat_key):
+        """React when a player sits (posture, backlog #10). A bar-sitter
+        is work-talk: the keeper names it business and notes the interest
+        so the barstool gets a returnee line. Other seats: no reaction."""
+        if seat_key != "bar" or self.location != char.location:
+            return
+        self.note_interest(char, "barstool")
+        line = random.choice(BAR_SIT_NOTICES)
+        self.location.msg_contents(
+            f'Bram wipes his way down the bar to {char.key}. "{line}"',
+            exclude=[],
         )
 
     # -- Room Six: the keeper knows less, and says so ------------------------

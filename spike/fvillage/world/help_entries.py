@@ -55,4 +55,49 @@ HELP_ENTRY_DICTS = [
 
         """,
     },
+    {
+        "key": "movement",
+        "aliases": ["move", "go", "walk", "directions", "exits"],
+        "category": "General",
+        "text": """
+            Moving around the village.
+
+            Every room lists its exits: "Exits: north, east, south, and
+            west". To move, name a direction — north, south, east, west,
+            up, down — or its short form: n, s, e, w, u, d.
+
+            "go north", "walk east", "move up" all work too.
+
+            Some things that look like scenery are ways through: the
+            front door of the Inn Between answers to "door" as well as
+            "south". When in doubt, read the Exits line — it never lies.
+        """,
+    },
+    {
+        "key": "guide",
+        "aliases": ["newbie", "new", "start", "begin", "beginner"],
+        "category": "General",
+        "text": """
+            First evening in Frankenstein Village.
+
+            You woke in the Inn Between, which is out of character —
+            backstage. M. keeps the bar there; talk to her (talk M.)
+            and mind the front door: step through it and you are in
+            character, a traveler in a strange village.
+
+            Useful first verbs:
+
+              look / examine <thing> — see the room, or look closer
+              go north (or just: north) — move; every room lists Exits
+              talk <someone> — have a word with a resident
+              ask <someone> about <thing> — the way mysteries are solved
+              rumors — hear the talk of the tavern (in the tavern only)
+              whisper <someone> = <words> — speak privately, in character
+              say <words> — speak aloud, in character
+              help <command> — every command explains itself
+
+            There is no wrong way to spend an evening here. Follow a
+            rumor. See what happens.
+        """,
+    },
 ]

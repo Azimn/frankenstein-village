@@ -11,8 +11,19 @@ with a location in the game world (like Characters, Rooms, Exits).
 from evennia.objects.objects import DefaultObject
 from evennia.utils import create as _create
 from evennia.utils import search as _search
+from evennia.utils import ansi as _ansi
 
 from world.events import publish_world_event
+
+import inflect
+import re
+
+_INFLECT = inflect.engine()
+
+# Leading article, stripped from the count/plural form of a stacked name:
+# "two a clusters of mushrooms" -> "two clusters of mushrooms". The
+# singular form keeps its article ("a cluster of mushrooms").
+_LEADING_ARTICLE_RE = re.compile(r"^(a|an|the)\s+", re.IGNORECASE)
 
 
 def _room_six_script():
@@ -583,4 +594,42 @@ class Object(ObjectParent, DefaultObject):
 
     """
 
-    pass
+    def get_numbered_name(self, count, looker, **kwargs):
+        """Stacked plural without the leading article (build-loop #16).
+
+        Evennia pluralizes the whole key, so a key like "a cluster of
+        mushrooms" stacks as "two a clusters of mushrooms". The count
+        form drops the article: "two clusters of mushrooms". Singular
+        (count 1) is untouched — "a cluster of mushrooms" stays.
+
+        Build-loop #16d: this deliberately does NOT call super(). The
+        default implementation permanently adds count-specific phantom
+        aliases ("two rough wooden spoons", "one a rough wooden spoon")
+        to every object a look renders, and those aliases then hijack
+        later searches — "get 2 spoons" matched one spoon's phantom
+        alias and picked up a single spoon instead of resolving the
+        count to both. Display strings are computed exactly as the
+        default does; only the alias-writing side effect is dropped.
+        """
+        if count != 1:
+            kwargs = dict(kwargs)
+            base = kwargs.get("key", self.get_display_name(looker))
+            kwargs["key"] = _LEADING_ARTICLE_RE.sub("", str(base))
+        key = kwargs.get("key", self.get_display_name(looker))
+        key = _ansi.ANSIString(key)  # allow inflection of colored names
+        try:
+            plural = _INFLECT.plural(key, count)
+            plural = "{} {}".format(
+                _INFLECT.number_to_words(count, threshold=12), plural)
+        except IndexError:
+            # raised by inflect if the input is not a proper noun
+            plural = key
+        singular = _INFLECT.an(key)
+
+        if kwargs.get("no_article") and count == 1:
+            if kwargs.get("return_string"):
+                return key
+            return key, key
+        if kwargs.get("return_string"):
+            return singular if count == 1 else plural
+        return singular, plural
