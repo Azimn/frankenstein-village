@@ -88,7 +88,6 @@ def public_profile(environ) -> dict:
         "WEBSERVER_INTERFACES": ["127.0.0.1"],
         "WEBSOCKET_CLIENT_INTERFACE": "127.0.0.1",
         "WEBSOCKET_CLIENT_URL": websocket,
-        "WEBCLIENT_CLIENT_PROXY_PORT": 4042,
         "UPSTREAM_IPS": ["127.0.0.1"],
         "SECURE_PROXY_SSL_HEADER": ("HTTP_X_FORWARDED_PROTO", "https"),
         "USE_X_FORWARDED_HOST": False,
