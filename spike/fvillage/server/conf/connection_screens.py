@@ -45,7 +45,7 @@ CONNECTION_SCREEN = """
  substrate records that you were shown and accepted this compact.
 
  If you have spaces in your username, enclose it in quotes.
- Enter |whelp|n for more info. |wlook|n will re-show this screen.
+ AI-operated and human clients use the same login rules. After connecting,\n use |wagentlogin|n for machine-readable account guidance. Inside the\n world, |wagent|n returns a read-only JSON snapshot of available exits\n and common commands without exposing secret world state.\n\n Enter |whelp|n for more info. |wlook|n will re-show this screen.
  Server: {} / Evennia {}
 |b==============================================================|n""".format(
     settings.SERVERNAME, utils.get_evennia_version("short")
