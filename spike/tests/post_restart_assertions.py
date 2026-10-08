@@ -728,3 +728,17 @@ print("POST_RESTART_SERVER_EVENT_ASSERTIONS_GREEN")
 print("POST_RESTART_PUBLIC_MYSTERY_ASSERTIONS_GREEN")
 print("POST_RESTART_PRIVATE_MYSTERY_ASSERTIONS_GREEN")
 print("POST_RESTART_SCHEDULED_EVENT_ASSERTIONS_GREEN")
+
+# An asynchronous public commons survives Evennia stop/start.
+from world import commons, commons_state
+commons_after_restart = commons.current()
+first_notice = commons_state.get_notice(commons_after_restart, 1)
+second_notice = commons_state.get_notice(commons_after_restart, 2)
+assert first_notice and first_notice["status"] == "closed"
+assert first_notice["author"]["mask"] == "SmithTester"
+assert any(reply["by"]["mask"] == "MerchantTester" for reply in first_notice["replies"])
+assert first_notice["resolution"]["body"].startswith("We spoke")
+assert second_notice and second_notice["status"] == "open"
+assert second_notice["author"]["mask"] == "MerchantTester"
+assert second_notice["body"].startswith("I can carry parcels")
+print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")
