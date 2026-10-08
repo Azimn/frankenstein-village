@@ -161,6 +161,53 @@ def main():
     assert len(life["affect"]) <= before
     assert life["body"]["cold"] < 48
 
+    # Recovery advances with the world clock, rather than the number of
+    # evaluations. Idle intervals cost O(1), a same-hour rerun is inert,
+    # and an accidental clock rollback cannot grant more recovery.
+    recovery = resident_life.fresh_life_state(miklos_def)
+    resident_life.apply_body_delta(
+        recovery, wet=60, cold=50, pain=50, injury=20, illness=15
+    )
+    resident_life.decay_life_state(recovery, 2, 10)
+    assert recovery["body"]["wet"] == 56
+    assert recovery["body"]["cold"] == 48
+    assert recovery["body"]["pain"] == 48.5
+    first_body = dict(recovery["body"])
+    resident_life.decay_life_state(recovery, 2, 10)
+    assert recovery["body"] == first_body, "same hour double-recovery"
+    resident_life.decay_life_state(recovery, 3, 10)
+    assert recovery["body"]["wet"] == 0
+    assert recovery["body"]["cold"] == 0
+    assert recovery["body"]["pain"] == 12.5
+    assert recovery["body"]["injury"] == 20
+    assert recovery["body"]["illness"] == 15
+    elapsed_body = dict(recovery["body"])
+    resident_life.decay_life_state(recovery, 3, 9)
+    assert recovery["body"] == elapsed_body, "clock rollback changed the body"
+
+    # A bounded memory must never silently evict an outstanding promise.
+    promises = resident_life.fresh_life_state(miklos_def)
+    for index in range(resident_life.MAX_COMMITMENTS):
+        assert resident_life.add_commitment(
+            promises, f"promise_{index}", f"keep promise {index}"
+        )
+    assert resident_life.add_commitment(
+        promises, "overflow", "an impossible extra promise"
+    ) is None
+    assert len(resident_life.open_commitments(promises)) == (
+        resident_life.MAX_COMMITMENTS
+    )
+    assert resident_life.resolve_commitment(
+        promises, "promise_0", "fulfilled"
+    )
+    assert resident_life.add_commitment(
+        promises, "replacement", "keep another promise"
+    )
+    open_keys = {item["key"] for item in resident_life.open_commitments(promises)}
+    assert "promise_1" in open_keys and "replacement" in open_keys
+    assert "promise_0" not in {item["key"] for item in promises["commitments"]}
+    assert len(promises["commitments"]) == resident_life.MAX_COMMITMENTS
+
     # Authored lock is a hard boundary, not a soft convention.
     locked = resident_life.fresh_life_state(by_id("father_andrei"))
     assert resident_life.apply_body_delta(locked, pain=100) == locked
