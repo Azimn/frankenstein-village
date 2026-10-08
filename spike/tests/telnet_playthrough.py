@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import socket
@@ -74,6 +75,14 @@ class Client:
         self.sock.close()
 
 
+def agent_json(text: str) -> dict:
+    """Verify the agent response really contains parseable single-line JSON."""
+    found = re.search(r"FV_AGENT_JSON\\s+(\\{[^\\r\\n]+\\})", text)
+    if not found:
+        raise AssertionError("No complete FV_AGENT_JSON record in response")
+    return json.loads(found.group(1))
+
+
 def require(text: str, *needles: str) -> None:
     low = text.lower()
     if not any(needle.lower() in low for needle in needles):
@@ -109,6 +118,7 @@ def main() -> int:
         require(out, "FV_AGENT_JSON")
         require(out, '"schema":"fvillage.agent_login.v1"')
         require(out, '"disclosure_declared":false')
+        assert agent_json(out)["disclosure_declared"] is False
         require(out, "substrate ai")
 
         out = c.command("substrate ai")
@@ -116,6 +126,7 @@ def main() -> int:
 
         out = c.command("agentlogin")
         require(out, '"disclosure_declared":true')
+        assert agent_json(out)["disclosure_declared"] is True
         require(out, "charcreate")
         c.command("charcreate SmokeTester", wait=3.0)
         out = c.command("ic SmokeTester", wait=4.0)
@@ -125,6 +136,7 @@ def main() -> int:
         require(out, "FV_AGENT_JSON")
         require(out, '"schema":"fvillage.agent_context.v1"')
         require(out, '"side":"ooc"')
+        assert agent_json(out)["side"] == "ooc"
         require(out, '"world_entry":"follow the Inn front door"')
 
         out = c.command("guide")
@@ -184,6 +196,7 @@ def main() -> int:
         require(out, '"side":"ic"')
         require(out, '"social":"commons"')
         require(out, '"location":"Village Square"')
+        assert agent_json(out)["location"] == "Village Square"
         require(out, '"exits":')
         require(out, '"east"')
 
