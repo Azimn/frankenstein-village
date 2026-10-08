@@ -125,7 +125,10 @@ class CmdAgentLobby(Command):
             "side": "account_ooc",
             "disclosure_declared": gate_open,
             "commands": {
-                "declare": "substrate ai" if not gate_open else None,
+                "declare": (
+                    ["substrate human", "substrate ai"]
+                    if not gate_open else None
+                ),
                 "create_mask": "charcreate <character name>" if gate_open else None,
                 "choose_mask": "ic <character name>" if gate_open else None,
                 "help": "help",
