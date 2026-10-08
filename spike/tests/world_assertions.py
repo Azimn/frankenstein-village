@@ -45,11 +45,19 @@ for script_key in (
     "timed_incident_registry",
     "room_six",
     "moderation_queue",
+    "village_commons",
     "ambient_life",
     "village_time",
 ):
     count = ScriptDB.objects.filter(db_key=script_key).count()
     assert count == 1, f"{script_key!r}: expected one script, found {count}"
+
+noticeboard = one("village noticeboard")
+copy_sheet = one("copy of the village notices")
+assert noticeboard.location == one("Village Square")
+assert copy_sheet.location == one("The Blood of the Vine")
+from world.commons import current as commons_state_at_build
+assert commons_state_at_build()["entries"] == [], "rebuild reset or polluted commons"
 
 bram = one("Bram")
 assert bram.db.till_kr == 37, "rebuild reset Bram's live till"
