@@ -97,3 +97,41 @@ class CmdAgentContext(Command):
                 separators=(",", ":"),
             )
         )
+
+
+class CmdAgentLobby(Command):
+    """Account-stage bootstrap hints without world entry or privileged data.
+
+    Usage:
+        agentlogin
+
+    Works before choosing a mask. This is a read-only explanation.
+    """
+
+    key = "agentlogin"
+    help_category = "Village"
+
+    def func(self):
+        account = self.account
+        substrate = getattr(account.db, "substrate", None) if account else None
+        gate_open = bool(substrate in {"human", "ai"})
+        steps = {
+            "version": VERSION,
+            "schema": "fvillage.agent_login.v1",
+            "side": "account_ooc",
+            "disclosure_declared": gate_open,
+            "commands": {
+                "declare": "substrate ai" if not gate_open else None,
+                "create_mask": "charcreate <character name>" if gate_open else None,
+                "choose_mask": "ic <character name>" if gate_open else None,
+                "help": "help",
+            },
+            "rule": "One active mask per account. Front door separates OOC and IC.",
+        }
+        self.caller.msg(
+            "FV_AGENT_JSON "
+            + json.dumps(
+                steps, sort_keys=True, ensure_ascii=True,
+                separators=(",", ":"),
+            )
+        )
