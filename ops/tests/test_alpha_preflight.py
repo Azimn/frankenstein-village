@@ -111,6 +111,13 @@ class PreflightTests(unittest.TestCase):
         with self.assertRaisesRegex(PreflightError, "must use HTTPS"):
             probe_web("http://example.org/")
 
+    def test_https_preflight_requires_wss(self):
+        with self.assertRaisesRegex(PreflightError, "requires --websocket-url"):
+            run_preflight(
+                self.snapshot, "127.0.0.1", 4000,
+                "https://village.example.org"
+            )
+
     def test_full_preflight_cannot_certify_launch(self):
         port = self._start_tcp_banner()
         web = self._start_web()
