@@ -1735,3 +1735,16 @@ class TavernLife(SpikeScript):
     def at_repeat(self):
         from world.tavern_life import run_beat
         run_beat()
+
+
+class VillageCommonsRegistry(DefaultScript):
+    """A persistent public institution, not a quest scheduler."""
+
+    def at_script_creation(self):
+        self.key = "village_commons"
+        self.desc = "Public civic correspondence and its retained history."
+        self.interval = -1
+        self.persistent = True
+        if self.db.state is None:
+            from world.commons_state import fresh
+            self.db.state = fresh()

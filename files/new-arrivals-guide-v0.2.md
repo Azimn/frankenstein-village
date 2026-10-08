@@ -26,7 +26,7 @@ You were told all of this at the gate, before you ever saw this room, and you ch
 
 These work now:
 
-- `guide` (or `next`): ask for a short, location-aware path into the existing village activities, starting at the Inn. It provides public directions and usable commands without revealing undiscovered mysteries, accepting a quest, or choosing a calling for you.
+- `commons` (or `noticeboard`): at the Village Square, read and leave persistent public needs, offers, gatherings, and notices. Bram keeps a readable copy at the Tavern. Use `commons post need = <words>` at the square, `commons <number>` to read all signed correspondence, `commons reply <number> = <words>` to respond, `commons close <number> = <words>` to leave your own closing account, `commons archive` to read closed history, and `commons report <number> = <reason>` to request human moderation. A post is a statement from a player, not a verified fact, automated quest, or promise of payment. There is no reward screen.\n- `guide` (or `next`): ask for a short, location-aware path into the existing village activities, starting at the Inn. It provides public directions and usable commands without revealing undiscovered mysteries, accepting a quest, or choosing a calling for you.
 
 - `look`: see the room you're in. `look <thing>` shows the object's public description. `examine <thing>` (or `exam`, `ex`) looks closely and also recalls hidden properties this exact mask has actually learned through play. An undiscovered hidden property is not labeled for you.
 - `north`, `south`, `east`, `west` (or `n`, `s`, `e`, `w`) — move. `up`, `down` for stairs.

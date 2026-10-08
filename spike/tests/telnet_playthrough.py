@@ -1062,6 +1062,55 @@ def main() -> int:
         require(out, "smithtester")
         require(out, "merchanttester")
 
+        # Player-authored civic activity persists across accounts and rooms.
+        out = smith.command("commons")
+        require(out, "village commons")
+        out = smith.command(
+            "commons post need = Neighbors sought to share the night lamp watch."
+        )
+        require(out, "commons #1 posted")
+        out = smith.command("commons 1")
+        require(out, "neighbors sought")
+        require(out, "no one has written a response yet")
+        out = merchant.command("commons")
+        require(out, "noticeboard is in the village square")
+        out = merchant.command("north")
+        require(out, "village square")
+        out = merchant.command("east")
+        require(out, "blood of the vine")
+        out = merchant.command("commons")
+        require(out, "neighbors sought")
+        out = merchant.command(
+            "commons reply 1 = I can take the first watch tomorrow morning."
+        )
+        require(out, "signed response")
+        out = smith.command("commons 1")
+        require(out, "merchanttester")
+        require(out, "first watch tomorrow")
+        out = merchant.command(
+            "commons close 1 = An answer from another player's account."
+        )
+        require(out, "only the author")
+        out = smith.command(
+            "commons close 1 = We spoke and agreed to meet again tomorrow."
+        )
+        require(out, "closed with your account")
+        out = merchant.command("commons archive")
+        require(out, "past correspondence")
+        require(out, "neighbors sought")
+
+        # A separate open offer survives logout and a real server restart.
+        out = merchant.command("west")
+        require(out, "village square")
+        out = merchant.command(
+            "commons post offer = I can carry parcels for neighbors after market."
+        )
+        require(out, "commons #2 posted")
+        out = smith.command("commons")
+        require(out, "carry parcels")
+        out = smith.command("commons 2")
+        require(out, "merchanttester")
+
         out = c.command("north")
         require(out, "inn hallway")
         out = c.command("west")
