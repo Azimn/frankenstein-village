@@ -77,7 +77,7 @@ class Client:
 
 def agent_json(text: str) -> dict:
     """Verify the agent response really contains parseable single-line JSON."""
-    found = re.search(r"FV_AGENT_JSON\\s+(\\{[^\\r\\n]+\\})", text)
+    found = re.search(r"FV_AGENT_JSON\s+(\{[^\r\n]+\})", text)
     if not found:
         raise AssertionError("No complete FV_AGENT_JSON record in response")
     return json.loads(found.group(1))
