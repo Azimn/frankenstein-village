@@ -18,6 +18,9 @@ Record these values for each deployment before inviting external players:
 | Off-host encrypted backup | Transferred snapshot and manifest to independent host/provider | Not yet verified |
 | Alpha transport preflight | `ALPHA_TRANSPORT_RECOVERY_GREEN` from actual endpoints | Not yet run |
 | Public HTTPS transport | Trusted TLS certificate and no downgrade | Not yet verified |
+| Browser WSS transport | Verified HTTP 101 and valid Sec-WebSocket-Accept on public TLS endpoint | Not yet verified |
+| AI-client usability | External AI client logs in, accepts compact, uses agentlogin/agent and plays/reconnects | Not yet verified |
+| No bot blocking | Registered AI accounts can connect; abuse throttles remain effective | Not yet verified |
 | Telnet transport policy | Loopback-only/plain or public TLS front end; no public plaintext credentials | Not yet verified |
 | Fresh external account | Login, compact disclosure, consent choice | Not yet verified |
 | Player mask and door | Creation, selection, OOC to IC transition, re-entry | Not yet verified |
