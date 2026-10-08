@@ -1261,6 +1261,34 @@ print(
     f"{_random_incidents['history_count']} prior occurrences."
 )
 
+# The public commons is a civic institution, not a scripted quest giver.
+# Rebuilding a world must never clear its resident/player correspondence.
+from world.commons import registry as ensure_commons_registry
+_commons = ensure_commons_registry()
+print(f"village commons ready: {len((_commons.db.state or {}).get('entries') or [])} notices.")
+
+_commons_board = relocate_or_create_typed(
+    "village noticeboard", square, "typeclasses.objects.Object",
+    aliases=["noticeboard", "board"],
+)
+_commons_board.db.desc = (
+    "A weathered board with real notes pinned beneath a little roof. "
+    "Travelers leave needs, offers, invitations and accounts of what "
+    "happened. Try 'commons' to read, or 'commons post need = <words>' "
+    "to contribute. No notice obliges you to accept a task."
+)
+_commons_board.locks.add("get:false()")
+_commons_copy = relocate_or_create_typed(
+    "copy of the village notices", tavern, "typeclasses.objects.Object",
+    aliases=["notices", "commons copy"],
+)
+_commons_copy.db.desc = (
+    "A copied sheet from the village board, hung near the bar. "
+    "Read it with 'commons'. To pin an original, go to the square. "
+    "Letters from other visitors may remain after they leave."
+)
+_commons_copy.locks.add("get:false()")
+
 # The square starts under fog, as it has always been.
 _square = [o for o in search.search_object("Village Square") if o.key == "Village Square"][0]
 if not _square.db.weather_sense:
