@@ -59,6 +59,11 @@ def public_profile(environ) -> dict:
         )
 
     host = _public_hostname(environ.get("FV_PUBLIC_HOST", ""))
+    if str(environ.get("WEBCLIENT_CLIENT_PROXY_PORT", "")).strip() != "4042":
+        raise DeploymentConfigurationError(
+            "Public mode requires WEBCLIENT_CLIENT_PROXY_PORT=4042 "
+            "for the TLS WebSocket gateway."
+        )
     registration = str(environ.get("FV_PUBLIC_REGISTRATION", "0")).strip()
     if registration not in {"0", "1"}:
         raise DeploymentConfigurationError(
