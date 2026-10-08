@@ -65,7 +65,9 @@ def public_profile(environ) -> dict:
             "FV_PUBLIC_REGISTRATION must be 0 or 1."
         )
     proxy_host = "https://" + host
-    websocket = "wss://" + host + "/ws"
+    # Evennia's browser appends the client-facing proxy port itself.
+    # Do not embed a path in WEBSOCKET_CLIENT_URL.
+    websocket = "wss://" + host
     # Validate generated absolute URLs too; never accept a proxy URL from
     # arbitrary environment input.
     if urlsplit(websocket).hostname != host:
@@ -78,12 +80,15 @@ def public_profile(environ) -> dict:
         "DEBUG": False,
         "GUEST_ENABLED": False,
         "NEW_ACCOUNT_REGISTRATION_ENABLED": registration == "1",
-        "LOCKDOWN_MODE": True,
+        # Loopback listeners provide the ingress boundary; LOCKDOWN_MODE
+        # should not block real remote sessions through the reverse proxy.
+        "LOCKDOWN_MODE": False,
         "TELNET_ENABLED": True,
         "TELNET_INTERFACES": ["127.0.0.1"],
         "WEBSERVER_INTERFACES": ["127.0.0.1"],
         "WEBSOCKET_CLIENT_INTERFACE": "127.0.0.1",
         "WEBSOCKET_CLIENT_URL": websocket,
+        "WEBCLIENT_CLIENT_PROXY_PORT": 4042,
         "UPSTREAM_IPS": ["127.0.0.1"],
         "SECURE_PROXY_SSL_HEADER": ("HTTP_X_FORWARDED_PROTO", "https"),
         "USE_X_FORWARDED_HOST": False,
