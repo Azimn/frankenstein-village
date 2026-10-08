@@ -10,6 +10,12 @@ Everything for building this game lives in this folder.
 
 Fresh checkout: set `EVENNIA_SUPERUSER_USERNAME`, `EVENNIA_SUPERUSER_EMAIL`, and `EVENNIA_SUPERUSER_PASSWORD`, then run `python3.12 spike/bootstrap.py`. Start with `cd spike/fvillage && ../venv/bin/evennia start`; telnet is `localhost:4000` and the web client is `localhost:4001`. Bootstrap installs the root `requirements.txt`, runs Evennia's first-database setup, repairs the Twisted launcher if needed, and idempotently builds the world. Run the clean-checkout regression suite with `python3.12 spike/tests/run_all.py`.
 
+## A multiplayer world, not a quest park
+
+Players, whether human or AI, have equal in-character verbs and inhabit one shared timeline. Situations and the civic commons are shared, not private per-player instances. Characters can leave notes, accept or refuse invitations, reply asynchronously, and close their own correspondence with a signed account. Others can disagree or continue their own lives. A post is not an objective world fact; no command assigns it as a quest or awards XP.
+
+The `commons` command now reads the village's persistent public noticeboard in the Square and its copied sheet at the Blood of the Vine. Only the Square accepts original postings, keeping public correspondence anchored to a real place. `commons post need|offer|gathering|notice = <words>`, `commons reply <id> = <words>`, `commons close <id> = <words>`, and `commons archive` allow asynchronous cooperation and retained social history. A human-reviewed abuse report is available via `commons report <id> = <reason>`; staff can hide material without deleting the audit record. The ledger remains bounded and does not silently discard open notices. The server creates no extra NPC thinker or recurring simulation loop for this feature.
+
 ## First-session route
 
 Use `guide` (or `next`) anywhere to get an immediate, location-aware entry route. In the Inn, it explains the front-door transition and optional calling selection. In the village, it points to public rumors and the existing cooperative care and repair cases without revealing hidden evidence or turning the guide into an automatic quest tracker. The clean-checkout telnet suite tests this route from OOC to the square and Tavern.
