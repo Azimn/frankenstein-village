@@ -37,7 +37,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         from commands.agent_context import CmdAgentContext
         from commands.commons_cmd import CmdCommons
         from commands.newcomer import CmdGuide
-        from commands.village_cmds import CmdReport, CmdRumors, CmdRetell, CmdHarbinger, CmdChronicle, CmdJournal, CmdDecide, CmdWorldEvent, CmdSecrets, CmdMystery, CmdTheory, CmdTalk, CmdAsk, CmdRead, CmdTime, CmdCalendar, CmdListen, CmdSmell, CmdDiary, CmdPet, CmdThrow, CmdRoll, CmdDraw, CmdSit, CmdStand, CmdPlay, CmdPractice, CmdDuet, CmdScore, CmdEat, CmdDrink, CmdConfess, CmdOOCOverride, CmdICOverride, CmdExamine, CmdAssess, CmdCare, CmdRepair, CmdCalling, CmdPurse, CmdTake
+        from commands.village_cmds import CmdReport, CmdRumors, CmdRetell, CmdHarbinger, CmdChronicle, CmdJournal, CmdDecide, CmdWorldEvent, CmdSecrets, CmdMystery, CmdTheory, CmdTalk, CmdAsk, CmdRead, CmdTime, CmdCalendar, CmdListen, CmdSmell, CmdDiary, CmdPet, CmdThrow, CmdRoll, CmdDraw, CmdSit, CmdStand, CmdPlay, CmdPractice, CmdDuet, CmdScore, CmdEat, CmdDrink, CmdSell, CmdWhittle, CmdToot, CmdWrestle, CmdConfess, CmdOOCOverride, CmdICOverride, CmdExamine, CmdAssess, CmdCare, CmdRepair, CmdCalling, CmdPurse, CmdTake, CmdGo, CmdVillageLook, CmdVillageGet, CmdVillageDrop, CmdVillageGive
 
         self.add(CmdAgentContext())
         self.add(CmdCommons())
@@ -73,6 +73,10 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdStand())
         self.add(CmdEat())
         self.add(CmdDrink())
+        self.add(CmdSell())
+        self.add(CmdWhittle())
+        self.add(CmdToot())
+        self.add(CmdWrestle())
         self.add(CmdConfess())
         self.add(CmdExamine())
         self.add(CmdAssess())
@@ -81,6 +85,17 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdCalling())
         self.add(CmdTake())
         self.add(CmdPurse())
+        self.add(CmdGo())
+        # Overload Evennia's default look: "look around" and
+        # "look at <thing>" are what newbie fingers type first.
+        self.add(CmdVillageLook())
+        # Overload Evennia's default get/drop/give: identical carried (or
+        # ground) stacks resolve quietly to one item instead of dying on
+        # the search wall; genuinely ambiguous targets still get the wall.
+        # Build-loop #16c.
+        self.add(CmdVillageGet())
+        self.add(CmdVillageDrop())
+        self.add(CmdVillageGive())
         # The front door is the only IC/OOC threshold: block Evennia's
         # default ooc/ic commands everywhere so they can't bypass it.
         self.add(CmdOOCOverride())

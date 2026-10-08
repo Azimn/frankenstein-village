@@ -56,6 +56,9 @@ MAX_NR_CHARACTERS = 5
 # Guest accounts do not have a disclosure model and may not bypass the gate.
 GUEST_ENABLED = False
 
+# File-based help topics (movement, guide, ...). See world/help_entries.py.
+FILE_HELP_ENTRY_MODULES = ["world.help_entries"]
+
 
 ######################################################################
 # Settings given in secret_settings.py override those in this file.
