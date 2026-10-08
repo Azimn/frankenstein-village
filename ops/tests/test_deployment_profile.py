@@ -27,6 +27,7 @@ class DeploymentProfileTests(unittest.TestCase):
         settings = profile.public_profile({
             "FV_DEPLOYMENT_MODE": "public",
             "FV_PUBLIC_HOST": "Village.Example.org",
+            "WEBCLIENT_CLIENT_PROXY_PORT": "4042",
         })
         self.assertEqual(settings["SERVER_HOSTNAME"], "village.example.org")
         self.assertEqual(settings["ALLOWED_HOSTS"], ["village.example.org"])
@@ -52,9 +53,19 @@ class DeploymentProfileTests(unittest.TestCase):
         settings = profile.public_profile({
             "FV_DEPLOYMENT_MODE": "public",
             "FV_PUBLIC_HOST": "village.example.org",
+            "WEBCLIENT_CLIENT_PROXY_PORT": "4042",
             "FV_PUBLIC_REGISTRATION": "1",
         })
         self.assertTrue(settings["NEW_ACCOUNT_REGISTRATION_ENABLED"])
+
+    def test_missing_wss_proxy_port_blocks_public_startup(self):
+        with self.assertRaisesRegex(
+            profile.DeploymentConfigurationError, "WEBCLIENT_CLIENT_PROXY_PORT"
+        ):
+            profile.public_profile({
+                "FV_DEPLOYMENT_MODE": "public",
+                "FV_PUBLIC_HOST": "village.example.org",
+            })
 
     def test_insecure_or_ambiguous_configuration_fails(self):
         bad_cases = [
