@@ -15,9 +15,10 @@ Fresh checkout: set `EVENNIA_SUPERUSER_USERNAME`, `EVENNIA_SUPERUSER_EMAIL`, and
 The clean-checkout regression is a development gate, not evidence that an
 internet-hosted instance is ready. Before inviting external players, back up
 the live database, verify an offline restoration, store at least one copy away
-from the host, and test a fresh remote login and restart. The new standard
-library SQLite backup and restore helper lives in
-[`ops/README.md`](ops/README.md). Never commit the live database,
+from the host, and test a fresh remote login and restart. The standard-library SQLite backup and restore helper and a read-only
+transport/recovery preflight live in [`ops/README.md`](ops/README.md).
+The operator's **go/no-go release evidence** is tracked in
+[`ops/ALPHA_RELEASE_CHECKLIST.md`](ops/ALPHA_RELEASE_CHECKLIST.md). Never commit the live database,
 SQLite journal files, or `secret_settings.py`.
 
 ## Start here (reading order)

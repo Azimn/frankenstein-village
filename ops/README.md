@@ -22,6 +22,44 @@ a public server is running.
 6. Re-run the clean-checkout CI gate and a post-deployment smoke test after
    each release, with a tested rollback path for schema changes.
 
+## Read-only alpha release preflight
+
+The release preflight checks three independent facts without logging into any
+player account or mutating the live world:
+
+- A signed-off SQLite snapshot and its manifest pass digest and integrity
+  verification, and an isolated disposable copy can be opened.
+- The configured Evennia telnet entry point presents the Frankenstein Village
+  login banner without sending credentials or commands.
+- The configured web landing page responds successfully with nonempty content.
+
+Run it on the deployment host if telnet is only available on its loopback
+interface. This example assumes the web client is published through HTTPS:
+
+```bash
+python3.12 ops/alpha_preflight.py \
+  --snapshot /secure/off-host-staging/frankenstein-backups/SNAPSHOT.db3 \
+  --telnet-host 127.0.0.1 --telnet-port 4000 \
+  --web-url https://your-village-host.example/
+```
+
+For external telnet verification, pass a hostname behind a trusted TLS
+termination point and use `--telnet-tls`. The tool refuses plaintext telnet
+checks to non-loopback hosts because credentials would otherwise travel over
+an unprotected channel during real player sessions. Plain HTTP is accepted
+only for local loopback testing. The public web endpoint must use HTTPS,
+including after redirects.
+
+A successful command prints `ALPHA_TRANSPORT_RECOVERY_GREEN` and a JSON
+report whose `launch_certified` field is always `false`. This deliberately
+does **not** establish account login, disclosure consent, character selection,
+clock persistence, moderation, off-site backup custody, or successful recovery
+of the full Evennia application. Those must be tested separately and logged
+as release evidence. Never copy a live SQLite snapshot into a public CI
+artifact or commit it to the repository.
+
+See `ops/ALPHA_RELEASE_CHECKLIST.md` for the release decision record.
+
 ## Online-safe backup
 
 Run from the repository root. Supply your own protected destination, preferably
