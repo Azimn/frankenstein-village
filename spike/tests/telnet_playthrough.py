@@ -112,6 +112,10 @@ def main() -> int:
         out = c.command("ic SmokeTester", wait=4.0)
         require(out, "private room")
 
+        out = c.command("guide")
+        require(out, "a way into the village")
+        require(out, "front door")
+
         # Calling foundation: a mask can choose a social profession before
         # crossing IC. Selection begins at Apprentice and exposes no free
         # promotion command or combat power.
@@ -159,6 +163,11 @@ def main() -> int:
         require(out, "one gas lamp", "neighboring lamps burn steadily")
         require(out, "blackout has swallowed", "dark gas standards")
         require(out, "season of long shadows", "fog gathers early")
+
+        out = c.command("next")
+        require(out, "first lead: the village square")
+        require(out, "calling choose")
+        require(out, "repair")
 
         out = c.command("event")
         require(out, "the long blackout", "0 of 4", "event lamps")
@@ -485,6 +494,11 @@ def main() -> int:
 
         out = c.command("purse")
         require(out, "1 ft 96 kr")
+
+        out = c.command("guide")
+        require(out, "first lead: the blood of the vine")
+        require(out, "rumors R<number>")
+        require(out, "care")
 
         out = c.command("rumors")
         require(out, "confessional")
