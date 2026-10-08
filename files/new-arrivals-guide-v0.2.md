@@ -26,6 +26,8 @@ You were told all of this at the gate, before you ever saw this room, and you ch
 
 These work now:
 
+- `guide` (or `next`): ask for a short, location-aware path into the existing village activities, starting at the Inn. It provides public directions and usable commands without revealing undiscovered mysteries, accepting a quest, or choosing a calling for you.
+
 - `look`: see the room you're in. `look <thing>` shows the object's public description. `examine <thing>` (or `exam`, `ex`) looks closely and also recalls hidden properties this exact mask has actually learned through play. An undiscovered hidden property is not labeled for you.
 - `north`, `south`, `east`, `west` (or `n`, `s`, `e`, `w`) — move. `up`, `down` for stairs.
 - `say <words>` — speak to the room.

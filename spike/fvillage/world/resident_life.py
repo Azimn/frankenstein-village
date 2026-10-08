@@ -222,8 +222,16 @@ def decay_life_state(life, day, hour):
         return life
     now = absolute_hour(day, hour)
     previous = life.get("last_decay_absolute_hour")
-    if previous is not None and int(previous) == now:
-        return life
+    # Resolve physical easing by elapsed world time, not by the number
+    # of times a resident happens to be evaluated. Never replay every
+    # skipped hour and never apply recovery twice or backwards in time.
+    if previous is not None:
+        elapsed_hours = now - int(previous)
+        if elapsed_hours <= 0:
+            return life
+    else:
+        # A newly awakened resident has no earlier recovery checkpoint.
+        elapsed_hours = 1
 
     kept = []
     for episode in list(life.get("affect") or []):
@@ -238,14 +246,18 @@ def decay_life_state(life, day, hour):
     # Injury and illness do not heal here because recovery should be caused by
     # explicit rest, treatment, or authored world systems.
     body = dict(life.get("body") or {})
-    body["wet"] = clamp(body.get("wet", 0.0) - 4.0)
-    body["cold"] = clamp(body.get("cold", 0.0) - 2.0)
-    body["intoxication"] = clamp(body.get("intoxication", 0.0) - 3.0)
-    body["discomfort"] = clamp(body.get("discomfort", 0.0) - 1.0)
+    body["wet"] = clamp(body.get("wet", 0.0) - 4.0 * elapsed_hours)
+    body["cold"] = clamp(body.get("cold", 0.0) - 2.0 * elapsed_hours)
+    body["intoxication"] = clamp(
+        body.get("intoxication", 0.0) - 3.0 * elapsed_hours
+    )
+    body["discomfort"] = clamp(
+        body.get("discomfort", 0.0) - 1.0 * elapsed_hours
+    )
     body["pain"] = clamp(
         max(
             body.get("injury", 0.0) * 0.35,
-            body.get("pain", 0.0) - 1.5,
+            body.get("pain", 0.0) - 1.5 * elapsed_hours,
         )
     )
     life["body"] = body
@@ -312,6 +324,18 @@ def add_commitment(
     for existing in commitments:
         if existing.get("key") == key and existing.get("status") == "open":
             return existing
+
+    # The bound is a capacity limit, not permission to forget an
+    # outstanding promise. Reuse a resolved slot or refuse a new one.
+    if len(commitments) >= MAX_COMMITMENTS:
+        finished_index = next(
+            (i for i, item in enumerate(commitments)
+             if item.get("status") != "open"),
+            None,
+        )
+        if finished_index is None:
+            return None
+        commitments.pop(finished_index)
 
     commitment_id = int(life.get("next_commitment_id") or 1)
     life["next_commitment_id"] = commitment_id + 1

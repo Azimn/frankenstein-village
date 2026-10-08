@@ -10,6 +10,10 @@ Everything for building this game lives in this folder.
 
 Fresh checkout: set `EVENNIA_SUPERUSER_USERNAME`, `EVENNIA_SUPERUSER_EMAIL`, and `EVENNIA_SUPERUSER_PASSWORD`, then run `python3.12 spike/bootstrap.py`. Start with `cd spike/fvillage && ../venv/bin/evennia start`; telnet is `localhost:4000` and the web client is `localhost:4001`. Bootstrap installs the root `requirements.txt`, runs Evennia's first-database setup, repairs the Twisted launcher if needed, and idempotently builds the world. Run the clean-checkout regression suite with `python3.12 spike/tests/run_all.py`.
 
+## First-session route
+
+Use `guide` (or `next`) anywhere to get an immediate, location-aware entry route. In the Inn, it explains the front-door transition and optional calling selection. In the village, it points to public rumors and the existing cooperative care and repair cases without revealing hidden evidence or turning the guide into an automatic quest tracker. The clean-checkout telnet suite tests this route from OOC to the square and Tavern.
+
 ## Alpha persistence and recovery
 
 The clean-checkout regression is a development gate, not evidence that an
