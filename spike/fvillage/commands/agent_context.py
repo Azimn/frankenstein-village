@@ -110,11 +110,15 @@ class CmdAgentLobby(Command):
 
     key = "agentlogin"
     help_category = "Village"
+    account_caller = True
 
     def func(self):
         account = self.account
         substrate = getattr(account.db, "substrate", None) if account else None
-        gate_open = bool(substrate in {"human", "ai"})
+        gate_open = bool(
+            substrate in {"human", "ai"}
+            and account.db.disclosure_consent is True
+        )
         steps = {
             "version": VERSION,
             "schema": "fvillage.agent_login.v1",
