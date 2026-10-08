@@ -24,6 +24,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from sqlite_snapshot import SnapshotError, _checked, _verify_manifest
+from websocket_probe import WebSocketProbeError, probe_websocket
 
 
 class PreflightError(RuntimeError):
@@ -186,13 +187,23 @@ def run_preflight(
     *,
     timeout: float = 8.0,
     telnet_tls: bool = False,
+    websocket_url: str | None = None,
 ) -> dict:
-    """Require all three independent checks; return no launch certification."""
+    """Check recovery plus available transports; never certify launch."""
+    if urlparse(web_url).scheme == "https" and not websocket_url:
+        raise PreflightError(
+            "HTTPS alpha preflight requires --websocket-url to verify WSS."
+        )
     checks = [
         verify_disposable_restore(snapshot),
         probe_telnet(telnet_host, telnet_port, timeout=timeout, tls=telnet_tls),
         probe_web(web_url, timeout=timeout),
     ]
+    if websocket_url:
+        try:
+            checks.append(probe_websocket(websocket_url, timeout=timeout))
+        except WebSocketProbeError as exc:
+            raise PreflightError(f"websocket handshake failed: {exc}") from exc
     return {
         "result": "transport_and_recovery_checks_passed",
         "launch_certified": False,
@@ -207,6 +218,7 @@ def main() -> int:
     parser.add_argument("--telnet-port", type=int, default=4000)
     parser.add_argument("--telnet-tls", action="store_true")
     parser.add_argument("--web-url", required=True)
+    parser.add_argument("--websocket-url", help="Read-only WSS client handshake endpoint")
     parser.add_argument("--timeout", type=float, default=8.0)
     args = parser.parse_args()
     try:
@@ -217,6 +229,7 @@ def main() -> int:
             args.web_url,
             timeout=args.timeout,
             telnet_tls=args.telnet_tls,
+            websocket_url=args.websocket_url,
         )
     except PreflightError as exc:
         parser.exit(2, f"ALPHA_PREFLIGHT_FAILED: {exc}\n")

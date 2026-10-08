@@ -1,0 +1,19 @@
+# Optional TLS-wrapped MUD terminal gateway, suitable for remote AI agents.
+# This is a "server" stanza to include INSIDE Nginx's top-level stream {}
+# context, not inside an http {} or sites-enabled file.
+# Requires the nginx stream module and a valid public TLS certificate.
+# Remote clients must connect with TLS support on port 4040.
+# Port 4000 must remain localhost-only and firewalled.
+
+server {
+    listen 4040 ssl;
+    listen [::]:4040 ssl;
+
+    ssl_certificate /etc/letsencrypt/live/village.example.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/village.example.org/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    proxy_connect_timeout 10s;
+    proxy_timeout 24h;
+    proxy_pass 127.0.0.1:4000;
+}

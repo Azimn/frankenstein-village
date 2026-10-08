@@ -64,3 +64,12 @@ try:
     from server.conf.secret_settings import *
 except ImportError:
     print("secret_settings.py file not found or failed to import.")
+
+# Public alpha is an explicit, validated mode. Apply these security-critical
+# settings LAST, including after secret_settings.py, so a stale local override
+# cannot accidentally expose raw Evennia ports or disable HTTPS protections.
+# Normal development and clean-checkout CI retain their previous defaults.
+import os as _fv_os
+from server.conf.deployment_profile import public_profile as _fv_public_profile
+
+globals().update(_fv_public_profile(_fv_os.environ))

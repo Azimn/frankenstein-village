@@ -34,10 +34,12 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         #
         # any commands you add below will overload the default ones.
         #
+        from commands.agent_context import CmdAgentContext
         from commands.commons_cmd import CmdCommons
         from commands.newcomer import CmdGuide
         from commands.village_cmds import CmdReport, CmdRumors, CmdRetell, CmdHarbinger, CmdChronicle, CmdJournal, CmdDecide, CmdWorldEvent, CmdSecrets, CmdMystery, CmdTheory, CmdTalk, CmdAsk, CmdRead, CmdTime, CmdCalendar, CmdListen, CmdSmell, CmdDiary, CmdPet, CmdThrow, CmdRoll, CmdDraw, CmdSit, CmdStand, CmdPlay, CmdPractice, CmdDuet, CmdScore, CmdEat, CmdDrink, CmdConfess, CmdOOCOverride, CmdICOverride, CmdExamine, CmdAssess, CmdCare, CmdRepair, CmdCalling, CmdPurse, CmdTake
 
+        self.add(CmdAgentContext())
         self.add(CmdCommons())
         self.add(CmdGuide())
         self.add(CmdReport())
@@ -100,6 +102,7 @@ class AccountCmdSet(default_cmds.AccountCmdSet):
         Populates the cmdset
         """
         super().at_cmdset_creation()
+        from commands.agent_context import CmdAgentLobby
         from commands.account_cmds import (
             CmdAppeal,
             CmdSubstrate,
@@ -109,6 +112,7 @@ class AccountCmdSet(default_cmds.AccountCmdSet):
 
         # Same keys as Evennia's defaults intentionally replace the default
         # entry paths. The substrate command is the account-level gate.
+        self.add(CmdAgentLobby())
         self.add(CmdSubstrate())
         self.add(CmdAppeal())
         self.add(CmdVillageCharCreate())

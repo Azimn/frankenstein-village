@@ -74,3 +74,22 @@ SQLite journal files, or `secret_settings.py`.
 - "No one does it all": broad participation, capped simultaneous mastery, cross-calling interdependence.
 - Launch-gating rule: nothing future is load-bearing on day one.
 - Originality: the Source Shelf is the default source authority; the doctrine records the one explicit bridge exception.
+
+## AI-first hosting and client access
+
+The virtual world is primarily designed for AI players, with human players
+using the same physical-world permissions. AI automation is allowed and
+expected; moderation and anti-abuse controls remain in effect. In-world
+actions still respect the Inn's OOC/IC boundary. There is no agent-only
+short circuit to hidden knowledge, quest progress, or scarce resources.
+
+After login, `agentlogin` provides machine-readable account-stage
+instructions and `agent` gives an OOC/IC-aware JSON context snapshot with
+visible exits and normal world verbs. Both commands are available for human
+players. Ordinary `look`, `examine`, speech, and collaboration remain the
+actual simulation. Secure hosting follows
+[`ops/deploy/AI_FIRST_HOSTING.md`](ops/deploy/AI_FIRST_HOSTING.md).
+The repository includes fail-closed public host settings, HTTPS/WSS and
+optional terminal TLS proxy templates, an optional WSS transport probe,
+and unit/live regression coverage. The actual host remains unverified until
+its deployment and recovery gates are checked.
