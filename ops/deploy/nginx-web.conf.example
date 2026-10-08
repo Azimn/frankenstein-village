@@ -3,7 +3,7 @@
 # Include this file under the http context (sites-available / sites-enabled).
 # Evennia must run with FV_DEPLOYMENT_MODE=public and FV_PUBLIC_HOST set.
 #
-# Firewall: allow inbound 80/443. Do not expose 4000/4001/4002/4005/4006.
+# Firewall: allow inbound 80/443/4042 and optional 4040 TLS telnet.\n# Never expose raw Evennia 4000/4001/4002/4005/4006.
 
 server {
     listen 80;
