@@ -23,20 +23,6 @@ server {
 
     client_max_body_size 1m;
 
-    # A dedicated location is required for the browser's secure socket.
-    # Keep the websocket upgrade and long-lived reads intact for AI sessions.
-    location /ws {
-        proxy_pass http://127.0.0.1:4002;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_read_timeout 3600s;
-        proxy_send_timeout 3600s;
-    }
-
     location / {
         proxy_pass http://127.0.0.1:4001;
         proxy_http_version 1.1;
@@ -44,5 +30,30 @@ server {
         proxy_set_header X-Forwarded-Proto https;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_read_timeout 120s;
+    }
+}
+
+# Secure Evennia WebSocket frontend on a separate public TLS port.
+# WEBCLIENT_CLIENT_PROXY_PORT=4042 must be set in Evennia's service
+# environment, or its browser-generated URL will target the wrong port.
+# Opening a socket here does not bypass game login and compact disclosure.
+server {
+    listen 4042 ssl;
+    listen [::]:4042 ssl;
+    server_name village.example.org;
+
+    ssl_certificate /etc/letsencrypt/live/village.example.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/village.example.org/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://127.0.0.1:4002;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
     }
 }
