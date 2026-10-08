@@ -74,6 +74,15 @@ listener receives a bounded first-person hearsay perception. Existing social
 history can slightly bias which colocated resident a speaker approaches.
 
 All collections are capped so character depth cannot grow without bound.
+The commitment cap is not allowed to silently discard an open promise:
+once all slots contain unresolved commitments, further additions are refused
+until a promise is resolved. A finished slot is recycled before an open one.
+
+Physical easing is proportional to elapsed village hours, not the number
+of resident evaluations. Skipped hours are collapsed into one constant-time
+calculation. Re-evaluating the same hour or moving the world clock backwards
+does not cause extra recovery. Injury and illness still require explicit
+treatment or authored world consequences.
 
 ## Subjective boundary
 
