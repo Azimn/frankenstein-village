@@ -190,6 +190,10 @@ def run_preflight(
     websocket_url: str | None = None,
 ) -> dict:
     """Check recovery plus available transports; never certify launch."""
+    if urlparse(web_url).scheme == "https" and not websocket_url:
+        raise PreflightError(
+            "HTTPS alpha preflight requires --websocket-url to verify WSS."
+        )
     checks = [
         verify_disposable_restore(snapshot),
         probe_telnet(telnet_host, telnet_port, timeout=timeout, tls=telnet_tls),
