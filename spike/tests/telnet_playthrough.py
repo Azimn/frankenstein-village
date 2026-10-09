@@ -1147,6 +1147,49 @@ def main() -> int:
         out = smith.command("commons 2")
         require(out, "merchanttester")
 
+        # Unified gameplay regression: PvP dice must invite real players,
+        # never route nonkeeper names into the keeper-only refusal.
+        out = merchant.command("east")
+        require(out, "blood of the vine")
+        out = smith.command("east")
+        require(out, "blood of the vine")
+        out = c.command("roll dice vs MerchantTester")
+        require(out, "merchanttester", "dice")
+        out = merchant.command("roll dice decline")
+        require(out, "declin", "dice")
+
+        # An existing wrestling invite must not be silently overwritten.
+        out = smith.command("wrestle MerchantTester")
+        require(out, "arm wrestling")
+        out = c.command("wrestle MerchantTester")
+        require(out, "already has a wrestling challenge")
+        out = merchant.command("wrestle answer")
+        require(out, "hands grip")
+        out = smith.command("wrestle quit")
+        require(out, "steps back")
+        out = merchant.command("wrestle push")
+        require(out, "not wrestling anyone")
+
+        # A half-abandoned bout cannot be revived by logging in later.
+        out = smith.command("wrestle MerchantTester")
+        require(out, "arm wrestling")
+        out = merchant.command("wrestle answer")
+        require(out, "hands grip")
+        merchant.close()
+        out = smith.command("wrestle quit")
+        require(out, "gone cold", "steps back")
+        merchant = Client(args.host, args.port)
+        merchant_banner = merchant.sync_login_screen()
+        require(merchant_banner, "frankenstein village")
+        out = merchant.command(
+            f"connect qa_merchant_repair {repair_password}", wait=4.0
+        )
+        require(out, "connected")
+        out = merchant.command("ic MerchantTester", wait=4.0)
+        require(out, "blood of the vine")
+        out = merchant.command("wrestle push")
+        require(out, "bout's gone cold")
+
         out = c.command("north")
         require(out, "inn hallway")
         out = c.command("west")
