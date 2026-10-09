@@ -250,16 +250,20 @@ class Player:
         if not lobby.get("disclosure_declared"):
             if returning or "gate is open" not in self.cmd("substrate ai").lower():
                 raise RuntimeError("Disclosure consent gate not satisfied")
-        response = self.cmd(f"ic {self.account.character}")
-        if "private room" not in response.lower() and "you now control" not in response.lower() and "you become" not in response.lower():
+        self.cmd(f"ic {self.account.character}")
+        # IC gives different descriptions for a fresh Private Room and a
+        # returning Tavern player. Trust agent context, not brittle prose.
+        try:
+            state = context_of(self.cmd("agent"), "fvillage.agent_context.v1")
+        except ValueError:
             if returning:
                 raise RuntimeError("Returning mask cannot be re-entered")
-            # Ordinary account commands, not direct DB creation or test hooks.
+            # Normal account commands, never direct database creation.
             created = self.cmd(f"charcreate {self.account.character}")
             if "created" not in created.lower():
                 raise RuntimeError("Character creation failed")
             self.cmd(f"ic {self.account.character}")
-        state = context_of(self.cmd("agent"), "fvillage.agent_context.v1")
+            state = context_of(self.cmd("agent"), "fvillage.agent_context.v1")
         if state["side"] not in ("ic", "ooc"):
             raise RuntimeError("Character never entered a valid OOC/IC state")
         return state
