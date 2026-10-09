@@ -3629,4 +3629,26 @@ assert f"{LONG_BLACKOUT_ID}:active" in (
     one("Village Square").db.scheduled_overlays or {}
 )
 
+# A wrestling bout is shared state, not two independently authoritative
+# copies. Clearing one participant must make the other stale copy ineligible
+# for resurrection after reconnect.
+from commands.village_cmds import CmdWrestle
+from types import SimpleNamespace as _SN
+_a = _SN(key="MergeWrestlerA", location=object(), db=_SN())
+_b = _SN(key="MergeWrestlerB", location=_a.location, db=_SN())
+_state = {
+    "a": _a.key, "b": _b.key,
+    "rounds": {_a.key: 0, _b.key: 0},
+    "rolls": {_a.key: None, _b.key: None},
+}
+_a.db.wrestle = dict(_state)
+_b.db.wrestle = dict(_state)
+_a.search = lambda *_args, **_kwargs: [_b]
+_partner, _recovered = CmdWrestle._pair(None, _a)
+assert _partner is _b and _recovered == _state
+_b.db.wrestle = None  # partner disconnected and abandoned their copy
+assert CmdWrestle._pair(None, _a) == (None, None), (
+    "wrestling resurrected from a one-sided stale state"
+)
+
 print("WORLD_ASSERTIONS_GREEN")

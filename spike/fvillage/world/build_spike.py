@@ -358,52 +358,11 @@ if not well.is_typeclass("typeclasses.objects.VillageWell", exact=True):
 # and later recall that knowledge through examine.
 # A bad cap seeds the ledger -> rumor pipeline (consumable-surprise with
 # provenance), the same way the stew's bad night does.
-found = [o for o in square.contents if o.key == "a cluster of mushrooms"]
-if found:
-    mushrooms = found[0]
-    print("mushrooms already grow by the well.")
-else:
-    mushrooms = create.create_object(
-        "evennia.objects.objects.DefaultObject",
-        key="a cluster of mushrooms", location=square,
-        aliases=["mushrooms", "cluster", "toadstools"],
-    )
-    print("mushrooms created: a cluster of mushrooms")
-mushrooms.db.desc = (
-    "A cluster of pale mushrooms pushing up where the well's damp stones "
-    "meet the cobbles. Some are kind and some are not, and only somebody's "
-    "grandmother could name each one with confidence."
-)
-mushrooms.tags.add("consumable")
-mushrooms.tags.add("food")  # the eat gate
-configure_mechanical_properties(
-    mushrooms,
-    {},
-    hidden_properties={"toxin": 25},
-)
-mushrooms.db.consume = {
-    "nourish": 5,
-    "flavor": "You eat a cap. Earthy at first, peppery after — and then "
-              "your stomach files a formal complaint. The square has two "
-              "of everything for a while.",
-    "room": "eats one of the well mushrooms, and goes a remarkable shade "
-            "of green.",
-    "surprises": [
-        {"chance": 25, "key": "kind",
-         "text": "A kind one — earthy, peppery, entirely friendly. This "
-                 "time. Your stomach only grumbles a little.",
-         "room": "eats a well mushroom, and looks relieved to be fine."},
-        {"chance": 30, "key": "unkind",
-         "text": "The cap is peppery going down and mutinous coming back. "
-                 "You sit down on the damp stones and wait for the world "
-                 "to settle.",
-         "room": "eats a well mushroom and has to sit down on the damp "
-                 "stones.",
-         "rumor": "Someone ate the mushrooms by the well and spent the "
-                  "afternoon green. The keeper's expression did not change.",
-         "effect": "queasy"},
-    ],
-}
+# Spec + creator live in commands.village_cmds (one source of truth —
+# CmdSell regrows the square's cluster after a sale).
+from commands.village_cmds import ensure_well_mushrooms
+mushrooms = ensure_well_mushrooms()
+print("mushrooms re-synced by the well.")
 
 # darts & board: the keeper's talk already promises them; now they're real
 get_or_create_scenery(
@@ -443,6 +402,16 @@ get_or_create_scenery(
     aliases=["fortune deck", "deck", "cards"],
 )
 
+# the whittling basket: the hearthside hobby (whittle <piece>)
+# — Bram keeps it filled; kindling sticks are nobody's treasure.
+get_or_create_scenery(
+    "a basket of whittling sticks", tavern,
+    "A split-willow basket by the hearth, heaped with straight sticks, "
+    "short sticks, and one crooked stick with opinions. Bram keeps it "
+    "filled for idle hands. (Try: whittle spoon.)",
+    aliases=["whittling basket", "basket", "sticks"],
+)
+
 # the fiddle: hangs on its peg by the hearth, for anyone with the nerve
 found = [o for o in tavern.contents if o.key == "a fiddle"]
 if not found:
@@ -474,6 +443,8 @@ get_or_create_scenery(
 # the price board: Jay's ruling, 2026-10-04 — coin, with a price list on
 # the wall. 1890 Austria-Hungary: forint, 1 ft = 100 krajczár. Bram chalks
 # it himself; the figures match TAVERN_PRICES in village_cmds.py.
+# 2026-10-05: new chalk line — Bram buys mushrooms (the earning loop),
+# MUSHROOM_BUY_KR in village_cmds.py.
 get_or_create_scenery(
     "a chalked price board", tavern,
     "Chalked on the board in Bram's blocky hand:\n"
@@ -483,9 +454,24 @@ get_or_create_scenery(
     "  ale ........ 5 kr\n"
     "  wine ...... 10 kr\n"
     "  water ..... free\n"
+    "Bram buys: mushrooms ... 4 kr (five a day)\n"
     "Underneath, underlined twice: COIN FIRST.",
     aliases=["board", "price board", "prices", "price list"],
 )
+# The board predates the mushroom trade; refresh the chalk line.
+_bd = [o for o in tavern.contents if o.key == "a chalked price board"]
+if _bd:
+    _bd[0].db.desc = (
+        "Chalked on the board in Bram's blocky hand:\n"
+        "  bread ...... 4 kr\n"
+        "  cheese ..... 6 kr\n"
+        "  stew ...... 12 kr\n"
+        "  ale ........ 5 kr\n"
+        "  wine ...... 10 kr\n"
+        "  water ..... free\n"
+        "Bram buys: mushrooms ... 4 kr (five a day)\n"
+        "Underneath, underlined twice: COIN FIRST."
+    )
 # The sideboard's old "help yourself" text predates coin; refresh it.
 _sb = [o for o in tavern.contents if o.key == "a sideboard"]
 if _sb:
@@ -511,12 +497,20 @@ def _fare(
     short=None,
     worth=0,
 ):
+    # Build-loop #16b: fare is created as the spike Object typeclass, which
+    # carries the stacked-name grammar fix (build-loop #16: "two loaves of
+    # bread", not "two a loaves of bread") for carried duplicates.
+    SPIKE_ITEM = "typeclasses.objects.Object"
+    LEGACY_DEFAULT = "evennia.objects.objects.DefaultObject"
     found = [o for o in tavern.contents if o.key == key]
     if found:
         obj = found[0]
+        if obj.typeclass_path == LEGACY_DEFAULT:
+            obj.swap_typeclass(SPIKE_ITEM, clean_attributes=False)
+            print(f"fare retyped: {key}")
     else:
         obj = create.create_object(
-            "evennia.objects.objects.DefaultObject",
+            SPIKE_ITEM,
             key=key, location=tavern, aliases=list(aliases),
         )
         print(f"fare created: {key}")
@@ -1294,5 +1288,21 @@ _square = [o for o in search.search_object("Village Square") if o.key == "Villag
 if not _square.db.weather_sense:
     _square.db.weather_sense = "Fog deadens every sound; the gaslight is a smear."
     print("square weather sense initialized.")
+
+# --- phantom alias purge (build-loop #16d) --------------------------------------
+# Evennia's default get_numbered_name() permanently adds count-specific
+# phantom aliases ("two rough wooden spoons", "one a rough wooden spoon")
+# to every object a look renders; those aliases then hijack later
+# searches ("get 2 spoons" matched one spoon's phantom alias instead of
+# resolving the count). The spike's Object.get_numbered_name no longer
+# writes them; this clears the accumulated ones. The "plural_key"
+# category is only ever written by that side effect, so clearing it
+# removes phantoms and nothing else.
+from evennia.typeclasses.tags import Tag as _PhantomTag
+_phantoms = _PhantomTag.objects.filter(db_tagtype="alias", db_category="plural_key")
+_nphantoms = _phantoms.count()
+if _nphantoms:
+    _phantoms.delete()
+    print(f"phantom plural aliases purged: {_nphantoms}.")
 
 print("Spike build complete.")
