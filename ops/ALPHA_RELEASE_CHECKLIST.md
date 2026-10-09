@@ -55,3 +55,13 @@ Record these values for each deployment before inviting external players:
 **NO-GO until the external deployment and recovery evidence above exists.**
 A green GitHub Action means the reproducible development suite passed, not that
 a public service is already running or recoverable.
+
+
+Invited-alpha host and recovery plan:
+[deploy/INVITED_ALPHA_GATES_A_B.md](deploy/INVITED_ALPHA_GATES_A_B.md).
+This is a costed selection, not an established environment or proof that
+off-host storage, restoration, human alert delivery or server monitoring work.
+The off-host restoration script prints `host_drill_certified=false` even
+after its isolated rehearsal succeeds. No Gate A/B checkbox should be checked
+without actual operator-host evidence; Gate C remains out of invited-alpha
+scope without changing any full-launch §7 targets.
