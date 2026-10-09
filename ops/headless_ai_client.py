@@ -303,6 +303,10 @@ class Player:
         self.cmd("look")
         words = self.cmd("talk Bram")
         self.quotable = self.quotable or quote_from(words)
+        # Guarantee an actual game-system interaction in every session;
+        # further actions are randomized. A purely look/talk sequence is
+        # useful exploration, but does not satisfy the client smoke contract.
+        self.cmd(self.rng.choice(("roll dice", "rumors")))
         # Avoid whittling here: the interruption test exclusively owns
         # three crafting steps, preventing random actions from duplicating it.
         for _ in range(self.steps):
