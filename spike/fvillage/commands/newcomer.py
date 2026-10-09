@@ -5,6 +5,7 @@ only describes publicly accessible rooms and commands already available.
 """
 
 from evennia import Command
+from world.newcomer_leads import lamp_lead, lamp_shop_lead, tavern_care_lead
 
 
 class CmdGuide(Command):
@@ -45,8 +46,9 @@ class CmdGuide(Command):
                 )
             caller.msg(
                 "|wA way into the village|n\n"
-                "The Inn is out of character. Your character's calling is "
-                "optional; |wcalling list|n shows what is available.\n"
+                "The Inn is out of character. In the Common Room you can "
+                "|wtalk M.|n before crossing the front door. Your calling "
+                "is optional; |wcalling list|n shows what is available.\n"
                 + route
                 + "\nOnce outside, use |wguide|n again for a starting lead."
             )
@@ -62,32 +64,29 @@ class CmdGuide(Command):
                 "Speak with someone nearby, or use "
                 "|wretell <person> R<number>|n to pass the story on. "
                 "|wjournal|n records situations your mask actually "
-                "encountered. The |wcare|n case offers a concrete "
-                "Healer and Innkeep collaboration.\n"
-                "For a lasting public account, a Chronicler can examine "
+                "encountered.\n"
+                + tavern_care_lead(caller)
+                + "\nFor a lasting public account, a Chronicler can examine "
                 "|wchronicle|n and file testimony from a known rumor."
             )
         elif place == "Village Square":
             caller.msg(
                 "|wA first lead: the village square|n\n"
                 "Go |weast|n to the Blood of the Vine and use |wrumors|n "
-                "to find a story worth following. Or inspect the dark "
-                "north-square gas lamp and use |wrepair|n to see a shared "
-                "Smith and Merchant job. The |wcommons|n board holds "
-                "requests, offers, and gatherings left by real visitors.\n"
+                "to find a story worth following. The |wcommons|n board "
+                "holds requests, offers, and gatherings left by real visitors.\n"
                 "|wcalling list|n describes available professions. "
                 "Choose one with |wcalling choose <name>|n, or keep "
                 "exploring without one. |wjournal|n only shows what "
-                "you have personally discovered."
+                "you have personally discovered.\n"
+                "|wA shared village need:|n "
+                + lamp_lead(caller)
             )
         elif place == "The Lamp Shop":
             caller.msg(
                 "|wA first lead: the Lamp Shop|n\n"
-                "Examine what the shop offers. The public lamp-repair "
-                "job requires a Smith's diagnosis before a Merchant "
-                "can procure a replacement here. Use |wrepair|n for "
-                "the public case status. Go |wnorth|n to return "
-                "to the square."
+                "Examine what the shop offers. "
+                + lamp_shop_lead(caller)
             )
         elif place == "St. Lazarus Church":
             caller.msg(
