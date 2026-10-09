@@ -834,6 +834,7 @@ class CmdVillageGet(CmdGet):
     """
 
     key = "get"
+    aliases = ["take", "grab"]
     help_category = "General"
 
     def func(self):
