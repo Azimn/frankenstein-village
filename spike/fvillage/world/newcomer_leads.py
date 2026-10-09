@@ -99,3 +99,38 @@ def tavern_care_lead(mask):
     else:
         return "Care contributions were recorded. Use |wcare|n for the outcome."
     return step + " Use |wcare|n to see the shared state."
+
+
+def lamp_shop_lead(mask):
+    """The Lamp Shop should not sell an already-procured or closed job."""
+    case = get_situation(LAMP_REPAIR_ID)
+    if not case or case.get("state") == "dormant":
+        return (
+            "Inspect the shop and ask about the square's gas lamp. "
+            "Go |wnorth|n to examine it."
+        )
+    if case.get("state") == "aftermath":
+        return (
+            "The Broken Mantle case has closed. No new replacement is "
+            "needed for this particular job. Use |wrepair|n for its "
+            "public outcome, then go |wnorth|n to see the lamp."
+        )
+    changes = dict(case.get("objective_mutations") or {})
+    if not changes.get("smith_diagnosis"):
+        return (
+            "No Smith has diagnosed the north-square gas lamp. The shop "
+            "cannot source the right part on speculation. Go |wnorth|n "
+            "to the square and ask a Smith to use "
+            "|wrepair diagnose north-square gas lamp|n."
+        )
+    if not changes.get("merchant_procurement"):
+        return (
+            "A Smith has diagnosed the broken mantle. A Merchant here "
+            "can use |wrepair procure|n to reserve one real part. "
+            "Afterwards a Smith at the square must fit it."
+        )
+    return (
+        "The replacement is already reserved; do not take another. "
+        "Go |wnorth|n and ask a Smith to use "
+        "|wrepair finish north-square gas lamp|n."
+    )
