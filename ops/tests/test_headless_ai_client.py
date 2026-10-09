@@ -76,7 +76,7 @@ class FakeTransport:
                 )
             if verb == "charcreate":
                 state["made"] = True
-                self.created += 1
+                type(self).created += 1
                 return "Character Created", 1.0
             if verb == "agent":
                 if not state["made"]:
