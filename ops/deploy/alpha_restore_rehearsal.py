@@ -151,6 +151,7 @@ def perform(source: Path, retrieved: Path, evidence_file: Path) -> dict:
         if not rollback or not rollback.exists():
             raise SnapshotError("No pre-restore rollback snapshot was retained.")
         _verify_manifest(rollback)
+        rollback_snapshot_hash = _sha256(rollback)
         if not _marker_exists(rollback):
             raise SnapshotError("Rollback omitted the modified state.")
         if _sha256(staged) != expected_hash or _marker_exists(staged):
@@ -182,7 +183,7 @@ def perform(source: Path, retrieved: Path, evidence_file: Path) -> dict:
         "restored_sha256": expected_hash,
         "modified_sha256": modified_hash,
         "modified_logical_sha256": modified_logical_hash,
-        "rollback_snapshot_sha256": _sha256(rollback),
+        "rollback_snapshot_sha256": rollback_snapshot_hash,
         "rollback_logical_sha256": modified_logical_hash,
         "exact_restore": True,
         "rollback_tested": True,
