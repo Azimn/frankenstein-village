@@ -5,7 +5,7 @@ only describes publicly accessible rooms and commands already available.
 """
 
 from evennia import Command
-from world.newcomer_leads import lamp_lead, tavern_care_lead
+from world.newcomer_leads import lamp_lead, lamp_shop_lead, tavern_care_lead
 
 
 class CmdGuide(Command):
@@ -85,11 +85,8 @@ class CmdGuide(Command):
         elif place == "The Lamp Shop":
             caller.msg(
                 "|wA first lead: the Lamp Shop|n\n"
-                "Examine what the shop offers. The public lamp-repair "
-                "job requires a Smith's diagnosis before a Merchant "
-                "can procure a replacement here. Use |wrepair|n for "
-                "the public case status. Go |wnorth|n to return "
-                "to the square."
+                "Examine what the shop offers. "
+                + lamp_shop_lead(caller)
             )
         elif place == "St. Lazarus Church":
             caller.msg(
