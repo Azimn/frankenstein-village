@@ -149,6 +149,15 @@ def main() -> int:
                 "fact = assign_fact(lark, class_hint='ordinary')\n"
                 "lark.db.qa_fact_id = fact['fact_id']\n"
                 "set_location_availability('schoolhouse', False, reason='school_destroyed')\n"
+                # Regression: simulate a legacy well mushroom present without
+                # hidden toxin and with stale public aliases/configuration.
+                "from world.object_properties import configure_mechanical_properties\n"
+                "shroom = [o for o in search.search_object('a cluster of mushrooms') if o.key == 'a cluster of mushrooms'][0]\n"
+                "configure_mechanical_properties(shroom, {}, hidden_properties={})\n"
+                "shroom.db.desc = 'stale mushroom description'\n"
+                "shroom.db.consume = {'toxic': 25, 'nourish': 5}\n"
+                "shroom.aliases.remove('toadstools')\n"
+                "shroom.tags.remove('food')\n"
                 "print('IDEMPOTENCE_SENTINELS_SET')\n"
             )
             run([evennia, "shell"], cwd=game, env=env, input_text=mutate)
