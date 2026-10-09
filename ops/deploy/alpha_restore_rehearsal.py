@@ -81,6 +81,20 @@ def category_witnesses(database: Path) -> dict:
     return witnesses
 
 
+def _logical_sha256(database: Path) -> str:
+    """Compare SQLite content, not change counters or physical page layout.
+
+    SQLite online backup promises a logically faithful database copy, not
+    necessarily an identical physical byte layout or page header.
+    """
+    digest = hashlib.sha256()
+    with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+        for statement in db.iterdump():
+            digest.update(statement.encode("utf-8"))
+            digest.update(b"\n")
+    return digest.hexdigest()
+
+
 def _marker_exists(database: Path) -> bool:
     with sqlite3.connect(database) as db:
         found = db.execute(
@@ -101,6 +115,8 @@ def perform(source: Path, retrieved: Path, evidence_file: Path) -> dict:
         raise SnapshotError("Retrieved snapshot must preserve the original filename.")
     if evidence_file in (source, retrieved):
         raise SnapshotError("Evidence cannot overwrite a snapshot.")
+    if evidence_file.exists():
+        raise SnapshotError("Evidence file already exists; refusing overwrite.")
     _verify_manifest(source)
     _verify_manifest(retrieved)
     expected_hash = _sha256(source)
@@ -125,6 +141,7 @@ def perform(source: Path, retrieved: Path, evidence_file: Path) -> dict:
             )
             db.commit()
         modified_hash = _sha256(staged)
+        modified_logical_hash = _logical_sha256(staged)
         if modified_hash == expected_hash:
             raise SnapshotError("Could not simulate a changed database.")
 
@@ -146,8 +163,8 @@ def perform(source: Path, retrieved: Path, evidence_file: Path) -> dict:
                          server_stopped=True)
         if not _marker_exists(staged):
             raise SnapshotError("Rollback failed to recover the simulated change.")
-        if _sha256(staged) != modified_hash:
-            raise SnapshotError("Rollback bytes differ from the modified state.")
+        if _logical_sha256(staged) != modified_logical_hash:
+            raise SnapshotError("Rollback did not recover identical logical rows.")
 
         # Finish with the original verified state in the disposable workspace.
         restore_database(staged, retrieved, workspace / "final-rollback",
@@ -164,7 +181,9 @@ def perform(source: Path, retrieved: Path, evidence_file: Path) -> dict:
         "retrieved_sha256": expected_hash,
         "restored_sha256": expected_hash,
         "modified_sha256": modified_hash,
-        "rollback_sha256": modified_hash,
+        "modified_logical_sha256": modified_logical_hash,
+        "rollback_snapshot_sha256": _sha256(rollback),
+        "rollback_logical_sha256": modified_logical_hash,
         "exact_restore": True,
         "rollback_tested": True,
         "final_original_state_recovered": True,
@@ -182,8 +201,6 @@ def perform(source: Path, retrieved: Path, evidence_file: Path) -> dict:
         ],
     }
     evidence_file.parent.mkdir(parents=True, exist_ok=True)
-    if evidence_file.exists():
-        raise SnapshotError("Evidence file already exists; refusing overwrite.")
     # Keep evidence private by default; it contains no account identifiers.
     fd = os.open(str(evidence_file), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
