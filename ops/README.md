@@ -111,3 +111,16 @@ then stop it cleanly.
   earlier Git history; examine prior tracked sidecars if data exposure is suspected.
 - No destructive schema migration or untested live restoration is part of
   this repository change.
+
+
+## Invited alpha Gate A and B
+
+[The costed host/recovery runbook](deploy/INVITED_ALPHA_GATES_A_B.md)
+selects a DigitalOcean 2-vCPU/4-GiB candidate, persistent SSD, private off-host
+encrypted backups, a human recovery owner, and ordered external evidence gates.
+`deploy/alpha_restore_rehearsal.py` checks snapshot retrieval, exact restore,
+rollback and category presence **only on isolated copies**.
+`deploy/host_health.py` checks host-local listeners, DB existence, disk space
+and backup receipt age. CI cannot certify a live host or real off-host access.
+
+Gate C and its §7 full-launch content targets remain untouched.
