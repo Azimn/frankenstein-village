@@ -5168,21 +5168,25 @@ def ensure_well_mushrooms():
     SPIKE_ITEM = "typeclasses.objects.Object"
     wells = search.search_object("village well")
     square = wells[0].location if wells else None
-    if square:
-        found = [
-            o for o in square.contents
-            if o.key == "a cluster of mushrooms"
-        ]
-        if found:
-            if found[0].typeclass_path != SPIKE_ITEM:
-                found[0].swap_typeclass(SPIKE_ITEM, clean_attributes=False)
-            return found[0]
-    mushrooms = create.create_object(
-        SPIKE_ITEM,
-        key="a cluster of mushrooms", location=square,
-        aliases=["mushrooms", "cluster", "toadstools"],
-    )
+    found = [
+        o for o in square.contents if o.key == "a cluster of mushrooms"
+    ] if square else []
+    if found:
+        mushrooms = found[0]
+        if mushrooms.typeclass_path != SPIKE_ITEM:
+            mushrooms.swap_typeclass(SPIKE_ITEM, clean_attributes=False)
+    else:
+        mushrooms = create.create_object(
+            SPIKE_ITEM,
+            key="a cluster of mushrooms", location=square,
+            aliases=["mushrooms", "cluster", "toadstools"],
+        )
+    # Apply to BOTH new and existing objects. Rebuilds and post-sale regrowth
+    # must converge on the same hidden-property source of truth.
     mushrooms.db.desc = WELL_MUSHROOMS_DESC
+    for alias in ("mushrooms", "cluster", "toadstools"):
+        if alias not in (mushrooms.aliases.all() or []):
+            mushrooms.aliases.add(alias)
     mushrooms.tags.add("consumable")
     mushrooms.tags.add("food")  # the eat gate
     # The well stand is the first hidden-property production object: some
@@ -5193,7 +5197,13 @@ def ensure_well_mushrooms():
         {},
         hidden_properties={"toxin": 25},
     )
-    mushrooms.db.consume = WELL_MUSHROOMS_CONSUME
+    # Legacy "toxic" belonged to the old consumption dict. The hidden toxin
+    # property is authoritative, so even a previously built cluster must not
+    # retain a conflicting legacy key.
+    mushrooms.db.consume = {
+        key: value for key, value in WELL_MUSHROOMS_CONSUME.items()
+        if key != "toxic"
+    }
     return mushrooms
 
 
@@ -6001,7 +6011,16 @@ class CmdWrestle(Command):
         found = me.search(other_key, quiet=True)
         if isinstance(found, list):
             found = found[0] if found else None
-        if not found or found.location != me.location:
+        if (
+            not found
+            or found.location != me.location
+            or me.key not in {state.get("a"), state.get("b")}
+            or state.get("a") == state.get("b")
+            or dict(found.db.wrestle or {}) != dict(state)
+        ):
+            # A bout only exists while both sides hold the same current
+            # snapshot. A disconnected/re-entered partner must not resurrect
+            # a bout that the other participant already abandoned.
             return None, None
         return found, dict(state)
 
@@ -6078,6 +6097,15 @@ class CmdWrestle(Command):
                 "to clear."
             )
             return
+        pending = target.db.wrestle_invite
+        if pending:
+            if time.time() - float(pending.get("at", 0)) <= _CHALLENGE_TTL:
+                me.msg(
+                    f"{target.key} already has a wrestling challenge from "
+                    f"{pending.get('from', 'someone')}. Let them answer first."
+                )
+                return
+            target.db.wrestle_invite = None  # expired; safe to replace
         target.db.wrestle_invite = {"from": me.key, "at": time.time()}
         me.location.msg_contents(
             f"{me.key} turns to {target.key} at the usual table. "
