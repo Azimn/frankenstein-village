@@ -93,3 +93,13 @@ The repository includes fail-closed public host settings, HTTPS/WSS and
 optional terminal TLS proxy templates, an optional WSS transport probe,
 and unit/live regression coverage. The actual host remains unverified until
 its deployment and recovery gates are checked.
+
+
+### Headless AI player tool
+
+The external, stdlib-only `ops/headless_ai_client.py` supports independently
+authenticated AI sessions, seed-reproducible ordinary game verbs, per-session
+connection and latency metrics, optional host-local shared CPU/RSS readings,
+and a targeted interruption/re-login and craft-inventory recovery test.
+Configuration and non-soak policy: [ops/HEADLESS_AI_CLIENT.md](ops/HEADLESS_AI_CLIENT.md).
+**Do not begin multiplayer soak until the independent AI-first audit clears.**
