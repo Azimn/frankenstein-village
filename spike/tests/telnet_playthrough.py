@@ -203,7 +203,9 @@ def main() -> int:
         out = c.command("next")
         require(out, "first lead: the village square")
         require(out, "calling choose")
-        require(out, "repair")
+        require(out, "a shared village need")
+        require(out, "repair diagnose north-square gas lamp")
+        require(out, "commons post need")
 
         out = c.command("event")
         require(out, "the long blackout", "0 of 4", "event lamps")
@@ -998,6 +1000,9 @@ def main() -> int:
 
         out = h.command("care")
         require(out, "care complete")
+        out = h.command("guide")
+        require(out, "care case has ended")
+        require(out, "outcome")
 
 
         # Third structural interdependence case: independent QA accounts each
@@ -1028,6 +1033,10 @@ def main() -> int:
         out = smith.command("repair")
         require(out, "the broken mantle")
         require(out, "no smith diagnosis is on file")
+        out = smith.command("guide")
+        require(out, "a shared village need")
+        require(out, "repair diagnose north-square gas lamp")
+        require(out, "commons post need")
         out = smith.command("repair procure")
         require(out, "active merchant calling")
         out = smith.command("repair diagnose north-square gas lamp")
@@ -1065,6 +1074,10 @@ def main() -> int:
 
         out = merchant.command("repair diagnose north-square gas lamp")
         require(out, "active smith calling")
+        out = merchant.command("guide")
+        require(out, "smith identified the damage")
+        require(out, "repair procure")
+        require(out, "lamp shop")
         out = merchant.command("south")
         require(out, "lamp shop")
         out = merchant.command("repair")
@@ -1083,6 +1096,9 @@ def main() -> int:
 
         out = smith.command("repair")
         require(out, "replacement collar procured by merchanttester")
+        out = smith.command("guide")
+        require(out, "part has been procured")
+        require(out, "repair finish north-square gas lamp")
         out = smith.command("repair finish north-square gas lamp")
         require(out, "install the procured collar")
         require(out, "lamp is working again")
@@ -1097,6 +1113,11 @@ def main() -> int:
         require(out, "repair complete")
         require(out, "smithtester")
         require(out, "merchanttester")
+        out = smith.command("guide")
+        require(out, "lamp is burning again")
+        require(out, "no longer an open job")
+        if "repair diagnose" in out.lower() or "repair procure" in out.lower():
+            raise AssertionError("Guide advertises completed repair as open work")
 
         # Player-authored civic activity persists across accounts and rooms.
         out = smith.command("commons")
