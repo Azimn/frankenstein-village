@@ -1156,7 +1156,7 @@ def main() -> int:
         out = c.command("roll dice vs MerchantTester")
         require(out, "merchanttester", "dice")
         out = merchant.command("roll dice decline")
-        require(out, "declin", "dice")
+        require(out, "pushes the cup back", "another night")
 
         # An existing wrestling invite must not be silently overwritten.
         out = smith.command("wrestle MerchantTester")
