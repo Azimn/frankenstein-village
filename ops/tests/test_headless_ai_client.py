@@ -198,6 +198,42 @@ class HeadlessClientTests(unittest.TestCase):
                 tls=False, timeout=1, seed=1, steps=1, factory=FakeTransport,
             )
 
+    def test_telnet_transport_negotiates_options_without_exposing_passwords(self):
+        import socket
+
+        listener = socket.socket()
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        port = listener.getsockname()[1]
+
+        def peer():
+            try:
+                with listener.accept()[0] as conn:
+                    conn.settimeout(3)
+                    conn.sendall(bytes((255, 251, 1)) + b"Frankenstein Village\r\n")
+                    buffer = bytearray()
+                    while b"look\n" not in buffer:
+                        block = conn.recv(1024)
+                        if not block:
+                            break
+                        buffer.extend(block)
+                    conn.sendall(b"The village square remains foggy.\r\n")
+            finally:
+                listener.close()
+
+        worker = threading.Thread(target=peer, daemon=True)
+        worker.start()
+        wire = client.Transport("127.0.0.1", port, tls=False, timeout=3)
+        try:
+            self.assertIn("Frankenstein Village", wire.read())
+            text, elapsed = wire.send("look")
+            self.assertIn("square remains foggy", text)
+            self.assertGreaterEqual(elapsed, 0)
+        finally:
+            wire.close()
+            worker.join(3)
+        self.assertFalse(worker.is_alive())
+
     def test_credentials_only_from_environment(self):
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp) / "accounts.json"
