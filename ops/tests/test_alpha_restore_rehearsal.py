@@ -66,8 +66,11 @@ class RestoreDrillTests(unittest.TestCase):
         )
         self.assertEqual(_sha256(self.live), before)
         self.assertEqual(outcome["source_sha256"], outcome["restored_sha256"])
-        self.assertEqual(outcome["modified_sha256"], outcome["rollback_sha256"])
-        self.assertNotEqual(outcome["source_sha256"], outcome["rollback_sha256"])
+        self.assertEqual(
+            outcome["modified_logical_sha256"], outcome["rollback_logical_sha256"]
+        )
+        self.assertNotEqual(outcome["source_sha256"], outcome["modified_sha256"])
+        self.assertTrue(outcome["rollback_snapshot_sha256"])
         self.assertTrue(outcome["exact_restore"])
         self.assertTrue(outcome["rollback_tested"])
         self.assertTrue(outcome["final_original_state_recovered"])
