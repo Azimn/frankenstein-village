@@ -1,7 +1,8 @@
 # Invited alpha: Gates A and B execution runbook
 
-Status: **platform candidate chosen; host NOT provisioned, drill NOT executed on
-a host, multiplayer soak NOT started**. This is an operator playbook, not
+Status: **DigitalOcean server proposal declined by the user; no hosting
+platform currently selected, no host provisioned, no host drill executed,
+and no multiplayer soak started**. This is an operator playbook, not
 launch evidence. Gate C is deliberately parked. Never revise the content
 quantities in `files/frankenstein-village-quest-handoff-v0.3.md` §7 to
 retroactively declare the invited alpha a full launch.
@@ -13,18 +14,27 @@ without deploying additional gameplay code.
 
 ## Decision record: hosting and accountability
 
-| Property | Invited-alpha selection |
+**Decision (2026-10-08): DigitalOcean proposal declined.** The following
+configuration and cost are retained strictly as a historical, unapproved
+candidate, NOT as the selected or authorized host. No alternative provider
+or recurring hosting cost is currently committed. External hosting, real
+off-host backup tests and live soak remain paused. Local development,
+reproducible simulation, newcomer-loop refinement and offline moderation
+tests may proceed. Resume the provider-dependent procedure below only after
+a new host is deliberately selected and authorized.
+
+| Property | Previously proposed (declined) |
 |---|---|
-| Provider | DigitalOcean, Basic Droplet (regular shared CPU) |
+| Provider | DigitalOcean, Basic Droplet (regular shared CPU) — **DECLINED** |
 | Size | 2 vCPU, 4 GiB RAM, 80 GiB SSD, published $24/month |
 | State volume | Droplet's persistent 80 GiB boot SSD, under the restricted service user's Evennia `server` tree |
 | Off-host copy | Private DigitalOcean Spaces Standard bucket, published $5/month base (250 GiB included) |
 | Infrastructure backup | Daily provider image backup, +30% of Droplet = $7.20/month |
-| Baseline | **$36.20/month** before tax, domain, extra transfer/storage, growth and incident costs |
+| Baseline | Historical estimate **$36.20/month**, **not approved or incurred**; currently committed hosting cost **$0/month** |
 | Deployment | A single Linux VM, Python 3.12, pinned Git SHA, Nginx TLS and Evennia |
 | Recovery accountable | **Azimn as repository owner or a specifically delegated human operator; acceptance PENDING** |
 | Recovery executor | Operator with SSH/console, Spaces access, decryption key held OFF the Droplet |
-| Test status | **UNPROVISIONED; host and backup/restore evidence not collected** |
+| Test status | **PROPOSAL DECLINED; no host selected or provisioned; host and backup/restore evidence absent** |
 
 Pricing verified against DigitalOcean:
 https://www.digitalocean.com/pricing/droplets
@@ -37,7 +47,7 @@ Choosing the platform here does not mark the issue #35 selection checkbox
 complete until the provider account, named host, storage layout, budget
 alerts, and recovery owner are actually recorded.
 
-## Gate A, step 1: prepare the host
+## Gate A, step 1: prepare the host (PARKED until another host is approved)
 
 1. Provision one Ubuntu LTS Droplet with SSH keys, least-privileged `fvillage`
    service account, firewall and correct DNS. Provider monitoring must be
@@ -242,7 +252,7 @@ and keep staff moderation outside the fiction.
 | Gate / proof | State | Evidence |
 |---|---|---|
 | Calibos AI-first audit | Accepted | User-reported at `4bab7877` |
-| Platform, 80 GiB persistent disk and budget | Planned only | This runbook; no Droplet ID |
+| Platform and persistent disk/budget | **DigitalOcean declined; selection reopened** | No paid host, no deployment authorization |
 | Recovery owner | Proposed, not accepted | Human acknowledgement required |
 | Provider secrets and DNS | Not connected | No host evidence |
 | Actual off-host receipt | Not executed | None |
