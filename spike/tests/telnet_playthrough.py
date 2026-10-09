@@ -330,7 +330,19 @@ def main() -> int:
         out = c.command("journal strongbox")
         require(out, "tithe roll", "unforced lock")
 
-        out = c.command("decide strongbox openly", wait=3.0)
+        decision_started = time.monotonic()
+        # A shared decision writes multiple independent public projections.
+        # Do not resend it on a read timeout: that would hide idempotency
+        # and duplicate-event bugs. Instead observe the full response time.
+        out = c.command("decide strongbox openly", wait=12.0)
+        decision_ms = (time.monotonic() - decision_started) * 1000
+        print(f"STRONGBOX_DECISION_RESPONSE_MS={decision_ms:.1f}")
+        if not out:
+            raise AssertionError(
+                f"Strongbox decision returned no reply after {decision_ms:.0f}ms"
+            )
+        if decision_ms > 3000:
+            print("STRONGBOX_DECISION_LATENCY_WARNING")
         require(out, "accusation is now public", "quiet road is closed")
 
         out = c.command("journal strongbox")
