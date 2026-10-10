@@ -766,4 +766,21 @@ assert first_notice["resolution"]["body"].startswith("We spoke")
 assert second_notice and second_notice["status"] == "open"
 assert second_notice["author"]["mask"] == "MerchantTester"
 assert second_notice["body"].startswith("I can carry parcels")
+
+# Prospective interests belong to the active mask and survive real stop/start.
+# The public board remains authoritative; mask bookmarks only store cursors.
+from world import commons_follow
+smith_follow = commons_follow.normalize(smith_tester.db.commons_following)
+followed_ids = [w["id"] for w in smith_follow["items"]]
+assert followed_ids == [1, 2], followed_ids
+watched = commons_follow.summaries(smith_follow, commons_after_restart)
+assert len(watched) == 2
+assert watched[0]["status"] == "closed"
+assert watched[0]["new_replies"] == 0
+assert watched[0]["new_closure"] is False
+assert watched[1]["status"] == "open"
+assert watched[1]["new_replies"] == 0
+assert not commons_follow.normalize(merchant_tester.db.commons_following)["items"], (
+    "Smith's followed Commons correspondence leaked into a different mask"
+)
 print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")

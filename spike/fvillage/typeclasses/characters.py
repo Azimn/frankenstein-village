@@ -819,7 +819,7 @@ class TavernKeeper(SpikeCharacter):
             return topic_matches(t, *keys)
 
         from world.tavern_conversation import (
-            care_talk, lamp_talk, rumor_talk, work_talk,
+            care_talk, commons_talk, lamp_talk, rumor_talk, work_talk,
         )
 
         # Bram speaks from common knowledge, not a private case database.
@@ -831,6 +831,9 @@ class TavernKeeper(SpikeCharacter):
         if has("silas", "silas crowe", "cold hunter", "care"):
             self.note_interest(char, "silas")
             return care_talk()
+        if has("commons", "board", "noticeboard", "notices", "messages"):
+            self.note_interest(char, "commons")
+            return commons_talk(char)
         if has("work", "jobs", "job", "help", "needs", "something to do"):
             self.note_interest(char, "work")
             return work_talk()
