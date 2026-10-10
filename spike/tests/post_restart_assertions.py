@@ -783,4 +783,31 @@ assert watched[1]["new_replies"] == 0
 assert not commons_follow.normalize(merchant_tester.db.commons_following)["items"], (
     "Smith's followed Commons correspondence leaked into a different mask"
 )
+# Physical finite-resource civic fire survives stop/start separately from
+# closed authored cases. The warm period uses the one canonical village clock.
+from world import hearth_state
+source = one("a village woodpile")
+actual_source = dict(source.db.civic_wood or {})
+assert actual_source["remaining"] == 2, (
+    "An idempotent rebuild or restart replenished previously taken wood"
+)
+tavern_hearth = hearth_state.hearth(tavern.db.civic_hearth)
+assert tavern_hearth["reserve"] == 0, (
+    "Delivered and spent fuel was not preserved"
+)
+assert tavern_hearth["warm_until"] > 0
+assert len(tavern_hearth["history"]) == 1, (
+    "The same Innkeep tending was replayed after restart"
+)
+last_tending = tavern_hearth["history"][0]
+assert last_tending["mask_id"] == innkeep_tester.id
+assert last_tending["mask"] == "InnkeepTester"
+innkeep_stats = calling_record(innkeep_tester)
+assert innkeep_stats["participation"].get("hearth_tendings") == 1
+assert not any(
+    o.key == "a bundle of firewood" and o.db.civic_firewood is True
+    for o in smith_tester.contents
+), "Consumed wood bundle reappeared in a player's inventory"
+print("POST_RESTART_COMMUNITY_HEARTH_ASSERTIONS_GREEN")
+
 print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")

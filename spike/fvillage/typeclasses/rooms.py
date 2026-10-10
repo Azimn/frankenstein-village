@@ -110,7 +110,8 @@ class TavernRoom(SpikeRoom):
             "rowdy": "The room is loud with evening talk.",
             "tense": "The talk keeps dying and starting again.",
         }[mood]
-        return f"{desc}\n{line}"
+        from world.community_hearth import public_hearth_line
+        return f"{desc}\n{line}\n{public_hearth_line()}"
 
     def at_object_receive(self, moved_obj, source_location, **kwargs):
         super().at_object_receive(moved_obj, source_location, **kwargs)

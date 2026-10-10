@@ -71,7 +71,10 @@ class CmdGuide(Command):
                 "|wjournal|n records situations your mask actually "
                 "encountered.\n"
                 + tavern_care_lead(caller)
-                + "\nFor a lasting public account, a Chronicler can examine "
+                + "\nFor repeatable, physical work use |whearth|n: "
+                "visitors may bring firewood and an Innkeep can strengthen "
+                "the shared fire.\nFor a lasting public account, "
+                "a Chronicler can examine "
                 "|wchronicle|n and file testimony from a known rumor."
             )
         elif place == "Village Square":
@@ -86,6 +89,10 @@ class CmdGuide(Command):
                 "you have personally discovered.\n"
                 "|wA shared village need:|n "
                 + lamp_lead(caller)
+                + "\nThe split woodpile beside the well offers a "
+                "repeatable way to help the Tavern. "
+                "|whearth|n explains how to carry actual firewood "
+                "from Square to Innkeep."
             )
         elif place == "The Lamp Shop":
             caller.msg(

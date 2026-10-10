@@ -167,6 +167,11 @@ def returning_topic(topic):
         if stage == "closed":
             return "Silas got through his cold evening; the hour passed."
         return "Silas is still on your mind, eh?"
+    if topic == "hearth":
+        return (
+            "Still checking how warm we keep the place? "
+            "Ask about the hearth; I remember you cared."
+        )
     if topic == "commons":
         return (
             "Still following what the neighbors wrote? "

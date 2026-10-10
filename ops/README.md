@@ -128,3 +128,5 @@ Gate C and its §7 full-launch content targets remain untouched.
 - [Commons follow-up gameplay](COMMONS_FOLLOWUP_GAMEPLAY.md) — finite per-mask
   attention to real player-authored notices, replies and closures; no invented
   quests and no new hosting dependency.
+
+- [Renewable Village Hearth](RENEWABLE_HEARTH_GAMEPLAY.md) — real daily wood from the Square, player-carried bundles, a shared Tavern rack and an eight-hour Innkeep-tended blaze; scripted tests and signed ledger events.

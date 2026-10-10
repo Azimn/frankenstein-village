@@ -831,6 +831,16 @@ class TavernKeeper(SpikeCharacter):
         if has("silas", "silas crowe", "cold hunter", "care"):
             self.note_interest(char, "silas")
             return care_talk()
+        if has("hearth", "firewood", "woodpile", "fire", "kindling"):
+            self.note_interest(char, "hearth")
+            from world.community_hearth import public_hearth_line
+            return (
+                "My hearth never truly goes out, but there are embers "
+                "and there's a proper blaze. Any traveler can fetch "
+                "a real bundle from the Square woodpile and deliver it "
+                "here. An Innkeep can tend it with |whearth tend|n. "
+                + public_hearth_line()
+            )
         if has("commons", "board", "noticeboard", "notices", "messages"):
             self.note_interest(char, "commons")
             return commons_talk(char)
