@@ -94,6 +94,12 @@ def require(text: str, *needles: str) -> None:
         )
 
 
+def require_all(text: str, *needles: str) -> None:
+    """Every cited gameplay invariant must appear; require() accepts ANY."""
+    for needle in needles:
+        require(text, needle)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", required=True)
@@ -290,20 +296,20 @@ def main() -> int:
         # First evening: Bram offers a genuine local lead, not a quest popup.
         # The same mask's interests persist across visits, not across accounts.
         out = c.command("talk Bram")
-        require(out, "new to my bar")
-        require(out, "ask me about work")
+        require_all(out, "new to my bar")
+        require_all(out, "ask me about work")
         out = c.command("ask Bram about work")
-        require(out, "dark lamp", "smith and a merchant")
-        require(out, "commons")
+        require_all(out, "dark lamp", "smith and a merchant")
+        require_all(out, "commons")
         out = c.command("ask Bram about lamp")
-        require(out, "one lamp in the square is dark")
-        require(out, "a smith ought")
+        require_all(out, "one lamp in the square is dark")
+        require_all(out, "a smith ought")
         out = c.command("ask Bram about Silas")
-        require(out, "silas came in soaked")
-        require(out, "healer")
+        require_all(out, "silas came in soaked")
+        require_all(out, "healer")
         out = c.command("ask Bram about news")
-        require(out, "public stories")
-        require(out, "story isn't a witness")
+        require_all(out, "public stories")
+        require_all(out, "story isn't a witness")
 
         # Systemic object foundation: the ordinary eat verb now reads the
         # bread's worth and uses properties. The player-facing behavior stays
@@ -566,7 +572,7 @@ def main() -> int:
         out = c.command("guide")
         require(out, "first lead: the blood of the vine")
         require(out, "rumors R<number>")
-        require(out, "ask Bram about work")
+        require_all(out, "ask Bram about work")
         require(out, "care")
 
         out = c.command("rumors")
@@ -1016,8 +1022,8 @@ def main() -> int:
         require(out, "one stew serving is spent")
         require(out, "care case is complete")
         out = c.command("ask Bram about Silas")
-        require(out, "silas has had his supper")
-        require(out, "a good evening")
+        require_all(out, "silas has had his supper")
+        require_all(out, "a good evening")
 
         out = inn.command("calling")
         require(out, "recovery hospitality 1")
@@ -1077,8 +1083,8 @@ def main() -> int:
         require(out, "mantle collar is cracked")
         require(out, "merchant must procure")
         out = c.command("ask Bram about the lamp")
-        require(out, "smith found the crack")
-        require(out, "merchant")
+        require_all(out, "smith found the crack")
+        require_all(out, "merchant")
         out = smith.command("repair finish north-square gas lamp")
         require(out, "merchant must procure the replacement collar")
         out = smith.command("calling")
@@ -1128,8 +1134,8 @@ def main() -> int:
         require(out, "one real stock unit")
         require(out, "smith must install")
         out = c.command("ask Bram about the lamp")
-        require(out, "got the collar")
-        require(out, "lamp's still dark")
+        require_all(out, "got the collar")
+        require_all(out, "lamp's still dark")
         out = merchant.command("calling")
         require(out, "repair procurements 1")
         out = merchant.command("repair procure")
@@ -1149,8 +1155,8 @@ def main() -> int:
         require(out, "install the procured collar")
         require(out, "lamp is working again")
         out = c.command("ask Bram about lamp")
-        require(out, "lamp's burning")
-        require(out, "two sets of hands")
+        require_all(out, "lamp's burning")
+        require_all(out, "two sets of hands")
         out = smith.command("calling")
         require(out, "repair diagnoses 1")
         require(out, "repair completions 1")
