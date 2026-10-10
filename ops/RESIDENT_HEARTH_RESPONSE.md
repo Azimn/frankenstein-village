@@ -1,6 +1,6 @@
 # When the Village Notices the Fire — Resident Hearth Response v0.1
 
-**Gameplay development; not a new artificial mind.** The existing 40-person
+**Gameplay development; not a new artificial mind.** The existing resident
 population architecture already has body conditions, first-person perceptions,
 ordinary schedules and high-priority needs. The renewable hearth is a public,
 finite-resource change created by real player actions. This feature connects
