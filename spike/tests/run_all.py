@@ -137,6 +137,11 @@ def main() -> int:
                 env=env,
             )
             run(
+                [sys.executable, "spike/tests/resident_hearth_sim.py"],
+                cwd=checkout,
+                env=env,
+            )
+            run(
                 [sys.executable, "spike/tests/resident_life_sim.py"],
                 cwd=checkout,
                 env=env,
