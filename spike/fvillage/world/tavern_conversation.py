@@ -167,8 +167,47 @@ def returning_topic(topic):
         if stage == "closed":
             return "Silas got through his cold evening; the hour passed."
         return "Silas is still on your mind, eh?"
+    if topic == "commons":
+        return (
+            "Still following what the neighbors wrote? "
+            "Check |wcommons followed|n for anything new."
+        )
     if topic == "work":
         return "Still looking for something useful to do? The board's in the square."
     if topic == "rumors":
         return "Still turning over those stories? Ask who first told them."
     return None
+
+
+def commons_talk(mask):
+    """Name existing public correspondence, never certify its content."""
+    from world import commons, commons_state
+
+    open_notes = commons_state.notices(
+        commons.current(), include_closed=False
+    )
+    if not open_notes:
+        return (
+            "The Commons board's quiet tonight. That doesn't mean the "
+            "village wants for anything; it means nobody's written. "
+            "The square is west of here if you've a need to post."
+        )
+    other_needs = [
+        item for item in open_notes
+        if item["kind"] == "need"
+        and item["author"]["mask_id"] != getattr(mask, "id", None)
+    ]
+    any_others = [
+        item for item in open_notes
+        if item["author"]["mask_id"] != getattr(mask, "id", None)
+    ]
+    chosen = (other_needs or any_others or open_notes)[0]
+    author = chosen["author"]["mask"]
+    return (
+        f"Someone signed a {chosen['kind']} at the square: "
+        f"{author}, Commons #{chosen['id']}. "
+        "That's their word, not mine. Read it here with "
+        f"|wcommons {chosen['id']}|n; you can answer it, or use "
+        f"|wcommons follow {chosen['id']}|n to remember the thread "
+        "when you come back."
+    )
