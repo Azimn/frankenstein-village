@@ -708,10 +708,15 @@ class TavernKeeper(SpikeCharacter):
         # been lately outranks who you were first.
         recent = list(reversed(interests))
         greeted = False
+        from world.tavern_conversation import returning_topic
         for topic in recent:
             if greeted:
                 break
-            if topic == "room six":
+            remembered = returning_topic(topic)
+            if remembered:
+                parts.append(remembered)
+                greeted = True
+            elif topic == "room six":
                 try:
                     from evennia.scripts.models import ScriptDB
                     pinned = bool(
@@ -766,7 +771,23 @@ class TavernKeeper(SpikeCharacter):
         return f"Back again, {name}. {' '.join(parts)}"
 
     def talk_to(self, char):
-        line = self._next_line("talk")
+        from world.tavern_conversation import first_talk
+
+        (
+            account_memory, mask_memory, account_key, mask_key,
+            account_mem, mask_mem,
+        ) = self._memory_channels(char)
+        # Per-mask recognition, never per-account: a second mask cannot
+        # inherit its predecessor's first conversation or tavern interests.
+        unspoken = not mask_mem.get("first_talk")
+        first_visit = int(mask_mem.get("visits") or 0) <= 1
+        if unspoken:
+            mask_mem["first_talk"] = True
+            self._save_memory_channels(
+                account_memory, mask_memory, account_key, mask_key,
+                account_mem, mask_mem,
+            )
+        line = first_talk() if unspoken and first_visit else self._next_line("talk")
         char.msg(f'Bram says: "{line}"')
         self.location.msg_contents(
             f"Bram leans on the bar, talking to {char.key}.",
@@ -796,6 +817,26 @@ class TavernKeeper(SpikeCharacter):
 
         def has(*keys):
             return topic_matches(t, *keys)
+
+        from world.tavern_conversation import (
+            care_talk, lamp_talk, rumor_talk, work_talk,
+        )
+
+        # Bram speaks from common knowledge, not a private case database.
+        # His memory of a subject is per mask and survives leaving/restart.
+        if has("lamp", "lamps", "gas lamp", "streetlamp", "streetlight",
+               "square lights", "repair"):
+            self.note_interest(char, "lamp")
+            return lamp_talk()
+        if has("silas", "silas crowe", "cold hunter", "care"):
+            self.note_interest(char, "silas")
+            return care_talk()
+        if has("work", "jobs", "job", "help", "needs", "something to do"):
+            self.note_interest(char, "work")
+            return work_talk()
+        if has("news", "rumors", "rumours", "gossip", "stories"):
+            self.note_interest(char, "rumors")
+            return rumor_talk()
 
         if has("room six", "room 6", "six", "sixth room"):
             self.note_interest(char, "room six")

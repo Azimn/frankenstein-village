@@ -689,6 +689,31 @@ followup_root = private_rumors.get_rumor(followup_id)
 assert followup_root["privacy"] == "private"
 assert private_rumors.belief_for(smoke, followup_id)
 bram = one("Bram")
+# Public small-talk builds mask-specific social memory, not a shared
+# account-level impression. Live player dialogue established the interests.
+mask_memories = dict(bram.db.mask_memory or {})
+smoke_memory = dict(mask_memories.get(str(smoke.id)) or {})
+assert smoke_memory.get("first_talk") is True, (
+    "Bram forgot this mask's first real conversation across server restart"
+)
+assert {"lamp", "silas", "work", "rumors"}.issubset(
+    set(smoke_memory.get("interests") or [])
+), "Bram lost the topics this individual mask chose to discuss"
+healer_memory = dict(mask_memories.get(str(healer_tester.id)) or {})
+assert {"lamp", "silas"}.issubset(
+    set(healer_memory.get("interests") or [])
+), "The Healer's direct inquiries did not survive restart"
+returnee = bram._returnee_line(healer_tester, healer_memory, 0)
+assert "that lamp you asked about" in returnee.lower(), (
+    "Bram did not recall a mask's interest against changed public world state"
+)
+merchant_memory = dict(mask_memories.get(str(merchant_tester.id)) or {})
+assert not merchant_memory.get("first_talk"), (
+    "Another mask inherited SmokeTester's first-conversation state"
+)
+assert not {"lamp", "silas", "work", "rumors"}.intersection(
+    set(merchant_memory.get("interests") or [])
+), "Bram's private mask interests leaked to a different account"
 assert private_rumors.belief_for(bram, followup_id), (
     "explicitly retold private rumor did not remain known to Bram"
 )
