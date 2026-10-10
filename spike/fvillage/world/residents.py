@@ -688,6 +688,18 @@ def advance_population(*, day=None, hour=None, emit=True):
         hour = now_hour if hour is None else hour
 
     availability = _availability()
+    # One authoritative public snapshot per population pass. No private
+    # case flags and no independent ticker for forty simulated minds.
+    from world import hearth_state
+    from world.resident_hearth import maybe_linger, observe as witness_hearth
+    tavern = _room("The Blood of the Vine")
+    fire = hearth_state.hearth(
+        tavern.db.civic_hearth if tavern else None
+    )
+    heat_active = hearth_state.active(fire, day, hour)
+    latest_tending = fire["history"][-1] if fire["history"] else None
+    heat_event_id = latest_tending.get("event_id") if latest_tending else None
+
     registry = get_population_registry()
     resolved = 0
     moved = 0
@@ -741,6 +753,25 @@ def advance_population(*, day=None, hour=None, emit=True):
                     }
             state["wake_reasons"] = []
 
+        # A discretionary preference is weaker than the ordinary life/need
+        # overrides above. It applies only where the resident has already
+        # occupied this room and would otherwise head home after being on
+        # shift during the previous clock hour.
+        before_location = (
+            schedule_block(definition, int(hour) - 1, day=day)
+            .get("desired_location") if int(hour) > 0 else None
+        )
+        delayed = maybe_linger(
+            state.get("life"), definition, target,
+            physical_location=getattr(getattr(npc, "location", None), "key", None),
+            previous_hour_location=before_location,
+            active_heat=heat_active,
+            hour=hour,
+            needs=state.get("needs") or {},
+        )
+        if delayed is not None:
+            target = delayed
+
         previous = dict(state.get("routine") or {})
         state["routine"] = {
             "day": int(day),
@@ -754,8 +785,6 @@ def advance_population(*, day=None, hour=None, emit=True):
         metrics = dict(state.get("metrics") or {})
         metrics["routine_resolutions"] = int(metrics.get("routine_resolutions") or 0) + 1
         state["metrics"] = metrics
-        save_state(npc, state)
-        _sync_generic_desc(npc, definition, state)
         resolved += 1
         if target["source"] == "fallback":
             fallbacks += 1
@@ -772,6 +801,19 @@ def advance_population(*, day=None, hour=None, emit=True):
             # A logical move can happen entirely Offstage. Persist it without
             # inventing a visible transition.
             moved += 1
+
+        # Witnesses only: exposure follows the actual physical room change,
+        # never an offstage logical target or a global event broadcast.
+        # One event is perceived at most once, without relationship credit.
+        witness_hearth(
+            state.get("life"),
+            present=bool(tavern and npc.location == tavern),
+            warm=heat_active,
+            source_event_id=heat_event_id,
+            day=day, hour=hour,
+        )
+        save_state(npc, state)
+        _sync_generic_desc(npc, definition, state)
 
     metrics = dict(registry.db.metrics or {})
     metrics["last_population_resolved"] = resolved
@@ -1226,6 +1268,13 @@ def generic_ask_line(npc, player, topic):
         if not names:
             return "No family here that I make other people's business."
         return "My people here are " + ", ".join(names) + "."
+
+    if t in {"hearth", "the hearth", "fire", "the fire", "tavern fire",
+             "tavern hearth", "warmth", "firewood"}:
+        from world.resident_hearth import first_person_account
+        return first_person_account(state.get("life")) or (
+            "I know there's a hearth, but I have no story about it."
+        )
 
     if any(word in t for word in ("work", "job", "trade", "occupation")):
         return f"I work as {definition['occupation']}. Most days that is enough explanation."
