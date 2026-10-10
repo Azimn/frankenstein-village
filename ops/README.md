@@ -124,3 +124,7 @@ rollback and category presence **only on isolated copies**.
 and backup receipt age. CI cannot certify a live host or real off-host access.
 
 Gate C and its §7 full-launch content targets remain untouched.
+
+- [Commons follow-up gameplay](COMMONS_FOLLOWUP_GAMEPLAY.md) — finite per-mask
+  attention to real player-authored notices, replies and closures; no invented
+  quests and no new hosting dependency.
