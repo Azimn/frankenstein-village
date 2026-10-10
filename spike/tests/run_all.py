@@ -173,13 +173,6 @@ def main() -> int:
                 "shroom.db.consume = {'toxic': 25, 'nourish': 5}\n"
                 "shroom.aliases.remove('toadstools')\n"
                 "shroom.tags.remove('food')\n"
-                "from world.residents import resident_state, save_state\n"
-                "for key in ('Mara Crowe', 'Marta Kovács'):\n"
-                "    resident = [o for o in search.search_object(key) if o.key == key][0]\n"
-                "    state = resident_state(resident)\n"
-                "    state['life']['body']['cold'] = 78.0\n"
-                "    save_state(resident, state)\n"
-                "print('HEARTH_WITNESS_COLD_SENTINELS_SET')\n"
                 "print('IDEMPOTENCE_SENTINELS_SET')\n"
             )
             run([evennia, "shell"], cwd=game, env=env, input_text=mutate)
@@ -191,6 +184,24 @@ def main() -> int:
                 encoding="utf-8"
             )
             run([evennia, "shell"], cwd=game, env=env, input_text=assertions)
+
+            # Controlled pre-telnet cold exposure: initialize AFTER the
+            # broad world simulation so its time-jump tests cannot decay the
+            # observation stimulus before a real player tends the fire.
+            hearth_witness_seed = (
+                "from evennia.utils import search\n"
+                "from world.residents import resident_state, save_state\n"
+                "for key in ('Mara Crowe', 'Marta Kovács'):\n"
+                "    resident = [o for o in search.search_object(key) if o.key == key][0]\n"
+                "    state = resident_state(resident)\n"
+                "    state['life']['body']['cold'] = 78.0\n"
+                "    save_state(resident, state)\n"
+                "print('HEARTH_WITNESS_COLD_SENTINELS_SET')\n"
+            )
+            run(
+                [evennia, "shell"], cwd=game, env=env,
+                input_text=hearth_witness_seed,
+            )
 
             # Seed two distinct QA accounts before live telnet. Creating accounts
             # through the public socket is rate-limited by design and the two
