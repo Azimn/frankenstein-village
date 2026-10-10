@@ -487,7 +487,7 @@ class Seat(DefaultObject):
         room = getattr(self, "location", None)
         if self.key == "hearth" and room and room.key == "The Blood of the Vine":
             from world.community_hearth import public_hearth_line
-            desc += "\\n" + public_hearth_line()
+            desc += "\n" + public_hearth_line()
         return desc
 
 
