@@ -819,9 +819,31 @@ mara = one("Mara Crowe")  # hunter schedule: Tavern 18-22, then home
 marta = one("Marta Kovács")  # schoolteacher: home on day-one Sunday
 father = one("Father Andrei")  # authored life state must remain locked
 fire_event_id = last_tending["event_id"]
+# The actual Long Shadows chapter overrides routine: public evening
+# life closes early. That rule must win; a hearth may not force Mara into
+# the Tavern and fabricate an experience she was never present for.
+from world.seasonal_frameworks import (
+    RECKONING_ID, get_seasonal_framework_registry,
+)
+chapter = get_seasonal_framework_registry()
+assert chapter.db.active_id == LONG_SHADOWS_ID
+advance_population(day=1, hour=21, emit=False)
+assert mara.location != tavern, (
+    "Hearth warmth bypassed Long Shadows' earlier evening closure"
+)
+assert not any(
+    p.get("target_id") == "tavern_hearth"
+    and p.get("source_id") == fire_event_id
+    for p in resident_state(mara)["life"].get("perceptions") or []
+), "Resident experienced a fire from home under Long Shadows"
+
+# Counterfactual seasonal integration (no teleport): the same real persisted
+# fire, physical Tavern, natural hunter route and population scheduler, but
+# a chapter whose public evenings remain open. Restore season afterwards.
+chapter.db.active_id = RECKONING_ID
 advance_population(day=1, hour=21, emit=False)
 assert mara.location == tavern, (
-    "The hunter's normal evening schedule did not bring her to the Tavern"
+    "The ordinary hunter schedule did not bring Mara to the open Tavern"
 )
 mara_life = resident_state(mara)["life"]
 perceptions = [
@@ -878,6 +900,8 @@ assert mara.location != tavern, "Hearth preference became an endless stay"
 assert dict(mara_departure["life"].get("resident_relationships") or {}) == prior_social, (
     "A shared warmth event invented a private relationship"
 )
+chapter.db.active_id = LONG_SHADOWS_ID
+assert chapter.db.active_id == LONG_SHADOWS_ID
 print("POST_RESTART_RESIDENT_HEARTH_ASSERTIONS_GREEN")
 
 print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")
