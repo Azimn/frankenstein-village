@@ -37,6 +37,15 @@ def run(args, *, cwd, env, input_text=None, timeout=900):
     return proc
 
 
+def qa_cli_password() -> str:
+    """Argparse-safe random test credential, never an option-looking token.
+
+    secrets.token_urlsafe() may begin with '-' and would then be parsed as a
+    flag after --password; prefix an ASCII letter for deterministic syntax.
+    """
+    return "qa_" + secrets.token_urlsafe(24)
+
+
 def venv_bin(root: Path, name: str) -> Path:
     bindir = root / "spike" / "venv" / ("Scripts" if os.name == "nt" else "bin")
     suffix = ".exe" if os.name == "nt" else ""
@@ -93,7 +102,7 @@ def main() -> int:
             db.unlink()
 
         username = "qa_admin"
-        password = secrets.token_urlsafe(24)
+        password = qa_cli_password()
         env = os.environ.copy()
         env.update(
             {
