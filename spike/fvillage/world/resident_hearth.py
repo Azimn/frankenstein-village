@@ -30,10 +30,16 @@ def observe(life, *, present, warm, source_event_id, day, hour):
     marker = int(source_event_id)
     if marker <= 0 or int(life.get("last_witnessed_hearth_event_id") or 0) >= marker:
         return None
+    current_cold = float((life.get("body") or {}).get("cold") or 0)
+    felt_relief = current_cold > 0
     record = record_perception(
         life,
         kind="environment",
-        summary="I felt the stronger fire at the Blood of the Vine ease the cold.",
+        summary=(
+            "I felt the stronger fire at the Blood of the Vine ease the cold."
+            if felt_relief else
+            "I noticed the Tavern fire blaze higher; I was already warm."
+        ),
         source_id=marker,
         target_id=HEARTH_TARGET_ID,
         confidence=1.0,
@@ -45,7 +51,8 @@ def observe(life, *, present, warm, source_event_id, day, hour):
         return None
     # This is relief from physical cold, not treatment for illness or an
     # automatic opinion about whoever brought or tended the fuel.
-    apply_body_delta(life, cold=-COLD_RELIEF)
+    if felt_relief:
+        apply_body_delta(life, cold=-COLD_RELIEF)
     life["last_witnessed_hearth_event_id"] = marker
     return record
 
