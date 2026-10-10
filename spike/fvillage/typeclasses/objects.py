@@ -81,6 +81,14 @@ class VillageWell(DefaultObject):
 
 
 
+class VillageWoodpile(DefaultObject):
+    """Public communal wood: finite daily supply rendered from village time."""
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.community_hearth import public_woodpile_line
+        return public_woodpile_line()
+
+
 class ManorView(DefaultObject):
     """The distant Manor as an observable public-mystery target."""
 
@@ -473,6 +481,14 @@ class Seat(DefaultObject):
         self.db.sittable = True
         if not self.db.sit_phrase:
             self.db.sit_phrase = f"on the {self.key}"
+
+    def get_display_desc(self, looker=None, **kwargs):
+        desc = super().get_display_desc(looker, **kwargs)
+        room = getattr(self, "location", None)
+        if self.key == "hearth" and room and room.key == "The Blood of the Vine":
+            from world.community_hearth import public_hearth_line
+            desc += "\\n" + public_hearth_line()
+        return desc
 
 
 class ObjectParent:
