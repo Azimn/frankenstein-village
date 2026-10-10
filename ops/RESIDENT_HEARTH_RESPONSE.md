@@ -92,3 +92,11 @@ The same physical-experience contract can later mediate rain shelters,
 heat-loss by district, illness precautions, public meals and damaged
 lighting. Each should first prove the measurable difference between
 a resident who was **there** and one who only heard a story about it.
+
+## Follow-on environmental control
+
+[Resident Environmental Causality v0.2](RESIDENT_ENVIRONMENT_EXPERIMENT.md)
+adds a co-located, per-hour rain source for physical cold and wetness using the
+existing weather script. It also distinguishes observing a hearth from truly
+being relieved of cold, so memories cannot falsely assert relief at zero cold.
+The original per-tending perception and one-hour linger gates remain intact.
