@@ -692,6 +692,9 @@ def advance_population(*, day=None, hour=None, emit=True):
     # case flags and no independent ticker for forty simulated minds.
     from world import hearth_state
     from world.resident_hearth import maybe_linger, observe as witness_hearth
+    from world.resident_weather import observe as witness_rain
+    weather = ScriptDB.objects.filter(db_key="village_weather").first()
+    weather_state = weather.db.state if weather else None
     tavern = _room("The Blood of the Vine")
     fire = hearth_state.hearth(
         tavern.db.civic_hearth if tavern else None
@@ -802,6 +805,15 @@ def advance_population(*, day=None, hour=None, emit=True):
             # inventing a visible transition.
             moved += 1
 
+        # Body conditions arise from the physically occupied scene. This
+        # weather observation is constrained to actual Square rain and does
+        # not mark every resident in the district as wet or cold.
+        witness_rain(
+            state.get("life"),
+            physical_room=getattr(getattr(npc, "location", None), "key", None),
+            weather=weather_state,
+            day=day, hour=hour,
+        )
         # Witnesses only: exposure follows the actual physical room change,
         # never an offstage logical target or a global event broadcast.
         # One event is perceived at most once, without relationship credit.
@@ -1268,6 +1280,12 @@ def generic_ask_line(npc, player, topic):
         if not names:
             return "No family here that I make other people's business."
         return "My people here are " + ", ".join(names) + "."
+
+    if t in {"rain", "the rain", "weather", "wet", "rain at the well"}:
+        from world.resident_weather import first_person_account
+        return first_person_account(state.get("life")) or (
+            "I've nothing of my own to say about the weather."
+        )
 
     if t in {"hearth", "the hearth", "fire", "the fire", "tavern fire",
              "tavern hearth", "warmth", "firewood"}:
