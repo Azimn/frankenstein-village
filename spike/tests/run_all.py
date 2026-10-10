@@ -173,6 +173,13 @@ def main() -> int:
                 "shroom.db.consume = {'toxic': 25, 'nourish': 5}\n"
                 "shroom.aliases.remove('toadstools')\n"
                 "shroom.tags.remove('food')\n"
+                "from world.residents import resident_state, save_state\n"
+                "for key in ('Mara Crowe', 'Marta Kovács'):\n"
+                "    resident = [o for o in search.search_object(key) if o.key == key][0]\n"
+                "    state = resident_state(resident)\n"
+                "    state['life']['body']['cold'] = 78.0\n"
+                "    save_state(resident, state)\n"
+                "print('HEARTH_WITNESS_COLD_SENTINELS_SET')\n"
                 "print('IDEMPOTENCE_SENTINELS_SET')\n"
             )
             run([evennia, "shell"], cwd=game, env=env, input_text=mutate)
