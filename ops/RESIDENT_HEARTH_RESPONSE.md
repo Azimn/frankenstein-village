@@ -65,13 +65,19 @@ Mara Crowe (hunter schedule) and Marta Kovács (Sunday-at-home control)
 two-account telnet Hearth delivery and tending. On server restart,
 the real persisted fire and the existing population scheduler must show:
 
-1. Mara at Tavern at 21:00 experiences **exactly one** current burn,
-   recalls it when asked, and measurably has less cold.
-2. A duplicate same-hour population call does not replay the exposure.
-3. Marta, absent at home, has no experience of that tending; Father Andrei
-   retains his authored-locked life profile.
-4. Mara's remaining cold permits a one-hour Tavern stay at 22:00 instead
-   of her planned departure. She leaves on the normal schedule by 23:00.
+1. Under the **actual Long Shadows** chapter, Mara's evening Tavern
+   visit is curtailed by seasonal restrictions. She remains absent and
+   gains **no** artificial memory of the fire.
+2. In an isolated **Reckoning of Accounts** seasonal scenario, where the
+   published schedule permits an evening visit, the same real Tavern
+   and persisted burn place Mara there at 21:00. She experiences **exactly
+   one** warmth episode, recalls it when asked, and measurably eases cold.
+3. A duplicate same-hour population call does not replay the exposure.
+   Marta, absent at home, does not receive it; Father Andrei's authored
+   life state remains locked.
+4. Mara's remaining cold can defer homebound departure at 22:00,
+   but normal routing resumes at 23:00, and the test restores the
+   original seasonal chapter.
 5. No resident-to-player attachment, rank, coins or new quests are
    inferred from sharing a warm room.
 
