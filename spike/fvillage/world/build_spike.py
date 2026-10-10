@@ -352,6 +352,24 @@ if not well.is_typeclass("typeclasses.objects.VillageWell", exact=True):
     )
     print("well upgraded to VillageWell.")
 
+# Three real bundles/day. A rebuild must never refresh live stock.
+woodpile = get_or_create_scenery(
+    "a village woodpile", square,
+    "Split logs beside the square for the communal Tavern hearth.",
+    aliases=["woodpile", "firewood pile", "wood pile"],
+)
+if not woodpile.is_typeclass("typeclasses.objects.VillageWoodpile", exact=True):
+    woodpile.swap_typeclass(
+        "typeclasses.objects.VillageWoodpile", clean_attributes=False
+    )
+woodpile.locks.add("get:false();give:false();drop:false()")
+if woodpile.db.civic_wood is None:
+    woodpile.db.civic_wood = {"day": 1, "remaining": 3}
+if tavern.db.civic_hearth is None:
+    tavern.db.civic_hearth = {
+        "reserve": 0, "warm_until": 0, "history": [],
+    }
+
 # Mushrooms by the well are the first hidden-property production object.
 # Toxin remains authoritative simulation truth, but ordinary description does
 # not label the mechanical property. A mask can learn it from direct effects
