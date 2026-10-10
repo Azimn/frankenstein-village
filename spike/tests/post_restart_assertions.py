@@ -838,6 +838,7 @@ assert mara_life["body"]["cold"] <= 66.0, (
     "The cold-exposed witness got no measurable relief from actual warmth"
 )
 first_cold = mara_life["body"]["cold"]
+prior_social = dict(mara_life.get("resident_relationships") or {})
 first_count = len(perceptions)
 advance_population(day=1, hour=21, emit=False)
 mara_repeat = resident_state(mara)["life"]
@@ -874,7 +875,7 @@ mara_departure = resident_state(mara)
 assert mara_departure["routine"]["source"] == "schedule"
 assert mara_departure["routine"]["logical_location"] != "tavern"
 assert mara.location != tavern, "Hearth preference became an endless stay"
-assert not mara_departure["life"].get("resident_relationships"), (
+assert dict(mara_departure["life"].get("resident_relationships") or {}) == prior_social, (
     "A shared warmth event invented a private relationship"
 )
 print("POST_RESTART_RESIDENT_HEARTH_ASSERTIONS_GREEN")
