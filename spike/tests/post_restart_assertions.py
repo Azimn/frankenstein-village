@@ -810,4 +810,73 @@ assert not any(
 ), "Consumed wood bundle reappeared in a player's inventory"
 print("POST_RESTART_COMMUNITY_HEARTH_ASSERTIONS_GREEN")
 
+# Resident response is based on actual physical witness of the completed
+# Innkeep tending, not global knowledge of its ledger event. Test the
+# persisted fire after a real restart and move residents by their NORMAL
+# schedules (not teleporting their bodies or generating a second burn).
+from world.residents import advance_population, generic_ask_line
+mara = one("Mara Crowe")  # hunter schedule: Tavern 18-22, then home
+marta = one("Marta Kovács")  # schoolteacher: home on day-one Sunday
+father = one("Father Andrei")  # authored life state must remain locked
+fire_event_id = last_tending["event_id"]
+advance_population(day=1, hour=21, emit=False)
+assert mara.location == tavern, (
+    "The hunter's normal evening schedule did not bring her to the Tavern"
+)
+mara_life = resident_state(mara)["life"]
+perceptions = [
+    p for p in mara_life.get("perceptions") or []
+    if p.get("target_id") == "tavern_hearth"
+    and p.get("source_id") == fire_event_id
+]
+assert len(perceptions) == 1, (
+    "A real co-located resident failed to witness this tending exactly once"
+)
+assert perceptions[0]["summary"].startswith("I ")
+assert mara_life["last_witnessed_hearth_event_id"] == fire_event_id
+assert mara_life["body"]["cold"] <= 66.0, (
+    "The cold-exposed witness got no measurable relief from actual warmth"
+)
+first_cold = mara_life["body"]["cold"]
+first_count = len(perceptions)
+advance_population(day=1, hour=21, emit=False)
+mara_repeat = resident_state(mara)["life"]
+assert mara_repeat["body"]["cold"] == first_cold, (
+    "Running the same population hour gave free second warmth"
+)
+assert len([
+    p for p in mara_repeat.get("perceptions") or []
+    if p.get("target_id") == "tavern_hearth"
+    and p.get("source_id") == fire_event_id
+]) == first_count, "A duplicate first-person experience was minted"
+assert "I was there" in generic_ask_line(
+    mara, smith_tester, "hearth"
+), "Resident cannot recall her own physically witnessed warmth"
+assert not any(
+    p.get("source_id") == fire_event_id
+    and p.get("target_id") == "tavern_hearth"
+    for p in resident_state(marta)["life"].get("perceptions") or []
+), "Resident offstage learned of heat she never experienced"
+assert not resident_state(father)["life"]["enabled"], (
+    "Hearth observation illegally activated an authored-locked mind"
+)
+
+# At 22:00 the hunter ordinarily goes home. With enough remaining physical
+# cold and an active fire, she elects to remain for one bounded hour instead;
+# at 23:00 ordinary home schedule resumes. No social bond is inferred.
+advance_population(day=1, hour=22, emit=False)
+mara_shift = resident_state(mara)
+assert mara_shift["routine"]["logical_location"] == "tavern"
+assert mara_shift["routine"]["source"] == "hearth_preference"
+assert mara.location == tavern
+advance_population(day=1, hour=23, emit=False)
+mara_departure = resident_state(mara)
+assert mara_departure["routine"]["source"] == "schedule"
+assert mara_departure["routine"]["logical_location"] != "tavern"
+assert mara.location != tavern, "Hearth preference became an endless stay"
+assert not mara_departure["life"].get("resident_relationships"), (
+    "A shared warmth event invented a private relationship"
+)
+print("POST_RESTART_RESIDENT_HEARTH_ASSERTIONS_GREEN")
+
 print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")
