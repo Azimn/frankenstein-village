@@ -80,3 +80,7 @@ manufacture villagers' feelings about the fire or a social event around it.
 A later integration could have residents choose to congregate at a stoked
 hearth, consume accumulated fuel from the rack, and notice neglect, **but only
 after separate causal tests prove those derived reactions are valid**.
+
+### Resident response integration
+
+[Resident Hearth Response](RESIDENT_HEARTH_RESPONSE.md) extends this existing resource loop: ordinary residents physically inside the Tavern may experience the stronger fire once, ease their measured cold, remember that exposure, or linger one hour if their actual needs permit it. Authored/locked characters and absent residents are not given manufactured experiences; this does not imply a social relationship or a medicinal cure.

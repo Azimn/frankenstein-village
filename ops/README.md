@@ -130,3 +130,5 @@ Gate C and its §7 full-launch content targets remain untouched.
   quests and no new hosting dependency.
 
 - [Renewable Village Hearth](RENEWABLE_HEARTH_GAMEPLAY.md) — real daily wood from the Square, player-carried bundles, a shared Tavern rack and an eight-hour Innkeep-tended blaze; scripted tests and signed ledger events.
+
+- [Resident Hearth Response](RESIDENT_HEARTH_RESPONSE.md) — actually present population residents witness heat once per tending, may delay a homebound departure for one hour, and recall only their own first-person exposure.
