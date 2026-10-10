@@ -235,10 +235,10 @@ def tend(mask):
     tavern = _room(TAVERN_KEY)
     day, hour = _clock()
     current = hearth_state.hearth(tavern.db.civic_hearth)
-    if current["reserve"] <= 0:
-        return None, "The hearth has no stored firewood. A traveler must deliver a bundle."
     if hearth_state.active(current, day, hour):
         return None, "The hearth is already blazing. Let these logs burn first."
+    if current["reserve"] <= 0:
+        return None, "The hearth has no stored firewood. A traveler must deliver a bundle."
     def consequence(event):
         changed, success = hearth_state.stoke(
             current, day, hour,
