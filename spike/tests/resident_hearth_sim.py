@@ -73,7 +73,6 @@ def main():
         ("physical_location", "Village Square"),
         ("previous_hour_location", "offstage"),
         ("active_heat", False),
-        ("hour", 23),
         ("needs", {"fatigue": 97, "safety": 80}),
         ("needs", {"fatigue": 20, "safety": 15}),
     ]:
@@ -82,6 +81,10 @@ def main():
         assert resident_hearth.maybe_linger(
             life, mara, candidate, **kwargs
         ) is None, (field, changed)
+    after_shift = dict(options, hour=23, previous_hour_location=mara["home_id"])
+    assert resident_hearth.maybe_linger(
+        life, mara, candidate, **after_shift
+    ) is None
     wrong_goal = dict(candidate, source="life_goal_override")
     assert resident_hearth.maybe_linger(
         life, mara, wrong_goal, **options
