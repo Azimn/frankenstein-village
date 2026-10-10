@@ -149,7 +149,7 @@ class CmdCommons(Command):
             "Use |wcommons check <number>|n to read and acknowledge updates, "
             "or |wcommons unfollow <number>|n to stop keeping the thread."
         )
-        self.caller.msg("\\n".join(lines))
+        self.caller.msg("\n".join(lines))
 
     def _follow_action(self, action, number):
         old = self.caller.db.commons_following
