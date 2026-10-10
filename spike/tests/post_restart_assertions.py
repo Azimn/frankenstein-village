@@ -904,4 +904,77 @@ chapter.db.active_id = LONG_SHADOWS_ID
 assert chapter.db.active_id == LONG_SHADOWS_ID
 print("POST_RESTART_RESIDENT_HEARTH_ASSERTIONS_GREEN")
 
+# Real, scheduled residents encounter real public rain. This runs after the
+# previous fire-scenario controls so their original contrasts remain sealed.
+from world.residents import save_state as save_resident_state
+from world.resident_weather import RAIN_TARGET_ID
+import copy as _copy
+weather = ScriptDB.objects.get(db_key="village_weather")
+old_weather = weather.db.state
+tam = one("Tam Rook")  # well keeper: Village Square, 04:00–09:00
+weather.set_weather("fog")
+advance_population(day=2, hour=5, emit=False)
+assert tam.location == square, "The well keeper missed their normal dawn route"
+tam_state = resident_state(tam)
+assert tam_state["life"]["enabled"], "Resident weather incorrectly chose an authored lock"
+tam_state["life"]["body"]["cold"] = 20.0
+tam_state["life"]["body"]["wet"] = 10.0
+save_resident_state(tam, tam_state)
+before = _copy.deepcopy(resident_state(tam)["life"])
+dry_witnesses = [
+    p for p in before.get("perceptions") or []
+    if p.get("target_id") == RAIN_TARGET_ID
+]
+weather.set_weather("rain")
+advance_population(day=2, hour=6, emit=False)
+assert tam.location == square, "The weather observer was not physically in the square"
+after = resident_state(tam)["life"]
+rain_witnesses = [
+    p for p in after.get("perceptions") or []
+    if p.get("target_id") == RAIN_TARGET_ID
+]
+assert len(rain_witnesses) == len(dry_witnesses) + 1, (
+    "A truly co-located resident did not receive one new rain experience"
+)
+assert rain_witnesses[-1]["summary"].startswith("I ")
+assert rain_witnesses[-1]["day"] == 2 and rain_witnesses[-1]["hour"] == 6
+assert after["body"]["cold"] >= before["body"]["cold"] + 8, (
+    "The physically exposed resident did not get measurably colder"
+)
+assert after["body"]["wet"] >= before["body"]["wet"] + 10, (
+    "Real rain did not increase the exposed resident's wetness"
+)
+first_cold = after["body"]["cold"]
+first_wet = after["body"]["wet"]
+social_before = _copy.deepcopy(after.get("resident_relationships") or {})
+advance_population(day=2, hour=6, emit=False)
+repeat = resident_state(tam)["life"]
+assert repeat["body"]["cold"] == first_cold
+assert repeat["body"]["wet"] == first_wet
+assert len([
+    p for p in repeat.get("perceptions") or []
+    if p.get("target_id") == RAIN_TARGET_ID
+]) == len(rain_witnesses), "Same-hour rain was counted twice"
+assert "I was caught in the rain" in generic_ask_line(
+    tam, smith_tester, "rain"
+), "A resident could not recall observed weather"
+absent = resident_state(marta)["life"]
+assert not any(
+    p.get("target_id") == RAIN_TARGET_ID and
+    p.get("day") == 2 and p.get("hour") == 6
+    for p in absent.get("perceptions") or []
+), "An absent schoolteacher was given physical rain experience"
+assert marta.location != square
+assert not resident_state(father)["life"]["enabled"]
+weather.set_weather("fog")
+advance_population(day=2, hour=7, emit=False)
+dry_after = resident_state(tam)["life"]
+assert len([
+    p for p in dry_after.get("perceptions") or []
+    if p.get("target_id") == RAIN_TARGET_ID
+]) == len(rain_witnesses), "Fog was improperly treated as rain"
+assert (dry_after.get("resident_relationships") or {}) == social_before
+weather.set_weather(old_weather)
+print("POST_RESTART_RESIDENT_WEATHER_CAUSAL_ASSERTIONS_GREEN")
+
 print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")
