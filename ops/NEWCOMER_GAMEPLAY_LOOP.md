@@ -91,3 +91,15 @@ interaction (defined as first dialogue with consequence or a response by
 another autonomous/human player), time to first persistent contribution,
 stuck commands, and a real quotable line. Have a human reviewer decide
 whether it was worth the session. Do not claim Gate B passed without this.
+
+## Keep an unfinished thread alive
+
+You need not resolve a civic need in one sitting. At either Commons copy,
+`commons follow <number>` bookmarks a real, publicly visible notice for this
+character mask. `commons followed` reveals newly signed responses and
+closings across sessions; `commons check <number>` reads and explicitly
+acknowledges those changes. After someone else answers, the first player
+has a grounded reason to return. See
+[Commons Follow-up Gameplay](COMMONS_FOLLOWUP_GAMEPLAY.md) for actual rules
+and moderated information boundaries. No reply claims that an unperformed
+physical-world task has happened.
