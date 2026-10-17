@@ -133,8 +133,10 @@ class CmdGuide(Command):
                     "and east leads to the bridge."
                 ),
                 "The Old Stone Bridge": (
-                    "Examine the empty plaque socket. "
-                    "West returns to the Riverside Path."
+                    "Examine the empty plaque socket. Compare observations with "
+                    "|wmystery bridge|n, then offer an unresolved interpretation "
+                    "using |wtheory bridge = <words>|n. West returns to the "
+                    "Riverside Path."
                 ),
             }
             caller.msg(
