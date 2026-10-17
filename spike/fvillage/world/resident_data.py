@@ -21,17 +21,23 @@ LOCATION_PROJECTIONS = {
     "offstage": "Offstage",
     # Unbuilt logical places project Offstage without becoming the same place.
     "schoolhouse": "Offstage",
-    "bakery": "Offstage",
+    # Shop interiors remain unbuilt. Public-facing work projects onto
+    # Market Lane, so these residents are encounterable without granting
+    # access to private workshops or changing their logical schedules.
+    "bakery": "Market Lane",
     "vessey_nursery": "Offstage",
-    "forge": "Offstage",
+    "forge": "Market Lane",
     "bell_house": "Offstage",
-    "woods": "Offstage",
+    # The hunter walks the publicly traversable north edge, not a
+    # magically accessible deep forest or a hidden private dwelling.
+    "woods": "The Northern Treeline",
     "fields": "Offstage",
-    "butcher_shop": "Offstage",
-    "harbinger_office": "Offstage",
-    "carpenter_shop": "Offstage",
+    "butcher_shop": "Market Lane",
+    "harbinger_office": "Market Lane",
+    "carpenter_shop": "Market Lane",
     "midwife_rounds": "Offstage",
-    "night_watch_post": "Offstage",
+    # Night patrol has an observable station at the old bridge.
+    "night_watch_post": "The Old Stone Bridge",
 }
 
 INTEREST_POOL = (
