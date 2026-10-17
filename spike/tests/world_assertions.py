@@ -89,6 +89,14 @@ for _id, _definition in LANDMARKS.items():
     )
 print("FIRSTHAND_LANDMARK_WORLD_ASSERTIONS_GREEN")
 
+from world import route_surveys
+from world.route_work import status_lines as route_status_lines
+assert set(route_surveys.SITES) == set(LANDMARKS)
+assert "0 of 4" in route_status_lines()
+assert "not yet inspected" in route_status_lines().lower()
+assert not route_surveys.complete(route_surveys.fresh(1))
+print("DAILY_ROUTE_SURVEY_BOARD_ASSERTIONS_GREEN")
+
 noticeboard = one("village noticeboard")
 copy_sheet = one("copy of the village notices")
 assert noticeboard.location == one("Village Square")
