@@ -33,6 +33,8 @@ class DiscoveryRulesTests(unittest.TestCase):
             {"id": "administrator_note", "day": 1, "hour": 3},
             {"id": "grave_marker", "day": "2", "hour": "14"},
         ]
+        self.assertEqual(rules.normalize(101), [])
+        self.assertEqual(rules.normalize([{"id": [], "day": 2, "hour": 1}]), [])
         rows = rules.normalize(raw)
         self.assertEqual([r["id"] for r in rows],
                          ["market_scale", "grave_marker"])
