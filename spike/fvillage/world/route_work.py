@@ -133,8 +133,12 @@ def report(mask):
                 raise RuntimeError(error)
             square.db.daily_route_survey = changed
             role = active_calling(mask)
-            if role in SCOUT_ROLES:
-                record_participation(mask, "field_surveys", calling=role)
+            if role:
+                metric = (
+                    "field_surveys" if role in SCOUT_ROLES
+                    else "community_route_contributions"
+                )
+                record_participation(mask, metric, calling=role)
             return {
                 "site": site,
                 "day": day,
