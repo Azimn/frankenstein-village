@@ -148,6 +148,15 @@ def main() -> int:
         out = c.command("guide")
         require(out, "a way into the village")
         require(out, "front door")
+        # Keep one personal intention across logout and restart.
+        out = c.command("agenda")
+        require_all(out, "your next visit", "private reminder: none yet")
+        out = c.command(
+            "agenda note = Return to the Square and speak with Bram about the river."
+        )
+        require(out, "private reminder was saved")
+        out = c.command("resume")
+        require(out, "speak with Bram about the river")
 
         # Calling foundation: a mask can choose a social profession before
         # crossing IC. Selection begins at Apprentice and exposes no free
@@ -1212,6 +1221,46 @@ def main() -> int:
         require(out, "village square")
         out = smith.command("look woodpile")
         require(out, "2 of today's 3 bundles remain")
+
+        # Cooperative daily commission: pledge one physical object in the
+        # Square and let a distinct account carry it to the Tavern.
+        out = smith.command("commission")
+        require_all(out, "village commission", "commission pledge")
+        out = smith.command("commission pledge")
+        require(out, "first gather a physical")
+        out = smith.command("hearth gather")
+        require(out, "1 bundles remain today")
+        out = smith.command("commission pledge")
+        require_all(out, "pledge your physical", "another player")
+        out = smith.command("commission pledge")
+        require(out, "no longer open")
+        out = smith.command("commission deliver")
+        require(out, "travel to the blood of the vine")
+        out = merchant.command("north")
+        require(out, "village square")
+        out = smith.command("give firewood = MerchantTester")
+        require(out, "you give")
+        out = merchant.command("commission")
+        require_all(out, "pledged", "commission deliver")
+        out = merchant.command("commission deliver")
+        require(out, "travel to the blood of the vine")
+        out = merchant.command("east")
+        require(out, "blood of the vine")
+        out = merchant.command("commission deliver")
+        require_all(out, "commission complete", "now holds 1 bundles")
+        out = merchant.command("commission deliver")
+        require(out, "must first pledge")
+        out = merchant.command("hearth")
+        require(out, "reserve: 1")
+        out = smith.command("commission")
+        require_all(out, "completed by", "smithtester", "merchanttester")
+
+        # Restore Merchant's earlier Lamp Shop position so independent
+        # Commons tests keep their original room-isolation expectations.
+        out = merchant.command("west")
+        require(out, "village square")
+        out = merchant.command("south")
+        require(out, "lamp shop")
 
         # Player-authored civic activity persists across accounts and rooms.
         out = smith.command("commons")
