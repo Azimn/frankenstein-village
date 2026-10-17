@@ -3,6 +3,7 @@
 import hashlib
 
 from evennia.scripts.models import ScriptDB
+from evennia.accounts.models import AccountDB
 from evennia.utils import search
 
 from world.callings import (
