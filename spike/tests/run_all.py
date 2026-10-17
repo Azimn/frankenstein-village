@@ -259,7 +259,9 @@ def main() -> int:
                     ],
                     cwd=checkout,
                     env=env,
-                    timeout=180,
+                    # Bounded full multi-player and physical tour regression.
+                    # Global CI timeout remains 20 minutes.
+                    timeout=480,
                 )
 
                 # Real autonomous-client validation, not a fake socket peer:
