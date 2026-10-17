@@ -788,11 +788,11 @@ assert not commons_follow.normalize(merchant_tester.db.commons_following)["items
 from world import hearth_state
 source = one("a village woodpile")
 actual_source = dict(source.db.civic_wood or {})
-assert actual_source["remaining"] == 2, (
+assert actual_source["remaining"] == 1, (
     "An idempotent rebuild or restart replenished previously taken wood"
 )
 tavern_hearth = hearth_state.hearth(tavern.db.civic_hearth)
-assert tavern_hearth["reserve"] == 0, (
+assert tavern_hearth["reserve"] == 1, (
     "Delivered and spent fuel was not preserved"
 )
 assert tavern_hearth["warm_until"] > 0
@@ -808,6 +808,22 @@ assert not any(
     o.key == "a bundle of firewood" and o.db.civic_firewood is True
     for o in smith_tester.contents
 ), "Consumed wood bundle reappeared in a player's inventory"
+from world import civic_commissions
+commissions = civic_commissions.normalize(tavern.db.civic_commission)
+completed = commissions["commission"]
+assert completed["status"] == "complete"
+assert completed["supplier_account"] == smith_tester.account.id
+assert completed["finisher_account"] == merchant_tester.account.id
+assert completed["bundle_id"] > 0
+assert len(completed["event_ids"]) == 2
+ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+assert ledger.get_event(completed["event_ids"][0])["status"] == "complete"
+assert ledger.get_event(completed["event_ids"][1])["status"] == "complete"
+assert not any(
+    o.key == "a bundle of firewood" and o.db.civic_firewood is True
+    for o in merchant_tester.contents
+), "A claimed commission bundle was duplicated on restart"
+print("POST_RESTART_COOPERATIVE_COMMISSION_ASSERTIONS_GREEN")
 print("POST_RESTART_COMMUNITY_HEARTH_ASSERTIONS_GREEN")
 
 # Resident response is based on actual physical witness of the completed
