@@ -280,6 +280,31 @@ class Player:
         self.rooms.add(state.get("location"))
         return state
 
+    def navigate_to_tavern(self, state):
+        """Resume from ANY accessible IC room using learned public topology.
+
+        An agent's room is persistent; reconnecting must not assume it is
+        still in the Square or Tavern. No privileged global map is used.
+        """
+        planner = ExplorationPlanner(state["location"])
+        planner.observe(state)
+        for _ in range(64):
+            if state["location"] == "The Blood of the Vine":
+                return state
+            plan = planner.next_move(state["location"])
+            if plan is None:
+                raise RuntimeError(
+                    "Unable to discover a public return path to the Tavern"
+                )
+            direction = plan[0]
+            old = state["location"]
+            state = self.move(state, direction)
+            if state.get("location") == old:
+                planner.block(old, direction)
+                continue
+            planner.observe(state)
+        raise RuntimeError("Returning mask could not reach the Tavern in 64 moves")
+
     def arrive(self, state):
         """Ordinary arrival: private room, M., front door, shared Tavern."""
         for _ in range(8):
@@ -287,6 +312,8 @@ class Player:
             self.rooms.add(place)
             if side == "ic" and place == "The Blood of the Vine":
                 return state
+            if side == "ic" and "exit_targets" in state:
+                return self.navigate_to_tavern(state)
             if side == "ooc" and "Private Room" in str(place):
                 state = self.move(state, "down")
             elif side == "ooc" and place == "Inn Common Room":
