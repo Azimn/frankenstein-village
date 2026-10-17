@@ -51,6 +51,8 @@ def refresh(raw, day):
 def pledge(raw, day, account_id, mask, *, bundle_id, event_id):
     state = refresh(raw, day)
     item = state["commission"]
+    if int(day) < state["day"]:
+        return state, False, "The village clock cannot reopen an earlier commission."
     if not item or item["status"] != "open":
         return state, False, "Today's commission is no longer open."
     if not isinstance(bundle_id, int) or bundle_id < 1:
@@ -66,6 +68,8 @@ def pledge(raw, day, account_id, mask, *, bundle_id, event_id):
 def finish(raw, day, account_id, mask, *, carried_bundle_id, reserve_has_space, event_id):
     state = refresh(raw, day)
     item = state["commission"]
+    if int(day) < state["day"]:
+        return state, False, "The village clock cannot complete an earlier commission."
     if not item or item["status"] != "pledged":
         return state, False, "A neighbor must first pledge a bundle in the Square."
     if int(account_id) == item["supplier_account"]:
