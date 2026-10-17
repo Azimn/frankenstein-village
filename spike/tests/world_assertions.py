@@ -827,6 +827,25 @@ advance_population(day=2, hour=10, emit=False)
 wstate = resident_state(wren)
 assert wstate["routine"]["logical_location"] == "schoolhouse"
 assert wstate["routine"]["source"] == "schedule"
+# The new map does not merely add quiet empty rooms: the existing 36
+# residents use their prior logical working schedules to appear at the
+# public edge of real locations. Private interiors remain inaccessible.
+from world.resident_data import projection_for
+assert projection_for("woods") == "The Northern Treeline"
+assert projection_for("night_watch_post") == "The Old Stone Bridge"
+assert projection_for("butcher_shop") == "Market Lane"
+assert projection_for("home:kessler") == "Offstage"
+assert by_resident_id["otto_kessler"].location == one("Market Lane")
+assert by_resident_id["ilona_szabo"].location == one("Market Lane")
+assert by_resident_id["silas_crowe"].location == one("The Northern Treeline")
+for _npc in (
+    by_resident_id["otto_kessler"],
+    by_resident_id["ilona_szabo"],
+    by_resident_id["silas_crowe"],
+):
+    assert _npc.location.tags.has("ic", category="side")
+print("RESIDENT_OPEN_DISTRICTS_RUNTIME_GREEN")
+
 assert wstate["metrics"]["decision_evaluations"] == 0, (
     "successful automaton routine performed unnecessary cognition"
 )
