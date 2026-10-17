@@ -62,6 +62,8 @@ def payload_for(mask):
             "events": "journal",
             "social": "commons",
             "local_guide": "guide",
+            "daily_commission": "commission",
+            "firewood": "hearth",
         })
         result["boundary"] = "in_character"
         if room and room.tags.has("tavern", category="place"):
