@@ -2500,6 +2500,11 @@ server_rooms = {
         "The Blood of the Vine",
         "St. Lazarus Church",
         "The Lamp Shop",
+        "St. Lazarus Churchyard",
+        "The Northern Treeline",
+        "Market Lane",
+        "Riverside Path",
+        "The Old Stone Bridge",
     )
 }
 server_overlay_snapshot = {
@@ -2545,6 +2550,15 @@ assert not blackout["current"]["responses"]
 active_overlay_id = f"{LONG_BLACKOUT_ID}:active"
 for room_key, room in server_rooms.items():
     assert active_overlay_id in (room.db.scheduled_overlays or {}), room_key
+
+# The outage propagates to every newly reachable district, not merely
+# the four original social institutions. A missing projection is a failure.
+for _district in (
+    "St. Lazarus Churchyard", "The Northern Treeline", "Market Lane",
+    "Riverside Path", "The Old Stone Bridge",
+):
+    assert active_overlay_id in (server_rooms[_district].db.scheduled_overlays or {})
+    assert len((server_rooms[_district].db.scheduled_overlays or {})[active_overlay_id]) > 75
 
 start_event = ledger.get_event(blackout["current"]["start_event_id"])
 assert start_event["kind"] == "server.long_blackout.started"
