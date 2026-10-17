@@ -812,8 +812,8 @@ from world import civic_commissions
 commissions = civic_commissions.normalize(tavern.db.civic_commission)
 completed = commissions["commission"]
 assert completed["status"] == "complete"
-assert completed["supplier_account"] == smith_tester.account.id
-assert completed["finisher_account"] == merchant_tester.account.id
+assert completed["supplier_account"] == AccountDB.objects.get(db_key="qa_smith_repair").id
+assert completed["finisher_account"] == AccountDB.objects.get(db_key="qa_merchant_repair").id
 assert completed["bundle_id"] > 0
 assert len(completed["event_ids"]) == 2
 ledger = ScriptDB.objects.get(db_key="world_event_ledger")
