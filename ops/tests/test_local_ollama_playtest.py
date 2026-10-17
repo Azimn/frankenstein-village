@@ -94,7 +94,9 @@ class TestLocalModelPlayer(unittest.TestCase):
         )
         allowed = ["look", "east", "talk Bram"]
         decision = llm.choose(
-            context(), "The village square is misty.", allowed, ["look"]
+            context(), "The village square is misty.", allowed, ["look"],
+            prior_result="The gate was locked.",
+            public_guide="Ask Bram about public happenings.",
         )
         self.assertEqual(decision, "east")
         self.assertEqual(captured["url"], "http://localhost:11434/api/chat")
@@ -102,6 +104,8 @@ class TestLocalModelPlayer(unittest.TestCase):
         self.assertFalse(captured["body"]["stream"])
         supplied = json.loads(captured["body"]["messages"][1]["content"])
         self.assertEqual(supplied["actions"], allowed)
+        self.assertEqual(supplied["last_action_outcome"], "The gate was locked.")
+        self.assertIn("Ask Bram", supplied["public_guide"])
         self.assertNotIn("password", repr(captured["body"]).lower())
         self.assertEqual(captured["timeout"], 9)
 
@@ -144,9 +148,13 @@ class TestLocalModelPlayer(unittest.TestCase):
 
         class ChosenBrain:
             model = "offline-model"
-            def choose(self, _obs, _scene, allowed, history):
+            def choose(self, _obs, _scene, allowed, history, **kwargs):
+                self.last_feedback = kwargs.get("prior_result")
+                self.guidance = kwargs.get("public_guide")
                 if not history:
                     return "west"
+                assert self.last_feedback == "You perform west"
+                assert "perform guide" in self.guidance
                 return "look"
 
         # Only west was offered. Never override the allowlist with the
@@ -158,17 +166,20 @@ class TestLocalModelPlayer(unittest.TestCase):
         self.assertEqual(summary["decisions_rejected"], 0)
         self.assertEqual(summary["trace"][0]["action"], "west")
         self.assertNotIn("admin", player.sent)
+        self.assertEqual(summary["movement_actions"], 1)
+        self.assertEqual(summary["distinct_actions"], 2)
+        self.assertNotIn("malicious wall", repr(summary).lower())
         self.assertTrue(player.closed)
 
         class RejectedBrain:
             model = "offline-model"
-            def choose(self, *_):
+            def choose(self, *_, **kwargs):
                 raise ValueError("Tried injecting @py")
         player = FakePlayer()
         bad = mod.run_model_session(player, RejectedBrain(), steps=1)
         self.assertFalse(bad["passed_protocol"])
         self.assertEqual(bad["decisions_rejected"], 1)
-        self.assertEqual(player.sent, ["agent", "look"])
+        self.assertEqual(player.sent, ["guide", "agent", "look"])
         self.assertTrue(player.closed)
 
 
