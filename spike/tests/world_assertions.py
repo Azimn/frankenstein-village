@@ -2690,6 +2690,10 @@ tavern_for_snapshot.db.player_rumors = copy.deepcopy(server_tavern_player)
 # Public mysteries preserve the distinction between observation and theory.
 from world.public_mysteries import (
     MANOR_LIGHTS_ID,
+    BRIDGE_PLAQUE_ID,
+    bridge_plaque_state,
+    observe_bridge,
+    resolve_subject,
     get_public_mystery,
     get_public_mystery_registry,
     manor_light_state,
@@ -2702,7 +2706,7 @@ manor = one("the manor on the hill")
 assert manor.typeclass_path == "typeclasses.objects.ManorView"
 public_mystery_registry = get_public_mystery_registry()
 assert set((public_mystery_registry.db.mysteries or {}).keys()) == {
-    MANOR_LIGHTS_ID
+    MANOR_LIGHTS_ID, BRIDGE_PLAQUE_ID
 }
 public_mystery_snapshot = {
     "mysteries": copy.deepcopy(
@@ -2826,6 +2830,61 @@ mystery_text = "\n".join(mystery_lines(qa_manor_a))
 assert "Shared observations: 2" in mystery_text
 assert "Provisional theories:" in mystery_text
 assert "No metaphysical explanation is certified." in mystery_text
+
+# A second public investigation depends on actual co-located object viewing.
+# It is not an automatically solved quest; repeat time/weather observations
+# converge into one canonical record per objective condition.
+bridge_room = one("The Old Stone Bridge")
+plaque_target = one("an empty plaque socket")
+assert plaque_target.location == bridge_room
+assert plaque_target.typeclass_path == "typeclasses.objects.BridgePlaqueView"
+assert resolve_subject("missing plaque") == BRIDGE_PLAQUE_ID
+bridge_witness_a = SimpleNamespace(
+    id=940003, key="qa_bridge_a", location=bridge_room,
+    has_account=True, account=None,
+)
+bridge_witness_b = SimpleNamespace(
+    id=940004, key="qa_bridge_b", location=bridge_room,
+    has_account=True, account=None,
+)
+assert observe_bridge(qa_manor_a, day=1, hour=10, weather="clear") is None, (
+    "Bridge evidence leaked to a person who never visited the bridge"
+)
+bridge_first = observe_bridge(
+    bridge_witness_a, day=1, hour=10, weather="clear"
+)
+assert bridge_first["pattern"] == "daylight"
+assert "screws" in bridge_first["detail"]
+assert ledger.get_event(bridge_first["source_event_id"])["kind"] == (
+    "public_mystery.bridge_plaque.observed"
+)
+bridge_same = observe_bridge(
+    bridge_witness_b, day=1, hour=10, weather="clear"
+)
+assert bridge_first["key"] == bridge_same["key"]
+assert len(bridge_same["witnesses"]) == 2
+assert bridge_same["source_event_id"] == bridge_first["source_event_id"]
+bridge_rain = observe_bridge(
+    bridge_witness_a, day=2, hour=10, weather="rain"
+)
+assert bridge_rain["pattern"] == "rainwater"
+assert bridge_rain["key"] != bridge_first["key"]
+bridge_at_night = bridge_plaque_state(2, 23, "clear")
+assert bridge_at_night["pattern"] == "lamplight"
+bridge_mystery = get_public_mystery(BRIDGE_PLAQUE_ID)
+assert len(bridge_mystery["observations"]) == 2
+bridge_theory, bridge_error = submit_theory(
+    bridge_witness_b,
+    "The removed sign may have pointed toward the former ferry office.",
+    BRIDGE_PLAQUE_ID,
+)
+assert bridge_error is None and bridge_theory["truth_status"] is None
+bridge_lines = "\n".join(mystery_lines(bridge_witness_a, BRIDGE_PLAQUE_ID))
+assert "Shared observations: 2 physical reports" in bridge_lines
+assert "No culprit or intended message is certified" in bridge_lines
+assert "former ferry office" in bridge_lines
+assert "visible artificial light" not in bridge_lines
+print("PUBLIC_BRIDGE_MYSTERY_CAUSAL_ASSERTIONS_GREEN")
 
 # Restore QA evidence and its publication side effects before later scenarios.
 public_mystery_registry.db.mysteries = copy.deepcopy(
