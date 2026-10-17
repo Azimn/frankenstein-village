@@ -136,9 +136,9 @@ class CmdGuide(Command):
                 ),
             }
             caller.msg(
-                "|wA quiet lead: " + place + "|n\\n"
+                "|wA quiet lead: " + place + "|n\n"
                 + routes[place]
-                + "\\nUse |wdiary|n to write your own account, "
+                + "\nUse |wdiary|n to write your own account, "
                 "or return to the Tavern and discuss what you saw."
             )
         else:
