@@ -22,6 +22,8 @@ import statistics
 import struct
 import time
 
+from agent_exploration import ExplorationPlanner
+
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 AGENT_JSON = re.compile(r"FV_AGENT_JSON\s+(\{[^\r\n]+\})")
 IAC, WILL, WONT, DO, DONT, SB, SE = 255, 251, 252, 253, 254, 250, 240
@@ -217,7 +219,7 @@ def spoons(text):
 
 class Player:
     def __init__(self, account, *, host, port, tls, timeout, seed, steps, pids=(),
-                 factory=Transport):
+                 factory=Transport, explore_rooms=0):
         self.account = account
         self.host, self.port, self.tls, self.timeout = host, port, tls, timeout
         self.factory, self.steps, self.pids = factory, steps, tuple(pids)
@@ -229,6 +231,8 @@ class Player:
         self.disconnections = 0
         self.quotable = ""
         self.rooms = set()
+        self.explore_rooms = int(explore_rooms)
+        self.exploration = None
 
     def cmd(self, line):
         output, latency = self.session.send(line)
@@ -317,6 +321,64 @@ class Player:
         self.cmd("look")
         return self.move(state, "east")
 
+    def explore(self, state):
+        """Discover reachable IC rooms without a privileged map or scripted route.
+
+        The policy works only from agent exit_targets gathered in normal play.
+        It returns to its starting room before the next ordinary play cycle.
+        """
+        start = state.get("location")
+        planner = ExplorationPlanner(start)
+        planner.observe(state)
+        steps = 0
+        cap = min(128, max(8, self.explore_rooms * 10))
+        while len(planner.visited) < self.explore_rooms and steps < cap:
+            plan = planner.next_move(state.get("location"))
+            if not plan:
+                break
+            direction = plan[0]
+            origin = state.get("location")
+            if direction not in state.get("exits", []):
+                planner.block(origin, direction)
+                continue
+            state = self.move(state, direction)
+            steps += 1
+            if state.get("location") == origin:
+                planner.block(origin, direction)
+                continue
+            planner.observe(state)
+            if "guide" in (state.get("commands") or {}).values():
+                self.cmd("guide")
+            nearby = list(state.get("visible_nearby") or [])
+            if nearby:
+                self.cmd("examine " + nearby[0][:90].replace("\\n", " "))
+        while state.get("location") != start and steps < cap + self.explore_rooms * 3:
+            home = planner.route(state["location"], start)
+            if not home:
+                raise RuntimeError("No observed safe return route from " + state["location"])
+            prior = state["location"]
+            state = self.move(state, home[0])
+            steps += 1
+            if state.get("location") == prior:
+                planner.block(prior, home[0])
+                raise RuntimeError("Previously observed return route is blocked")
+            planner.observe(state)
+        if state.get("location") != start:
+            raise RuntimeError("Exploration exceeded the bounded return budget")
+        self.exploration = {
+            "visited_count": len(planner.visited),
+            "visited": sorted(planner.visited),
+            "movement_commands": steps,
+            "returned_to_start": True,
+            "target": self.explore_rooms,
+        }
+        if len(planner.visited) < self.explore_rooms:
+            raise RuntimeError(
+                f"Only {len(planner.visited)} reachable IC rooms discovered; "
+                f"requested {self.explore_rooms}"
+            )
+        return state
+
     def reconnect_recovery(self, state):
         """One forced connection loss, one resumed craft, zero duplicate items."""
         if state.get("location") != "The Blood of the Vine":
@@ -359,7 +421,9 @@ class Player:
             if recovery:
                 state = self.reconnect_recovery(state)
                 recovery_ok = True
-            self.random_loop(state)
+            state = self.random_loop(state)
+            if self.explore_rooms:
+                self.explore(state)
         except Exception as exc:
             err = type(exc).__name__ + ": " + str(exc)
             if recovery and recovery_ok is None:
@@ -382,12 +446,14 @@ class Player:
             "resource_metrics": process_delta(before, after),
             "duration_s": round(time.monotonic() - started, 2),
             "visited": sorted(self.rooms), "quotable": self.quotable,
+            "exploration": self.exploration,
             "error": err,
         }
 
 
 def run_sessions(accounts, *, host, port, tls, timeout, seed, steps,
-                 pids=(), recover_index=None, factory=Transport):
+                 pids=(), recover_index=None, factory=Transport,
+                 explore_rooms=0):
     if not tls and not is_loopback(host):
         raise ValueError("Remote connections need TLS")
     if len(set(a.username for a in accounts)) != len(accounts):
@@ -399,7 +465,8 @@ def run_sessions(accounts, *, host, port, tls, timeout, seed, steps,
             pool.submit(
                 Player(
                     account, host=host, port=port, tls=tls, timeout=timeout,
-                    seed=seed + i * 1009, steps=steps, pids=pids, factory=factory
+                    seed=seed + i * 1009, steps=steps, pids=pids, factory=factory,
+                    explore_rooms=explore_rooms
                 ).run,
                 recovery=(i == recover_index),
             )
@@ -419,11 +486,15 @@ def main(argv=None):
     parser.add_argument("--steps", type=int, default=6)
     parser.add_argument("--timeout", type=float, default=8.0)
     parser.add_argument("--recover-index", type=int, default=None)
+    parser.add_argument("--explore-rooms", type=int, default=0,
+                        help="Visit 1..12 IC rooms using only locally observed exits")
     parser.add_argument("--server-pid", action="append", type=int, default=[])
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     if not 1 <= args.sessions <= 32 or not 0 <= args.steps <= 100:
         parser.error("Bounded smoke runs only: sessions 1..32, steps 0..100")
+    if not 0 <= args.explore_rooms <= 12:
+        parser.error("explore-rooms must be between 0 and 12")
     if not 0 < args.timeout <= 30 or not 1 <= args.port <= 65535:
         parser.error("Invalid timeout or TCP port")
     try:
@@ -432,6 +503,7 @@ def main(argv=None):
             accounts, host=args.host, port=args.port, tls=args.tls,
             timeout=args.timeout, steps=args.steps, seed=args.seed,
             pids=tuple(args.server_pid), recover_index=args.recover_index,
+            explore_rooms=args.explore_rooms,
         )
     except (OSError, ValueError, KeyError) as exc:
         parser.error(str(exc))
