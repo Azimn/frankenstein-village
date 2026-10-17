@@ -38,11 +38,15 @@ LANDMARKS = {
 def normalize(raw):
     result = []
     seen = set()
-    for value in list(raw or [])[:128]:
+    try:
+        entries = list(raw or [])[:128]
+    except (ValueError, TypeError):
+        return []
+    for value in entries:
         if not hasattr(value, "get"):
             continue
         ident = value.get("id")
-        if ident not in LANDMARKS or ident in seen:
+        if not isinstance(ident, str) or ident not in LANDMARKS or ident in seen:
             continue
         try:
             day, hour = int(value.get("day")), int(value.get("hour"))
