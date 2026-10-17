@@ -21,6 +21,7 @@ spec = importlib.util.spec_from_file_location(
 )
 client = importlib.util.module_from_spec(spec)
 import sys
+sys.path.insert(0, str(ROOT / "ops"))
 sys.modules[spec.name] = client
 spec.loader.exec_module(client)
 
