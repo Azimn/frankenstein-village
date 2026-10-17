@@ -23,6 +23,8 @@ def payload_for(mask):
     elif room and room.tags.has("ic", category="side"):
         side = "ic"
     visible_exits = []
+    exit_targets = {}
+    nearby = []
     if room:
         for doorway in room.exits:
             # A search-locked or view-locked exit must not appear here.
@@ -32,12 +34,30 @@ def payload_for(mask):
                 continue
             if doorway.access(mask, "traverse", default=True):
                 visible_exits.append(str(doorway.key))
+                destination = getattr(doorway, "destination", None)
+                # Traversable exit destinations are available from normal
+                # look/exit inspection, not a hidden world map.
+                if destination and destination.access(mask, "view", default=True):
+                    exit_targets[str(doorway.key)] = str(destination.key)
+        exit_ids = {doorway.id for doorway in room.exits}
+        for obj in room.contents:
+            if obj == mask or obj.id in exit_ids:
+                continue
+            if not obj.access(mask, "view", default=True):
+                continue
+            if not obj.access(mask, "search", default=True):
+                continue
+            label = str(obj.get_display_name(mask)).strip()
+            if label:
+                nearby.append(label[:100])
     result = {
         "version": VERSION,
         "schema": "fvillage.agent_context.v1",
         "side": side,
         "location": str(room.key) if room else None,
         "exits": sorted(set(visible_exits)),
+        "exit_targets": {key: exit_targets[key] for key in sorted(exit_targets)},
+        "visible_nearby": sorted(set(nearby), key=str.casefold)[:32],
         "turn_model": "send one text command, read its response, observe again",
         "auth": "regular account and character rules apply",
         "commands": {
@@ -52,6 +72,7 @@ def payload_for(mask):
             "world_entry": "follow the Inn front door",
             "calling": "calling list",
             "guide": "guide",
+            "personal_return": "agenda",
         })
         result["boundary"] = "out_of_character"
     elif side == "ic":
@@ -62,10 +83,21 @@ def payload_for(mask):
             "events": "journal",
             "social": "commons",
             "local_guide": "guide",
+            "personal_return": "agenda",
+            "community_work": "commission",
+            "public_schedule": "calendar",
         })
         result["boundary"] = "in_character"
         if room and room.tags.has("tavern", category="place"):
             result["commands"]["public_rumors"] = "rumors"
+            result["commands"]["hearth"] = "hearth"
+        if room and room.key == "Village Square":
+            result["commands"]["public_commons"] = "commons"
+            result["commands"]["firewood"] = "hearth gather"
+        if room and room.key == "St. Lazarus Church":
+            result["commands"]["confessional"] = "confess"
+        if room and room.key == "The Lamp Shop":
+            result["commands"]["shop"] = "look"
     return result
 
 
