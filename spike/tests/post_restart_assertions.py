@@ -767,6 +767,16 @@ assert first_notice["resolution"]["body"].startswith("We spoke")
 assert second_notice and second_notice["status"] == "open"
 assert second_notice["author"]["mask"] == "MerchantTester"
 assert second_notice["body"].startswith("I can carry parcels")
+assert len(second_notice["replies"]) == 2, (
+    "Parallel Commons replies were lost or duplicated across server restart"
+)
+assert {reply["by"]["mask"] for reply in second_notice["replies"]} == {
+    "SmithTester", "InnkeepTester",
+}
+assert len({reply["by"]["account_id"] for reply in second_notice["replies"]}) == 2, (
+    "Simultaneous player updates were incorrectly attributed to one account"
+)
+print("POST_RESTART_CONCURRENT_COMMONS_ASSERTIONS_GREEN")
 
 # Prospective interests belong to the active mask and survive real stop/start.
 # The public board remains authoritative; mask bookmarks only store cursors.
