@@ -94,7 +94,7 @@ lamp_shop = get_or_create_room(
 )
 
 # Offstage: where regulars are when their schedule says "home". No exits —
-# the churchyard, the cottages, the woods edge don't exist as rooms yet.
+# many private cottages and resident homes remain deliberately undrawn.
 # Players never go here; the schedule's observable consequence is that
 # people leave and come back.
 get_or_create_room(
@@ -119,6 +119,53 @@ church = get_or_create_room(
     place="church",
 )
 
+# Additional traversable districts. They remain player-accessible even when
+# resident schedules keep other logical homes Offstage.
+churchyard = get_or_create_room(
+    "St. Lazarus Churchyard", ROOM,
+    "A ribbon of slate graves behind the church. Moss fills the joints of "
+    "the path, and a bell rope taps against stone somewhere to the east. "
+    "A narrow track bends north toward a treeline; the church is east.",
+    side="ic", place="churchyard",
+)
+woods_edge = get_or_create_room(
+    "The Northern Treeline", ROOM,
+    "The forest begins without ceremony. Water catches in the roots of "
+    "beeches; a timber trail vanishes deeper into the dark, beyond the "
+    "paths currently safe to walk. The churchyard lies south.",
+    side="ic", place="treeline",
+)
+market_lane = get_or_create_room(
+    "Market Lane", ROOM,
+    "Awning frames and cobbles mark a market even when the traders have "
+    "gone home. Old chalk prices remain on shuttered boards. North, the "
+    "Lamp Shop's windows burn like small suns.",
+    side="ic", place="market_lane",
+)
+riverside = get_or_create_room(
+    "Riverside Path", ROOM,
+    "The river carries a low mist below the village. A ferry chain "
+    "clinks against a bollard. The Blood of the Vine is west; an old "
+    "stone bridge rises to the east.",
+    side="ic", place="riverside",
+)
+bridge = get_or_create_room(
+    "The Old Stone Bridge", ROOM,
+    "Weather-dark masonry crosses a narrow reach of river. The upstream "
+    "parapet has a rectangular scar where a plaque once hung. "
+    "The riverside path leads west.",
+    side="ic", place="bridge",
+)
+# Existing persistent room descriptions are gently amended on a rebuild:
+# merely adding new exits would leave the old textual map incomplete.
+for _room_obj, _line in (
+    (church, "A graveyard path runs west behind the church."),
+    (lamp_shop, "South, the cobbles widen into Market Lane."),
+    (tavern, "East, a damp path follows the river toward the old bridge."),
+):
+    if _line not in str(_room_obj.db.desc or ""):
+        _room_obj.db.desc = (str(_room_obj.db.desc or "").rstrip() + " " + _line)
+
 # --- exits ------------------------------------------------------------------
 # OOC side
 get_or_create_exit("east", common, hallway, "evennia.objects.objects.DefaultExit", aliases=["e"])
@@ -135,6 +182,18 @@ get_or_create_exit("south", square, lamp_shop, "evennia.objects.objects.DefaultE
 get_or_create_exit("north", lamp_shop, square, "evennia.objects.objects.DefaultExit", aliases=["n"])
 get_or_create_exit("west", square, church, "evennia.objects.objects.DefaultExit", aliases=["w"])
 get_or_create_exit("east", church, square, "evennia.objects.objects.DefaultExit", aliases=["e"])
+
+# Side districts and reversible footpaths. Offstage remains inaccessible.
+get_or_create_exit("west", church, churchyard, "evennia.objects.objects.DefaultExit", aliases=["w"])
+get_or_create_exit("east", churchyard, church, "evennia.objects.objects.DefaultExit", aliases=["e"])
+get_or_create_exit("north", churchyard, woods_edge, "evennia.objects.objects.DefaultExit", aliases=["n"])
+get_or_create_exit("south", woods_edge, churchyard, "evennia.objects.objects.DefaultExit", aliases=["s"])
+get_or_create_exit("south", lamp_shop, market_lane, "evennia.objects.objects.DefaultExit", aliases=["s"])
+get_or_create_exit("north", market_lane, lamp_shop, "evennia.objects.objects.DefaultExit", aliases=["n"])
+get_or_create_exit("east", tavern, riverside, "evennia.objects.objects.DefaultExit", aliases=["e"])
+get_or_create_exit("west", riverside, tavern, "evennia.objects.objects.DefaultExit", aliases=["w"])
+get_or_create_exit("east", riverside, bridge, "evennia.objects.objects.DefaultExit", aliases=["e"])
+get_or_create_exit("west", bridge, riverside, "evennia.objects.objects.DefaultExit", aliases=["w"])
 
 # --- account-owned private rooms --------------------------------------------
 from evennia.accounts.models import AccountDB
@@ -293,6 +352,44 @@ def get_or_create_scenery(key, location, desc, aliases=()):
             obj.aliases.add(alias)
     return obj
 
+
+# Exploratory clues live as actual inspectable scenery. They are physical
+# observations, not automatic proof of anyone's role in a mystery.
+get_or_create_scenery(
+    "a weathered grave marker", churchyard,
+    "A date has been recut over an older date. Under the moss are two "
+    "sets of initials, and the chisel strokes are plainly from different "
+    "hands. No name here explains why.",
+    aliases=["grave marker", "gravestone"],
+)
+get_or_create_scenery(
+    "a frayed red cord", woods_edge,
+    "A length of scarlet cord is caught between roots. It has been "
+    "cut cleanly at one end and torn at the other. It is fixed under "
+    "the bark, and cannot be taken without breaking the root.",
+    aliases=["cord", "rope"],
+)
+get_or_create_scenery(
+    "a crooked market scale", market_lane,
+    "The brass pans do not balance when empty. A small chip of stone "
+    "has been wedged beneath one arm, and the ink on the stall's slate "
+    "records two prices for the same weight.",
+    aliases=["market scale", "scale"],
+)
+get_or_create_scenery(
+    "a river gauge", riverside,
+    "Flood marks have been carved along the post. A newer mark sits "
+    "above the highest known winter level, but the river is quiet "
+    "today. The date beside it is almost unreadable.",
+    aliases=["gauge", "flood marks"],
+)
+get_or_create_scenery(
+    "an empty plaque socket", bridge,
+    "Four brass screws surround an empty rectangle of clean stone. "
+    "The absent plaque was rectangular and heavy. Soot has collected "
+    "in only three corners of the socket.",
+    aliases=["plaque", "stone socket"],
+)
 
 # A named public lamp is the physical target for a persistent repair case.
 _lamp_matches = [o for o in square.contents if o.key == "north-square gas lamp"]
