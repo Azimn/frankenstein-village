@@ -248,33 +248,6 @@ def main() -> int:
         out = c.command("mystery manor")
         require(out, "provisional theories", "old maintenance schedule")
 
-        # Second real-world public mystery: travel physically to the bridge,
-        # look at its missing plaque, preserve witness and provisional theory.
-        out = c.command("east")
-        require(out, "blood of the vine")
-        out = c.command("east")
-        require(out, "riverside path")
-        out = c.command("east")
-        require(out, "old stone bridge")
-        out = c.command("guide")
-        require(out, "empty plaque socket")
-        out = c.command("look plaque")
-        require_all(out, "screws", "who removed it")
-        out = c.command("mystery bridge")
-        require_all(out, "who removed the old bridge plaque", "physical reports")
-        out = c.command(
-            "theory bridge = The missing inscription could name a former ferry keeper."
-        )
-        require(out, "provisional public interpretation")
-        out = c.command("mystery bridge")
-        require_all(out, "provisional theories", "former ferry keeper")
-        out = c.command("west")
-        require(out, "riverside path")
-        out = c.command("west")
-        require(out, "blood of the vine")
-        out = c.command("west")
-        require(out, "village square")
-
         # A timed world window is already live. Firsthand evidence is earned by
         # being present during the window and observing the physical world.
         out = c.command("look well")
@@ -346,6 +319,29 @@ def main() -> int:
         out = c.command("ask Bram about news")
         require_all(out, "public stories")
         require_all(out, "story isn't a witness")
+
+        # Second real-world public mystery: travel physically to the bridge,
+        # look at its missing plaque, preserve witness and provisional theory.
+        out = c.command("east")
+        require(out, "riverside path")
+        out = c.command("east")
+        require(out, "old stone bridge")
+        out = c.command("guide")
+        require(out, "empty plaque socket")
+        out = c.command("look plaque")
+        require_all(out, "screws", "who removed it")
+        out = c.command("mystery bridge")
+        require_all(out, "who removed the old bridge plaque", "physical reports")
+        out = c.command(
+            "theory bridge = The missing inscription could name a former ferry keeper."
+        )
+        require(out, "provisional public interpretation")
+        out = c.command("mystery bridge")
+        require_all(out, "provisional theories", "former ferry keeper")
+        out = c.command("west")
+        require(out, "riverside path")
+        out = c.command("west")
+        require(out, "blood of the vine")
 
         # Systemic object foundation: the ordinary eat verb now reads the
         # bread's worth and uses properties. The player-facing behavior stays
