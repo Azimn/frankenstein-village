@@ -3651,4 +3651,41 @@ assert CmdWrestle._pair(None, _a) == (None, None), (
     "wrestling resurrected from a one-sided stale state"
 )
 
+# Walkable exploration districts must exist after both initial build and an
+# idempotent rebuild, and every new path must lead home without teleporting.
+_district_edges = (
+    ("St. Lazarus Church", "west", "St. Lazarus Churchyard"),
+    ("St. Lazarus Churchyard", "east", "St. Lazarus Church"),
+    ("St. Lazarus Churchyard", "north", "The Northern Treeline"),
+    ("The Northern Treeline", "south", "St. Lazarus Churchyard"),
+    ("The Lamp Shop", "south", "Market Lane"),
+    ("Market Lane", "north", "The Lamp Shop"),
+    ("The Blood of the Vine", "east", "Riverside Path"),
+    ("Riverside Path", "west", "The Blood of the Vine"),
+    ("Riverside Path", "east", "The Old Stone Bridge"),
+    ("The Old Stone Bridge", "west", "Riverside Path"),
+)
+for _src, _direction, _dst in _district_edges:
+    _room = one(_src)
+    assert _room.tags.has("ic", category="side"), _src
+    _matching = [
+        e for e in _room.exits
+        if e.key == _direction and e.destination == one(_dst)
+    ]
+    assert len(_matching) == 1, (
+        f"Missing or duplicated traversable route: {_src} {_direction} {_dst}"
+    )
+for _key, _location in (
+    ("a weathered grave marker", "St. Lazarus Churchyard"),
+    ("a frayed red cord", "The Northern Treeline"),
+    ("a crooked market scale", "Market Lane"),
+    ("a river gauge", "Riverside Path"),
+    ("an empty plaque socket", "The Old Stone Bridge"),
+):
+    _obj = one(_key)
+    assert _obj.location == one(_location)
+    assert len(str(_obj.db.desc or "")) > 35
+assert not list(one("Offstage").exits), "Offstage became a public room"
+print("WALKABLE_DISTRICTS_ASSERTIONS_GREEN")
+
 print("WORLD_ASSERTIONS_GREEN")
