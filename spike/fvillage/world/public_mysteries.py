@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import re
 
 from evennia import create_script
 from evennia.scripts.models import ScriptDB
@@ -15,10 +16,20 @@ from evennia.scripts.models import ScriptDB
 
 REGISTRY_KEY = "public_mystery_registry"
 MANOR_LIGHTS_ID = "PUBLIC-MANOR-LIGHTS"
+BRIDGE_PLAQUE_ID = "PUBLIC-BRIDGE-PLAQUE"
 MAX_OBSERVATIONS = 120
 MAX_THEORIES = 80
 
 DEFINITIONS = {
+    BRIDGE_PLAQUE_ID: {
+        "title": "Who Removed the Old Bridge Plaque?",
+        "question": "Why is the inscription missing from the river bridge?",
+        "location": "The Old Stone Bridge",
+        "unresolved_note": (
+            "The empty screw holes, weathering, and witnesses are observable. "
+            "No culprit or intended message is certified."
+        ),
+    },
     MANOR_LIGHTS_ID: {
         "title": "Why Are the Manor Lights Returning?",
         "question": "Why are lights appearing again in the hilltop Manor?",
@@ -290,12 +301,120 @@ def manor_description(looker=None):
     )
 
 
+
+def bridge_plaque_state(day, hour, weather):
+    """Read a physical object under changing light, never infer a culprit."""
+    hour = int(hour)
+    weather = str(weather or "clear").lower()
+    if weather == "rain":
+        return {
+            "pattern": "rainwater",
+            "detail": (
+                "Water gathers in three corners of the clean rectangular "
+                "socket, leaving the fourth unexpectedly dry. Four old "
+                "screws remain sunk in the stone."
+            ),
+        }
+    if hour >= 18 or hour <= 5:
+        return {
+            "pattern": "lamplight",
+            "detail": (
+                "In the weak light, soot is caught beside three screws "
+                "while the fourth looks recently rubbed. The missing "
+                "plaque's outline is clear against darker stone."
+            ),
+        }
+    return {
+        "pattern": "daylight",
+        "detail": (
+            "The bridge has four brass screws around an empty rectangular "
+            "socket. The stone beneath the lost plaque is paler than its "
+            "surroundings, and tool scratches cross the lower edge."
+        ),
+    }
+
+
+def observe_bridge(player, *, day=None, hour=None, weather=None):
+    """Record witnessed physical evidence, requiring actual bridge presence."""
+    if getattr(getattr(player, "location", None), "key", None) != "The Old Stone Bridge":
+        return None
+    if not getattr(player, "has_account", False):
+        return None
+    mystery = get_public_mystery(BRIDGE_PLAQUE_ID)
+    if mystery is None:
+        ensure_public_mysteries()
+        mystery = get_public_mystery(BRIDGE_PLAQUE_ID)
+    if day is None or hour is None:
+        current_day, current_hour = _clock()
+        day = current_day if day is None else day
+        hour = current_hour if hour is None else hour
+    weather = _weather() if weather is None else str(weather).lower()
+    state = bridge_plaque_state(day, hour, weather)
+    key = f"{int(day)}:{int(hour)}:{weather}:{state['pattern']}"
+    observations = copy.deepcopy(list(mystery.get("observations") or []))
+    witness = _player_ref(player)
+    existing = next((i for i, obs in enumerate(observations)
+                     if obs.get("key") == key), None)
+    if existing is not None:
+        result = observations[existing]
+        if not any(item.get("mask_id") == witness["mask_id"]
+                   for item in result.get("witnesses") or []):
+            result["witnesses"].append(witness)
+            mystery["observations"] = observations
+            _save(mystery)
+            _metric(witness_links=1)
+        return copy.deepcopy(result)
+
+    from world.events import publish_world_event
+    event = publish_world_event(
+        "public_mystery.bridge_plaque.observed",
+        actor=player,
+        payload={
+            "public_mystery_id": BRIDGE_PLAQUE_ID,
+            "day": int(day), "hour": int(hour), "weather": weather,
+            "pattern": state["pattern"], "publicity": "private",
+            "harbinger": False, "chronicle_eligible": False,
+        },
+    )
+    record = {
+        "key": key, "day": int(day), "hour": int(hour), "weather": weather,
+        "detail": state["detail"], "pattern": state["pattern"],
+        "witnesses": [witness], "source_event_id": event["id"],
+    }
+    observations.append(record)
+    mystery["observations"] = observations[-MAX_OBSERVATIONS:]
+    if not mystery.get("first_signal_event_id"):
+        mystery["first_signal_event_id"] = event["id"]
+    _save(mystery)
+    _metric(observations=1, witness_links=1)
+    return copy.deepcopy(record)
+
+
+def bridge_plaque_description(looker=None):
+    day, hour = _clock()
+    weather = _weather()
+    evidence = bridge_plaque_state(day, hour, weather)
+    if looker is not None:
+        observe_bridge(looker, day=day, hour=hour, weather=weather)
+    return (
+        "The empty plaque socket is part of the bridge's weathered stone. "
+        + evidence["detail"]
+        + " The physical marks do not explain who removed it. "
+        "Compare the public |wmystery bridge|n record with other visitors."
+    )
+
+
 def submit_theory(player, text, stable_id=MANOR_LIGHTS_ID):
     mystery = get_public_mystery(stable_id)
     if not mystery or mystery.get("status") != "open":
         return None, "That public question is not open."
 
-    body = str(text or "").strip()
+    # This is publicly replayed text. Strip Evennia markup pipes and
+    # terminal control characters so a player cannot impersonate system
+    # messages or inject forged multi-line testimony.
+    body = str(text or "").replace("|", " ")
+    body = "".join(ch if ch.isprintable() else " " for ch in body)
+    body = re.sub(r"\s+", " ", body).strip()
     if not body:
         return None, "A theory needs actual words."
     if len(body) > 600:
@@ -330,6 +449,11 @@ def resolve_subject(token):
         "why are the manor lights returning",
     }:
         return MANOR_LIGHTS_ID
+    if token in {
+        "bridge", "bridge plaque", "missing plaque", "old stone bridge",
+        "missing bridge plaque", "inscription",
+    }:
+        return BRIDGE_PLAQUE_ID
     return None
 
 
@@ -349,6 +473,8 @@ def mystery_lines(player=None, stable_id=MANOR_LIGHTS_ID):
         (
             f"Shared observations: {len(observations)} "
             f"({lit_count} with visible artificial light)."
+            if stable_id == MANOR_LIGHTS_ID
+            else f"Shared observations: {len(observations)} physical reports."
         ),
     ]
 
@@ -363,8 +489,12 @@ def mystery_lines(player=None, stable_id=MANOR_LIGHTS_ID):
             )
     else:
         lines.append(
-            "No shared observation has been logged yet. The Manor is visible "
-            "from the Village Square."
+            "No shared observation has been logged yet. "
+            + (
+                "The Manor is visible from the Village Square."
+                if stable_id == MANOR_LIGHTS_ID
+                else "Inspect the empty plaque socket on the Old Stone Bridge."
+            )
         )
 
     if theories:

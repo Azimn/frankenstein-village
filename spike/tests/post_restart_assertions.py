@@ -72,6 +72,7 @@ from world.server_events import (
 )
 from world.public_mysteries import (
     MANOR_LIGHTS_ID,
+    BRIDGE_PLAQUE_ID,
     get_public_mystery,
     get_public_mystery_registry,
 )
@@ -667,7 +668,21 @@ assert any(
 )
 public_mysteries = get_public_mystery_registry()
 assert ScriptDB.objects.filter(db_key="public_mystery_registry").count() == 1
-assert set((public_mysteries.db.mysteries or {}).keys()) == {MANOR_LIGHTS_ID}
+bridge_mystery = get_public_mystery(BRIDGE_PLAQUE_ID)
+assert bridge_mystery and bridge_mystery["status"] == "open"
+assert any(
+    witness.get("mask") == "SmokeTester"
+    for record in bridge_mystery.get("observations") or []
+    for witness in record.get("witnesses") or []
+), "The physical bridge observation did not survive restart"
+assert any(
+    "former ferry keeper" in theory.get("text", "")
+    and theory.get("truth_status") is None
+    for theory in bridge_mystery.get("theories") or []
+), "The public bridge theory did not persist as an unresolved interpretation"
+print("POST_RESTART_BRIDGE_MYSTERY_ASSERTIONS_GREEN")
+
+assert set((public_mysteries.db.mysteries or {}).keys()) == {MANOR_LIGHTS_ID, BRIDGE_PLAQUE_ID}
 
 # Private mystery ownership and deliberate disclosure survive independently.
 private_registry = get_private_mystery_registry()

@@ -383,13 +383,20 @@ get_or_create_scenery(
     "today. The date beside it is almost unreadable.",
     aliases=["gauge", "flood marks"],
 )
-get_or_create_scenery(
+plaque_socket = get_or_create_scenery(
     "an empty plaque socket", bridge,
     "Four brass screws surround an empty rectangle of clean stone. "
     "The absent plaque was rectangular and heavy. Soot has collected "
     "in only three corners of the socket.",
     aliases=["plaque", "stone socket"],
 )
+if not plaque_socket.is_typeclass(
+    "typeclasses.objects.BridgePlaqueView", exact=True
+):
+    plaque_socket.swap_typeclass(
+        "typeclasses.objects.BridgePlaqueView", clean_attributes=False
+    )
+    print("Bridge plaque socket upgraded to live public mystery target.")
 
 # A named public lamp is the physical target for a persistent repair case.
 _lamp_matches = [o for o in square.contents if o.key == "north-square gas lamp"]

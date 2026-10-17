@@ -107,6 +107,19 @@ class ManorView(DefaultObject):
 
 
 
+class BridgePlaqueView(DefaultObject):
+    """Publicly visible bridge evidence, not an automatically solved case."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.aliases.add(["plaque", "stone socket", "missing plaque"])
+        self.locks.add("get:false()")
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.public_mysteries import bridge_plaque_description
+        return bridge_plaque_description(looker)
+
+
 class Register(DefaultObject):
     """M.'s register, open on the bar of the Tavern.
 
