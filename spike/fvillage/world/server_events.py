@@ -70,6 +70,31 @@ DEFINITIONS = {
                 "spare mantles, and lamp glass have been pulled onto the counter "
                 "for households that arrived unprepared."
             ),
+            "St. Lazarus Churchyard": (
+                "The churchyard path has gone dark. Someone has left a single "
+                "votive candle beneath the grave marker, but the light reaches "
+                "barely beyond the next headstone."
+            ),
+            "The Northern Treeline": (
+                "Without the village lights behind it, the treeline is a solid "
+                "wall of shadow. Even the north track is difficult to distinguish "
+                "from the waterlogged roots."
+            ),
+            "Market Lane": (
+                "The market stalls are shuttered early. Traders carry their "
+                "remaining tins of oil toward the square by hand, leaving "
+                "chalk prices visible only in candlelight."
+            ),
+            "Riverside Path": (
+                "The ferry chain has been secured to its post. With the river "
+                "lamps extinguished, the ferryman has stopped the crossing "
+                "rather than risk a passenger in the dark."
+            ),
+            "The Old Stone Bridge": (
+                "No lamps remain lit along the bridge parapet. A lantern on "
+                "the near bank throws a faint stripe over the plaque socket, "
+                "but the far stones disappear into the river mist."
+            ),
         },
         "aftermath_overlays": {
             "Village Square": (
@@ -89,6 +114,30 @@ DEFINITIONS = {
             "The Lamp Shop": (
                 "The emergency queue is gone, but several shelves remain thin "
                 "after the blackout rush."
+            ),
+            "St. Lazarus Churchyard": (
+                "The temporary grave candles have burned down. A fresh drip "
+                "of wax on the grave marker shows where someone waited out "
+                "the hours of darkness."
+            ),
+            "The Northern Treeline": (
+                "The distant village lamps are visible once more through "
+                "the trees. Deep shoe prints mark where travelers turned "
+                "back when the north track went black."
+            ),
+            "Market Lane": (
+                "A few broken taper ends lie beneath the market awnings. "
+                "Merchants are comparing the cost of emergency oil after "
+                "the night's interruption."
+            ),
+            "Riverside Path": (
+                "The ferryman has lifted the night closure. The chain is "
+                "slack again, and muddy tracks show where travelers waited "
+                "for the first safe crossing."
+            ),
+            "The Old Stone Bridge": (
+                "The parapet lamps burn again. A line of damp soot beneath "
+                "one fixture records the failed attempts to relight it."
             ),
         },
         "responses": {
