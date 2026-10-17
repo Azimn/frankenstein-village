@@ -414,7 +414,7 @@ def submit_theory(player, text, stable_id=MANOR_LIGHTS_ID):
     # messages or inject forged multi-line testimony.
     body = str(text or "").replace("|", " ")
     body = "".join(ch if ch.isprintable() else " " for ch in body)
-    body = re.sub(r"\\s+", " ", body).strip()
+    body = re.sub(r"\s+", " ", body).strip()
     if not body:
         return None, "A theory needs actual words."
     if len(body) > 600:
