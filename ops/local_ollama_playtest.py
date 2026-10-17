@@ -36,7 +36,7 @@ FORBIDDEN_VERBS = frozenset({
     "passwd", "password", "account", "substrate", "charcreate", "ic", "ooc",
     "delete", "ban", "kick", "grant", "eval", "execute",
 })
-NAME = re.compile(r"^[\w\s.'-]{1,70}$", re.UNICODE)
+NAME = re.compile(r"^[\w .'-]{1,70}$", re.UNICODE)
 PUBLIC_COMMAND = re.compile(r"^[a-z][a-z -]{0,42}$")
 
 class _ForbidRedirect(HTTPRedirectHandler):
