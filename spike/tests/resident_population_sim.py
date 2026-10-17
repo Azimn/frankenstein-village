@@ -116,6 +116,40 @@ def main():
     assert at_work["logical_location"] == "butcher_shop"
     assert at_night["logical_location"] == butcher["home_id"]
 
+    # Newly traversable districts must actually participate in ordinary
+    # resident life rather than remaining empty scenery. Physical projections
+    # keep unbuilt private homes, school and nurseries inaccessible.
+    expected_public = {
+        "woods": "The Northern Treeline",
+        "night_watch_post": "The Old Stone Bridge",
+        "bakery": "Market Lane",
+        "butcher_shop": "Market Lane",
+        "forge": "Market Lane",
+        "harbinger_office": "Market Lane",
+        "carpenter_shop": "Market Lane",
+    }
+    for logical, physical in expected_public.items():
+        assert resident_data.projection_for(logical) == physical
+    for private in ("schoolhouse", "vessey_nursery", "home:kessler"):
+        assert resident_data.projection_for(private) == "Offstage"
+
+    def physical_at(stable_id, hour, day=2):
+        resident = resident_data.RESIDENT_BY_ID[stable_id]
+        schedule = resident_data.resolve_schedule(resident, hour, day=day)
+        return resident_data.projection_for(schedule["logical_location"])
+
+    assert physical_at("otto_kessler", 10) == "Market Lane"
+    assert physical_at("sorin_dragomir", 23) == "The Old Stone Bridge"
+    assert physical_at("sorin_dragomir", 10) == "Offstage"
+    assert physical_at("silas_crowe", 10) == "The Northern Treeline"
+    assert physical_at("silas_crowe", 20) == "The Blood of the Vine"
+    assert physical_at("ilona_szabo", 10) == "Market Lane"
+    # Market workers must leave their work frontage at their real closing
+    # times rather than persist indefinitely as static ambient props.
+    assert physical_at("otto_kessler", 22) == "Offstage"
+    assert physical_at("ilona_szabo", 20) == "The Blood of the Vine"
+    print("RESIDENT_OPEN_DISTRICT_SCHEDULES_GREEN")
+
     # Catch-up is direct. We do not replay 15 skipped hours.
     skipped = resident_data.resolve_schedule(
         butcher,
