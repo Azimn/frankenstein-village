@@ -170,7 +170,7 @@ def build_inventory(root: Path = ROOT) -> dict:
     seeds_file = root / "files/rumor-seeds-v0.1.md"
     corpus_ids = {
         int(number)
-        for number in re.findall(r"^\\*\\*(\\d+)\\.\\*\\*", seeds_file.read_text(encoding="utf-8"), flags=re.M)
+        for number in re.findall(r"^\*\*(\d+)\.\*\*", seeds_file.read_text(encoding="utf-8"), flags=re.M)
     }
     missing = sorted(set(selected_rumors) - corpus_ids)
     if missing:
