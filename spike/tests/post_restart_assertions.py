@@ -1040,7 +1040,7 @@ assert {item["id"] for item in field} == set(LANDMARKS), (
 assert not normalize_discoveries(healer_tester.db.landmark_discoveries), (
     "Another account inherited a private field notebook"
 )
-assert not normalize_discoveries(merchant_tester.db.landmark_discoveries), (
+assert not normalize_discoveries(innkeep_tester.db.landmark_discoveries), (
     "A public conversation copied someone else's private discoveries"
 )
 for item in field:
