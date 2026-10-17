@@ -82,6 +82,8 @@ def payload_for(mask):
             "profession": "calling",
             "events": "journal",
             "field_notes": "journal discoveries",
+            "route_reports": "survey",
+            "route_inspection": "survey report",
             "social": "commons",
             "local_guide": "guide",
             "personal_return": "agenda",
