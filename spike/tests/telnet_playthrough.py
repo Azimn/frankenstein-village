@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 import re
@@ -1386,6 +1387,60 @@ def main() -> int:
         require(out, "blood of the vine")
         out = merchant.command("wrestle push")
         require(out, "bout's gone cold", "not wrestling anyone")
+
+        # Actual concurrent socket clients sharing one authoritative game.
+        # No fake transport, admin shell calls or sequential-only promises.
+        participants = (
+            ("SmokeTester", c),
+            ("HealerTester", h),
+            ("InnkeepTester", inn),
+            ("SmithTester", smith),
+            ("MerchantTester", merchant),
+        )
+        def _simultaneous_observation(participant):
+            name, client = participant
+            rows = []
+            for _ in range(2):
+                output = client.command("agent", wait=5.0)
+                state = agent_json(output)
+                assert state["schema"] == "fvillage.agent_context.v1"
+                assert state["side"] in {"ic", "ooc"}
+                out_calendar = client.command("calendar", wait=5.0)
+                require(out_calendar, "village calendar")
+                rows.append(state["location"])
+            return name, rows
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            concurrent_results = list(pool.map(
+                _simultaneous_observation, participants
+            ))
+        assert len(concurrent_results) == 5
+        assert len({name for name, _rows in concurrent_results}) == 5
+        assert all(len(rows) == 2 and all(rows) for _name, rows in concurrent_results)
+        print("CONCURRENT_FIVE_PLAYER_OBSERVATION_GREEN")
+
+        # Different accounts answer one persistent public thread at once.
+        # Both posts must survive; the Commons cannot drop one update.
+        def _answer_commons(client, words):
+            return client.command("commons reply 2 = " + words, wait=5.0)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            one_post = pool.submit(
+                _answer_commons, smith,
+                "I will help carry parcels on the market road tomorrow."
+            )
+            other_post = pool.submit(
+                _answer_commons, inn,
+                "I can provide a dry place to sort the delivered crates."
+            )
+            result_one, result_two = one_post.result(), other_post.result()
+        require(result_one, "signed response")
+        require(result_two, "signed response")
+        out = merchant.command("commons 2")
+        require_all(out, "help carry parcels", "dry place to sort")
+        out = smith.command("commons followed")
+        require(out, "2 new signed replies")
+        out = smith.command("commons check 2")
+        require(out, "updates noted by this mask")
+        print("CONCURRENT_COMMONS_PERSISTENCE_GREEN")
 
         out = c.command("west")
         require(out, "village square")
