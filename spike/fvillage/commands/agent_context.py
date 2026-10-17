@@ -47,7 +47,7 @@ def payload_for(mask):
                 continue
             if not obj.access(mask, "search", default=True):
                 continue
-            label = str(obj.get_display_name(mask)).strip()
+            label = " ".join(str(obj.get_display_name(mask)).split())
             if label:
                 nearby.append(label[:100])
     result = {
