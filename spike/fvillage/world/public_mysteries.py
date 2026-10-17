@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import re
 
 from evennia import create_script
 from evennia.scripts.models import ScriptDB
@@ -408,7 +409,12 @@ def submit_theory(player, text, stable_id=MANOR_LIGHTS_ID):
     if not mystery or mystery.get("status") != "open":
         return None, "That public question is not open."
 
-    body = str(text or "").strip()
+    # This is publicly replayed text. Strip Evennia markup pipes and
+    # terminal control characters so a player cannot impersonate system
+    # messages or inject forged multi-line testimony.
+    body = str(text or "").replace("|", " ")
+    body = "".join(ch if ch.isprintable() else " " for ch in body)
+    body = re.sub(r"\\s+", " ", body).strip()
     if not body:
         return None, "A theory needs actual words."
     if len(body) > 600:
