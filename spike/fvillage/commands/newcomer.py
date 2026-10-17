@@ -150,6 +150,13 @@ class CmdGuide(Command):
             caller.msg(
                 "|wA quiet lead: " + place + "|n\n"
                 + routes[place]
+                + (
+                    "\nThis place is on the shared daily route. After "
+                    "|wlooking at its clue|n, use |wsurvey report|n to "
+                    "sign one real inspection, then |wsurvey|n to see "
+                    "which districts still need a neighbor."
+                    if place != "The Old Stone Bridge" else ""
+                )
                 + "\nUse |wdiary|n to write your own account, "
                 "or return to the Tavern and discuss what you saw."
             )
