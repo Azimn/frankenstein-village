@@ -40,6 +40,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         from commands.newcomer import CmdGuide
         from commands.hearth_cmd import CmdHearth
         from commands.commission_cmd import CmdCommission
+        from commands.survey_cmd import CmdSurvey
         from commands.village_cmds import CmdReport, CmdRumors, CmdRetell, CmdHarbinger, CmdChronicle, CmdJournal, CmdDecide, CmdWorldEvent, CmdSecrets, CmdMystery, CmdTheory, CmdTalk, CmdAsk, CmdRead, CmdTime, CmdCalendar, CmdListen, CmdSmell, CmdDiary, CmdPet, CmdThrow, CmdRoll, CmdDraw, CmdSit, CmdStand, CmdPlay, CmdPractice, CmdDuet, CmdScore, CmdEat, CmdDrink, CmdSell, CmdWhittle, CmdToot, CmdWrestle, CmdConfess, CmdOOCOverride, CmdICOverride, CmdExamine, CmdAssess, CmdCare, CmdRepair, CmdCalling, CmdPurse, CmdGo, CmdVillageLook, CmdVillageGet, CmdVillageDrop, CmdVillageGive
 
         self.add(CmdAgentContext())
@@ -48,6 +49,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdGuide())
         self.add(CmdHearth())
         self.add(CmdCommission())
+        self.add(CmdSurvey())
         self.add(CmdReport())
         self.add(CmdRumors())
         self.add(CmdRetell())

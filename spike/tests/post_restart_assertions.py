@@ -1051,4 +1051,37 @@ for item in field:
     assert item["day"] >= 1 and 0 <= item["hour"] <= 23
 print("POST_RESTART_FIRSTHAND_DISCOVERIES_GREEN")
 
+from world import route_surveys as _daily_survey
+route_board = _daily_survey.normalize(
+    one("Village Square").db.daily_route_survey
+)
+assert _daily_survey.complete(route_board), (
+    "Four legitimate in-person route reports did not survive restart"
+)
+assert set(route_board["reports"]) == set(_daily_survey.SITES)
+assert {
+    row["mask"] for row in route_board["reports"].values()
+} == {"SmokeTester", "SmithTester"}
+assert len({
+    row["account_id"] for row in route_board["reports"].values()
+}) == 2, "Separate contributors became one account"
+for site, signed in route_board["reports"].items():
+    incident = warning_ledger.get_event(signed["event_id"])
+    assert incident["kind"] == "village.route_inspected"
+    assert incident["payload"]["site"] == site
+    assert incident["status"] == "complete"
+_next_survey_day = _daily_survey.refresh(
+    route_board, route_board["day"] + 1
+)
+assert not _next_survey_day["reports"]
+assert _next_survey_day["history"][-1]["completed"] is True
+assert len(_next_survey_day["history"][-1]["reports"]) == 4
+assert calling_record(smoke, "chronicler")["participation"][
+    "community_route_contributions"
+] == 3, "Chronicler civic work participation was lost"
+assert calling_record(smith_tester, "smith")["participation"][
+    "community_route_contributions"
+] == 1, "Smith civic work participation was lost"
+print("POST_RESTART_DAILY_ROUTE_SURVEY_GREEN")
+
 print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")
