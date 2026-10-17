@@ -107,6 +107,23 @@ class ManorView(DefaultObject):
 
 
 
+class DiscoveryScenery(DefaultObject):
+    """Physical evidence only the examining character remembers."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.locks.add("get:false()")
+
+    def get_display_desc(self, looker=None, **kwargs):
+        # Rendering a full look at this actual object records the encounter;
+        # merely entering the room or hearing another player does not.
+        from world.discoveries import capture
+        ident = getattr(self.db, "landmark_id", None)
+        if ident:
+            capture(looker, self, ident)
+        return self.db.desc or ""
+
+
 class BridgePlaqueView(DefaultObject):
     """Publicly visible bridge evidence, not an automatically solved case."""
 
