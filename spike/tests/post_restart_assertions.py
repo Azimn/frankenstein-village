@@ -1076,6 +1076,12 @@ _next_survey_day = _daily_survey.refresh(
 assert not _next_survey_day["reports"]
 assert _next_survey_day["history"][-1]["completed"] is True
 assert len(_next_survey_day["history"][-1]["reports"]) == 4
+assert calling_record(smoke, "chronicler")["participation"][
+    "community_route_contributions"
+] == 3, "Chronicler civic work participation was lost"
+assert calling_record(smith_tester, "smith")["participation"][
+    "community_route_contributions"
+] == 1, "Smith civic work participation was lost"
 print("POST_RESTART_DAILY_ROUTE_SURVEY_GREEN")
 
 print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")
