@@ -1730,6 +1730,7 @@ class CmdMystery(Command):
     Usage:
         mystery
         mystery manor
+        mystery bridge
     """
 
     key = "mystery"
@@ -1763,6 +1764,7 @@ class CmdTheory(Command):
 
     Usage:
         theory manor = <your theory>
+        theory bridge = <your theory>
         theory manor <your theory>
 
     The system records authorship but never marks a theory true or false.
@@ -1792,7 +1794,11 @@ class CmdTheory(Command):
             subject = next(
                 (
                     prefix
-                    for prefix in ("manor lights", "hilltop manor", "manor")
+                    for prefix in (
+                        "missing bridge plaque", "old stone bridge",
+                        "bridge plaque", "manor lights", "hilltop manor",
+                        "manor", "bridge", "plaque",
+                    )
                     if lower.startswith(prefix + " ")
                 ),
                 None,
