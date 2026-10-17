@@ -122,11 +122,17 @@ class CmdGuide(Command):
                 ),
                 "The Northern Treeline": (
                     "Examine the frayed cord; no road leads farther into "
-                    "the forest yet. South returns to the churchyard."
+                    "the forest yet. Hunters sometimes pass this edge in "
+                    "daylight; if one is present, use |wtalk <name>|n or "
+                    "|wask <name> about <topic>|n. South returns to "
+                    "the churchyard."
                 ),
                 "Market Lane": (
                     "Examine the market scale and its slate prices. "
-                    "North returns to the Lamp Shop."
+                    "Daytime sellers and craft workers have routines along "
+                    "this street, and the Chronicler visits her office. "
+                    "Talk to anyone actually present. North returns to "
+                    "the Lamp Shop."
                 ),
                 "Riverside Path": (
                     "Examine the river gauge. West returns to the Tavern, "
@@ -136,7 +142,9 @@ class CmdGuide(Command):
                     "Examine the empty plaque socket. Compare observations with "
                     "|wmystery bridge|n, then offer an unresolved interpretation "
                     "using |wtheory bridge = <words>|n. West returns to the "
-                    "Riverside Path."
+                    "Riverside Path. The night watch is often at "
+                    "the bridge late in the evening; you can speak "
+                    "to the watchman if he is actually on patrol."
                 ),
             }
             caller.msg(
