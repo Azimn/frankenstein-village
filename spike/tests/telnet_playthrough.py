@@ -148,6 +148,16 @@ def main() -> int:
         out = c.command("guide")
         require(out, "a way into the village")
         require(out, "front door")
+        # A player's personal next-step intention survives re-entry and
+        # never exposes another mask's private information.
+        out = c.command("agenda")
+        require_all(out, "your next visit", "private reminder: none yet")
+        out = c.command(
+            "agenda note = Return to the Square and speak with Bram about the river."
+        )
+        require(out, "private reminder was saved")
+        out = c.command("resume")
+        require(out, "speak with Bram about the river")
 
         # Calling foundation: a mask can choose a social profession before
         # crossing IC. Selection begins at Apprentice and exposes no free
