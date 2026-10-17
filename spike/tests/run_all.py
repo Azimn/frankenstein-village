@@ -259,8 +259,9 @@ def main() -> int:
                     ],
                     cwd=checkout,
                     env=env,
-                    # Bounded full multi-player and physical tour regression.
-                    # Global CI timeout remains 20 minutes.
+                    # Multiple real players and the four-landmark field
+                    # investigation exceed the former 180s on CI runners.
+                    # The workflow retains a strict 20-minute global cap.
                     timeout=480,
                 )
 
