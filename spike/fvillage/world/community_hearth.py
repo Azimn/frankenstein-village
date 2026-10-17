@@ -202,6 +202,22 @@ def deliver(mask):
             "Nothing has been placed in the Tavern stock."
         )
     tavern = _room(TAVERN_KEY)
+    # A bundle already pledged to a cooperative work order must be accepted
+    # only through the commission path. Otherwise the regular hearth command
+    # could consume it while silently leaving the signed work order stranded.
+    from world import civic_commissions
+    day, _hour = _clock()
+    commission = civic_commissions.refresh(
+        tavern.db.civic_commission, day
+    )["commission"]
+    bundle = bundles[0]
+    if (commission and commission["status"] == "pledged"
+            and int(bundle.id) == commission["bundle_id"]):
+        return None, (
+            "That exact bundle is pledged to today's commission. "
+            "A different player's account must use |wcommission deliver|n "
+            "at the Tavern instead."
+        )
     current = hearth_state.hearth(tavern.db.civic_hearth)
     updated, allowed = hearth_state.deliver(current)
     if not allowed:
