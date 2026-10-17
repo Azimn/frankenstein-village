@@ -259,7 +259,10 @@ def main() -> int:
                     ],
                     cwd=checkout,
                     env=env,
-                    timeout=180,
+                    # Multiple real players and the four-landmark field
+                    # investigation exceed the former 180s on CI runners.
+                    # The workflow retains a strict 20-minute global cap.
+                    timeout=480,
                 )
 
                 # Real autonomous-client validation, not a fake socket peer:
