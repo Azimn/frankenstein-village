@@ -18,7 +18,7 @@ class ExplorerTests(unittest.TestCase):
         p.observe(state("River", west="Tavern", east="Bridge"))
         self.assertEqual(p.next_move("River"), ["east"])
         p.observe(state("Bridge", west="River"))
-        self.assertEqual(p.next_move("Bridge"), ["west", "west"])
+        self.assertEqual(p.next_move("Bridge"), ["west", "west", "west"])
         p.observe(state("Square", east="Tavern"))
         self.assertIsNone(p.next_move("Square"))
         self.assertEqual(p.route("Square", "Bridge"), ["east", "east", "east"])
