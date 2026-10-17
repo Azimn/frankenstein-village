@@ -977,4 +977,16 @@ assert (dry_after.get("resident_relationships") or {}) == social_before
 weather.set_weather(old_weather)
 print("POST_RESTART_RESIDENT_WEATHER_CAUSAL_ASSERTIONS_GREEN")
 
+# A private next-step note must survive a true server restart but remain
+# inaccessible through a different account's mask.
+smoke_mask = one("SmokeTester")
+healer_mask = one("HealerTester")
+assert "speak with Bram about the river" in str(
+    smoke_mask.db.player_return_note or ""
+), "The player's personal next-step intention did not survive restart"
+assert not healer_mask.db.player_return_note, (
+    "A different mask acquired the private return note"
+)
+print("POST_RESTART_PLAYER_AGENDA_ASSERTIONS_GREEN")
+
 print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")
