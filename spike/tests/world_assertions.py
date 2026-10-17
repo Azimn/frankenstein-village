@@ -52,6 +52,43 @@ for script_key in (
     count = ScriptDB.objects.filter(db_key=script_key).count()
     assert count == 1, f"{script_key!r}: expected one script, found {count}"
 
+# A real clue is remembered only after viewing that object from its actual
+# IC room. No remote sight, hearsay, fake quest completion or copied knowledge.
+from types import SimpleNamespace as _DiscoveryMask
+from world.discoveries import LANDMARKS, journal_lines
+for _id, _definition in LANDMARKS.items():
+    _clue = one(_definition["key"])
+    assert _clue.location == one(_definition["room"])
+    assert _clue.typeclass_path == "typeclasses.objects.DiscoveryScenery"
+    assert _clue.db.landmark_id == _id
+    assert not _clue.access(None, "get", default=True)
+    _local = _DiscoveryMask(
+        account=object(), location=_clue.location,
+        db=_DiscoveryMask(landmark_discoveries=[]),
+    )
+    _elsewhere = _DiscoveryMask(
+        account=object(), location=one("Village Square"),
+        db=_DiscoveryMask(landmark_discoveries=[]),
+    )
+    _anonymous = _DiscoveryMask(
+        account=None, location=_clue.location,
+        db=_DiscoveryMask(landmark_discoveries=[]),
+    )
+    from world.discoveries import capture as _capture
+    assert not _capture(_elsewhere, _clue, _id)
+    assert not _capture(_anonymous, _clue, _id)
+    assert not _elsewhere.db.landmark_discoveries
+    assert not _anonymous.db.landmark_discoveries
+    _description = _clue.get_display_desc(looker=_local)
+    assert _description and len(_description) > 35
+    assert [item["id"] for item in _local.db.landmark_discoveries] == [_id]
+    assert not _capture(_local, _clue, _id), "repeat look inflated discoveries"
+    assert len(_local.db.landmark_discoveries) == 1
+    assert _definition["summary"] in "\n".join(
+        journal_lines(_local.db.landmark_discoveries)
+    )
+print("FIRSTHAND_LANDMARK_WORLD_ASSERTIONS_GREEN")
+
 noticeboard = one("village noticeboard")
 copy_sheet = one("copy of the village notices")
 assert noticeboard.location == one("Village Square")
