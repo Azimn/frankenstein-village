@@ -483,8 +483,12 @@ def mystery_lines(player=None, stable_id=MANOR_LIGHTS_ID):
             )
     else:
         lines.append(
-            "No shared observation has been logged yet. The Manor is visible "
-            "from the Village Square."
+            "No shared observation has been logged yet. "
+            + (
+                "The Manor is visible from the Village Square."
+                if stable_id == MANOR_LIGHTS_ID
+                else "Inspect the empty plaque socket on the Old Stone Bridge."
+            )
         )
 
     if theories:
