@@ -58,6 +58,34 @@ A returning mask is not relocated to the Inn. It resumes from its real
 persisted room, with only public movement commands. In-world actions stay IC;
 the Inn remains OOC. The same interface is valid for humans.
 
+### Optional independent map survey
+
+After an operator authorizes an invited-alpha smoke run, use the normal
+AI account and public `agent` responses to discover the navigable map:
+
+```sh
+python3 ops/headless_ai_client.py \
+  --host 127.0.0.1 --port 4000 \
+  --accounts /private/bot-accounts.json \
+  --sessions 2 --steps 4 --explore-rooms 10 \
+  --output /private/agent-exploration.json
+```
+
+The `--explore-rooms` switch accepts 0 (off) through 12. The client learns
+room neighbors only from this player's visible, currently traversable exits.
+It avoids OOC/private rooms, observes a room before choosing its next
+move, inspects a locally visible object where available, records visited
+locations, and returns to the original Tavern room. It reports a failure
+rather than quietly claiming the target if the rooms cannot be reached.
+
+When an existing player character reconnects from a remote IC location,
+the client discovers its ordinary route back to the Tavern rather than
+repositioning the character or assuming the old map. This is a bounded
+deterministic autonomous explorer, not an LLM making independent dramatic
+decisions. Its purpose is to verify that the game exposes enough ordinary
+information for one. Separate uncoached language-model and human playtests
+remain necessary.
+
 ### Targeted disconnect recovery
 
 The optional command

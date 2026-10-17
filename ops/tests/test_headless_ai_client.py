@@ -21,6 +21,7 @@ spec = importlib.util.spec_from_file_location(
 )
 client = importlib.util.module_from_spec(spec)
 import sys
+sys.path.insert(0, str(ROOT / "ops"))
 sys.modules[spec.name] = client
 spec.loader.exec_module(client)
 
@@ -233,6 +234,40 @@ class HeadlessClientTests(unittest.TestCase):
             wire.close()
             worker.join(3)
         self.assertFalse(worker.is_alive())
+
+    def test_agent_returns_from_distant_persistent_district_without_map_cheats(self):
+        graph = {
+            "Market Lane": {"north": "The Lamp Shop"},
+            "The Lamp Shop": {"south": "Market Lane", "north": "Village Square"},
+            "Village Square": {
+                "south": "The Lamp Shop", "east": "The Blood of the Vine",
+                "north": "Inn Hallway",
+            },
+            "The Blood of the Vine": {"west": "Village Square"},
+        }
+        class Walker:
+            def __init__(self):
+                self.visits = []
+            def move(self, state, direction):
+                target = graph[state["location"]][direction]
+                self.visits.append(target)
+                return {
+                    "location": target, "side": "ic",
+                    "exits": list(graph[target]),
+                    "exit_targets": graph[target],
+                }
+        start = {
+            "location": "Market Lane", "side": "ic",
+            "exits": list(graph["Market Lane"]),
+            "exit_targets": graph["Market Lane"],
+        }
+        walker = Walker()
+        final = client.Player.navigate_to_tavern(walker, start)
+        self.assertEqual(final["location"], "The Blood of the Vine")
+        self.assertEqual(walker.visits, [
+            "The Lamp Shop", "Village Square", "The Blood of the Vine",
+        ])
+        self.assertNotIn("Inn Hallway", walker.visits)
 
     def test_credentials_only_from_environment(self):
         with tempfile.TemporaryDirectory() as tmp:

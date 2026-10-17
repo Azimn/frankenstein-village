@@ -215,6 +215,14 @@ def main() -> int:
         assert agent_json(out)["location"] == "Village Square"
         require(out, '"exits":')
         require(out, '"east"')
+        square_view = agent_json(out)
+        assert square_view["exit_targets"]["east"] == "The Blood of the Vine"
+        assert square_view["exit_targets"]["west"] == "St. Lazarus Church"
+        assert "Offstage" not in str(square_view)
+        assert any("woodpile" in obj.lower()
+                   for obj in square_view["visible_nearby"])
+        assert square_view["commands"]["firewood"] == "hearth gather"
+        assert square_view["commands"]["community_work"] == "commission"
 
         out = c.command("next")
         require(out, "first lead: the village square")
