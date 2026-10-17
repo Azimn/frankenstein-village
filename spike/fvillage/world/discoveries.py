@@ -77,23 +77,6 @@ def record(raw, ident, day, hour):
     return entries, True
 
 
-def inspected_today(raw, ident, day):
-    """An old field note is not evidence of inspecting today's conditions."""
-    if ident not in LANDMARKS:
-        return False
-    if not isinstance(raw, dict):
-        return False
-    observed = raw.get(ident)
-    if not isinstance(observed, dict):
-        return False
-    try:
-        checked_day = int(observed.get("day"))
-        checked_hour = int(observed.get("hour"))
-    except (ValueError, TypeError, OverflowError):
-        return False
-    return checked_day == day and 0 <= checked_hour <= 23
-
-
 def capture(looker, physical, ident):
     """Persist only an authenticated in-person inspection by this mask."""
     spec = LANDMARKS.get(ident)
@@ -124,16 +107,6 @@ def capture(looker, physical, ident):
     )
     if changed:
         looker.db.landmark_discoveries = copy.deepcopy(rows)
-    # The permanent journal remembers the first visit. A separate tiny
-    # observation timestamp is updated on *every genuine inspection* so a
-    # report for tomorrow requires revisiting the actual object.
-    latest = dict(getattr(looker.db, "landmark_last_inspected", None) or {})
-    latest = {
-        key: dict(value) for key, value in latest.items()
-        if key in LANDMARKS and isinstance(value, dict)
-    }
-    latest[ident] = {"day": day, "hour": hour}
-    looker.db.landmark_last_inspected = latest
     return changed
 
 
