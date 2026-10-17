@@ -2881,13 +2881,14 @@ bridge_theory, bridge_error = submit_theory(
 assert bridge_error is None and bridge_theory["truth_status"] is None
 cleaned, error = submit_theory(
     bridge_witness_a,
-    "|rI observed\\nTHREE SCREWS \\x1b[31m and a dark outline.",
+    "|rI observed" + chr(10) + "THREE SCREWS " + chr(27)
+    + "[31m and a dark outline.",
     BRIDGE_PLAQUE_ID,
 )
 assert error is None
 assert "|" not in cleaned["text"]
-assert "\\n" not in cleaned["text"]
-assert "\\x1b" not in cleaned["text"]
+assert chr(10) not in cleaned["text"]
+assert chr(27) not in cleaned["text"]
 bridge_lines = "\n".join(mystery_lines(bridge_witness_a, BRIDGE_PLAQUE_ID))
 assert "Shared observations: 2 physical reports" in bridge_lines
 assert "No culprit or intended message is certified" in bridge_lines
