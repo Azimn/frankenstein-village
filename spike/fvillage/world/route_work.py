@@ -102,19 +102,24 @@ def report(mask):
     )
     if clue is None:
         return None, "The landmark is not available for a physical inspection."
+    day, hour = _day_hour()
     witnessed = any(
         row["id"] == site
         for row in known_landmarks(mask.db.landmark_discoveries)
     )
-    if not witnessed:
+    try:
+        recent = dict(mask.db.landmark_latest_view or {}).get(site) or {}
+        inspected_today = int(recent.get("day") or 0) == day
+    except (ValueError, TypeError, OverflowError):
+        inspected_today = False
+    if not witnessed or not inspected_today:
         return None, (
-            f"First examine {LANDMARKS[site]['key']} here. "
-            "Reading a report or merely entering does not qualify."
+            f"First examine {LANDMARKS[site]['key']} here today. "
+            "Reading an old report or merely entering does not qualify."
         )
     square = _square()
     if square is None:
         return None, "The village Square report cannot be found."
-    day, hour = _day_hour()
     existing = route_surveys.refresh(square.db.daily_route_survey, day)
     if existing["day"] > day:
         return None, "A later village day is already recorded."
