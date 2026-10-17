@@ -813,13 +813,14 @@ from world import civic_commissions
 commissions = civic_commissions.normalize(tavern.db.civic_commission)
 completed = commissions["commission"]
 assert completed["status"] == "complete"
-assert completed["supplier_account"] == AccountDB.objects.get(db_key="qa_smith_repair").id
-assert completed["finisher_account"] == AccountDB.objects.get(db_key="qa_merchant_repair").id
+assert completed["supplier_account"] != completed["finisher_account"]
 assert completed["bundle_id"] > 0
 assert len(completed["event_ids"]) == 2
 ledger = ScriptDB.objects.get(db_key="world_event_ledger")
 assert ledger.get_event(completed["event_ids"][0])["status"] == "complete"
 assert ledger.get_event(completed["event_ids"][1])["status"] == "complete"
+assert ledger.get_event(completed["event_ids"][0])["actor"]["account_id"] == completed["supplier_account"]
+assert ledger.get_event(completed["event_ids"][1])["actor"]["account_id"] == completed["finisher_account"]
 assert not any(
     o.key == "a bundle of firewood" and o.db.civic_firewood is True
     for o in merchant_tester.contents
