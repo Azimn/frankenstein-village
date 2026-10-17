@@ -109,6 +109,38 @@ class CmdGuide(Command):
                 "rumors. |wjournal|n remembers only discoveries "
                 "you have actually made."
             )
+        elif place in {
+            "St. Lazarus Churchyard", "The Northern Treeline",
+            "Market Lane", "Riverside Path", "The Old Stone Bridge",
+        }:
+            routes = {
+                "St. Lazarus Churchyard": (
+                    "Examine the grave marker. East returns to St. Lazarus, "
+                    "while north reaches the treeline."
+                ),
+                "The Northern Treeline": (
+                    "Examine the frayed cord; no road leads farther into "
+                    "the forest yet. South returns to the churchyard."
+                ),
+                "Market Lane": (
+                    "Examine the market scale and its slate prices. "
+                    "North returns to the Lamp Shop."
+                ),
+                "Riverside Path": (
+                    "Examine the river gauge. West returns to the Tavern, "
+                    "and east leads to the bridge."
+                ),
+                "The Old Stone Bridge": (
+                    "Examine the empty plaque socket. "
+                    "West returns to the Riverside Path."
+                ),
+            }
+            caller.msg(
+                "|wA quiet lead: " + place + "|n\\n"
+                + routes[place]
+                + "\\nUse |wdiary|n to write your own account, "
+                "or return to the Tavern and discuss what you saw."
+            )
         else:
             caller.msg(
                 "|wA way forward|n\n"
