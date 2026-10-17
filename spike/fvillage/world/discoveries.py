@@ -94,6 +94,14 @@ def capture(looker, physical, ident):
         hour = int(clock.db.hour if clock.db.hour is not None else 21)
     except ScriptDB.DoesNotExist:
         day, hour = 1, 21
+    # The lifelong first-discovery ledger stays immutable, while repeat
+    # physical inspections are also stamped for today's renewable civic work.
+    # An old first visit is never sufficient evidence of a NEW day's patrol.
+    latest = dict(getattr(looker.db, "landmark_latest_view", None) or {})
+    latest[ident] = {"day": day, "hour": hour}
+    looker.db.landmark_latest_view = {
+        key: value for key, value in latest.items() if key in LANDMARKS
+    }
     rows, changed = record(
         getattr(looker.db, "landmark_discoveries", None), ident, day, hour
     )
