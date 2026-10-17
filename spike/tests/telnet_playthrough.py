@@ -1246,6 +1246,13 @@ def main() -> int:
         out = smith.command("commission")
         require_all(out, "completed by", "smithtester", "merchanttester")
 
+        # Restore Merchant's earlier Lamp Shop position so independent
+        # Commons tests keep their original room-isolation expectations.
+        out = merchant.command("west")
+        require(out, "village square")
+        out = merchant.command("south")
+        require(out, "lamp shop")
+
         # Player-authored civic activity persists across accounts and rooms.
         out = smith.command("commons")
         require(out, "village commons")
