@@ -50,9 +50,10 @@ python ops/local_ollama_playtest.py \
 Replace the example model with one installed locally. The model controls
 one ordinary in-character player, not the server or NPCs. The process
 performs an ordinary login, enters through the front door, reads `look`
-and the public `agent` observation for each turn, offers only commands
-actually available from that observation and validates the model's chosen
-literal command before transmitting it. The model can inspect nearby
+and the public `agent` observation for each turn, and supplies the
+ordinary local `guide` lead plus a bounded reply from its previous action.
+It offers only commands actually available from that observation and
+validates the model's chosen literal command before transmitting it. The model can inspect nearby
 visible objects, speak to observed people, explore connected exits and
 choose surfaced public activities. Deliberately, there is **no freeform
 command executor**, hidden full map, direct memory DB, shell tool, Python
@@ -65,7 +66,8 @@ HTTP redirects and remote model endpoints. No player passwords or
 narrative transcripts appear in the summary JSON.
 
 The output includes commands accepted, rejected model decisions, rooms
-visited, response receipt and elapsed wall-clock duration. A rejection
+visited, distinct actions, movement/social/investigation actions, response
+receipt and elapsed wall-clock duration. A rejection
 fails the protocol result but does not silently execute the prohibited
 command. These are **observations**, not an assertion of humanlike
 motivation, autonomy quality, success at mysteries or playtest enjoyment.
