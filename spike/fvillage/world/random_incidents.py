@@ -60,6 +60,110 @@ DEFINITIONS = {
             "the neighboring lamps burn steadily. Its glass is intact."
         ),
     },
+    "RANDOM-MARKET-CHALK": {
+        "title": "Revised Chalk Prices", "tone": "mundane",
+        "base_weight": 36, "locations": ["Market Lane"],
+        "hours": list(range(6, 18)), "requires_resident": False,
+        "cooldown_hours": 12, "duration_hours": 2,
+        "overlay": "Fresh chalk figures appear on one shutter's slate. Two "
+                   "prices for the same weight disagree, and rain is slowly "
+                   "softening the older of them.",
+    },
+    "RANDOM-MARKET-CRATE": {
+        "title": "A Missing Crate", "tone": "mundane",
+        "base_weight": 31, "locations": ["Market Lane"],
+        "hours": list(range(7, 19)), "requires_resident": False,
+        "cooldown_hours": 16, "duration_hours": 2,
+        "overlay": "A wooden crate has been dragged aside from the market "
+                   "frontage. Pale straw lies scattered where it once stood. "
+                   "No owner has come forward to collect it.",
+    },
+    "RANDOM-RIVER-FERRY-CHAIN": {
+        "title": "The Ferry Chain", "tone": "mundane",
+        "base_weight": 35, "locations": ["Riverside Path"],
+        "hours": list(range(5, 23)), "requires_resident": False,
+        "cooldown_hours": 14, "duration_hours": 2,
+        "overlay": "The ferry chain strikes its bollard again and again "
+                   "as the current pulls at it. The crossing remains empty.",
+    },
+    "RANDOM-RIVER-REED-CUTTINGS": {
+        "title": "Cut Reeds", "tone": "mundane",
+        "base_weight": 28, "locations": ["Riverside Path"],
+        "hours": list(range(6, 19)), "requires_resident": False,
+        "cooldown_hours": 20, "duration_hours": 3,
+        "overlay": "Bundles of freshly cut river reed lie on the bank. "
+                   "Someone has tied them neatly, but their footprints "
+                   "disappear into the wet cobbles.",
+    },
+    "RANDOM-CHURCHYARD-FLOWERS": {
+        "title": "Fresh Grave Flowers", "tone": "mundane",
+        "base_weight": 33, "locations": ["St. Lazarus Churchyard"],
+        "hours": list(range(6, 21)), "requires_resident": False,
+        "cooldown_hours": 18, "duration_hours": 3,
+        "overlay": "Someone has left a small bunch of fresh roadside "
+                   "flowers by a grave marker. The stems are still damp.",
+    },
+    "RANDOM-CHURCHYARD-GATE": {
+        "title": "Cemetery Gate", "tone": "mundane",
+        "base_weight": 29, "locations": ["St. Lazarus Churchyard"],
+        "hours": list(range(7, 23)), "requires_resident": False,
+        "cooldown_hours": 12, "duration_hours": 1,
+        "overlay": "The cemetery gate swings against its latch in the wind. "
+                   "A rusted hinge leaves a reddish streak on the stone.",
+    },
+    "RANDOM-TREELINE-WOODPECKER": {
+        "title": "Woodpecker at Work", "tone": "mundane",
+        "base_weight": 39, "locations": ["The Northern Treeline"],
+        "hours": list(range(6, 19)), "requires_resident": False,
+        "cooldown_hours": 11, "duration_hours": 1,
+        "overlay": "A woodpecker hammers from an unseen branch, stops "
+                   "abruptly, then begins again farther among the beeches.",
+    },
+    "RANDOM-TREELINE-LOST-GLOVE": {
+        "title": "A Stray Glove", "tone": "mundane",
+        "base_weight": 29, "locations": ["The Northern Treeline"],
+        "hours": list(range(7, 21)), "requires_resident": False,
+        "cooldown_hours": 18, "duration_hours": 3,
+        "overlay": "One worn leather glove has caught on a low branch. "
+                   "The road dust on its fingertips is still visible.",
+    },
+    "RANDOM-BRIDGE-FOOTSTEPS": {
+        "title": "Footsteps on the Bridge", "tone": "mundane",
+        "base_weight": 26, "locations": ["The Old Stone Bridge"],
+        "hours": [19, 20, 21, 22, 23, 0, 1, 2, 3, 4],
+        "requires_resident": False, "cooldown_hours": 18,
+        "duration_hours": 1,
+        "overlay": "Footsteps echo from the far end of the bridge, "
+                   "then fade among the stones. No one is in sight "
+                   "when the sound dies away.",
+    },
+    "RANDOM-BRIDGE-LANTERN": {
+        "title": "Lantern Reflection", "tone": "odd",
+        "base_weight": 11, "locations": ["The Old Stone Bridge"],
+        "hours": [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5],
+        "requires_resident": False, "cooldown_hours": 32,
+        "duration_hours": 1,
+        "overlay": "A point of amber light appears in the river under "
+                   "the bridge, although there is no visible lamp "
+                   "directly above it.",
+    },
+    "RANDOM-SQUARE-LOOSE-SHUTTER": {
+        "title": "A Loose Shutter", "tone": "mundane",
+        "base_weight": 40, "locations": ["Village Square"],
+        "hours": list(range(6, 23)), "requires_resident": False,
+        "cooldown_hours": 10, "duration_hours": 2,
+        "overlay": "A window shutter in the square keeps rattling in "
+                   "the wind. A loose hinge taps the stone wall.",
+    },
+    "RANDOM-TAVERN-SPILLED-SALT": {
+        "title": "Spilled Salt", "tone": "mundane",
+        "base_weight": 44, "locations": ["The Blood of the Vine"],
+        "hours": list(range(9, 24)), "requires_resident": False,
+        "cooldown_hours": 10, "duration_hours": 1,
+        "overlay": "A small drift of salt has spilled across a tavern "
+                   "table. Someone has drawn a rough circle through it "
+                   "with a fingertip.",
+    },
 }
 
 
@@ -361,6 +465,20 @@ def _start_extinguished_lamp(record, room):
     return record
 
 
+def _start_environmental_texture(stable_id, record, room):
+    """Project declared environmental detail without inventing witnesses."""
+    definition = DEFINITIONS[stable_id]
+    record["subject"] = {
+        "key": definition["title"],
+        "location": room.key,
+    }
+    record["overlay_text"] = definition["overlay"]
+    record["resident_ids"] = [
+        obj.db.resident_id for obj in _residents(room)
+    ]
+    return record
+
+
 def _start_record(stable_id, day, hour, location):
     definition = DEFINITIONS[stable_id]
     duration_hours = max(1, int(definition.get("duration_hours") or 1))
@@ -460,6 +578,8 @@ def _start_incident(stable_id, day, hour, candidate):
         record = _start_public_sneeze(record, room)
     elif stable_id == EXTINGUISHED_LAMP_ID:
         record = _start_extinguished_lamp(record, room)
+    else:
+        record = _start_environmental_texture(stable_id, record, room)
     if not record:
         return None
 
