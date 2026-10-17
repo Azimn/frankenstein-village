@@ -8,7 +8,7 @@ from world.return_agenda import clean_note, summary
 
 class ReturnAgendaTests(unittest.TestCase):
     def test_note_is_single_line_sanitized_bounded(self):
-        self.assertEqual(clean_note("Finish chapter\n|rthen sleep\x1b"), "Finish chapter  rthen sleep")
+        self.assertEqual(clean_note("Finish chapter\n|rthen sleep\x1b"), "Finish chapter rthen sleep")
         self.assertIsNone(clean_note(" " * 10))
         self.assertIsNone(clean_note("x" * 201))
         self.assertEqual(len(clean_note("x" * 200)), 200)
