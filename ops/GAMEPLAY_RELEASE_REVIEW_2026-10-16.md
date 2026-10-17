@@ -39,7 +39,7 @@ The repeatable civic hearth provides everyday work independent of authored cases
 
 The Commons is the other durable loop. Real players can post an open need, respond, follow an unfinished conversation, disconnect, later check a changed reply count, and close their own record. Such correspondence is persistent, attributed, and moderation-aware. It must never be interpreted as proof that an unperformed physical task happened.
 
-The Chronicle, Harbinger, private and public mysteries, rumor transmission, weekly calendar, and resident state offer substantial social roleplay surfaces. Existing scripted telnet and post-restart QA demonstrate a connected slice. Their existence does not establish that novices spontaneously discover or enjoy the slice.
+The active character command set also exposes concrete leisure systems: darts, challenge dice, fortune cards, fiddle playing/practice/duets, score history, multi-session whittling with tangible crafted objects, whistle playing, arm wrestling, and private diary writing. These strengthen the social third-place experience and already exceed a bare collection of descriptive rooms. However, many are centered on the Tavern, and their existence alone does not answer why a player would independently explore the wider village. Record their genuine persistence, multiplayer use, replay value and discovery separately from short-lived novelty.\n\nThe Chronicle, Harbinger, private and public mysteries, rumor transmission, weekly calendar, and resident state offer substantial social roleplay surfaces. Existing scripted telnet and post-restart QA demonstrate a connected slice. Their existence does not establish that novices spontaneously discover or enjoy the slice.
 
 ## Three release-specific gameplay risks
 
