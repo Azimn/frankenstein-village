@@ -68,11 +68,43 @@ class CivicCommissionTests(unittest.TestCase):
         self.assertLessEqual(len(restored["history"]), 32)
         self.assertEqual(restored["commission"]["id"], "civic-49")
 
+    def test_many_days_restart_and_attempted_duplicate_claims(self):
+        state = None
+        for day in range(1, 251):
+            state = refresh(state, day)
+            expected_id = f"civic-{day}"
+            state, accepted, _ = stage(
+                state, day=day, supplier=100 + day, bundle=1000 + day,
+                event=2 * day,
+            )
+            self.assertTrue(accepted)
+            duplicate, accepted, _ = stage(
+                state, day=day, supplier=9000, bundle=9000,
+                event=9999,
+            )
+            self.assertFalse(accepted)
+            self.assertEqual(duplicate, state)
+            state = json.loads(json.dumps(state))
+            state, accepted, _ = complete(
+                state, day=day, finisher=500 + day,
+                bundle=1000 + day, event=2 * day + 1,
+            )
+            self.assertTrue(accepted)
+            self.assertEqual(state["commission"]["id"], expected_id)
+            self.assertLessEqual(len(state["history"]), 32)
+        self.assertEqual(state["history"][-1]["id"], "civic-250")
+
     def test_no_day_zero_or_backwards_refill(self):
         with self.assertRaises(ValueError):
             refresh(None, 0)
         state = refresh(None, 3)
         self.assertEqual(refresh(state, 2), state)
+        stale, accepted, _ = stage(state, day=2)
+        self.assertFalse(accepted)
+        self.assertEqual(stale, state)
+        stale, accepted, _ = complete(state, day=2)
+        self.assertFalse(accepted)
+        self.assertEqual(stale, state)
 
 
 if __name__ == "__main__":
