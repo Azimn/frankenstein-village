@@ -45,9 +45,16 @@ Record these values for each deployment before inviting external players:
    Check data before and after a clean server restart. Do not run the
    development telnet fixture against production since it creates accounts
    and alters world state.
-6. Verify moderation reports have a working human review route and that
+6. Run the bounded repeated-session instrument in
+   [REPEATED_CONCURRENT_SOAK.md](REPEATED_CONCURRENT_SOAK.md) with distinct,
+   non-staff QA accounts and an approved test window. The resulting JSON
+   quantifies failures and latency; it is not a long-lived connection soak.
+7. Run a separate continuous-connection load test on the actual host and
+   record process CPU/RSS, event lag, SQLite growth, re-entry after disconnect,
+   connection throttles and clock progress throughout the window.
+8. Verify moderation reports have a working human review route and that
    errors, downtime, and backup failures will reach the operator.
-7. Complete and sign the evidence table. If any required item is unverified,
+9. Complete and sign the evidence table. If any required item is unverified,
    keep the launch decision **NO-GO**.
 
 ## Current decision
