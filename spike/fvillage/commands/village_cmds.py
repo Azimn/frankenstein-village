@@ -2674,7 +2674,13 @@ class CmdChronicle(Command):
 
 
 class CmdJournal(Command):
-    """Read the thin persistent record of situations your mask discovered."""
+    """Read witnessed situations and personally examined district landmarks.
+
+    Usage:
+        journal
+        journal <situation>
+        journal discoveries
+    """
 
     key = "journal"
     aliases = ["developments"]
@@ -2696,6 +2702,12 @@ class CmdJournal(Command):
         )
 
         arg = (self.args or "").strip().lower()
+        from world.discoveries import journal_lines, normalize
+        if arg in {"discoveries", "field", "landmarks"}:
+            self.caller.msg("\n".join(journal_lines(
+                self.caller.db.landmark_discoveries
+            )))
+            return
         if arg:
             stable_id = resolve_situation_subject(arg)
             if stable_id:
@@ -2762,6 +2774,10 @@ class CmdJournal(Command):
 
         known = known_situations(self.caller)
         timed = known_timed_incidents(self.caller)
+        discoveries = normalize(self.caller.db.landmark_discoveries)
+        if not known and not timed and discoveries:
+            self.caller.msg("\n".join(journal_lines(discoveries)))
+            return
         if not known and not timed:
             self.caller.msg(
                 "Your journal has no village developments yet. It only records "
@@ -2787,6 +2803,11 @@ class CmdJournal(Command):
             lines.append(
                 f"* {status['title']}: {status['state'].replace('_', ' ')}; "
                 f"{quality} evidence."
+            )
+        if discoveries:
+            lines.append(
+                f"* {len(discoveries)} personally examined district "
+                "landmark(s). Use |wjournal discoveries|n to recall them."
             )
         lines.append("Use journal <topic> for what your mask actually knows.")
         self.caller.msg("\n".join(lines))

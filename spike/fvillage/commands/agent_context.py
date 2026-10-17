@@ -81,6 +81,7 @@ def payload_for(mask):
             "whisper": "whisper <person> = <words>",
             "profession": "calling",
             "events": "journal",
+            "field_notes": "journal discoveries",
             "social": "commons",
             "local_guide": "guide",
             "personal_return": "agenda",

@@ -353,30 +353,54 @@ def get_or_create_scenery(key, location, desc, aliases=()):
     return obj
 
 
+def get_or_create_discovery(key, location, desc, aliases=()):
+    """Idempotently turn existing real scenery into an inspectable field note."""
+    from world.discoveries import LANDMARKS
+
+    ident = next(
+        (landmark_id for landmark_id, spec in LANDMARKS.items()
+         if spec["key"] == key and spec["room"] == location.key),
+        None,
+    )
+    if ident is None:
+        raise ValueError(f"No landmark catalog entry for {key!r} in {location.key}")
+    obj = get_or_create_scenery(key, location, desc, aliases=aliases)
+    if not obj.is_typeclass("typeclasses.objects.DiscoveryScenery", exact=True):
+        obj.swap_typeclass(
+            "typeclasses.objects.DiscoveryScenery",
+            clean_attributes=False,
+        )
+    # Preserve a preexisting clue's prose and aliases on world rebuild.
+    obj.db.desc = desc
+    obj.db.landmark_id = ident
+    obj.locks.add("get:false()")
+    return obj
+
+
 # Exploratory clues live as actual inspectable scenery. They are physical
 # observations, not automatic proof of anyone's role in a mystery.
-get_or_create_scenery(
+get_or_create_discovery(
     "a weathered grave marker", churchyard,
     "A date has been recut over an older date. Under the moss are two "
     "sets of initials, and the chisel strokes are plainly from different "
     "hands. No name here explains why.",
     aliases=["grave marker", "gravestone"],
 )
-get_or_create_scenery(
+get_or_create_discovery(
     "a frayed red cord", woods_edge,
     "A length of scarlet cord is caught between roots. It has been "
     "cut cleanly at one end and torn at the other. It is fixed under "
     "the bark, and cannot be taken without breaking the root.",
     aliases=["cord", "rope"],
 )
-get_or_create_scenery(
+get_or_create_discovery(
     "a crooked market scale", market_lane,
     "The brass pans do not balance when empty. A small chip of stone "
     "has been wedged beneath one arm, and the ink on the stall's slate "
     "records two prices for the same weight.",
     aliases=["market scale", "scale"],
 )
-get_or_create_scenery(
+get_or_create_discovery(
     "a river gauge", riverside,
     "Flood marks have been carved along the post. A newer mark sits "
     "above the highest known winter level, but the river is quiet "

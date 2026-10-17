@@ -1036,4 +1036,19 @@ assert not healer_mask.db.player_return_note, (
 )
 print("POST_RESTART_PLAYER_AGENDA_ASSERTIONS_GREEN")
 
+from world.discoveries import LANDMARKS, normalize as normalize_discoveries
+field = normalize_discoveries(smoke.db.landmark_discoveries)
+assert {item["id"] for item in field} == set(LANDMARKS), (
+    "Not all firsthand district inspections survived an actual server restart"
+)
+assert not normalize_discoveries(healer_tester.db.landmark_discoveries), (
+    "Another account inherited a private field notebook"
+)
+assert not normalize_discoveries(innkeep_tester.db.landmark_discoveries), (
+    "A public conversation copied someone else's private discoveries"
+)
+for item in field:
+    assert item["day"] >= 1 and 0 <= item["hour"] <= 23
+print("POST_RESTART_FIRSTHAND_DISCOVERIES_GREEN")
+
 print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")
