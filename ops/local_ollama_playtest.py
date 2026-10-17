@@ -12,16 +12,15 @@ safe production operation or a sustained multiplayer soak.
 from __future__ import annotations
 
 import argparse
-import ipaddress
 import json
 from pathlib import Path
 import re
 import time
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from headless_ai_client import (
-    Account, Player, context_of, is_loopback, load_accounts,
+    Player, context_of, is_loopback, load_accounts,
 )
 
 NAVIGATION = frozenset({"north", "south", "east", "west", "up", "down"})
@@ -39,6 +38,20 @@ FORBIDDEN_VERBS = frozenset({
 })
 NAME = re.compile(r"^[\w\s.'-]{1,70}$", re.UNICODE)
 PUBLIC_COMMAND = re.compile(r"^[a-z][a-z -]{0,42}$")
+
+class _ForbidRedirect(HTTPRedirectHandler):
+    """A loopback URL must never redirect a private scene to the Internet."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise ValueError("Ollama redirect refused: local model only")
+
+
+_LOCAL_OPENER = build_opener(_ForbidRedirect())
+
+
+def _local_open(request, timeout):
+    return _LOCAL_OPENER.open(request, timeout=timeout)
+
 
 SYSTEM_PROMPT = (
     "You are a fictional villager in a multiplayer gothic text adventure. "
@@ -64,7 +77,7 @@ def local_ollama_endpoint(url):
         raise ValueError("Invalid Ollama port") from exc
     if port is None or not 1 <= port <= 65535:
         raise ValueError("An explicit valid local Ollama port is required")
-    return f"http://{host}:{port}/api/chat"
+    return f"http://{'[' + host + ']' if ':' in host else host}:{port}/api/chat"
 
 
 def legal_actions(observation):
@@ -126,7 +139,7 @@ def validate_choice(candidate, allowed):
 
 
 class LocalOllama:
-    def __init__(self, url, model, *, timeout=30.0, opener=urlopen):
+    def __init__(self, url, model, *, timeout=30.0, opener=_local_open):
         self.url = local_ollama_endpoint(url)
         self.model = str(model or "").strip()
         if not self.model or len(self.model) > 90 or "\n" in self.model:
