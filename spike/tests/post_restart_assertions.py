@@ -724,9 +724,13 @@ assert "that lamp you asked about" in returnee.lower(), (
     "Bram did not recall a mask's interest against changed public world state"
 )
 merchant_memory = dict(mask_memories.get(str(merchant_tester.id)) or {})
-assert not merchant_memory.get("first_talk"), (
-    "Another mask inherited SmokeTester's first-conversation state"
+# The independently controlled AI merchant now also speaks to Bram in a
+# real connection. That creates its OWN first-talk memory, not a leak of
+# SmokeTester's earlier questions. Source the distinction from interests.
+assert merchant_memory.get("first_talk") is True, (
+    "Bram failed to remember the AI merchant's own first conversation"
 )
+assert str(smoke.id) != str(merchant_tester.id)
 assert not {"lamp", "silas", "work", "rumors"}.intersection(
     set(merchant_memory.get("interests") or [])
 ), "Bram's private mask interests leaked to a different account"
