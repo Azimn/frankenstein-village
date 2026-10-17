@@ -2424,6 +2424,56 @@ for stable_id, old_state in scheduled_resident_states.items():
     if old_location and npc.location != old_location:
         npc.move_to(old_location, quiet=True)
 
+# Extended ambient incident catalog is real scheduler-driven content with
+# actual room projections, event ledger provenance and bounded aftermath.
+from world.random_incidents import DEFINITIONS as RANDOM_DEFINITIONS
+assert len(RANDOM_DEFINITIONS) >= 14
+assert sum(row["tone"] == "mundane" for row in RANDOM_DEFINITIONS.values()) >= 11
+for _incident_id, _def in RANDOM_DEFINITIONS.items():
+    assert _def["base_weight"] > 0
+    assert _def["overlay"] and len(_def["overlay"]) >= 55
+    assert _def["cooldown_hours"] > 0
+    assert _def["duration_hours"] > 0
+    for _location in _def["locations"]:
+        assert _location != "Offstage"
+        assert one(_location).tags.has("ic", category="side")
+_new_square_ambient_id = "RANDOM-SQUARE-LOOSE-SHUTTER"
+_ambient_before = copy.deepcopy(dict(square.db.scheduled_overlays or {}))
+_ambient_ledger_before = copy.deepcopy(list(ledger.db.events or []))
+_new_ambient = advance_random_incidents(
+    day=30, hour=10, force_id=_new_square_ambient_id
+)
+assert _new_ambient["started"] == _new_square_ambient_id
+_active_ambient = current_random_incident()
+assert _active_ambient["location"] == "Village Square"
+assert _active_ambient["subject"]["location"] == "Village Square"
+assert _new_square_ambient_id in (square.db.scheduled_overlays or {})
+assert ledger.get_event(_active_ambient["event_id"])["status"] == "complete"
+_assert_no_replay = advance_random_incidents(day=30, hour=10)
+assert _assert_no_replay["started"] is None
+assert current_random_incident()["event_id"] == _active_ambient["event_id"]
+assert len(ledger.db.events or []) == len(_ambient_ledger_before) + 1
+_ambient_cleared = copy.deepcopy(dict(square.db.scheduled_overlays or {}))
+_ambient_cleared.pop(_new_square_ambient_id, None)
+square.db.scheduled_overlays = _ambient_cleared
+assert reconcile_random_incident_overlay()
+assert _new_square_ambient_id in (square.db.scheduled_overlays or {})
+_ambient_done = advance_random_incidents(
+    day=30, hour=12, force_id="NO-SUCH-RANDOM-INCIDENT"
+)
+assert _ambient_done["ended"] == _new_square_ambient_id
+assert _new_square_ambient_id not in (square.db.scheduled_overlays or {})
+assert recent_random_incidents(1)[0]["id"] == _new_square_ambient_id
+# Restore all synthetic test events, avoiding contamination of live telnet QA.
+random_registry.db.current = copy.deepcopy(random_snapshot["current"])
+random_registry.db.history = copy.deepcopy(random_snapshot["history"])
+random_registry.db.last_check_key = random_snapshot["last_check_key"]
+random_registry.db.last_runs = copy.deepcopy(random_snapshot["last_runs"])
+random_registry.db.metrics = copy.deepcopy(random_snapshot["metrics"])
+square.db.scheduled_overlays = _ambient_before
+ledger.db.events = _ambient_ledger_before
+print("AMBIENT_INCIDENT_CATALOG_ASSERTIONS_GREEN")
+
 # Server-wide events are broad conditions with independent local responses,
 # not accepted quests. The Long Blackout is the first production framework.
 from world.server_events import (
