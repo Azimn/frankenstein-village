@@ -73,7 +73,8 @@ class CmdGuide(Command):
                 + tavern_care_lead(caller)
                 + "\nFor repeatable, physical work use |whearth|n: "
                 "visitors may bring firewood and an Innkeep can strengthen "
-                "the shared fire.\nFor a lasting public account, "
+                "the shared fire. Check |wcommission|n for the daily "
+                "two-player firewood delivery.\nFor a lasting public account, "
                 "a Chronicler can examine "
                 "|wchronicle|n and file testimony from a known rumor."
             )
@@ -92,7 +93,8 @@ class CmdGuide(Command):
                 + "\nThe split woodpile beside the well offers a "
                 "repeatable way to help the Tavern. "
                 "|whearth|n explains how to carry actual firewood "
-                "from Square to Innkeep."
+                "from Square to Innkeep. The |wcommission|n board offers "
+                "a daily real-object handoff for two travelers."
             )
         elif place == "The Lamp Shop":
             caller.msg(
