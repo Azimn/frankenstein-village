@@ -31,6 +31,17 @@ The operator's **go/no-go release evidence** is tracked in
 [`ops/ALPHA_RELEASE_CHECKLIST.md`](ops/ALPHA_RELEASE_CHECKLIST.md). Never commit the live database,
 SQLite journal files, or `secret_settings.py`.
 
+## Gameplay release review and honest content counts
+
+The [October 16 gameplay review](ops/GAMEPLAY_RELEASE_REVIEW_2026-10-16.md)
+separates scripted functionality from uncoached discovery, sustained return
+and production hosting. Run `python3 ops/content_inventory.py --format markdown`
+for a reproducible, conservative count of declared rooms, residents, playable
+canon rumor selections, and world-content registries. The count does **not**
+certify that each definition is reachable, complete, or fun. Do not equate
+the large source-text banks with activated in-world content. Full-launch
+targets in the quest handoff section 7 remain unchanged.
+
 ## Start here (reading order)
 
 1. **`hidden_files/design-doctrine.md`**: Governing design doctrine: USP, emic-first measurement, one-loop principle, Tarn rule, keeper rule, third-place model, and reliability rule. Read this before designing or reviewing systems.
