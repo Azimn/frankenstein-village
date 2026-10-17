@@ -19,6 +19,7 @@ MANOR_LIGHTS_ID = "PUBLIC-MANOR-LIGHTS"
 BRIDGE_PLAQUE_ID = "PUBLIC-BRIDGE-PLAQUE"
 MAX_OBSERVATIONS = 120
 MAX_THEORIES = 80
+MAX_THEORIES_PER_ACCOUNT_DAY = 3
 
 DEFINITIONS = {
     BRIDGE_PLAQUE_ID: {
@@ -420,22 +421,88 @@ def submit_theory(player, text, stable_id=MANOR_LIGHTS_ID):
     if len(body) > 600:
         return None, "Keep a public theory under 600 characters."
 
+    # Keep public evidence from being displaced by a single account's
+    # repeated speculation. A bounded archive is not permission to
+    # silently erase another player's still-active contribution.
+    theories = copy.deepcopy(list(mystery.get("theories") or []))
+    if len(theories) >= MAX_THEORIES:
+        return None, "The public theory archive is full. Ask human staff to review it."
+    author = _player_ref(player)
+    day = _clock()[0]
+    ident = (
+        ("account", author["account_id"])
+        if author.get("account_id") is not None
+        else ("mask", author.get("mask_id"))
+    )
+    submitted = sum(
+        1 for candidate in theories
+        if int(candidate.get("created_day") or 0) == day
+        and (
+            ("account", (candidate.get("author") or {}).get("account_id"))
+            if (candidate.get("author") or {}).get("account_id") is not None
+            else ("mask", (candidate.get("author") or {}).get("mask_id"))
+        ) == ident
+    )
+    if submitted >= MAX_THEORIES_PER_ACCOUNT_DAY:
+        return None, "You may submit at most three public theories per village day."
+
     theory = {
         "id": int(mystery.get("next_theory_id") or 1),
-        "author": _player_ref(player),
+        "author": author,
         "text": body,
         "status": "proposed",
         "truth_status": None,
         "created_day": _clock()[0],
         "created_hour": _clock()[1],
     }
-    theories = copy.deepcopy(list(mystery.get("theories") or []))
     theories.append(theory)
-    mystery["theories"] = theories[-MAX_THEORIES:]
+    mystery["theories"] = theories
     mystery["next_theory_id"] = theory["id"] + 1
     _save(mystery)
     _metric(theories=1)
     return copy.deepcopy(theory), None
+
+
+
+def hide_theory(moderator, theory_id, reason, stable_id=MANOR_LIGHTS_ID):
+    """Conceal publicly submitted abuse without erasing signed provenance."""
+    account = getattr(moderator, "account", None)
+    if not account or not account.check_permstring("Admin"):
+        return None, "Only human staff may moderate public mysteries."
+    if getattr(getattr(account, "db", None), "substrate", None) != "human":
+        return None, "Only human staff may moderate public mysteries."
+    mystery = get_public_mystery(stable_id)
+    if not mystery:
+        return None, "That public mystery is not indexed."
+    clean = str(reason or "").replace("|", " ")
+    clean = " ".join("".join(
+        ch if ch.isprintable() else " " for ch in clean
+    ).split())
+    if not 3 <= len(clean) <= 180:
+        return None, "Supply a 3 to 180 character human moderation reason."
+    try:
+        ident = int(theory_id)
+    except (ValueError, TypeError):
+        return None, "Name a numbered theory."
+    theories = copy.deepcopy(list(mystery.get("theories") or []))
+    entry = next((candidate for candidate in theories
+                  if candidate.get("id") == ident), None)
+    if not entry:
+        return None, "That theory no longer exists in the public archive."
+    if entry.get("status") == "hidden":
+        return None, "That theory was already hidden."
+    day, hour = _clock()
+    entry["status"] = "hidden"
+    entry["moderation"] = {
+        "account_id": account.id,
+        "reason": clean,
+        "day": day,
+        "hour": hour,
+    }
+    mystery["theories"] = theories
+    _save(mystery)
+    _metric(hidden_theories=1)
+    return copy.deepcopy(entry), None
 
 
 def resolve_subject(token):
@@ -464,7 +531,10 @@ def mystery_lines(player=None, stable_id=MANOR_LIGHTS_ID):
 
     definition = DEFINITIONS[stable_id]
     observations = list(mystery.get("observations") or [])
-    theories = list(mystery.get("theories") or [])
+    theories = [
+        entry for entry in (mystery.get("theories") or [])
+        if entry.get("status") != "hidden"
+    ]
     lit_count = sum(1 for record in observations if record.get("lit"))
 
     lines = [

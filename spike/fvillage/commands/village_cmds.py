@@ -1766,6 +1766,7 @@ class CmdTheory(Command):
         theory manor = <your theory>
         theory bridge = <your theory>
         theory manor <your theory>
+        theory hide bridge T<number> = <reason> (human staff only)
 
     The system records authorship but never marks a theory true or false.
     """
@@ -1778,9 +1779,36 @@ class CmdTheory(Command):
         if not _require_ic(self.caller):
             return
 
-        from world.public_mysteries import resolve_subject, submit_theory
+        from world.public_mysteries import (
+            hide_theory, resolve_subject, submit_theory,
+        )
 
         raw = (self.args or "").strip()
+        if raw.lower().startswith("hide "):
+            # Staff moderation preserves the authored record and source;
+            # ordinary players and AI accounts cannot hide theories.
+            first, equals, reason = raw.partition("=")
+            parts = first.split()
+            if len(parts) != 3 or not equals:
+                self.caller.msg(
+                    "Human staff usage: theory hide <mystery> T<number> = <reason>"
+                )
+                return
+            stable = resolve_subject(parts[1])
+            ident = parts[2].upper()
+            if not stable or not ident.startswith("T") or not ident[1:].isdigit():
+                self.caller.msg(
+                    "Human staff usage: theory hide <mystery> T<number> = <reason>"
+                )
+                return
+            record, error = hide_theory(
+                self.caller, int(ident[1:]), reason, stable
+            )
+            self.caller.msg(
+                error or f"Theory T{record['id']} hidden from public view. "
+                "The signed audit record is retained for human review."
+            )
+            return
         if not raw:
             self.caller.msg(
                 "Theory about what? Try: theory manor = <your theory>"

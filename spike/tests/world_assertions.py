@@ -2908,6 +2908,57 @@ assert "Shared observations: 2 physical reports" in bridge_lines
 assert "No culprit or intended message is certified" in bridge_lines
 assert "former ferry office" in bridge_lines
 assert "visible artificial light" not in bridge_lines
+# Public player-authored theories need the same adversarial limits as Commons.
+from world.public_mysteries import (
+    MAX_THEORIES_PER_ACCOUNT_DAY, hide_theory,
+)
+extra_one, error = submit_theory(
+    bridge_witness_b, "The bridge may have been reworked after the flood.",
+    BRIDGE_PLAQUE_ID,
+)
+assert error is None
+extra_two, error = submit_theory(
+    bridge_witness_b, "A craftsman might have used different brass screws.",
+    BRIDGE_PLAQUE_ID,
+)
+assert error is None
+denied_theory, reason = submit_theory(
+    bridge_witness_b, "This repeated theory should be rejected.",
+    BRIDGE_PLAQUE_ID,
+)
+assert denied_theory is None and "three public theories" in reason.lower()
+staff_human = SimpleNamespace(
+    account=SimpleNamespace(
+        id=9011,
+        db=SimpleNamespace(substrate="human"),
+        check_permstring=lambda permission: permission == "Admin",
+    ),
+)
+staff_ai = SimpleNamespace(
+    account=SimpleNamespace(
+        id=9012,
+        db=SimpleNamespace(substrate="ai"),
+        check_permstring=lambda permission: permission == "Admin",
+    ),
+)
+hidden, denied = hide_theory(
+    staff_ai, extra_one["id"], "Staff AI cannot do this", BRIDGE_PLAQUE_ID
+)
+assert hidden is None and "human staff" in denied.lower()
+hidden, denied = hide_theory(
+    staff_human, extra_one["id"], "Abusive content", BRIDGE_PLAQUE_ID
+)
+assert denied is None and hidden["status"] == "hidden"
+assert hidden["moderation"]["account_id"] == 9011
+hidden_text = "\n".join(mystery_lines(bridge_witness_a, BRIDGE_PLAQUE_ID))
+assert "bridge may have been reworked after the flood" not in hidden_text.lower()
+assert "different brass screws" in hidden_text.lower()
+assert "Abusive content" not in hidden_text
+hidden_again, message = hide_theory(
+    staff_human, extra_one["id"], "Duplicate moderation", BRIDGE_PLAQUE_ID
+)
+assert hidden_again is None and "already hidden" in message
+print("PUBLIC_MYSTERY_MODERATION_ASSERTIONS_GREEN")
 print("PUBLIC_BRIDGE_MYSTERY_CAUSAL_ASSERTIONS_GREEN")
 
 # Restore QA evidence and its publication side effects before later scenarios.
