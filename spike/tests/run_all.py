@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 import secrets
 import shutil
@@ -260,6 +261,42 @@ def main() -> int:
                     env=env,
                     timeout=180,
                 )
+
+                # Real autonomous-client validation, not a fake socket peer:
+                # both QA accounts are independently authenticated, have
+                # declared the AI substrate, and use ordinary player verbs.
+                # The client must discover all ten reachable IC rooms from
+                # permission-checked local exits and return to the Tavern.
+                bot_file = Path(tmp) / "qa-agent-accounts.json"
+                bot_file.write_text(json.dumps([
+                    {"username": "qa_smith_repair",
+                     "character": "SmithTester",
+                     "password_env": "FV_QA_REPAIR_PASSWORD"},
+                    {"username": "qa_merchant_repair",
+                     "character": "MerchantTester",
+                     "password_env": "FV_QA_REPAIR_PASSWORD"},
+                ]), encoding="utf-8")
+                bot_result = Path(tmp) / "real-agent-exploration.json"
+                run(
+                    [
+                        vpython, checkout / "ops" / "headless_ai_client.py",
+                        "--host", "127.0.0.1", "--port", "4000",
+                        "--accounts", bot_file, "--sessions", "2",
+                        "--steps", "1", "--explore-rooms", "10",
+                        "--timeout", "8", "--seed", "41016",
+                        "--output", bot_result,
+                    ],
+                    cwd=checkout, env=env, timeout=200,
+                )
+                proof = json.loads(bot_result.read_text(encoding="utf-8"))
+                assert proof["passed"] and proof["session_count"] == 2
+                for agent in proof["results"]:
+                    assert agent["error"] is None, agent
+                    assert agent["exploration"]["target"] == 10, agent
+                    assert agent["exploration"]["visited_count"] == 10, agent
+                    assert agent["exploration"]["returned_to_start"], agent
+                    assert agent["connect_success"] and agent["commands"] > 20
+                print("REAL_TWO_AGENT_VILLAGE_EXPLORATION_GREEN")
             finally:
                 if started:
                     subprocess.run(
