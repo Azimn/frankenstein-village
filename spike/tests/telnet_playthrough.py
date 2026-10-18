@@ -347,6 +347,8 @@ def main() -> int:
         require(out, "empty plaque socket")
         out = c.command("look plaque")
         require_all(out, "screws", "who removed it")
+        out = c.command("bridgework display")
+        require(out, "river gauge")
         out = c.command("mystery bridge")
         require_all(out, "who removed the old bridge plaque", "physical reports")
         out = c.command(
@@ -1548,8 +1550,32 @@ def main() -> int:
         out = c.command("survey")
         require_all(out, "4 of 4", "smithtester", "smoketester",
                     "route is complete")
+
+        # A real solo mystery branch changes shared physical scenery.
+        # Earlier plaque inspection and this in-person gauge observation
+        # provide different evidence; writing a theory never grants either.
+        out = c.command("east")
+        require(out, "old stone bridge")
+        out = c.command("bridgework")
+        require_all(out, "firsthand evidence", "bridgework preserve",
+                    "bridgework display")
+        out = c.command("bridgework preserve")
+        require_all(out, "physically changed", "canvas cover", "world event")
+        out = c.command("look")
+        require(out, "canvas cover")
+        out = c.command("look plaque")
+        require_all(out, "screws", "canvas cover")
+        out = c.command("bridgework display")
+        require(out, "already settled")
+        out = c.command("bridgework check")
+        require_all(out, "signed world event", "upkeep inspection")
+        out = c.command("bridgework check")
+        require(out, "already inspected")
+        out = c.command("west")
+        require(out, "riverside path")
         out = c.command("west")
         require(out, "blood of the vine")
+        print("TELNET_BRANCHING_BRIDGE_CASE_GREEN")
         out = c.command("journal discoveries")
         require_all(out,
                     "weathered grave marker", "frayed red cord",

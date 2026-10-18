@@ -134,7 +134,9 @@ class BridgePlaqueView(DefaultObject):
 
     def get_display_desc(self, looker=None, **kwargs):
         from world.public_mysteries import bridge_plaque_description
-        return bridge_plaque_description(looker)
+        from world.bridge_choices import public_line
+        aftermath = public_line(self.location.db.bridge_inquiry) if self.location else ""
+        return bridge_plaque_description(looker) + "\n" + aftermath
 
 
 class Register(DefaultObject):

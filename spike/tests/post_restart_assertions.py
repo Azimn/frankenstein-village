@@ -1115,4 +1115,31 @@ assert "remember you helping" in _civic_recalled(
 print("POST_RESTART_RESIDENT_CIVIC_RECOGNITION_GREEN")
 
 
+from world.bridge_choices import normalize as _bridge_state, public_line as _bridge_line
+_bridge = one("The Old Stone Bridge")
+_bridge_public = _bridge_state(_bridge.db.bridge_inquiry)
+_bridge_owner = next((account for account in AccountDB.objects.all()
+                      if any(char.id == smoke.id for char in account.characters.all())), None)
+assert _bridge_owner is not None, "Owning account not found after disconnect"
+_bridge_decision = _bridge_public["resolution"]
+assert _bridge_decision is not None, "Bridge physical change lost after restart"
+assert _bridge_decision["choice"] == "preserve"
+assert _bridge_decision["mask_id"] == smoke.id
+assert _bridge_decision["account_id"] == _bridge_owner.id
+assert len(_bridge_public["checks"]) == 1, "Bridge upkeep duplicated or vanished"
+assert _bridge_public["checks"][0]["account_id"] == _bridge_owner.id
+_bridge_event = warning_ledger.get_event(_bridge_decision["event_id"])
+assert _bridge_event["kind"] == "village.bridge_response"
+assert _bridge_event["status"] == "complete"
+assert _bridge_event["payload"]["choice"] == "preserve"
+_check_event = warning_ledger.get_event(_bridge_public["checks"][0]["event_id"])
+assert _check_event["kind"] == "village.bridge_upkeep"
+assert _check_event["status"] == "complete"
+assert "canvas cover" in _bridge_line(_bridge_public)
+assert "canvas cover" in _bridge.get_display_desc(smoke), (
+    "Other visitors cannot see the settled physical world response"
+)
+print("POST_RESTART_BRIDGE_RESPONSE_GREEN")
+
+
 print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")

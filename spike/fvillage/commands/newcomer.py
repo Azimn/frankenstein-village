@@ -149,7 +149,10 @@ class CmdGuide(Command):
                 "The Old Stone Bridge": (
                     "Examine the empty plaque socket. Compare observations with "
                     "|wmystery bridge|n, then offer an unresolved interpretation "
-                    "using |wtheory bridge = <words>|n. West returns to the "
+                    "using |wtheory bridge = <words>|n. After examining "
+                    "the plaque, compare the river gauge one room west, "
+                    "then use |wbridgework|n for a physical civic response. "
+                    "West returns to the "
                     "Riverside Path. The night watch is often at "
                     "the bridge late in the evening; you can speak "
                     "to the watchman if he is actually on patrol."
