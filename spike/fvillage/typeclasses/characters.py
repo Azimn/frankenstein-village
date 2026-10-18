@@ -349,6 +349,11 @@ class SpikeCharacter(Character):
             )
         if len(lines) == 1:
             lines.append("The village kept its own counsel.")
+        from world.return_agenda import reentry_lines
+        lines.extend(reentry_lines(
+            note=self.db.player_return_note,
+            following=self.db.commons_following,
+        ))
         self.msg("\n".join(lines))
 
 
