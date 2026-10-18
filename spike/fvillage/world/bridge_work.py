@@ -143,6 +143,12 @@ def collect(mask, choice):
         return None, "The bridge response is already settled; no new kit is needed."
     if _carried(mask):
         return None, "You already carry bridge supplies. Deliver or give them away first."
+    from world.market_work import supply_held
+    if supply_held():
+        return None, (
+            "The market is holding construction supplies over disputed weights. "
+            "Use trade to learn how to resolve the dispute."
+        )
     day, hour = _clock()
     current, allowed, message = bridge_materials.withdraw(table.db.bridge_material_stock, day, choice)
     if not allowed:
@@ -154,6 +160,8 @@ def collect(mask, choice):
                 raise RuntimeError("The supplier or traveler moved.")
             if bridge_choices.normalize(bridge.db.bridge_inquiry)["resolution"] or _carried(mask):
                 raise RuntimeError("The bridge was settled or the traveler already has a kit.")
+            if supply_held():
+                raise RuntimeError("Market construction supplies are unavailable.")
             updated, valid, error = bridge_materials.withdraw(
                 table.db.bridge_material_stock, day, choice
             )

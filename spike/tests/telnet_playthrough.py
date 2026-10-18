@@ -176,6 +176,8 @@ def main() -> int:
         require(out, "active calling: chronicler")
         require(out, "rank: apprentice")
         require(out, "no professional participation")
+        out = c.command("calling work")
+        require_all(out, "trade attest", "Market Lane", "chronicle")
 
         out = c.command("chronicle")
         require(out, "in-character village record", "cross the front door")
@@ -1533,6 +1535,65 @@ def main() -> int:
         require(out, "market lane")
         out = c.command("look market scale")
         require_all(out, "brass pans", "two prices")
+        out = c.command("trade")
+        require_all(out, "Market Lane", "crooked", "trade calibrate")
+        out = c.command("trade attest")
+        require(out, "documented Merchant decision and Smith calibration")
+
+        # Three distinct active Callings intervene in the same recurring
+        # physical market dispute. A held distribution blocks REAL stock,
+        # and Smith calibration releases it without resetting inventory.
+        for direction, expected in (
+            ("west", "village square"),
+            ("south", "lamp shop"),
+            ("south", "market lane"),
+        ):
+            out = merchant.command(direction)
+            require(out, expected)
+        out = merchant.command("calling work")
+        require_all(out, "trade honor", "trade hold")
+        out = merchant.command("trade hold")
+        require(out, "First inspect the actual crooked market scale")
+        out = merchant.command("look market scale")
+        require(out, "two prices")
+        out = merchant.command("trade hold")
+        require_all(out, "signed", "temporarily on hold")
+        out = c.command("bridgework collect preserve")
+        require(out, "holding construction supplies")
+        out = c.command("trade attest")
+        require(out, "documented Merchant decision and Smith calibration")
+        for direction, expected in (
+            ("west", "village square"),
+            ("south", "lamp shop"),
+            ("south", "market lane"),
+        ):
+            out = smith.command(direction)
+            require(out, expected)
+        out = smith.command("trade honor")
+        require(out, "Merchant Calling")
+        out = smith.command("look market scale")
+        require(out, "two prices")
+        out = smith.command("trade calibrate")
+        require_all(out, "signed", "physically recalibrated")
+        out = smith.command("trade calibrate")
+        require(out, "already been calibrated")
+        out = c.command("trade attest")
+        require_all(out, "signed", "attested both source events")
+        out = c.command("trade attest")
+        require(out, "already attested")
+        out = c.command("look market scale")
+        require_all(out, "physically recalibrated", "MerchantTester", "SmithTester")
+        out = c.command("look")
+        require(out, "physically recalibrated")
+        for actor in (merchant, smith):
+            for direction, expected in (
+                ("north", "lamp shop"),
+                ("north", "village square"),
+                ("east", "blood of the vine"),
+            ):
+                out = actor.command(direction)
+                require(out, expected)
+        print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
         out = c.command("guide")
         require_all(out, "civic material table", "bridgework collect preserve")
         out = c.command("look civic material table")

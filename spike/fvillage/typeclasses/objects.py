@@ -121,7 +121,23 @@ class DiscoveryScenery(DefaultObject):
         ident = getattr(self.db, "landmark_id", None)
         if ident:
             capture(looker, self, ident)
-        return self.db.desc or ""
+        detail = self.db.desc or ""
+        if ident == "market_scale" and self.location:
+            from world.market_standards import normalize, public_lines
+            from world.market_work import clock
+            day, _hour = clock()
+            current = normalize(self.location.db.market_standards)
+            if current["day"] == day and current["calibration"]:
+                detail = (
+                    "The brass pans now settle evenly after a Smith's "
+                    "adjustment of the stone shim. The old chalk slate "
+                    "still shows two disputed prices for the same weight; "
+                    "the correction did not erase that older disagreement."
+                )
+            detail += "\n" + "\n".join(public_lines(
+                self.location.db.market_standards, day
+            ))
+        return detail
 
 
 class MarketBridgeMaterialTable(DefaultObject):
@@ -142,6 +158,8 @@ class MarketBridgeMaterialTable(DefaultObject):
             "materials are granted by reading this notice. "
             f"Today: {stock['remaining']['preserve']} canvas kits and "
             f"{stock['remaining']['display']} inquiry boards remain. "
+            "Distribution may be held for a real market dispute; "
+            "inspect the crooked scale and use |wtrade|n for current terms. "
             "Use |wbridgework collect preserve|n or "
             "|wbridgework collect display|n here to carry one real kit."
         )
