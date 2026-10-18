@@ -7,10 +7,16 @@ launch evidence. Gate C is deliberately parked. Never revise the content
 quantities in `files/frankenstein-village-quest-handoff-v0.3.md` §7 to
 retroactively declare the invited alpha a full launch.
 
-Canonical production code to deploy for this sequence:
-`4bab7877b5664fe3b88ce02d1c71a417a48164be`. Operational scripts
-developed after that commit can be copied from a verified release of `main`
-without deploying additional gameplay code.
+**No current gameplay deployment SHA has been selected or authorized.**
+The previously considered historical alpha baseline was
+`4bab7877b5664fe3b88ce02d1c71a417a48164be`; it predates the
+subsequent gameplay, stability and AI-agent improvements and **must not**
+silently be treated as today's release candidate. Before any new hosting
+proposal is accepted, a human operator must name one exact reviewed
+`main` SHA, check full CI on that SHA, run a disposable restore and record
+the specific version in the release evidence. Never automatically deploy the
+moving tip of `main` or copy an unrelated operations script into a
+different game version without compatibility testing.
 
 ## Decision record: hosting and accountability
 
@@ -59,10 +65,12 @@ alerts, and recovery owner are actually recorded.
    container filesystem. Preserve the Evennia SQLite DB and sidecars when
    upgrading code. Only the operator may write world state. Never run
    `spike/tests/run_all.py` or QA fixtures against a populated host.
-4. Checkout exactly `4bab7877` for the GAME deployment. Keep newer
-   `ops/deploy/` operational tooling in a separate operators-only directory.
-   Back up the database before EVERY update. Do not use a command such as
-   `git clean -fdx` against the live server tree.
+4. Checkout the **operator-approved exact reviewed gameplay SHA**
+   (selection PENDING), not the obsolete historical `4bab7877`
+   baseline or an unreviewed `main` tip. Confirm this SHA matches the
+   deployment record and its clean-checkout CI result. Keep compatible
+   `ops/deploy/` tooling under operator control. Back up the database
+   before EVERY update. Do not run `git clean -fdx` against live state.
 5. Read [AI_FIRST_HOSTING.md](AI_FIRST_HOSTING.md). Configure
    `FV_DEPLOYMENT_MODE=public`, valid FQDN, WSS proxy port 4042 and invited
    registration policy in a root-readable, non-Git environment file. First
