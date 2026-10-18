@@ -2,15 +2,18 @@
 from __future__ import annotations
 
 from django.db import transaction
+from evennia import create_object
 from evennia.utils import search
 from evennia.scripts.models import ScriptDB
 
-from world import bridge_choices
+from world import bridge_choices, bridge_materials
 from world.discoveries import normalize as known_landmarks
 from world.events import publish_world_event
 from world.public_mysteries import BRIDGE_PLAQUE_ID, get_public_mystery
 
 BRIDGE_NAME = "The Old Stone Bridge"
+MARKET_NAME = "Market Lane"
+SUPPLY_KEY = "a civic material table"
 
 
 def _bridge():
@@ -20,6 +23,25 @@ def _bridge():
         and room.location is None
         and room.tags.has("ic", category="side")
     ), None)
+
+
+def _market_supply():
+    market = next((room for room in search.search_object(MARKET_NAME)
+                   if room.key == MARKET_NAME and room.location is None
+                   and room.tags.has("ic", category="side")), None)
+    if market is None:
+        return None
+    return next((obj for obj in market.contents
+                 if obj.key == SUPPLY_KEY), None)
+
+
+def _carried(mask, choice=None):
+    return [obj for obj in mask.contents
+            if obj.db.bridge_material in bridge_materials.CHOICES
+            and (choice is None or obj.db.bridge_material == choice)
+            and obj.key == bridge_materials.ITEM_NAMES[obj.db.bridge_material]
+            and isinstance(obj.db.bridge_material_source_event, int)
+            and obj.db.bridge_material_source_event > 0]
 
 
 def _clock():
@@ -89,11 +111,13 @@ def status_lines(mask):
         )
     if _plaque_witness(mask) and _gauge_witness(mask):
         lines.append(
-            "You have firsthand evidence from both sites. At the bridge, "
-            "choose |wbridgework preserve|n to fit a protective cover, or "
-            "|wbridgework display|n to erect a public witness board. "
-            "Both choices have lasting visible consequences, and neither "
-            "names a culprit. Only one public response can be established."
+            "You have firsthand evidence from both sites. Visit the public "
+            "civic material table in Market Lane and use "
+            "|wbridgework collect preserve|n for a canvas kit, or "
+            "|wbridgework collect display|n for an inquiry board kit. "
+            "Physically carry the selected kit here, then use "
+            "|wbridgework preserve|n or |wbridgework display|n. "
+            "One completed choice changes the bridge for everyone."
         )
     else:
         lines.append(
@@ -101,6 +125,62 @@ def status_lines(mask):
             "No profession, private information, or second player is required."
         )
     return "\n".join(lines)
+
+
+def collect(mask, choice):
+    """Collect one actual finite kit, through the standard inventory rules."""
+    account = getattr(mask, "account", None)
+    room = getattr(mask, "location", None)
+    table = _market_supply()
+    bridge = _bridge()
+    if not account or not room or room.key != MARKET_NAME or not table or table.location != room:
+        return None, "Go to the civic material table in Market Lane to collect a kit."
+    if not room.tags.has("ic", category="side"):
+        return None, "This is an in-character village supply table."
+    if choice not in bridge_materials.CHOICES:
+        return None, "Use bridgework collect preserve or bridgework collect display."
+    if bridge is None or bridge_choices.normalize(bridge.db.bridge_inquiry)["resolution"]:
+        return None, "The bridge response is already settled; no new kit is needed."
+    if _carried(mask):
+        return None, "You already carry bridge supplies. Deliver or give them away first."
+    day, hour = _clock()
+    current, allowed, message = bridge_materials.withdraw(table.db.bridge_material_stock, day, choice)
+    if not allowed:
+        return None, message
+
+    def consequence(event):
+        with transaction.atomic():
+            if mask.location != room or table.location != room:
+                raise RuntimeError("The supplier or traveler moved.")
+            if bridge_choices.normalize(bridge.db.bridge_inquiry)["resolution"] or _carried(mask):
+                raise RuntimeError("The bridge was settled or the traveler already has a kit.")
+            updated, valid, error = bridge_materials.withdraw(
+                table.db.bridge_material_stock, day, choice
+            )
+            if not valid:
+                raise RuntimeError(error)
+            item = create_object(
+                "typeclasses.objects.Object",
+                key=bridge_materials.ITEM_NAMES[choice],
+                location=mask,
+                aliases=[choice + " kit", "bridge kit"],
+            )
+            item.db.bridge_material = choice
+            item.db.bridge_material_source_event = event["id"]
+            item.db.bridge_material_source_day = day
+            item.db.desc = bridge_materials.ITEM_DESCRIPTIONS[choice]
+            table.db.bridge_material_stock = updated
+            return {"item_id": item.id, "remaining": updated["remaining"][choice],
+                    "choice": choice, "market_table_id": table.id}
+
+    event = publish_world_event(
+        "village.bridge_material_collected", actor=mask,
+        payload={"choice": choice, "location": MARKET_NAME, "day": day,
+                 "hour": hour, "harbinger": False, "chronicle_eligible": False},
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "choice": choice,
+            "remaining": bridge_materials.normalize(table.db.bridge_material_stock, day)["remaining"][choice]}, None
 
 
 def act(mask, verb):
@@ -121,6 +201,12 @@ def act(mask, verb):
             return None, (
                 "Examine the actual plaque here and the river gauge "
                 "on Riverside Path before choosing a response."
+            )
+        if not _carried(mask, verb):
+            return None, (
+                "Bring the matching real kit from Market Lane. Use "
+                "|wbridgework collect " + verb + "|n at the civic material table, "
+                "then physically carry it to the bridge."
             )
         event_kind = "village.bridge_response"
     elif verb == "check":
@@ -154,6 +240,10 @@ def act(mask, verb):
                     day=day, event_id=event["id"],
                 )
             else:
+                kits = _carried(mask, verb)
+                if not kits:
+                    raise RuntimeError("The physical construction kit is missing.")
+                material = kits[0]
                 changed, valid, problem = bridge_choices.settle(
                     current, verb, account_id=account.id,
                     mask_id=mask.id, mask=mask.key, day=day, hour=hour,
@@ -162,10 +252,17 @@ def act(mask, verb):
             if not valid:
                 raise RuntimeError(problem)
             bridge.db.bridge_inquiry = changed
-            return {
+            result = {
                 "choice": changed["resolution"]["choice"],
                 "signed_upkeep": len(changed["checks"]),
             }
+            if verb != "check":
+                result.update({
+                    "consumed_item_id": material.id,
+                    "source_event_id": material.db.bridge_material_source_event,
+                })
+                material.delete()
+            return result
 
     event = publish_world_event(
         event_kind, actor=mask,

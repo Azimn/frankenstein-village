@@ -7,7 +7,9 @@ class CmdBridgeWork(Command):
 
     Usage:
         bridgework
-        bridgework preserve
+        bridgework collect preserve  (at the Market Lane supply table)
+        bridgework collect display
+        bridgework preserve          (at the bridge, with real kit)
         bridgework display
         bridgework check
 
@@ -30,9 +32,27 @@ class CmdBridgeWork(Command):
         if verb in {"", "status", "help"}:
             caller.msg(bridge_work.status_lines(caller))
             return
+        if verb in {"collect preserve", "collect display"}:
+            choice = verb.split()[1]
+            result, error = bridge_work.collect(caller, choice)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                "You take a real " + choice + " kit from the Market Lane "
+                "supply table. Carry it to the Old Stone Bridge or give "
+                "it to another traveler. "
+                f"{result['remaining']} matching kits remain today."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} takes a bridge-work kit from the public table.",
+                exclude=[caller],
+            )
+            return
         if verb not in {"preserve", "display", "check"}:
             caller.msg(
-                "Use: bridgework | bridgework preserve | "
+                "Use: bridgework | bridgework collect preserve | "
+                "bridgework collect display | bridgework preserve | "
                 "bridgework display | bridgework check"
             )
             return

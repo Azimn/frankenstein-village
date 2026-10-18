@@ -1139,6 +1139,39 @@ assert "canvas cover" in _bridge_line(_bridge_public)
 assert "canvas cover" in _bridge.get_display_desc(smoke), (
     "Other visitors cannot see the settled physical world response"
 )
+from world.bridge_materials import normalize as _market_material_stock
+_market = one("Market Lane")
+_material_tables = [obj for obj in _market.contents
+                    if obj.key == "a civic material table"]
+assert len(_material_tables) == 1, "Market supply table was lost or duplicated"
+_materials = _market_material_stock(
+    _material_tables[0].db.bridge_material_stock,
+    _bridge_decision["day"],
+)
+assert _materials["remaining"]["preserve"] == 1, (
+    "Market kit stock was refilled or its withdrawal did not persist"
+)
+assert _materials["remaining"]["display"] == 2
+assert not [obj for obj in smoke.contents
+            if obj.db.bridge_material in {"preserve", "display"}], (
+    "Consumed bridge construction kit still exists in inventory"
+)
+_material_consumption = _bridge_event["consequence"]
+assert _material_consumption["consumed_item_id"] > 0
+_material_origin = warning_ledger.get_event(
+    _material_consumption["source_event_id"]
+)
+assert _material_origin["kind"] == "village.bridge_material_collected"
+assert _material_origin["status"] == "complete"
+assert _material_origin["actor"]["mask_id"] == smoke.id
+assert _material_origin["consequence"]["item_id"] == (
+    _material_consumption["consumed_item_id"]
+)
+assert not search.search_object(
+    "a canvas preservation kit"
+), "The consumed kit still exists as a free object"
+print("POST_RESTART_PHYSICAL_BRIDGE_MATERIALS_GREEN")
+
 print("POST_RESTART_BRIDGE_RESPONSE_GREEN")
 
 
