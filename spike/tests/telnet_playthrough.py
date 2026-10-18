@@ -1537,15 +1537,9 @@ def main() -> int:
         # only during the world's specified narrow nighttime window.
         mystic = Client(args.host, args.port)
         require(mystic.sync_login_screen(), "frankenstein village")
-        mu, mp = "qa_mystic_study", "MysticStudy2026!"
-        created = mystic.command(f"create {mu} {mp}", wait=4.0)
-        if "connected" not in created.lower() and f"account {mu}" not in created.lower():
-            mystic.command(f"connect {mu} {mp}", wait=4.0)
-        out = mystic.command("substrate ai")
-        if "gate is open" not in out.lower() and "substrate recorded" not in out.lower():
-            mystic.command(f"connect {mu} {mp}", wait=4.0)
-            out = mystic.command("substrate ai")
-        require(out, "gate is open", "substrate recorded")
+        mu, mp = "qa_mystic_study", os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = mystic.command(f"connect {mu} {mp}", wait=4.0)
+        require(out, "connected", "account qa_mystic_study")
         mystic.command("charcreate MysticTester", wait=3.0)
         out = mystic.command("ic MysticTester", wait=4.0)
         require(out, "private room")
