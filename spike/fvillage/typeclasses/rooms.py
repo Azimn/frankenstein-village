@@ -61,6 +61,11 @@ class SpikeRoom(DefaultRoom):
             line = overlays[_key]
             if line:
                 desc = f"{desc}\n{line}"
+        if self.key == "Market Lane":
+            from world.market_standards import public_lines
+            from world.market_work import clock
+            day, _hour = clock()
+            desc = f"{desc}\n{public_lines(self.db.market_standards, day)[1]}"
         if self.key == "The Old Stone Bridge":
             from world.bridge_choices import public_line
             desc = f"{desc}\n{public_line(self.db.bridge_inquiry)}"
