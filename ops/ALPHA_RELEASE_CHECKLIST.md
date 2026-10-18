@@ -49,9 +49,13 @@ Record these values for each deployment before inviting external players:
    [REPEATED_CONCURRENT_SOAK.md](REPEATED_CONCURRENT_SOAK.md) with distinct,
    non-staff QA accounts and an approved test window. The resulting JSON
    quantifies failures and latency; it is not a long-lived connection soak.
-7. Run a separate continuous-connection load test on the actual host and
-   record process CPU/RSS, event lag, SQLite growth, re-entry after disconnect,
-   connection throttles and clock progress throughout the window.
+7. Run the instrument in
+   [CONTINUOUS_PLAYER_SOAK.md](CONTINUOUS_PLAYER_SOAK.md) against the chosen
+   actual host, with two or more distinct ordinary connected accounts held
+   for at least 30 minutes. Record live-server process CPU/RSS, event lag,
+   SQLite growth, re-entry after disconnect, connection throttles and clock
+   progress throughout the window. The 8-second GitHub CI smoke only proves
+   genuine sockets, not a successful 30-minute or public-host load result.
 8. Verify moderation reports have a working human review route and that
    errors, downtime, and backup failures will reach the operator.
 9. Complete and sign the evidence table. If any required item is unverified,

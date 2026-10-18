@@ -300,6 +300,33 @@ def main() -> int:
                     assert agent["exploration"]["returned_to_start"], agent
                     assert agent["connect_success"] and agent["commands"] > 20
                 print("REAL_TWO_AGENT_VILLAGE_EXPLORATION_GREEN")
+
+                # A separate REAL concurrent held-TCP-connection smoke verifies
+                # the new duration instrument on the unprivileged QA accounts.
+                # Its 8-second window explicitly cannot meet the 30-minute
+                # operator soak gate or claim public launch readiness.
+                held_out = Path(tmp) / "continuous-players-smoke.json"
+                run(
+                    [
+                        vpython,
+                        checkout / "ops" / "continuous_player_soak.py",
+                        "--host", "127.0.0.1", "--port", "4000",
+                        "--accounts", bot_file, "--sessions", "2",
+                        "--smoke-seconds", "8",
+                        "--interval-seconds", "2",
+                        "--timeout", "8", "--output", held_out,
+                    ],
+                    cwd=checkout, env=env, timeout=100,
+                )
+                held = json.loads(held_out.read_text(encoding="utf-8"))
+                assert held["sessions_attempted"] == 2
+                assert held["sessions_passed"] == 2
+                assert held["passed_short_smoke"] is True
+                assert held["technical_thresholds_met"] is False
+                assert held["public_launch_certified"] is False
+                assert held["shortest_held_seconds"] >= 8
+                assert held["lost_connections"] == 0
+                print("REAL_TWO_PLAYER_HELD_CONNECTION_SMOKE_GREEN")
             finally:
                 if started:
                     subprocess.run(
