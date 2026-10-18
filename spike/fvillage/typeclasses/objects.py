@@ -124,6 +124,29 @@ class DiscoveryScenery(DefaultObject):
         return self.db.desc or ""
 
 
+class MarketBridgeMaterialTable(DefaultObject):
+    """The public market supply is visible, finite, and never duplicated."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.locks.add("get:false();give:false();drop:false()")
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.bridge_materials import normalize
+        from world.bridge_work import _clock
+        day, _hour = _clock()
+        stock = normalize(self.db.bridge_material_stock, day)
+        return (
+            "A shared table offers measured canvas, brackets, unmarked "
+            "boards and chalk for responsible bridge restoration. No "
+            "materials are granted by reading this notice. "
+            f"Today: {stock['remaining']['preserve']} canvas kits and "
+            f"{stock['remaining']['display']} inquiry boards remain. "
+            "Use |wbridgework collect preserve|n or "
+            "|wbridgework collect display|n here to carry one real kit."
+        )
+
+
 class BridgePlaqueView(DefaultObject):
     """Publicly visible bridge evidence, not an automatically solved case."""
 
