@@ -36,6 +36,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         #
         from commands.agent_context import CmdAgentContext
         from commands.bridge_cmd import CmdBridgeWork
+        from commands.market_cmd import CmdTrade
         from commands.agenda_cmd import CmdAgenda
         from commands.commons_cmd import CmdCommons
         from commands.newcomer import CmdGuide
@@ -46,6 +47,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
 
         self.add(CmdAgentContext())
         self.add(CmdBridgeWork())
+        self.add(CmdTrade())
         self.add(CmdAgenda())
         self.add(CmdCommons())
         self.add(CmdGuide())
