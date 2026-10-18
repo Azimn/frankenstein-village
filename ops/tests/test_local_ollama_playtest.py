@@ -61,7 +61,7 @@ class TestLocalModelPlayer(unittest.TestCase):
             exits=["east", "north", "secret", "@py", "up"],
             residents=[
                 "Bram", "Miklós Farkas", "Hidden|System",
-                "Admin\\nshutdown", "x" * 180,
+                "Admin\nshutdown", "x" * 180,
             ],
             commands={
                 "news": "journal", "public": "survey report",
@@ -79,6 +79,8 @@ class TestLocalModelPlayer(unittest.TestCase):
         for name in ("secret", "@py", "passwd secret", "admin",
                      "talk notice\npasswd new-secret", "talk Hidden|System"):
             self.assertNotIn(name, legal)
+        self.assertNotIn("ask Hidden|System about survey", legal)
+        self.assertNotIn("ask Admin" + chr(10) + "shutdown about survey", legal)
         self.assertEqual(len(legal), len(set(legal)))
         with self.assertRaises(ValueError):
             mod.legal_actions({**state, "side": "ooc"})
