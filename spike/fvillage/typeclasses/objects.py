@@ -123,9 +123,17 @@ class DiscoveryScenery(DefaultObject):
             capture(looker, self, ident)
         detail = self.db.desc or ""
         if ident == "market_scale" and self.location:
-            from world.market_standards import public_lines
+            from world.market_standards import normalize, public_lines
             from world.market_work import clock
             day, _hour = clock()
+            current = normalize(self.location.db.market_standards)
+            if current["day"] == day and current["calibration"]:
+                detail = (
+                    "The brass pans now settle evenly after a Smith's "
+                    "adjustment of the stone shim. The old chalk slate "
+                    "still shows two disputed prices for the same weight; "
+                    "the correction did not erase that older disagreement."
+                )
             detail += "\n" + "\n".join(public_lines(
                 self.location.db.market_standards, day
             ))
