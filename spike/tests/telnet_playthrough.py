@@ -224,6 +224,13 @@ def main() -> int:
         assert square_view["commands"]["firewood"] == "hearth gather"
         assert square_view["commands"]["community_work"] == "commission"
 
+        # A truly co-located working resident is a visible conversational
+        # opportunity for both humans and independent local model agents.
+        assert "Miklós Farkas" in square_view["visible_residents"]
+        assert "Offstage" not in square_view["visible_residents"]
+        assert not any("Private Room" in name
+                       for name in square_view["visible_residents"])
+
         out = c.command("next")
         require(out, "first lead: the village square")
         require(out, "calling choose")
