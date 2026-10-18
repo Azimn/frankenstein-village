@@ -100,6 +100,7 @@ def payload_for(mask):
         if room and room.key == "St. Lazarus Church":
             result["commands"]["confessional"] = "confess"
         if room and room.key == "Market Lane":
+            result["commands"]["market_professions"] = "trade"
             result["commands"]["physical_bridge_supplies"] = (
                 "bridgework collect preserve | bridgework collect display"
             )
