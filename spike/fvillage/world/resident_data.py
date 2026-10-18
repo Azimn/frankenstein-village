@@ -18,6 +18,8 @@ LOCATION_PROJECTIONS = {
     "lamp_shop": "The Lamp Shop",
     "inn_common": "Inn Common Room",
     "tavern_back_hall": "Tavern Back Hall",
+    "churchyard": "St. Lazarus Churchyard",
+    "market_lane": "Market Lane",
     "offstage": "Offstage",
     # Unbuilt logical places project Offstage without becoming the same place.
     "schoolhouse": "Offstage",
