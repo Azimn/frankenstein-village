@@ -230,6 +230,9 @@ def main() -> int:
         require(out, "a shared village need")
         require(out, "repair diagnose north-square gas lamp")
         require(out, "commons post need")
+        # A newcomer without an online partner has an executable solo loop
+        # and a location-based investigation path, not only finite cases.
+        require_all(out, "hearth gather", "hearth deliver", "survey")
 
         out = c.command("event")
         require(out, "the long blackout", "0 of 4", "event lamps")
