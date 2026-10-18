@@ -12,6 +12,13 @@ from world.discoveries import LANDMARKS
 
 MAX_RECOGNITIONS = 128
 
+_SITE_REMARKS = {
+    "grave_marker": "Graves are easier to misread than people think.",
+    "red_cord": "The north edge changes faster than an old map does.",
+    "market_scale": "Traders notice when somebody checks the weights.",
+    "river_gauge": "The river never tells you its depth twice alike.",
+}
+
 
 def signed_checkpoint(raw, day, *, account_id, mask_name):
     """Return one genuinely signed checkpoint, never rumors or other masks."""
@@ -54,7 +61,8 @@ def public_route_line(raw, day, *, account_id, mask_name):
         return (
             f"The Square's board carries your signed inspection from "
             f"{signed['room']}. I wasn't there to watch you, but the record "
-            "means somebody actually walked that ground."
+            "means somebody actually walked that ground. "
+            + _SITE_REMARKS[signed["site"]]
             + (
                 " All four checkpoints have reports today."
                 if signed["complete"] else
@@ -87,7 +95,7 @@ def normalized_recognitions(raw):
             continue
         site = row.get("site")
         if (mask_id <= 0 or day < 1 or event_id <= 0
-                or site not in LANDMARKS):
+                or not isinstance(site, str) or site not in LANDMARKS):
             continue
         marker = (mask_id, day)
         if marker in seen:
