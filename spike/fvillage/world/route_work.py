@@ -70,6 +70,11 @@ def status_lines():
             "After examining a landmark in person, use |wsurvey report|n "
             "while still there. Other travelers can finish different stops."
         )
+    lines.append(
+        "The board is public. You can ask a resident you actually meet "
+        "about the survey (|wask <resident> about survey|n); they may "
+        "recognize the person who signed a real inspection."
+    )
     if state["history"]:
         prior = state["history"][-1]
         lines.append(
