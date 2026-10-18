@@ -61,6 +61,9 @@ class SpikeRoom(DefaultRoom):
             line = overlays[_key]
             if line:
                 desc = f"{desc}\n{line}"
+        if self.key == "The Old Stone Bridge":
+            from world.bridge_choices import public_line
+            desc = f"{desc}\n{public_line(self.db.bridge_inquiry)}"
         return desc
 
 
