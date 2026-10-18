@@ -36,12 +36,19 @@ def witness_description(looker, grave):
     if not physical:
         return ""
     room = churchyard()
-    if (looker is not None and getattr(looker, "account", None)
+    account = getattr(looker, "account", None)
+    account_id = getattr(account, "id", None)
+    mask_id = getattr(looker, "id", None)
+    if (isinstance(account_id, int) and account_id > 0
+            and isinstance(mask_id, int) and mask_id > 0
+            and not isinstance(account_id, bool)
+            and getattr(looker, "db", None) is not None
             and room is not None and grave.location == room
-            and looker.location == room and grave.key == GRAVE_KEY):
+            and getattr(looker, "location", None) == room
+            and grave.key == GRAVE_KEY):
         looker.db.mystic_grave_witness = {
             "day": day, "hour": hour, "grave_id": grave.id,
-            "mask_id": looker.id, "account_id": looker.account.id,
+            "mask_id": mask_id, "account_id": account_id,
         }
     return physical
 
