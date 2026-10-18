@@ -60,6 +60,18 @@ def normalize(raw):
             if row.get("choice") not in CHOICES:
                 continue
             signed["choice"] = row["choice"]
+        if name == "attestation":
+            try:
+                review_id = int(row.get("review_event_id"))
+                calibration_id = int(row.get("calibration_event_id"))
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if (review_id < 1 or calibration_id < 1
+                    or isinstance(row.get("review_event_id"), bool)
+                    or isinstance(row.get("calibration_event_id"), bool)):
+                continue
+            signed["review_event_id"] = review_id
+            signed["calibration_event_id"] = calibration_id
         result[name] = signed
     try:
         history = list(raw.get("history") or [])
