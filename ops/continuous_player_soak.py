@@ -47,11 +47,13 @@ def hold_player(player, barrier, *, duration_s, interval_s,
     samples = 0
     error = None
     initial_commands = 0
+    initial_lag_count = 0
     try:
         state = player.arrive(player.login())
         if state.get("side") != "ic":
             raise RuntimeError("Account did not enter the game world")
         initial_commands = player.commands
+        initial_lag_count = len(player.lags)
         barrier.wait(timeout=90)
         registered = True
         started = clock()
@@ -88,7 +90,9 @@ def hold_player(player, barrier, *, duration_s, interval_s,
             except Exception:
                 error = error or "SessionCloseError"
         latencies = sorted(
-            x for x in (_finite_ms(x) for x in player.lags) if x is not None
+            x for x in (
+                _finite_ms(x) for x in player.lags[initial_lag_count:]
+            ) if x is not None
         )
         idx = min(len(latencies) - 1, math.ceil(len(latencies) * .95) - 1)
     return {
