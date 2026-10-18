@@ -108,6 +108,19 @@ def legal_actions(observation):
             continue
         actions.append(candidate)
 
+    # NPCs are explicitly selected by the ordinary public observation
+    # adapter with view/search locks. Give an agent useful question verbs,
+    # not a free-form string it could turn into a privileged command.
+    conversation_targets = observation.get("visible_residents") or []
+    if not isinstance(conversation_targets, list):
+        raise ValueError("Malformed public conversation-target list")
+    for candidate in conversation_targets[:20]:
+        if not isinstance(candidate, str) or not NAME.fullmatch(candidate):
+            continue
+        actions.append("talk " + candidate)
+        actions.append("ask " + candidate + " about survey")
+        actions.append("ask " + candidate + " about work")
+
     visible = observation.get("visible_nearby") or []
     if not isinstance(visible, list):
         raise ValueError("Malformed nearby objects")
@@ -125,7 +138,7 @@ def legal_actions(observation):
     for action in actions:
         if action not in result and (action in SAFE_SIMPLE
                                      or action in NAVIGATION
-                                     or action.startswith(("examine ", "talk "))
+                                     or action.startswith(("examine ", "talk ", "ask "))
                                      or action in commands.values()):
             result.append(action)
     return result[:80]
