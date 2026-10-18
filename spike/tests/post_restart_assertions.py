@@ -1083,5 +1083,36 @@ assert calling_record(smith_tester, "smith")["participation"][
     "community_route_contributions"
 ] == 1, "Smith civic work participation was lost"
 print("POST_RESTART_DAILY_ROUTE_SURVEY_GREEN")
+from world.residents import (
+    resident_state as _resident_state, relationship_for as _relationship_for
+)
+from world.resident_civic import (
+    normalized_recognitions as _civic_notes,
+    remembered_help as _civic_recalled,
+)
+_miklos = one("Miklós Farkas")
+_civic = _civic_notes(_resident_state(_miklos).get("civic_recognitions"))
+_personal = [
+    row for row in _civic
+    if row["mask_id"] == smoke.id and row["day"] == route_board["day"]
+]
+assert len(_personal) == 1, (
+    "Repeated civic questions duplicated Miklós's credit for one signed day"
+)
+assert _personal[0]["site"] == "grave_marker"
+assert _personal[0]["event_id"] == route_board["reports"][
+    "grave_marker"
+]["event_id"]
+assert all(row["mask_id"] != merchant_tester.id for row in _civic), (
+    "Another account received a private resident civic acknowledgment"
+)
+assert _relationship_for(_miklos, smoke)["trust"] > 0, (
+    "Resident relationship did not persist after accepting public help"
+)
+assert "remember you helping" in _civic_recalled(
+    _civic, mask_id=smoke.id, current_day=route_board["day"] + 1
+)
+print("POST_RESTART_RESIDENT_CIVIC_RECOGNITION_GREEN")
+
 
 print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")

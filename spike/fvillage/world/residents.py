@@ -1253,6 +1253,17 @@ def generic_talk_line(npc, player):
         reason = str(routine["reason"]).replace("_", " ")
         return f"Plans changed today. {reason}. I am making do."
 
+    # A resident who actually acknowledged a mask's public service can
+    # remember it when the same mask returns. Other masks on that account
+    # do not inherit this IC relationship or a private memory.
+    from world.resident_civic import remembered_help
+    day, _hour = _clock()
+    reminder = remembered_help(
+        state.get("civic_recognitions"), mask_id=player.id, current_day=day
+    )
+    if reminder:
+        return reminder
+
     if rel["familiarity"] >= 8:
         return (
             f"Back again, {player.key}. You know how it is. "
@@ -1274,6 +1285,42 @@ def generic_ask_line(npc, player, topic):
         if result:
             return f"{result['claim']} That is the version I heard."
         return "Nothing I would swear to today."
+
+    if any(word in t for word in (
+        "survey", "checkpoint", "landmark", "route", "roads", "road",
+    )):
+        from world.resident_civic import (
+            mark_recognized, public_route_line,
+        )
+        square = _room("Village Square")
+        day, _hour = _clock()
+        account = getattr(player, "account", None)
+        line, signed = public_route_line(
+            getattr(square.db, "daily_route_survey", None)
+            if square else None,
+            day,
+            account_id=account.id if account else None,
+            mask_name=player.key,
+        )
+        # Conversation must be with the real co-located resident and the
+        # public Square board must name THIS mask and its owning account.
+        # Never grant the same social consequence twice in a village day.
+        if (signed and getattr(player, "has_account", False)
+                and npc.location == player.location):
+            notes, changed = mark_recognized(
+                state.get("civic_recognitions"),
+                mask_id=player.id, day=day, site=signed["site"],
+                event_id=signed["event_id"],
+            )
+            if changed:
+                state["civic_recognitions"] = notes
+                save_state(npc, state)
+                # Uses existing relationship, affect, memory and
+                # engagement machinery, without creating another ticker.
+                record_player_interaction(
+                    npc, player, kind="help", depth=0.5
+                )
+        return line
 
     if any(word in t for word in ("family", "kin", "relative", "household")):
         names = _kin_names(definition)

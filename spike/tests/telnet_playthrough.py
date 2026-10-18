@@ -308,6 +308,11 @@ def main() -> int:
         out = c.command("ask Miklós Farkas about history")
         require(out, "since you keep asking")
 
+        # Being merely present in the Square does not earn signed civic
+        # recognition. The public board honestly records zero inspections.
+        out = c.command("ask Miklós Farkas about route survey")
+        require_all(out, "public board", "0 of 4")
+
         out = c.command("east")
         require(out, "blood of the vine")
 
@@ -1557,6 +1562,19 @@ def main() -> int:
 
         out = c.command("west")
         require(out, "village square")
+        # Only a co-located resident who can consult public signed evidence
+        # recognizes actual work. The NPC's help bonus fires once per day,
+        # while normal conversation remains possible and persistent.
+        out = c.command("ask Miklós Farkas about route survey")
+        require_all(
+            out, "your signed inspection", "st. lazarus churchyard",
+            "somebody actually walked",
+        )
+        out = c.command("talk Miklós Farkas")
+        require(out, "already put your name")
+        out = c.command("ask Miklós Farkas about survey")
+        require(out, "your signed inspection")
+        print("TELNET_RESIDENT_CIVIC_RECOGNITION_GREEN")
         out = c.command("north")
         require(out, "inn hallway")
         out = c.command("west")
