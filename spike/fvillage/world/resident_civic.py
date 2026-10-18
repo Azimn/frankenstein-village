@@ -115,7 +115,7 @@ def mark_recognized(raw, *, mask_id, day, site, event_id):
     except (TypeError, ValueError, OverflowError):
         return records, False
     if (mask_id <= 0 or day < 1 or event_id <= 0
-            or site not in LANDMARKS):
+            or not isinstance(site, str) or site not in LANDMARKS):
         return records, False
     if any(row["mask_id"] == mask_id and row["day"] == day
            for row in records):
