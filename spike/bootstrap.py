@@ -48,6 +48,13 @@ def _run(args, *, cwd=None, env=None, stdin=None, input_text=None):
     subprocess.run([str(arg) for arg in args], **kwargs)
 
 
+def _twistd_launcher_text(python: Path, *, windows: bool) -> str:
+    """Generate runnable fallback scripts with real line separators."""
+    if windows:
+        return f'@"{python}" -c "from twisted.scripts.twistd import run; run()" %*\n'
+    return f"#!{python}\nfrom twisted.scripts.twistd import run\nrun()\n"
+
+
 def _ensure_twistd_launcher(python: Path) -> None:
     """Create the Twisted launcher Evennia expects when pip omits it."""
     bindir = python.parent
@@ -57,7 +64,7 @@ def _ensure_twistd_launcher(python: Path) -> None:
         if exe.exists() or cmd.exists():
             return
         cmd.write_text(
-            f'@"{python}" -c "from twisted.scripts.twistd import run; run()" %*\\n',
+            _twistd_launcher_text(python, windows=True),
             encoding="utf-8",
         )
         print(f"Created Twisted launcher: {cmd}")
@@ -67,7 +74,7 @@ def _ensure_twistd_launcher(python: Path) -> None:
     if launcher.exists():
         return
     launcher.write_text(
-        f"#!{python}\\nfrom twisted.scripts.twistd import run\\nrun()\\n",
+        _twistd_launcher_text(python, windows=False),
         encoding="utf-8",
     )
     launcher.chmod(0o755)
