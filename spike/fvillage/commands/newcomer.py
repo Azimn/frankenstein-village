@@ -71,10 +71,13 @@ class CmdGuide(Command):
                 "|wjournal|n records situations your mask actually "
                 "encountered.\n"
                 + tavern_care_lead(caller)
-                + "\nFor repeatable, physical work use |whearth|n: "
-                "visitors may bring firewood and an Innkeep can strengthen "
-                "the shared fire. Check |wcommission|n for the daily "
-                "two-player firewood delivery.\nFor a lasting public account, "
+                + "\nFor a solo contribution, go |wwest|n to the Square, "
+                "check |whearth|n and use |whearth gather|n when wood is "
+                "available. Return |weast|n and use |whearth deliver|n "
+                "here if the rack has space. The bundle stays in the "
+                "shared reserve. An Innkeep can use |whearth tend|n, "
+                "while |wcommission|n offers cooperative delivery.\n"
+                "For a lasting public account, "
                 "a Chronicler can examine "
                 "|wchronicle|n and file testimony from a known rumor."
             )
@@ -90,11 +93,16 @@ class CmdGuide(Command):
                 "you have personally discovered.\n"
                 "|wA shared village need:|n "
                 + lamp_lead(caller)
-                + "\nThe split woodpile beside the well offers a "
-                "repeatable way to help the Tavern. "
-                "|whearth|n explains how to carry actual firewood "
-                "from Square to Innkeep. The |wcommission|n board offers "
-                "a daily real-object handoff for two travelers."
+                + "\n|wA practical action you can take alone:|n "
+                "Use |whearth|n to check the public wood supply. "
+                "If there is wood and the Tavern rack has space, "
+                "|whearth gather|n here, go |weast|n to the Tavern, "
+                "and use |whearth deliver|n. That changes a shared "
+                "physical reserve even when no neighbor is online. "
+                "You can also use |wsurvey|n for firsthand district "
+                "investigation without taking a calling. "
+                "|wcommission|n offers cooperative work when someone "
+                "else is available."
             )
         elif place == "The Lamp Shop":
             caller.msg(
