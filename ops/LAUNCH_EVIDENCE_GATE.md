@@ -17,9 +17,13 @@ The manifest must contain:
   `example.*` hosts, usernames in URLs, expired dates, date-only strings,
   missing entries and SHA mismatches keep the result **NO-GO**.
 - Verified continuous connection soak under the chosen hosted conditions,
-  event tick behavior under actual multiplayer load, independent
-  model-led playtesting, and full-launch content requirements in addition
-  to the earlier backup, security, moderation and return-play evidence.
+  event tick behavior under actual multiplayer load, independent review of
+  game-breaking problems found during uncoached normal-interface playtests,
+  and full-launch content requirements in addition to the earlier backup,
+  security, moderation and return-play evidence. Use actual human players or
+  other ordinary clients for these playtests. A language-model-driven client
+  is optional testing equipment, not a dependency of the game's simulation
+  or a separate launch prerequisite.
 
 The operator should prepare the manifest in a **private** evidence folder,
 not GitHub. Its JSON structure is illustrated below with intentionally
