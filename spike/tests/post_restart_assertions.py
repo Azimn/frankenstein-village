@@ -1115,6 +1115,34 @@ assert "remember you helping" in _civic_recalled(
 print("POST_RESTART_RESIDENT_CIVIC_RECOGNITION_GREEN")
 
 
+from world.market_standards import (
+    normalize as _market_work_state, suspended as _market_suspended,
+)
+_market_live = _market_work_state(one("Market Lane").db.market_standards)
+assert _market_live["review"] and _market_live["review"]["choice"] == "hold"
+assert _market_live["calibration"] and _market_live["attestation"]
+assert _market_live["review"]["mask_id"] == merchant_tester.id
+assert _market_live["calibration"]["mask_id"] == smith_tester.id
+assert _market_live["attestation"]["mask_id"] == smoke.id
+assert not _market_suspended(_market_live, _market_live["day"]), (
+    "A Smith's completed physical correction left supplies blocked"
+)
+for _record, _event_kind in (
+    ("review", "village.market_hold"),
+    ("calibration", "village.market_calibrate"),
+    ("attestation", "village.market_attest"),
+):
+    _event = warning_ledger.get_event(_market_live[_record]["event_id"])
+    assert _event["kind"] == _event_kind
+    assert _event["status"] == "complete"
+    assert _event["actor"]["mask_id"] == _market_live[_record]["mask_id"]
+assert calling_record(merchant_tester, "merchant")["participation"]["market_hold"] == 1
+assert calling_record(smith_tester, "smith")["participation"]["market_calibrate"] == 1
+assert calling_record(smoke, "chronicler")["participation"]["market_attest"] == 1
+assert "physically recalibrated" in one("Market Lane").get_display_desc(smoke)
+print("POST_RESTART_MARKET_CALLINGS_ASSERTIONS_GREEN")
+
+
 from world.bridge_choices import normalize as _bridge_state, public_line as _bridge_line
 _bridge = one("The Old Stone Bridge")
 _bridge_public = _bridge_state(_bridge.db.bridge_inquiry)
