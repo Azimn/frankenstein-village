@@ -57,7 +57,7 @@ class StaticInventoryTests(unittest.TestCase):
         self.assertGreaterEqual(data["rooms"]["ic_walkable_declared"], 5)
         self.assertGreaterEqual(data["rooms"]["ooc_walkable_declared"], 2)
         self.assertGreaterEqual(data["resident_definitions"], 36)
-        self.assertEqual(data["calling_definitions"]["count"], 9)
+        self.assertEqual(data["calling_definitions"]["count"], 10)
         self.assertGreaterEqual(data["rumors"]["accepted_corpus_ids"], 250)
         self.assertGreaterEqual(data["rumors"]["selected_for_bootstrap"], 3)
         self.assertTrue(data["rumors"]["seed_function_called"])
