@@ -99,6 +99,8 @@ def payload_for(mask):
             result["commands"]["firewood"] = "hearth gather"
         if room and room.key == "St. Lazarus Church":
             result["commands"]["confessional"] = "confess"
+        if room and room.key == "St. Lazarus Churchyard":
+            result["commands"]["mystic_guild_studies"] = "mystic"
         if room and room.key == "Market Lane":
             result["commands"]["market_professions"] = "trade"
             result["commands"]["physical_bridge_supplies"] = (
