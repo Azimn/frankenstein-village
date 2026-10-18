@@ -173,6 +173,7 @@ assert set(CALLINGS) == {
     "performer",
     "detective",
     "hound",
+    "mystic",
 }
 
 calling_mentor = SimpleNamespace(
