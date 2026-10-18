@@ -20,6 +20,30 @@ def clean_note(value):
     return text
 
 
+def reentry_lines(*, note, following):
+    """Give a returning mask its own plan without caching Commons content.
+
+    The absence greeting does not read public posts: hidden or moderated
+    correspondence is fetched only by the normal agenda/Commons commands.
+    """
+    lines = []
+    private_note = clean_note(note)
+    if private_note:
+        lines.append("Your saved private intention: " + private_note)
+    if following:
+        lines.append(
+            "You follow public Commons correspondence. Use |wagenda|n "
+            "to check for signed replies or closure."
+        )
+    if not lines:
+        lines.append(
+            "Use |wguide|n for something to do here, or |wagenda|n "
+            "to save a next step before leaving."
+        )
+    else:
+        lines.append("Use |wagenda|n for the current state of your plans.")
+    return lines
+
 def summary(*, note, followed, day, location):
     lines = [
         "|wYour next visit|n",
