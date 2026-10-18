@@ -22,10 +22,10 @@ REQUIRED = (
     "mask_front_door", "world_state_restart", "moderation_review",
     "clock_restart", "rollback_drill", "operator_alerting",
     "uncoached_gameplay", "cross_player_consequence", "return_session",
-    # A short deterministic test or repeated reconnects cannot stand in for
-    # hosted, uninterrupted multiplayer load or an independent model trial.
+    # Hosted soak is mandatory; actual uncoached player sessions must have
+    # their game-breaking issues triaged. No special LLM test is mandatory.
     "continuous_multiplayer_soak", "event_tick_under_load",
-    "independent_model_led_playtest", "full_launch_content_coverage",
+    "player_reported_blockers_cleared", "full_launch_content_coverage",
 )
 MAX_EVIDENCE_AGE = timedelta(days=30)
 FUTURE_TOLERANCE = timedelta(minutes=5)

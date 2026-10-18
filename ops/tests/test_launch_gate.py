@@ -51,6 +51,16 @@ class LaunchGateTests(unittest.TestCase):
         del record["checks"]["continuous_multiplayer_soak"]
         self.assertEqual(assess(record, now=NOW)["decision"], "NO-GO")
 
+    def test_player_feedback_must_be_reviewed_without_a_required_llm_trial(self):
+        self.assertIn("player_reported_blockers_cleared", REQUIRED)
+        self.assertNotIn("independent_model_led_playtest", REQUIRED)
+        record = valid_record()
+        del record["checks"]["player_reported_blockers_cleared"]
+        self.assertEqual(assess(record, now=NOW)["decision"], "NO-GO")
+        record = valid_record()
+        record["checks"]["player_reported_blockers_cleared"]["passed"] = False
+        self.assertEqual(assess(record, now=NOW)["decision"], "NO-GO")
+
     def test_any_check_must_match_exact_deployed_sha(self):
         record = valid_record()
         record["checks"]["event_tick_under_load"]["sha"] = "b" * 40
