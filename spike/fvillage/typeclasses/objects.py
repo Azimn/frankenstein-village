@@ -122,6 +122,11 @@ class DiscoveryScenery(DefaultObject):
         if ident:
             capture(looker, self, ident)
         detail = self.db.desc or ""
+        if ident == "grave_marker" and self.location:
+            from world.mystic_work import witness_description
+            anomaly = witness_description(looker, self)
+            if anomaly:
+                detail += "\n" + anomaly
         if ident == "market_scale" and self.location:
             from world.market_standards import normalize, public_lines
             from world.market_work import clock
