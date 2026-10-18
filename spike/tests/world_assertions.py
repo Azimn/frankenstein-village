@@ -666,7 +666,7 @@ assert len(resident_ids) == len(set(resident_ids)), "duplicate resident stable i
 assert sum(
     npc.typeclass_path == "typeclasses.characters.ResidentNPC"
     for npc in population
-) == 30
+) == len(RESIDENTS) - 6  # Six existing authored legacy residents
 assert not one("M.").tags.has("resident", category="system"), (
     "M. is the dual-ontology Inn exception, not an IC population resident"
 )
