@@ -139,6 +139,10 @@ class CmdGuide(Command):
                     "Examine the market scale and its slate prices. "
                     "Daytime sellers and craft workers have routines along "
                     "this street, and the Chronicler visits her office. "
+                    "A civic material table holds finite construction kits "
+                    "for the bridge mystery; inspect it, then use "
+                    "|wbridgework collect preserve|n or "
+                    "|wbridgework collect display|n to carry a real kit. "
                     "Talk to anyone actually present. North returns to "
                     "the Lamp Shop."
                 ),
