@@ -1139,7 +1139,24 @@ for _record, _event_kind in (
 assert calling_record(merchant_tester, "merchant")["participation"]["market_hold"] == 1
 assert calling_record(smith_tester, "smith")["participation"]["market_calibrate"] == 1
 assert calling_record(smoke, "chronicler")["participation"]["market_attest"] == 1
-assert "physically recalibrated" in one("Market Lane").get_display_desc(smoke)
+from world.market_work import clock as _market_live_clock
+_market_now, _market_hour = _market_live_clock()
+_market_visible = one("Market Lane").get_display_desc(smoke).lower()
+if _market_now == _market_live["day"]:
+    assert "physically recalibrated" in _market_visible, (
+        "A same-day calibrated market scale is invisible after restart",
+        _market_now, _market_live["day"], _market_visible,
+    )
+elif _market_now > _market_live["day"]:
+    assert "market" in _market_visible and "scale" in _market_visible, (
+        "The market did not return to its ordinary daily state",
+        _market_now, _market_live["day"], _market_visible,
+    )
+else:
+    assert "later village record" in _market_visible, (
+        "A backwards clock incorrectly restored earlier market duties",
+        _market_now, _market_live["day"], _market_visible,
+    )
 print("POST_RESTART_MARKET_CALLINGS_ASSERTIONS_GREEN")
 
 
