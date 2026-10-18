@@ -400,6 +400,23 @@ get_or_create_discovery(
     "records two prices for the same weight.",
     aliases=["market scale", "scale"],
 )
+# Physical, finite civic materials for one of two bridge outcomes.
+# An existing table and its live inventory remain intact on rebuild.
+bridge_supply_table = get_or_create_scenery(
+    "a civic material table", market_lane,
+    "Canvas, fittings, noticeboard timber and chalk are reserved for "
+    "the missing bridge plaque inquiry. Examine the table to check stock.",
+    aliases=["civic table", "material table", "bridge supplies"],
+)
+if not bridge_supply_table.is_typeclass(
+    "typeclasses.objects.MarketBridgeMaterialTable", exact=True
+):
+    bridge_supply_table.swap_typeclass(
+        "typeclasses.objects.MarketBridgeMaterialTable",
+        clean_attributes=False,
+    )
+bridge_supply_table.locks.add("get:false();give:false();drop:false()")
+
 get_or_create_discovery(
     "a river gauge", riverside,
     "Flood marks have been carved along the post. A newer mark sits "
