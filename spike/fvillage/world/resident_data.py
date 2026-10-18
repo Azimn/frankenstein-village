@@ -70,6 +70,18 @@ INTEREST_POOL = (
 
 # Schedules use half-open hour ranges. Midnight-wrapping blocks are split.
 SCHEDULES = {
+    "psychical_correspondent": (
+        (0, 9, "home", "keeps her notes in order"),
+        (9, 17, "market_lane", "takes statements and reviews instruments"),
+        (17, 22, "churchyard", "checks the cemetery evidence"),
+        (22, 24, "home", "writes late correspondence"),
+    ),
+    "hearth_folklorist": (
+        (0, 8, "home", "keeps her household"),
+        (8, 15, "village_square", "talks with visitors and neighbors"),
+        (15, 22, "churchyard", "visits the graveyard and hears old stories"),
+        (22, 24, "home", "tends her own fireside"),
+    ),
     "child_school": (
         (0, 7, "home", "sleeps"),
         (7, 8, "village_square", "walks toward school"),
@@ -430,6 +442,17 @@ RESIDENTS = (
     _resident("sorin_dragomir", "Sorin Dragomir", age_band="adult", gender="man",
               household="dragomir", occupation="night watchman",
               schedule="night_watch", traits=("vigilant","superstitious")),
+    # Two original informal Mystic guild circles, not exclusive factions.
+    _resident("beatrice_harcourt", "Beatrice Harcourt", age_band="adult",
+              gender="woman", household="harcourt",
+              occupation="psychical researcher", schedule="psychical_correspondent",
+              traits=("precise", "private", "stubborn"),
+              faction="Guild of Mystics"),
+    _resident("mirela_dobre", "Mirela Dobre", age_band="older",
+              gender="woman", household="dobre",
+              occupation="folklorist", schedule="hearth_folklorist",
+              traits=("observant", "direct", "patient"),
+              faction="Guild of Mystics"),
 )
 
 
