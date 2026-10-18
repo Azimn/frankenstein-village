@@ -416,6 +416,7 @@ class CmdCalling(Command):
         calling list
         calling choose <calling>
         calling history
+        calling work
         calling relations
         calling apprentice <player>
         calling accept
@@ -479,12 +480,20 @@ class CmdCalling(Command):
         raw = (self.args or "").strip()
         lower = raw.lower()
 
+        if lower == "work":
+            from world.calling_opportunities import lines as work_lines
+            self.caller.msg("\n".join(work_lines(active_calling(self.caller))))
+            return
+
         if lower == "list":
             lines = ["|yVillage callings:|n", "These are social professions, not combat classes."]
             for slug, definition in CALLINGS.items():
                 lines.append(
                     f"{definition['display']}: {definition['summary']}"
                 )
+            lines.append(
+                "Once chosen, use |wcalling work|n to find actual local activities."
+            )
             lines.append(
                 "Choose one with |wcalling choose <name>|n. Participation is "
                 "broad, but only your active calling carries professional rank."
@@ -692,7 +701,8 @@ class CmdCalling(Command):
         if raw:
             self.caller.msg(
                 "Use: calling | calling list | calling choose <calling> | "
-                "calling history | calling relations | calling apprentice <player> | "
+                "calling history | calling work | calling relations | "
+                "calling apprentice <player> | "
                 "calling accept | calling decline | calling release <player> | "
                 "calling withdraw"
             )
@@ -736,6 +746,7 @@ class CmdCalling(Command):
                 f"Pending apprenticeship offers: {len(pending)}. "
                 "Use |wcalling relations|n for details."
             )
+        lines.append("Use |wcalling work|n for current profession opportunities.")
         self.caller.msg("\n".join(lines))
 
 
