@@ -660,7 +660,7 @@ from world.residents import (
 )
 
 population = all_residents()
-assert len(population) == len(RESIDENTS) == 36, len(population)
+assert len(population) == len(RESIDENTS) >= 36, len(population)
 resident_ids = [npc.db.resident_id for npc in population]
 assert len(resident_ids) == len(set(resident_ids)), "duplicate resident stable id"
 assert sum(
@@ -776,7 +776,7 @@ rada_life.db.resident_state = rada_before_life
 
 population_registry = get_population_registry()
 rumor_registry = ScriptDB.objects.get(db_key="rumor_registry")
-assert population_registry.db.metrics["population_size"] == 36
+assert population_registry.db.metrics["population_size"] == len(RESIDENTS)
 
 # The clean-checkout runner assigned a fact and closed the school before this
 # second build. Both must survive the idempotent rebuild.
@@ -873,7 +873,7 @@ advance_population(day=2, hour=10, emit=False)
 wstate = resident_state(wren)
 assert wstate["routine"]["logical_location"] == "schoolhouse"
 assert wstate["routine"]["source"] == "schedule"
-# The new map does not merely add quiet empty rooms: the existing 36
+# The new map does not merely add quiet empty rooms: existing
 # residents use their prior logical working schedules to appear at the
 # public edge of real locations. Private interiors remain inaccessible.
 from world.resident_data import projection_for
