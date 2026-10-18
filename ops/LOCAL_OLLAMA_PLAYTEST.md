@@ -54,8 +54,11 @@ and the public `agent` observation for each turn, and supplies the
 ordinary local `guide` lead plus a bounded reply from its previous action.
 It offers only commands actually available from that observation and
 validates the model's chosen literal command before transmitting it. The model can inspect nearby
-visible objects, speak to observed people, explore connected exits and
-choose surfaced public activities. Deliberately, there is **no freeform
+visible objects, speak to observed people, ask **only actually
+visible and conversation-capable NPCs** about public survey work or their
+occupation, explore connected exits and choose surfaced public activities.
+The same `view` and `search` locks that govern a human's nearby targets
+also govern the model's NPC list. Deliberately, there is **no freeform
 command executor**, hidden full map, direct memory DB, shell tool, Python
 eval, staff access or automatic passage across OOC/IC gates.
 
