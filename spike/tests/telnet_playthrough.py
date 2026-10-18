@@ -114,6 +114,7 @@ def main() -> int:
     inn = None
     smith = None
     merchant = None
+    mystic = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -168,6 +169,7 @@ def main() -> int:
         require(out, "chronicler")
         require(out, "hound")
         require(out, "social professions")
+        require(out, "mystic")
         out = c.command("calling choose chronicler")
         require(out, "chronicler is now your active calling")
         require(out, "apprentice rank")
@@ -1515,6 +1517,62 @@ def main() -> int:
         require(out, "churchyard")
         out = c.command("look grave marker")
         require_all(out, "initials", "different hands")
+        out = c.command("mystic")
+        require_all(out, "correspondents", "hearth circle", "grave")
+        out = c.command("mystic study measure")
+        require(out, "only an active mystic")
+        # Two real, scheduled guild residents must be reachable in the
+        # churchyard on their evening rounds, without any special NPC host.
+        out = c.command("talk Beatrice Harcourt")
+        require_all(out, "witnesses", "measurements")
+        out = c.command("ask Beatrice Harcourt about Mirela")
+        require(out, "credit the family")
+        out = c.command("talk Mirela Dobre")
+        require(out, "a grave belongs to a family")
+        out = c.command("ask Mirela Dobre about Harcourt")
+        require(out, "fine clock")
+
+        # A new ordinary player chooses the tenth Calling and studies the
+        # same existing physical marker. The anomalous inscription appears
+        # only during the world's specified narrow nighttime window.
+        mystic = Client(args.host, args.port)
+        require(mystic.sync_login_screen(), "frankenstein village")
+        mu, mp = "qa_mystic_study", "MysticStudy2026!"
+        created = mystic.command(f"create {mu} {mp}", wait=4.0)
+        if "connected" not in created.lower() and f"account {mu}" not in created.lower():
+            mystic.command(f"connect {mu} {mp}", wait=4.0)
+        out = mystic.command("substrate ai")
+        if "gate is open" not in out.lower() and "substrate recorded" not in out.lower():
+            mystic.command(f"connect {mu} {mp}", wait=4.0)
+            out = mystic.command("substrate ai")
+        require(out, "gate is open", "substrate recorded")
+        mystic.command("charcreate MysticTester", wait=3.0)
+        out = mystic.command("ic MysticTester", wait=4.0)
+        require(out, "private room")
+        out = mystic.command("calling choose mystic")
+        require_all(out, "mystic is now your active calling", "apprentice rank")
+        for direction, expected in (
+            ("down", "inn common room"),
+            ("east", "inn hallway"),
+            ("south", "village square"),
+            ("west", "st. lazarus church"),
+            ("west", "churchyard"),
+        ):
+            out = mystic.command(direction)
+            require(out, expected)
+        out = mystic.command("mystic study vigil")
+        require(out, "look grave marker")
+        out = mystic.command("look grave marker")
+        require_all(out, "older engraved date advances", "chisel")
+        out = mystic.command("mystic study measure")
+        require_all(out, "signed measure study", "world event")
+        out = mystic.command("mystic study vigil")
+        require(out, "already filed a study")
+        out = mystic.command("calling")
+        require_all(out, "active calling: mystic", "mystic grave studies 1")
+        out = c.command("mystic")
+        require_all(out, "mystictester", "signed measured study")
+        print("TELNET_MYSTIC_GUILD_AND_GOTHIC_OBSERVATION_GREEN")
         out = c.command("survey report")
         require_all(out, "report signed", "2 of 4")
         out = c.command("north")
@@ -1709,8 +1767,12 @@ def main() -> int:
             print("\nSMITH TRANSCRIPT\n" + "\n".join(smith.transcript))
         if merchant is not None:
             print("\nMERCHANT TRANSCRIPT\n" + "\n".join(merchant.transcript))
+        if mystic is not None:
+            print("\nMYSTIC TRANSCRIPT\n" + "\n".join(mystic.transcript))
         raise
     finally:
+        if mystic is not None:
+            mystic.close()
         if merchant is not None:
             merchant.close()
         if smith is not None:
