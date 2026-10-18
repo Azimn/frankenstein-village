@@ -60,6 +60,14 @@ WORK = {
         "Talk to residents you physically encounter during their "
         "routines and compare their accounts against actual locations.",
     ),
+    "mystic": (
+        "At St. Lazarus Churchyard, inspect the weathered grave marker. "
+        "Use mystic to examine the guild's evidence and methods; an "
+        "unusual gravestone event is possible on a particular night.",
+        "Meet Beatrice Harcourt or Mirela Dobre while they are present "
+        "and ask about their research. With first-hand evidence, a Mystic "
+        "can use mystic study measure or mystic study vigil at the site.",
+    ),
 }
 
 
