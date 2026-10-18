@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "spike" / "fvillage"))
-from world.return_agenda import clean_note, summary
+from world.return_agenda import clean_note, summary, reentry_lines
 
 
 class ReturnAgendaTests(unittest.TestCase):
@@ -45,6 +45,26 @@ class ReturnAgendaTests(unittest.TestCase):
         self.assertIn("agenda note =", result)
         self.assertIn("commons follow", result)
         self.assertIn("I will be back", result)
+
+
+    def test_returning_mask_sees_own_goal_without_undisclosed_board_content(self):
+        lines = reentry_lines(
+            note="  Check the bridge |r tonight\n",
+            following=[{"id": 42, "body": "SECRET MODERATED TEXT",
+                        "sender": "HIDDEN NAME"}],
+        )
+        output = "\n".join(lines)
+        self.assertIn("Your saved private intention: Check the bridge r tonight", output)
+        self.assertIn("commons", output.lower())
+        self.assertIn("agenda", output)
+        self.assertNotIn("SECRET MODERATED TEXT", output)
+        self.assertNotIn("HIDDEN NAME", output)
+        self.assertNotIn("#42", output)
+
+    def test_reentry_without_notes_offers_discoverable_first_step(self):
+        lines = reentry_lines(note=None, following=[])
+        self.assertIn("guide", " ".join(lines))
+        self.assertIn("agenda", " ".join(lines))
 
 
 if __name__ == "__main__":
