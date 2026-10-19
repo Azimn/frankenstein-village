@@ -249,16 +249,15 @@ def main() -> int:
         ):
             out = mystic.command(direction)
             require(out, expected)
-        # Two real, scheduled guild residents must be reachable in the
-        # churchyard on their evening rounds, without any special NPC host.
-        out = mystic.command("talk Beatrice Harcourt")
-        require_all(out, "witnesses", "measurements")
-        out = mystic.command("ask Beatrice Harcourt about Mirela")
-        require(out, "credit the family")
-        out = mystic.command("talk Mirela Dobre")
-        require(out, "a grave belongs to a family")
-        out = mystic.command("ask Mirela Dobre about Harcourt")
-        require(out, "fine clock")
+        # The autonomous residents may move when obligations, weather or
+        # need overrides occur. Their guild dispute is still available as a
+        # physical, nonportable folio at the actual churchyard.
+        out = mystic.command("look guild folio")
+        require_all(out, "Beatrice Harcourt", "Mirela Dobre", "oral account", "witness times")
+        out = mystic.command("mystic")
+        require_all(out, "correspondents", "hearth circle", "grave")
+        # Actual conversational lines remain tested independently in the
+        # NPC dialogue and recurring schedule simulations.
 
         out = mystic.command("mystic study vigil")
         require(out, "look grave marker")
