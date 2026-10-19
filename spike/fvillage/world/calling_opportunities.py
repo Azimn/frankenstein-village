@@ -44,6 +44,9 @@ WORK = {
         "commission. At the Square, examine the noticeboard for needs.",
     ),
     "wanderer": (
+        "Collect actual sealed ferry-post parcels in Market Lane with courier collect. "
+        "Carry or give them to another person for courier deliver at Riverside Path. "
+        "The limited daily supply and signed ferry manifest persist.",
         "Use survey to see the four current district checkpoints. "
         "Travel there, look at each actual clue, and use survey report.",
         "Examine the Riverside Path, churchyard, treeline, and market "
