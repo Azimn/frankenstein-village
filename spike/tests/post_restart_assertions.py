@@ -143,7 +143,8 @@ innkeep_record = calling_record(innkeep_tester, "innkeep")
 assert innkeep_record["participation"]["recovery_hospitality"] == 1
 
 population = list(search.search_tag("resident", category="system"))
-assert len(population) == 36, "resident population changed across restart"
+from world.resident_data import RESIDENTS
+assert len(population) == len(RESIDENTS) >= 36, "resident population changed across restart"
 
 # Systemic object definitions survive the process boundary. During the live
 # server pass Bram's routine legitimately restocks the bread after the player
