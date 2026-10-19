@@ -59,6 +59,10 @@ CALLINGS = {
         "display": "Hound",
         "summary": "Patrols, field investigation, protection, and anomaly reports.",
     },
+    "mystic": {
+        "display": "Mystic",
+        "summary": "Folklore, divination, ritual practice, and psychical research.",
+    },
 }
 
 CALLING_ALIASES = {

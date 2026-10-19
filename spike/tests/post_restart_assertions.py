@@ -143,7 +143,8 @@ innkeep_record = calling_record(innkeep_tester, "innkeep")
 assert innkeep_record["participation"]["recovery_hospitality"] == 1
 
 population = list(search.search_tag("resident", category="system"))
-assert len(population) == 36, "resident population changed across restart"
+from world.resident_data import RESIDENTS
+assert len(population) == len(RESIDENTS) >= 36, "resident population changed across restart"
 
 # Systemic object definitions survive the process boundary. During the live
 # server pass Bram's routine legitimately restocks the bread after the player
@@ -1157,6 +1158,34 @@ else:
         "A backwards clock incorrectly restored earlier market duties",
         _market_now, _market_live["day"], _market_visible,
     )
+from world.mystic_circles import normalize as _guild_studies
+from world.resident_data import RESIDENT_BY_ID, projection_for
+_churchyard = one("St. Lazarus Churchyard")
+_guild = _guild_studies(_churchyard.db.mystic_studies)
+assert len(_guild["studies"]) == 1, "The Mystic's actual study did not survive restart"
+_signed_study = _guild["studies"][0]
+assert _signed_study["method"] == "measure"
+assert _signed_study["mask"] == "MysticTester"
+_mystic_mask = one("MysticTester")
+assert active_calling(_mystic_mask) == "mystic"
+assert _signed_study["mask_id"] == _mystic_mask.id
+assert calling_record(_mystic_mask, "mystic")["participation"]["mystic_grave_studies"] == 1
+_mystic_event = warning_ledger.get_event(_signed_study["event_id"])
+assert _mystic_event["kind"] == "village.mystic_grave_study"
+assert _mystic_event["status"] == "complete"
+assert _mystic_event["payload"]["observation_quality"] == "firsthand"
+assert _mystic_event["actor"]["mask_id"] == _mystic_mask.id
+assert _mystic_event["consequence"]["observed_grave_id"] > 0
+for _resident_id in ("beatrice_harcourt", "mirela_dobre"):
+    _resident = RESIDENT_BY_ID[_resident_id]
+    assert _resident["faction"] == "Guild of Mystics"
+    _matching = list(search.search_tag(_resident_id, category="resident_id"))
+    assert len(_matching) == 1, "The Mystic guild resident is missing or duplicated"
+    assert _matching[0].db.resident_id == _resident_id
+assert projection_for("churchyard") == "St. Lazarus Churchyard"
+print("POST_RESTART_MYSTIC_GUILD_AND_STUDY_GREEN")
+
+
 print("POST_RESTART_MARKET_CALLINGS_ASSERTIONS_GREEN")
 
 

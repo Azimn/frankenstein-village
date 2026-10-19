@@ -386,6 +386,22 @@ get_or_create_discovery(
     "hands. No name here explains why.",
     aliases=["grave marker", "gravestone"],
 )
+# The guild's two schools leave durable, inspectable disagreement in the world.
+# The members themselves follow autonomous schedules; their handwriting stays.
+guild_folio = get_or_create_scenery(
+    "a guild correspondence folio", churchyard,
+    "Two distinct hands fill a weatherproof folder fastened beneath the "
+    "churchyard wall. Beatrice Harcourt of the Correspondents has drawn "
+    "diagrams, annotated witness times and asked that the inscription be "
+    "measured three times. Mirela Dobre of the Hearth Circle has added "
+    "the family's oral account and objected to publishing their names "
+    "without permission. Harcourt's small correction in the margin reads: "
+    "'Mirela was right about the credit; the observation is ours to study, "
+    "not ours to own.' The disagreement remains, but so does the folder.",
+    aliases=["guild folio", "correspondence folio", "guild notes"],
+)
+guild_folio.locks.add("get:false()")
+
 get_or_create_discovery(
     "a frayed red cord", woods_edge,
     "A length of scarlet cord is caught between roots. It has been "

@@ -114,6 +114,7 @@ def main() -> int:
     inn = None
     smith = None
     merchant = None
+    mystic = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -168,6 +169,7 @@ def main() -> int:
         require(out, "chronicler")
         require(out, "hound")
         require(out, "social professions")
+        require(out, "mystic")
         out = c.command("calling choose chronicler")
         require(out, "chronicler is now your active calling")
         require(out, "apprentice rank")
@@ -225,6 +227,51 @@ def main() -> int:
                    for obj in square_view["visible_nearby"])
         assert square_view["commands"]["firewood"] == "hearth gather"
         assert square_view["commands"]["community_work"] == "commission"
+
+        # Exercise the real Gothic window early in the shared playthrough,
+        # before unrelated professions and plots consume village-clock hours.
+        mystic = Client(args.host, args.port)
+        require(mystic.sync_login_screen(), "frankenstein village")
+        mu, mp = "qa_mystic_study", os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = mystic.command(f"connect {mu} {mp}", wait=4.0)
+        require(out, "connected", "account qa_mystic_study")
+        mystic.command("charcreate MysticTester", wait=3.0)
+        out = mystic.command("ic MysticTester", wait=4.0)
+        require(out, "private room")
+        out = mystic.command("calling choose mystic")
+        require_all(out, "mystic is now your active calling", "apprentice rank")
+        for direction, expected in (
+            ("down", "inn common room"),
+            ("east", "inn hallway"),
+            ("south", "village square"),
+            ("west", "st. lazarus church"),
+            ("west", "churchyard"),
+        ):
+            out = mystic.command(direction)
+            require(out, expected)
+        # The autonomous residents may move when obligations, weather or
+        # need overrides occur. Their guild dispute is still available as a
+        # physical, nonportable folio at the actual churchyard.
+        out = mystic.command("look guild folio")
+        require_all(out, "Beatrice Harcourt", "Mirela Dobre", "oral account", "witness times")
+        out = mystic.command("mystic")
+        require_all(out, "correspondents", "hearth circle", "grave")
+        # Actual conversational lines remain tested independently in the
+        # NPC dialogue and recurring schedule simulations.
+
+        out = mystic.command("mystic study vigil")
+        require(out, "look grave marker")
+        out = mystic.command("look grave marker")
+        require_all(out, "older engraved date advances", "chisel")
+        out = mystic.command("mystic study measure")
+        require_all(out, "signed measure study", "world event")
+        out = mystic.command("mystic study vigil")
+        require(out, "already filed a study")
+        out = mystic.command("calling")
+        require_all(out, "active calling: mystic", "mystic grave studies 1")
+        out = c.command("mystic")
+        require_all(out, "mystictester", "signed measured study")
+        print("TELNET_MYSTIC_GUILD_AND_GOTHIC_OBSERVATION_GREEN")
 
         out = c.command("next")
         require(out, "first lead: the village square")
@@ -1515,6 +1562,10 @@ def main() -> int:
         require(out, "churchyard")
         out = c.command("look grave marker")
         require_all(out, "initials", "different hands")
+        out = c.command("mystic")
+        require_all(out, "correspondents", "hearth circle", "grave")
+        out = c.command("mystic study measure")
+        require(out, "only an active mystic")
         out = c.command("survey report")
         require_all(out, "report signed", "2 of 4")
         out = c.command("north")
@@ -1709,8 +1760,12 @@ def main() -> int:
             print("\nSMITH TRANSCRIPT\n" + "\n".join(smith.transcript))
         if merchant is not None:
             print("\nMERCHANT TRANSCRIPT\n" + "\n".join(merchant.transcript))
+        if mystic is not None:
+            print("\nMYSTIC TRANSCRIPT\n" + "\n".join(mystic.transcript))
         raise
     finally:
+        if mystic is not None:
+            mystic.close()
         if merchant is not None:
             merchant.close()
         if smith is not None:

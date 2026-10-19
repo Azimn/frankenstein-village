@@ -98,7 +98,7 @@ class MarketStandardsTests(unittest.TestCase):
         self.assertIn("signed", error)
         self.assertEqual(set(WORK), {
             "innkeep", "chronicler", "smith", "healer", "merchant",
-            "wanderer", "performer", "detective", "hound",
+            "wanderer", "performer", "detective", "hound", "mystic",
         })
         self.assertIn("Market Lane", " ".join(lines("merchant")))
         self.assertIn("Calling", " ".join(lines(None)))

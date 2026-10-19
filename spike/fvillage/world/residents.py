@@ -1246,6 +1246,11 @@ def share_held_rumor(npc, player):
 def generic_talk_line(npc, player):
     definition = resident_definition(npc)
     state = resident_state(npc)
+    from world.mystic_circles import dialogue
+    if definition and definition["stable_id"] in ("beatrice_harcourt", "mirela_dobre"):
+        # Distinct voiced views, not a generic occupation echo; this is
+        # still an actual co-located NPC conversation through CmdTalk.
+        return dialogue(definition["stable_id"])
     rel = relationship_for(npc, player)
     routine = state.get("routine") or {}
 
@@ -1279,6 +1284,13 @@ def generic_ask_line(npc, player, topic):
     state = resident_state(npc)
     rel = relationship_for(npc, player)
     t = topic.lower().strip()
+
+    if definition and definition["stable_id"] in ("beatrice_harcourt", "mirela_dobre"):
+        from world.mystic_circles import dialogue
+        if any(word in t for word in ("mystic", "spirit", "grave", "ritual",
+            "folklore", "guild", "method", "research", "harcourt", "mirela",
+            "disagree", "rival", "ghost", "credit")):
+            return dialogue(definition["stable_id"], t)
 
     if any(word in t for word in ("rumor", "rumour", "gossip", "talk")):
         result = share_held_rumor(npc, player)

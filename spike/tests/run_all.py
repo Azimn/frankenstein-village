@@ -226,7 +226,7 @@ def main() -> int:
                 "import os\n"
                 "from evennia.utils import create\n"
                 "from evennia.accounts.models import AccountDB\n"
-                "for key in ('qa_smith_repair', 'qa_merchant_repair'):\n"
+                "for key in ('qa_smith_repair', 'qa_merchant_repair', 'qa_mystic_study'):\n"
                 "    account = AccountDB.objects.filter(db_key=key).first()\n"
                 "    if account is None:\n"
                 "        account = create.create_account(\n"
@@ -238,6 +238,27 @@ def main() -> int:
                 "print('REPAIR_QA_ACCOUNTS_READY')\n"
             )
             run([evennia, "shell"], cwd=game, env=env, input_text=repair_accounts)
+
+            # Set only the disposable QA world to a rare Mystic study night.
+            # This does not alter production scheduling or add a privileged
+            # player verb. The test then performs every action via telnet.
+            mystic_night_fixture = (
+                "from evennia.scripts.models import ScriptDB\n"
+                "from evennia.utils import search\n"
+                "from world.residents import advance_population\n"
+                "from world.mystic_circles import manifested\n"
+                "clock = ScriptDB.objects.get(db_key='village_time')\n"
+                "assert int(clock.db.day or 1) == 1, 'fresh QA world must start on day one'\n"
+                "clock.db.hour = 21\n"
+                "advance_population(day=1, hour=21, emit=False)\n"
+                "graveyard = [r for r in search.search_object('St. Lazarus Churchyard') "
+                "if r.key == 'St. Lazarus Churchyard'][0]\n"
+                "names = {o.key for o in graveyard.contents}\n"
+                "assert {'Beatrice Harcourt', 'Mirela Dobre'} <= names, names\n"
+                "assert manifested(1, 21)\n"
+                "print('MYSTIC_NIGHT_QA_READY')\n"
+            )
+            run([evennia, "shell"], cwd=game, env=env, input_text=mystic_night_fixture)
 
             started = False
             try:
