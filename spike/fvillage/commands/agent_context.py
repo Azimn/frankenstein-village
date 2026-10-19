@@ -103,7 +103,10 @@ def payload_for(mask):
             result["commands"]["confessional"] = "confess"
         if room and room.key == "St. Lazarus Churchyard":
             result["commands"]["mystic_guild_studies"] = "mystic"
+        if room and room.key == "Riverside Path":
+            result["commands"]["ferry_post_delivery"] = "courier deliver"
         if room and room.key == "Market Lane":
+            result["commands"]["ferry_post_collect"] = "courier collect"
             result["commands"]["market_professions"] = "trade"
             result["commands"]["merchant_kitchen_supply"] = "soup procure"
             result["commands"]["physical_bridge_supplies"] = (
