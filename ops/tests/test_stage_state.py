@@ -34,7 +34,7 @@ class PerformanceTests(unittest.TestCase):
     def test_real_audience_and_hour_guard(self):
         state, ok, _ = stage.rehearse(None, tune="reel", **args())
         self.assertTrue(ok)
-        state, ok, _ = stage.perform(state, tune="reel", **args(event=101))
+        state, ok, _ = stage.perform(state, tune="reel", audience_account_ids=[8], **args(event=101))
         self.assertTrue(ok)
         _, ok, why = stage.witness(state, **args(aid=7, event=102))
         self.assertFalse(ok)
@@ -42,6 +42,9 @@ class PerformanceTests(unittest.TestCase):
         _, ok, why = stage.witness(state, **args(aid=8, hour=21, event=103))
         self.assertFalse(ok)
         self.assertIn("this hour", why)
+        _, ok, why = stage.witness(state, **args(aid=9, mid=90, event=106))
+        self.assertFalse(ok)
+        self.assertIn("present for the actual performance", why)
         state, ok, why = stage.witness(state, **args(aid=8, mid=80, event=104, mask="Listener"))
         self.assertTrue(ok, why)
         _, ok, why = stage.witness(state, **args(aid=8, mid=90, event=105))
