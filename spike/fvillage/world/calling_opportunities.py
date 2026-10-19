@@ -28,6 +28,11 @@ WORK = {
         "one-time and may already have been finished by a neighbor.",
     ),
     "healer": (
+        "At St. Lazarus Church a patient comes to the staffed clinic every "
+        "village day. Use clinic assess to record a firsthand finding; "
+        "clinic prepare makes real transferable linen dressings, and "
+        "clinic treat rest or compress offers consequential care with a "
+        "signed, restart-safe history.",
         "At the Square: investigate the pale well mushrooms; use assess "
         "on the real object, rather than trusting the public appearance.",
         "At the Tavern: inspect care needs; the Cold Hunter at Supper "
