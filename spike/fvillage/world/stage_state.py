@@ -110,7 +110,8 @@ def rehearse(raw, *, day, hour, account_id, mask_id, mask, tune, event_id):
     return state, True, None
 
 
-def perform(raw, *, day, hour, account_id, mask_id, mask, tune, event_id):
+def perform(raw, *, day, hour, account_id, mask_id, mask, tune, event_id,
+            audience_account_ids=()):
     state = refresh(raw, day)
     if not _time(day, hour) or day < state["day"]:
         return state, False, "The village clock cannot be rewound."
@@ -129,6 +130,12 @@ def perform(raw, *, day, hour, account_id, mask_id, mask, tune, event_id):
         "account_id": aid, "mask_id": mid, "mask": str(mask)[:70],
         "tune": tune, "hour": hour, "event_id": eid,
         "rehearsal_event_id": rehearsal["event_id"],
+        # Eligible accounts must have been actually connected and present
+        # at performance time. Arriving later this hour is not witnessing.
+        "eligible_audience_ids": sorted({
+            i for value in audience_account_ids
+            if (i := _ident(value)) is not None and i != aid
+        })[:MAX_WITNESSES],
     }
     state["witnesses"] = []
     return state, True, None
@@ -146,6 +153,8 @@ def witness(raw, *, day, hour, account_id, mask_id, mask, event_id):
         return state, False, "No live performance is taking place this hour."
     if show["account_id"] == aid:
         return state, False, "Performers cannot sign as their own audience."
+    if aid not in show.get("eligible_audience_ids", []):
+        return state, False, "Only an audience member present for the actual performance may witness."
     if any(r["account_id"] == aid for r in state["witnesses"]):
         return state, False, "You have already witnessed this performance."
     if len(state["witnesses"]) >= MAX_WITNESSES:
