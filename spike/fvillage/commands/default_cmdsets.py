@@ -41,6 +41,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         from commands.soup_cmd import CmdSoup
         from commands.stage_cmd import CmdStage
         from commands.courier_cmd import CmdCourier
+        from commands.clinic_cmd import CmdClinic
         from commands.agenda_cmd import CmdAgenda
         from commands.commons_cmd import CmdCommons
         from commands.newcomer import CmdGuide
@@ -56,6 +57,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdSoup())
         self.add(CmdStage())
         self.add(CmdCourier())
+        self.add(CmdClinic())
         self.add(CmdAgenda())
         self.add(CmdCommons())
         self.add(CmdGuide())
