@@ -119,7 +119,23 @@ class TavernRoom(SpikeRoom):
             "tense": "The talk keeps dying and starting again.",
         }[mood]
         from world.community_hearth import public_hearth_line
-        return f"{desc}\n{line}\n{public_hearth_line()}"
+        from world.stage_state import refresh as stage_refresh
+        from evennia.scripts.models import ScriptDB
+        try:
+            day = int(ScriptDB.objects.get(db_key="village_time").db.day or 1)
+        except ScriptDB.DoesNotExist:
+            day = 1
+        stage = stage_refresh(self.db.village_stage, day)
+        performance = stage["performance"] if stage["day"] == day else None
+        if performance:
+            stage_line = (
+                f"The raised stage remembers {performance['mask']}'s "
+                f"{performance['tune']} from this village day. "
+                f"{len(stage['witnesses'])} player(s) witnessed it in person."
+            )
+        else:
+            stage_line = "A modest stage awaits someone willing to play."
+        return f"{desc}\\n{line}\\n{public_hearth_line()}\\n{stage_line}"
 
     def at_object_receive(self, moved_obj, source_location, **kwargs):
         super().at_object_receive(moved_obj, source_location, **kwargs)
