@@ -109,7 +109,7 @@ def deliver(mask):
     if not _access(mask, riverside):
         return None, "Deliver an actual post parcel from Riverside Path."
     parcels = [o for o in mask.contents if o.key == PARCEL
-               and isinstance(o.db.ferry_parcel, dict)]
+               and hasattr(o.db.ferry_parcel, "get")]
     if not parcels:
         return None, "You must carry an actual sealed parcel from Market Lane."
     parcel = parcels[0]
@@ -140,9 +140,10 @@ def deliver(mask):
             if not accepted:
                 raise RuntimeError(reason)
             riverside.db.ferry_manifest = latest
+            received_parcel_id = int(parcel.id)
             parcel.delete()  # The physical parcel passes into ferry-post custody.
             return {"riverside_room_id": riverside.id,
-                    "parcel_id": int(parcel.id),
+                    "parcel_id": received_parcel_id,
                     "source_event_id": source["source_event_id"]}
     event = publish_world_event(
         "village.ferry_post_delivered", actor=mask,
