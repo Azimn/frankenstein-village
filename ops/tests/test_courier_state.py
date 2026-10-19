@@ -17,8 +17,8 @@ class CourierRules(unittest.TestCase):
         retry, ok = c.issue(supply, 1)
         self.assertFalse(ok)
         self.assertEqual(retry["remaining"], 0)
-        rollback, ok = c.issue(supply, 0) if False else (c.stock(supply, 1), False)
-        self.assertFalse(ok)
+        with self.assertRaises(ValueError):
+            c.issue(supply, 0)
         self.assertEqual(c.stock(supply, 2)["remaining"], 2)
         self.assertEqual(c.stock(supply, 1)["remaining"], 0)
 
