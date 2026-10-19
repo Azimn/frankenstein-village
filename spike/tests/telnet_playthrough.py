@@ -115,6 +115,7 @@ def main() -> int:
     smith = None
     merchant = None
     mystic = None
+    performer = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -1132,6 +1133,47 @@ def main() -> int:
         require(out, "all gone")
         print("TELNET_SHARED_SOUP_RECIPE_CRAFTING_GREEN")
 
+        # A distinct Performer account exercises the real Tavern stage.
+        performer = Client(args.host, args.port)
+        require(performer.sync_login_screen(), "frankenstein village")
+        perf_password = os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = performer.command(f"connect qa_performer_stage {perf_password}", wait=4.0)
+        require(out, "connected", "account qa_performer_stage")
+        performer.command("charcreate PerformerTester", wait=3.0)
+        out = performer.command("ic PerformerTester", wait=4.0)
+        require(out, "private room")
+        out = performer.command("calling choose performer")
+        require_all(out, "performer is now your active calling", "apprentice rank")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("east", "blood of the vine"),
+        ):
+            out = performer.command(move)
+            require(out, destination)
+        out = performer.command("look performance platform")
+        require_all(out, "raised wooden stage", "actual musicians")
+        out = performer.command("stage perform ballad")
+        require(out, "rehearse that piece")
+        out = inn.command("stage rehearse ballad")
+        require(out, "active performer")
+        out = performer.command("stage rehearse ballad")
+        require_all(out, "rehearse the ballad", "world event")
+        out = performer.command("stage rehearse ballad")
+        require(out, "already rehearsed")
+        out = performer.command("stage perform ballad")
+        require_all(out, "actually perform the ballad", "world event")
+        out = performer.command("stage witness")
+        require(out, "own audience")
+        out = inn.command("stage witness")
+        require(out, "actually witnessed")
+        out = inn.command("stage witness")
+        require(out, "already witnessed")
+        out = performer.command("stage")
+        require_all(out, "performertester", "1 other player account")
+        out = performer.command("agent")
+        assert agent_json(out)["commands"]["public_stage"] == "stage"
+        print("TELNET_RENEWABLE_PERFORMER_AND_REAL_AUDIENCE_GREEN")
+
         out = inn.command("care")
         require(out, "healer assessment filed by healertester")
         require(out, "hospitality is still needed")
@@ -1791,8 +1833,12 @@ def main() -> int:
             print("\nMERCHANT TRANSCRIPT\n" + "\n".join(merchant.transcript))
         if mystic is not None:
             print("\nMYSTIC TRANSCRIPT\n" + "\n".join(mystic.transcript))
+        if performer is not None:
+            print("\nPERFORMER TRANSCRIPT\n" + "\n".join(performer.transcript))
         raise
     finally:
+        if performer is not None:
+            performer.close()
         if mystic is not None:
             mystic.close()
         if merchant is not None:
