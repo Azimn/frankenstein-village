@@ -6,6 +6,10 @@ This is career discoverability, not an alternate reward or scheduler.
 
 WORK = {
     "innkeep": (
+        "Work at the shared Tavern soup pot: soup prep turnip thyme "
+        "reserves real pantry stock, soup simmer cooks a transferable edible "
+        "bowl, soup notebook preserves experiments. Soup quality changes "
+        "when a neighbor has tended the hearth.",
         "At the Blood of the Vine: inspect the hearth, then use hearth "
         "tend when the fire has settled and delivered stock is available.",
         "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
@@ -30,6 +34,9 @@ WORK = {
         "can change through actual help or through delay.",
     ),
     "merchant": (
+        "At Market Lane use soup procure for a real crate of roots; "
+        "carry or transfer it to the Blood of the Vine, then soup deliver "
+        "to restock the working kitchen's finite pantry.",
         "At Market Lane: look market scale, then trade honor to keep "
         "goods moving or trade hold to suspend disputed distributions. "
         "A Smith can calibrate, and a Merchant can trade release.",

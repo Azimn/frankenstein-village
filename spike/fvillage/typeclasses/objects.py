@@ -811,3 +811,15 @@ class Object(ObjectParent, DefaultObject):
         if kwargs.get("return_string"):
             return singular if count == 1 else plural
         return singular, plural
+
+
+class SoupPot(DefaultObject):
+    """Persistent shared workplace fixture. Actual pantry lives on the Tavern."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.locks.add("get:false()")
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.soup_kitchen import pot_description
+        return pot_description()

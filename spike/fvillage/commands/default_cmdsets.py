@@ -38,6 +38,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         from commands.bridge_cmd import CmdBridgeWork
         from commands.market_cmd import CmdTrade
         from commands.mystic_cmd import CmdMystic
+        from commands.soup_cmd import CmdSoup
         from commands.agenda_cmd import CmdAgenda
         from commands.commons_cmd import CmdCommons
         from commands.newcomer import CmdGuide
@@ -50,6 +51,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdBridgeWork())
         self.add(CmdTrade())
         self.add(CmdMystic())
+        self.add(CmdSoup())
         self.add(CmdAgenda())
         self.add(CmdCommons())
         self.add(CmdGuide())
