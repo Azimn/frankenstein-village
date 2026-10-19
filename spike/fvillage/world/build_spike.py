@@ -1141,6 +1141,17 @@ soup_pot = relocate_or_create_typed(
 )
 soup_pot.locks.add("get:false()")
 
+stage_platform = get_or_create_scenery(
+    "a modest performance platform", tavern,
+    "A low raised wooden stage stands beside the hearth, its boards "
+    "polished by years of boots. This is a place for actual musicians, "
+    "not a promise of automatic applause. Try stage to read the public "
+    "record, stage rehearse ballad or reel, stage perform, or stage witness "
+    "when somebody really plays.",
+    aliases=["stage", "platform", "tavern stage"],
+)
+stage_platform.locks.add("get:false()")
+
 register = relocate_or_create_typed(
     "register", tavern, "typeclasses.objects.Register", aliases=["guest book"]
 )
