@@ -1215,6 +1215,30 @@ assert projection_for("churchyard") == "St. Lazarus Churchyard"
 print("POST_RESTART_MYSTIC_GUILD_AND_STUDY_GREEN")
 
 
+# The real Tavern performance and actual audience survive process restart.
+from world.stage_state import normalize as _stage_normalize, public_lines as _stage_lines
+_stage_tavern = one("The Blood of the Vine")
+_stage = _stage_normalize(_stage_tavern.db.village_stage)
+_stage_performer = one("PerformerTester")
+assert active_calling(_stage_performer) == "performer"
+assert _stage["performance"] is not None, "The performance vanished after restart"
+assert _stage["performance"]["mask_id"] == _stage_performer.id
+assert _stage["performance"]["tune"] == "ballad"
+assert len(_stage["witnesses"]) == 1
+assert _stage["witnesses"][0]["mask"] == "InnkeepTester"
+assert calling_record(_stage_performer, "performer")["participation"]["stage_rehearse"] == 1
+assert calling_record(_stage_performer, "performer")["participation"]["stage_perform"] == 1
+for _action, _entry in (
+    ("rehearse", _stage["rehearsals"][0]),
+    ("perform", _stage["performance"]),
+    ("witness", _stage["witnesses"][0]),
+):
+    _event = warning_ledger.get_event(_entry["event_id"])
+    assert _event["kind"] == "village.stage_" + _action
+    assert _event["status"] == "complete"
+assert "PerformerTester" in _stage_lines(_stage, _stage["day"])
+print("POST_RESTART_SIGNED_TAVERN_PERFORMANCE_GREEN")
+
 print("POST_RESTART_MARKET_CALLINGS_ASSERTIONS_GREEN")
 
 
