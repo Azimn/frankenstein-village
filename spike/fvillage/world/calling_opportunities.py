@@ -50,8 +50,12 @@ WORK = {
         "before forming route judgments; the daily reports are renewable.",
     ),
     "performer": (
-        "At the Blood of the Vine: play, practice or perform a duet "
-        "with a willing partner using the normal leisure commands.",
+        "At the Blood of the Vine: use stage rehearse ballad or reel, "
+        "then stage perform the rehearsed piece. Other real visitors can "
+        "stage witness during that hour; the signed performance remains in "
+        "the public Tavern history.",
+        "Also play, practice or perform a duet with a willing partner using "
+        "the normal leisure commands.",
         "Read the public calendar, then invite neighbors to an in-world "
         "gathering through commons rather than claiming one occurred.",
     ),
