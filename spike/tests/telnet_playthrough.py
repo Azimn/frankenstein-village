@@ -1162,6 +1162,8 @@ def main() -> int:
         require(out, "already rehearsed")
         out = performer.command("stage perform ballad")
         require_all(out, "actually perform the ballad", "world event")
+        out = performer.command("look")
+        require_all(out, "raised stage remembers", "performertester", "ballad")
         out = performer.command("stage witness")
         require(out, "own audience")
         out = inn.command("stage witness")
