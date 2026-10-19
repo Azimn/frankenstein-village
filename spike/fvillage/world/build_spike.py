@@ -1152,6 +1152,23 @@ stage_platform = get_or_create_scenery(
 )
 stage_platform.locks.add("get:false()")
 
+ferry_post_bag = get_or_create_scenery(
+    "a village ferry postbag", market_lane,
+    "A restricted official cloth postbag with two sealed outgoing parcels "
+    "allocated each village day. Active Wanderers can use courier collect "
+    "while here. The letter contents are never exposed to other players.",
+    aliases=["postbag", "ferry postbag", "mailbag"],
+)
+ferry_post_bag.locks.add("get:false()")
+ferry_post_chest = get_or_create_scenery(
+    "a riverside post chest", riverside,
+    "A stout public chest at the ferry station. Anyone with a real sealed "
+    "parcel from Market Lane can use courier deliver. The physical parcel "
+    "enters ferry-post custody, and a signed public receipt remains.",
+    aliases=["post chest", "ferry chest", "mail chest"],
+)
+ferry_post_chest.locks.add("get:false()")
+
 register = relocate_or_create_typed(
     "register", tavern, "typeclasses.objects.Register", aliases=["guest book"]
 )
