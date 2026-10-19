@@ -1238,6 +1238,30 @@ for _action, _entry in (
     assert _event["status"] == "complete"
 assert "PerformerTester" in _stage_lines(_stage, _stage["day"])
 print("POST_RESTART_SIGNED_TAVERN_PERFORMANCE_GREEN")
+# Physical courier parcel is consumed only by real Riverside delivery.
+from world.courier_state import manifest as _ferry_manifest
+_ferry = _ferry_manifest(one("Riverside Path").db.ferry_manifest)
+assert len(_ferry["receipts"]) == 1, "Real ferry delivery vanished after restart"
+_ferry_receipt = _ferry["receipts"][0]
+_wanderer = one("WandererTester")
+assert active_calling(_wanderer) == "wanderer"
+assert _ferry_receipt["mask"] == "WandererTester"
+assert _ferry_receipt["account_id"] == _wanderer.account.id
+assert calling_record(_wanderer, "wanderer")["participation"]["courier_collections"] == 1
+assert calling_record(_wanderer, "wanderer")["participation"]["courier_deliveries"] == 1
+assert not [x for x in _wanderer.contents if x.db.ferry_parcel], (
+    "An already delivered post parcel remains in the carrier's inventory"
+)
+for _kind, _eid in (
+    ("village.ferry_post_collected", _ferry_receipt["source_event_id"]),
+    ("village.ferry_post_delivered", _ferry_receipt["delivery_event_id"]),
+):
+    _event = warning_ledger.get_event(_eid)
+    assert _event["status"] == "complete"
+    assert _event["kind"] == _kind
+print("POST_RESTART_PHYSICAL_FERRY_POST_GREEN")
+
+
 
 print("POST_RESTART_MARKET_CALLINGS_ASSERTIONS_GREEN")
 
