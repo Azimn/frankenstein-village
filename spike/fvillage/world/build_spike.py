@@ -1152,6 +1152,22 @@ stage_platform = get_or_create_scenery(
 )
 stage_platform.locks.add("get:false()")
 
+clinic_cot = relocate_or_create_typed(
+    "a clinic treatment cot", church, "typeclasses.objects.ClinicCot",
+    aliases=["clinic cot", "treatment cot", "patient cot"],
+)
+clinic_cot.locks.add("get:false()")
+clinic_cabinet = get_or_create_scenery(
+    "a shared dispensary linen cabinet", church,
+    "Clean cloth and simple dressings for the village's visiting patients. "
+    "Healers may use clinic prepare to turn the day's finite stock into "
+    "a real portable dressing, or clinic assess and clinic treat to follow "
+    "the current patient's needs. No private diagnosis or special AI "
+    "permissions are stored in the cabinet.",
+    aliases=["dispensary cabinet", "linen cabinet", "clinic cabinet"],
+)
+clinic_cabinet.locks.add("get:false()")
+
 ferry_post_bag = get_or_create_scenery(
     "a village ferry postbag", market_lane,
     "A restricted official cloth postbag with two sealed outgoing parcels "
