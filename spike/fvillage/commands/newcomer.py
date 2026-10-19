@@ -119,7 +119,12 @@ class CmdGuide(Command):
         elif place == "St. Lazarus Church":
             caller.msg(
                 "|wA first lead: St. Lazarus|n\n"
-                "Look about the church and use |wcalendar|n for "
+                "Look about the church and use |wclinic|n to inspect its "
+                "real treatment cot and daily patient. An active Healer "
+                "can |wclinic assess|n, |wclinic prepare|n a physical "
+                "linen compress, and |wclinic treat rest|n or "
+                "|wclinic treat compress|n. The clinic and its history "
+                "persist after departure. Use |wcalendar|n for "
                 "the public village schedule. Go |weast|n to the "
                 "square, then |weast|n again to the Tavern for "
                 "rumors. |wjournal|n remembers only discoveries "
