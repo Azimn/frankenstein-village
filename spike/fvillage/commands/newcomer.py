@@ -152,6 +152,9 @@ class CmdGuide(Command):
                     "for the bridge mystery; inspect it, then use "
                     "|wbridgework collect preserve|n or "
                     "|wbridgework collect display|n to carry a real kit. "
+                    "A Wanderer can collect a real sealed ferry-post parcel "
+                    "with |wcourier collect|n, carry it toward the river, "
+                    "and use |wcourier deliver|n on Riverside Path. "
                     "A Merchant may procure tangible kitchen crates with "
                     "|wsoup procure|n; carrying one north, north and east "
                     "to the Tavern supports the shared kitchen. "
@@ -159,7 +162,10 @@ class CmdGuide(Command):
                     "the Lamp Shop."
                 ),
                 "Riverside Path": (
-                    "Examine the river gauge. West returns to the Tavern, "
+                    "Examine the river gauge. Wanderers and their neighbors "
+                    "can deposit an actual carried ferry-post parcel using "
+                    "|wcourier deliver|n; |wcourier|n shows the signed route history. "
+                    "West returns to the Tavern, "
                     "and east leads to the bridge."
                 ),
                 "The Old Stone Bridge": (
