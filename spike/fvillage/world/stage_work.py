@@ -62,8 +62,28 @@ def act(mask, action, tune=None):
         "mask": mask.key,
     }
     transform = getattr(stage_state, action)
+
+    def contextual_kwargs():
+        context = {"tune": tune} if tune else {}
+        if action == "perform":
+            # Only independently connected, co-located player masks were in
+            # the real audience at the moment the music was actually played.
+            audience = []
+            for person in tavern.contents:
+                account = getattr(person, "account", None)
+                if person == mask or account is None:
+                    continue
+                try:
+                    if not account.sessions.all():
+                        continue
+                except (AttributeError, TypeError):
+                    continue
+                audience.append(account.id)
+            context["audience_account_ids"] = audience
+        return context
+
     preview, ok, reason = transform(tavern.db.village_stage, event_id=1,
-                                    **kwargs, **({"tune": tune} if tune else {}))
+                                    **kwargs, **contextual_kwargs())
     if not ok:
         return None, reason
 
@@ -75,7 +95,7 @@ def act(mask, action, tune=None):
                 raise RuntimeError("Village clock changed before the stage event.")
             current, accepted, reason = transform(
                 tavern.db.village_stage, event_id=event["id"],
-                **kwargs, **({"tune": tune} if tune else {}),
+                **kwargs, **contextual_kwargs(),
             )
             if not accepted:
                 raise RuntimeError(reason)
