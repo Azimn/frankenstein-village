@@ -1134,6 +1134,13 @@ def relocate_or_create_typed(key, location, typeclass, aliases=()):
             obj.aliases.add(alias)
     return obj
 
+soup_pot = relocate_or_create_typed(
+    "a communal soup pot", tavern,
+    "typeclasses.objects.SoupPot",
+    aliases=["soup pot", "kitchen pot", "cookpot"],
+)
+soup_pot.locks.add("get:false()")
+
 register = relocate_or_create_typed(
     "register", tavern, "typeclasses.objects.Register", aliases=["guest book"]
 )

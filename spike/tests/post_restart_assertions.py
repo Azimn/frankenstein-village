@@ -142,6 +142,35 @@ assert active_rank(innkeep_tester) == RANK_APPRENTICE
 innkeep_record = calling_record(innkeep_tester, "innkeep")
 assert innkeep_record["participation"]["recovery_hospitality"] == 1
 
+# Recipe trials are physical work, carried ingredients and finished food,
+# not an experience point allocation. Personal and public ledgers survive.
+from world import soup_state
+_tavern_soup = one("The Blood of the Vine")
+_soup_log = soup_state.pantry(_tavern_soup.db.soup_pantry, 1)
+assert _soup_log["history"], "The shared soup pot lost all batches"
+_batch = _soup_log["history"][-1]
+assert _batch["maker_id"] == innkeep_tester.id
+assert _batch["base"] == "turnip" and _batch["seasoning"] == "thyme"
+assert _batch["prep_event_id"] < _batch["cook_event_id"]
+assert innkeep_record["participation"]["soup_preparations"] == 1
+assert innkeep_record["participation"]["soup_batches_cooked"] == 1
+assert len(list(innkeep_tester.db.soup_notebook or [])) == 1
+assert list(innkeep_tester.db.soup_notebook)[-1]["cook_event_id"] == _batch["cook_event_id"]
+assert calling_record(merchant_tester, "merchant")["participation"]["kitchen_procurements"] == 1
+_soup_cooked = ScriptDB.objects.get(db_key="world_event_ledger").get_event(_batch["cook_event_id"])
+assert _soup_cooked["kind"] == "professional.innkeep_soup_cooked"
+assert _soup_cooked["status"] == "complete"
+assert _soup_cooked["consequence"]["bowl_id"] > 0
+assert _soup_cooked["payload"]["prep_event_id"] == _batch["prep_event_id"]
+assert _soup_log["stock"]["turnip"] >= 2
+assert not [obj for obj in innkeep_tester.contents if obj.key == "a packet of soup ingredients"]
+_soup_bowl = one("a bowl of turnip and thyme soup")
+assert _soup_bowl.location == innkeep_tester
+assert _soup_bowl.db.servings == 0, "Consumed bowl refilled across restart"
+assert one("a communal soup pot").location == _tavern_soup
+print("POST_RESTART_SHARED_SOUP_WORKPLACE_GREEN")
+
+
 population = list(search.search_tag("resident", category="system"))
 from world.resident_data import RESIDENTS
 assert len(population) == len(RESIDENTS) >= 36, "resident population changed across restart"

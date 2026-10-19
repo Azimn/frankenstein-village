@@ -94,6 +94,7 @@ def payload_for(mask):
         if room and room.tags.has("tavern", category="place"):
             result["commands"]["public_rumors"] = "rumors"
             result["commands"]["hearth"] = "hearth"
+            result["commands"]["shared_kitchen"] = "soup"
         if room and room.key == "Village Square":
             result["commands"]["public_commons"] = "commons"
             result["commands"]["firewood"] = "hearth gather"
@@ -103,6 +104,7 @@ def payload_for(mask):
             result["commands"]["mystic_guild_studies"] = "mystic"
         if room and room.key == "Market Lane":
             result["commands"]["market_professions"] = "trade"
+            result["commands"]["merchant_kitchen_supply"] = "soup procure"
             result["commands"]["physical_bridge_supplies"] = (
                 "bridgework collect preserve | bridgework collect display"
             )

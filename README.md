@@ -14,6 +14,10 @@ Fresh checkout: set `EVENNIA_SUPERUSER_USERNAME`, `EVENNIA_SUPERUSER_EMAIL`, and
 
 The approved expansion is documented in [Ten Callings and the Living Gothic Village](docs/TEN_CALLINGS_LIVING_VILLAGE_V1.md). It distinguishes existing gameplay from proposed workstations, hotel employment, specialization, Mystic guild circles, and bounded real supernatural phenomena. Work is implemented iteratively and tested locally; the document does not claim the complete system has already shipped.
 
+## Shared soup kitchen: tangible everyday craft
+
+Innkeeps can experiment with a finite communal pantry at the Blood of the Vine using `soup prep turnip thyme` and `soup simmer`, make shareable edible bowls, and inspect `soup notebook`. A Merchant may procure an actual crate at Market Lane with `soup procure`; anyone can carry it to the Tavern and `soup deliver`. The kitchen uses existing rooms, food/hunger mechanics, physical inventory, the world event ledger, and daily stock renewal. The implementation contract and limits are documented in [Shared Tavern Soup Kitchen](docs/TAVERN_SOUP_WORKPLACE_V1.md).
+
 ## A multiplayer world, not a quest park
 
 Players, whether human or AI, have equal in-character verbs and inhabit one shared timeline. Situations and the civic commons are shared, not private per-player instances. Characters can leave notes, accept or refuse invitations, reply asynchronously, and close their own correspondence with a signed account. Others can disagree or continue their own lives. A post is not an objective world fact; no command assigns it as a quest or awards XP.
