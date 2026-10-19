@@ -116,6 +116,7 @@ def main() -> int:
     merchant = None
     mystic = None
     performer = None
+    wanderer = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -1717,6 +1718,58 @@ def main() -> int:
         out = inn.command("look soup pot")
         require_all(out, "pantry day", "Last completed batch: InnkeepTester")
         print("TELNET_MARKET_TO_TAVERN_SOUP_SUPPLY_GREEN")
+
+        # A real Wanderer moves a finite, non-magical parcel between rooms.
+        wanderer = Client(args.host, args.port)
+        require(wanderer.sync_login_screen(), "frankenstein village")
+        travel_pw = os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = wanderer.command(f"connect qa_wanderer_mail {travel_pw}", wait=4.0)
+        require(out, "connected", "account qa_wanderer_mail")
+        wanderer.command("charcreate WandererTester", wait=3.0)
+        out = wanderer.command("ic WandererTester", wait=4.0)
+        require(out, "private room")
+        out = wanderer.command("calling choose wanderer")
+        require_all(out, "wanderer is now your active calling", "apprentice rank")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"),
+        ):
+            out = wanderer.command(move)
+            require(out, destination)
+        out = wanderer.command("look ferry postbag")
+        require_all(out, "two sealed outgoing parcels", "courier collect")
+        out = wanderer.command("courier")
+        require_all(out, "2 real parcels left", "Market Lane")
+        out = wanderer.command("courier deliver")
+        require(out, "deliver an actual post parcel from Riverside Path")
+        out = inn.command("courier collect")
+        require(out, "collect ferry post in Market Lane")
+        out = wanderer.command("courier collect")
+        require_all(out, "actual sealed ferry-post parcel", "world event")
+        out = wanderer.command("courier collect")
+        require(out, "already carry a post parcel")
+        out = wanderer.command("inventory")
+        require(out, "sealed village mail parcel")
+        for move, destination in (
+            ("north", "lamp shop"), ("north", "village square"),
+            ("east", "blood of the vine"), ("east", "riverside path"),
+        ):
+            out = wanderer.command(move)
+            require(out, destination)
+        out = wanderer.command("look riverside post chest")
+        require_all(out, "public chest", "signed public receipt")
+        out = wanderer.command("courier deliver")
+        require_all(out, "actual parcel enters", "signed")
+        out = wanderer.command("inventory")
+        assert "sealed village mail parcel" not in out.lower()
+        out = wanderer.command("courier deliver")
+        require(out, "must carry an actual sealed parcel")
+        out = wanderer.command("courier")
+        require_all(out, "wanderertester", "signed recent deliveries")
+        out = wanderer.command("agent")
+        assert agent_json(out)["commands"]["ferry_post_delivery"] == "courier deliver"
+        print("TELNET_WANDERER_REAL_FERRY_POST_GREEN")
         print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
         out = c.command("guide")
         require_all(out, "civic material table", "bridgework collect preserve")
@@ -1837,8 +1890,12 @@ def main() -> int:
             print("\nMYSTIC TRANSCRIPT\n" + "\n".join(mystic.transcript))
         if performer is not None:
             print("\nPERFORMER TRANSCRIPT\n" + "\n".join(performer.transcript))
+        if wanderer is not None:
+            print("\nWANDERER TRANSCRIPT\n" + "\n".join(wanderer.transcript))
         raise
     finally:
+        if wanderer is not None:
+            wanderer.close()
         if performer is not None:
             performer.close()
         if mystic is not None:
