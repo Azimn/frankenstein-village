@@ -135,7 +135,7 @@ class TavernRoom(SpikeRoom):
             )
         else:
             stage_line = "A modest stage awaits someone willing to play."
-        return f"{desc}\\n{line}\\n{public_hearth_line()}\\n{stage_line}"
+        return f"{desc}\n{line}\n{public_hearth_line()}\n{stage_line}"
 
     def at_object_receive(self, moved_obj, source_location, **kwargs):
         super().at_object_receive(moved_obj, source_location, **kwargs)
