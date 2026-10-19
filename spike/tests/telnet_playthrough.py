@@ -1209,6 +1209,47 @@ def main() -> int:
         require(out, "care case has ended")
         require(out, "outcome")
 
+        # Healer career depth: an actual Church cot, renewable per-day
+        # professional assessment and physical, consumable linen dressings.
+        out = h.command("clinic assess")
+        require(out, "st. lazarus church")
+        out = h.command("west")
+        require(out, "village square")
+        out = h.command("west")
+        require(out, "st. lazarus church")
+        out = h.command("guide")
+        require_all(out, "clinic assess", "clinic treat")
+        out = h.command("look clinic cot")
+        require_all(out, "visiting patient", "fresh linen", "village day")
+        out = h.command("clinic treat rest")
+        require(out, "examine the actual patient first")
+        out = h.command("clinic assess")
+        require_all(out, "assess the visiting patient", "signed world event")
+        out = h.command("clinic assess")
+        require(out, "already assessed")
+        out = h.command("clinic prepare")
+        require_all(out, "real linen compress", "signed world event")
+        out = h.command("inventory")
+        require(out, "fresh linen compress")
+        out = h.command("clinic treat compress")
+        require_all(out, "carry out compress treatment", "signed as world event")
+        out = h.command("inventory")
+        assert "fresh linen compress" not in out.lower(), (
+            "Clinical dressing was not consumed by actual treatment"
+        )
+        out = h.command("clinic treat rest")
+        require(out, "already received treatment")
+        out = h.command("clinic")
+        require_all(out, "healertester", "compress", "signed", "less suited")
+        out = h.command("calling")
+        require_all(out, "clinic assess 1", "clinic prepare 1", "clinic treat 1")
+        out = h.command("agent")
+        assert agent_json(out)["commands"]["clinic_care"] == "clinic"
+        out = h.command("east")
+        require(out, "village square")
+        out = h.command("east")
+        require(out, "blood of the vine")
+        print("TELNET_HEALER_RENEWABLE_CLINIC_GREEN")
 
         # Third structural interdependence case: independent QA accounts each
         # own exactly one mask. The fixture provisions them before telnet so
