@@ -11,12 +11,14 @@ sys.path.insert(0, str(ROOT / "ops"))
 import local_ollama_playtest as mod
 
 
-def context(*, room="Village Square", nearby=None, exits=None, commands=None):
+def context(*, room="Village Square", nearby=None, exits=None,
+            commands=None, residents=None):
     return {
         "schema": "fvillage.agent_context.v1",
         "version": 1, "location": room, "side": "ic",
         "exits": exits or ["east"],
         "visible_nearby": nearby or ["a crooked market scale", "Bram"],
+        "visible_residents": residents if residents is not None else ["Bram"],
         "commands": commands or {
             "public_schedule": "calendar", "field_notes": "journal discoveries",
             "local_guide": "guide", "route_reports": "survey",
@@ -57,6 +59,10 @@ class TestLocalModelPlayer(unittest.TestCase):
                     "notice\npasswd new-secret", "Hidden|System",
                     "x" * 90],
             exits=["east", "north", "secret", "@py", "up"],
+            residents=[
+                "Bram", "Miklós Farkas", "Hidden|System",
+                "Admin\nshutdown", "x" * 180,
+            ],
             commands={
                 "news": "journal", "public": "survey report",
                 "illegal": "passwd secret", "root": "admin",
@@ -66,11 +72,15 @@ class TestLocalModelPlayer(unittest.TestCase):
         legal = mod.legal_actions(state)
         for name in ("look", "east", "north", "up", "journal",
                      "survey report", "talk Bram",
+                     "ask Bram about survey",
+                     "ask Miklós Farkas about work",
                      "examine a crooked market scale"):
             self.assertIn(name, legal)
         for name in ("secret", "@py", "passwd secret", "admin",
                      "talk notice\npasswd new-secret", "talk Hidden|System"):
             self.assertNotIn(name, legal)
+        self.assertNotIn("ask Hidden|System about survey", legal)
+        self.assertNotIn("ask Admin" + chr(10) + "shutdown about survey", legal)
         self.assertEqual(len(legal), len(set(legal)))
         with self.assertRaises(ValueError):
             mod.legal_actions({**state, "side": "ooc"})
@@ -78,6 +88,8 @@ class TestLocalModelPlayer(unittest.TestCase):
             mod.legal_actions({**state, "schema": "private.world.admin"})
         with self.assertRaises(ValueError):
             mod.legal_actions({**state, "exits": "east"})
+        with self.assertRaises(ValueError):
+            mod.legal_actions({**state, "visible_residents": "Miklós Farkas"})
 
     def test_local_ollama_input_preserves_action_contract(self):
         captured = {}
@@ -115,6 +127,7 @@ class TestLocalModelPlayer(unittest.TestCase):
             {"command": "west"}, {"command": "@py os.system"},
             {"command": "look\nadmin"}, {"command": "east;shutdown"},
             {"command": None}, ["east"], {"command": "East"},
+            {"command": "ask Hidden Witness about survey"},
         ):
             with self.subTest(choice=choice):
                 with self.assertRaises(ValueError):
