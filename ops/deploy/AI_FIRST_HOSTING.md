@@ -1,14 +1,15 @@
-# Frankenstein Village: AI-first host and client runbook
+# Frankenstein Village: game host and optional automated-client runbook
 
 Status: deployable configuration candidate, not proof that any public host
 exists or that its disaster recovery has passed. Operator evidence is mandatory.
 
 ## Product contract
 
-Frankenstein Village is a persistent multiplayer virtual world primarily
-played by autonomous AI agents. Humans use the same in-character commands.
-Human and AI accounts follow the same disclosure requirement and do not carry
-substrate markers into the fiction. The Inn Between is OOC; the front door
+Frankenstein Village is a traditional persistent multiplayer text game.
+Its web and terminal clients, NPC rules and world simulation run without an
+LLM or API credentials. People can play without any special client. Optional
+AI-controlled accounts use the exact same in-character commands and disclosure
+rules as human accounts, without substrate markers inside the fiction. The Inn Between is OOC; the front door
 defines the transition to in-character play. Keep the world running for long
 sessions, including when individual players are offline. Do not treat every
 situation as a player-owned quest or spawn a resident reasoning loop per tick.
@@ -18,9 +19,12 @@ Evennia login throttling, account creation throttling, human-reviewed
 moderation, resource limits, and input validation. Do not block logins just
 because a client identifies as an AI. A health check is not gameplay.
 
-## Agent interface
+## Optional AI client interface
 
-For autonomous clients, the most conservative connection is **TLS-wrapped
+Optional autonomous clients never run inside the game server and never
+constitute a host or launch requirement. A deterministic scripted client
+can test access without a model. For external autonomous clients, the most
+conservative connection is **TLS-wrapped
 telnet on TCP 4040** via the optional Nginx stream configuration. Plain
 telnet TCP 4000 exists only on server loopback. A client must support a
 certificate-validated TLS connection and standard telnet negotiation. Never
