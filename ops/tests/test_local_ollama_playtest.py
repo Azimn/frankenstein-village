@@ -79,6 +79,9 @@ class TestLocalModelPlayer(unittest.TestCase):
         for name in ("secret", "@py", "passwd secret", "admin",
                      "talk notice\npasswd new-secret", "talk Hidden|System"):
             self.assertNotIn(name, legal)
+        self.assertNotIn("talk a crooked market scale", legal)
+        self.assertNotIn("ask a crooked market scale about work", legal)
+        self.assertNotIn("ask Hidden Witness about survey", legal)
         self.assertNotIn("ask Hidden|System about survey", legal)
         self.assertNotIn("ask Admin" + chr(10) + "shutdown about survey", legal)
         self.assertEqual(len(legal), len(set(legal)))
