@@ -42,7 +42,9 @@ class CmdCourier(Command):
             self.caller.msg(
                 f"The actual parcel enters the ferry-post register "
                 f"(world event {result['event_id']}, collection "
-                f"{result['source_event_id']}). It is no longer in your inventory."
+                f"{result['source_event_id']}). A signed receipt now names "
+                "this delivery in the public ferry-post register. "
+                "It is no longer in your inventory."
             )
         else:
             self.caller.msg("Use courier | courier collect | courier deliver.")
