@@ -306,7 +306,7 @@ def main() -> int:
                         vpython, checkout / "ops" / "headless_ai_client.py",
                         "--host", "127.0.0.1", "--port", "4000",
                         "--accounts", bot_file, "--sessions", "2",
-                        "--steps", "1", "--explore-rooms", "10",
+                        "--steps", "1", "--explore-rooms", "11",
                         "--timeout", "8", "--seed", "41016",
                         "--output", bot_result,
                     ],
@@ -316,8 +316,8 @@ def main() -> int:
                 assert proof["passed"] and proof["session_count"] == 2
                 for agent in proof["results"]:
                     assert agent["error"] is None, agent
-                    assert agent["exploration"]["target"] == 10, agent
-                    assert agent["exploration"]["visited_count"] == 10, agent
+                    assert agent["exploration"]["target"] == 11, agent
+                    assert agent["exploration"]["visited_count"] == 11, agent
                     assert agent["exploration"]["returned_to_start"], agent
                     assert agent["connect_success"] and agent["commands"] > 20
                 print("REAL_TWO_AGENT_VILLAGE_EXPLORATION_GREEN")

@@ -133,6 +133,7 @@ class CmdGuide(Command):
         elif place in {
             "St. Lazarus Churchyard", "The Northern Treeline",
             "Market Lane", "Riverside Path", "The Old Stone Bridge",
+            "The Market Workshop",
         }:
             routes = {
                 "St. Lazarus Churchyard": (
@@ -163,8 +164,21 @@ class CmdGuide(Command):
                     "A Merchant may procure tangible kitchen crates with "
                     "|wsoup procure|n; carrying one north, north and east "
                     "to the Tavern supports the shared kitchen. "
+                    "The public Smith's Workshop is now open eastward. "
+                    "Inspect its repair bench and use |wworkshop|n for "
+                    "an actual daily forge-and-install commission. "
+                    "A forged hinge must be physically carried back "
+                    "and installed here, not merely promised. "
                     "Talk to anyone actually present. North returns to "
                     "the Lamp Shop."
+                ),
+                "The Market Workshop": (
+                    "Examine the public smithing bench to see the finite "
+                    "iron stock and signed repair docket. Active Smiths use "
+                    "|wworkshop forge|n to make a real hinge; take it west "
+                    "to Market Lane and use |wworkshop install|n, or hand it "
+                    "to another player. Forge stock renews daily but "
+                    "installed repairs are recorded permanently."
                 ),
                 "Riverside Path": (
                     "Examine the river gauge. Wanderers and their neighbors "
@@ -193,7 +207,10 @@ class CmdGuide(Command):
                     "|wlooking at its clue|n, use |wsurvey report|n to "
                     "sign one real inspection, then |wsurvey|n to see "
                     "which districts still need a neighbor."
-                    if place != "The Old Stone Bridge" else ""
+                    if place in {
+                        "St. Lazarus Churchyard", "The Northern Treeline",
+                        "Market Lane", "Riverside Path",
+                    } else ""
                 )
                 + "\nUse |wdiary|n to write your own account, "
                 "or return to the Tavern and discuss what you saw."
