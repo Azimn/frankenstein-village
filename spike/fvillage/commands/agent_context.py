@@ -25,6 +25,7 @@ def payload_for(mask):
     visible_exits = []
     exit_targets = {}
     nearby = []
+    residents = []
     if room:
         for doorway in room.exits:
             # A search-locked or view-locked exit must not appear here.
@@ -50,6 +51,12 @@ def payload_for(mask):
             label = " ".join(str(obj.get_display_name(mask)).split())
             if label:
                 nearby.append(label[:100])
+                # The identical human view/search permissions gate this
+                # NPC list. Conversation methods only expose availability,
+                # never confidential facts or an alternate NPC API.
+                if (callable(getattr(obj, "talk_to", None))
+                        and callable(getattr(obj, "ask_about", None))):
+                    residents.append(label[:100])
     result = {
         "version": VERSION,
         "schema": "fvillage.agent_context.v1",
@@ -58,6 +65,7 @@ def payload_for(mask):
         "exits": sorted(set(visible_exits)),
         "exit_targets": {key: exit_targets[key] for key in sorted(exit_targets)},
         "visible_nearby": sorted(set(nearby), key=str.casefold)[:32],
+        "visible_residents": sorted(set(residents), key=str.casefold)[:20],
         "turn_model": "send one text command, read its response, observe again",
         "auth": "regular account and character rules apply",
         "commands": {
