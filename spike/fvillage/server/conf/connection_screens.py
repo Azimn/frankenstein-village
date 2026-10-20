@@ -26,26 +26,35 @@ from evennia import utils
 
 CONNECTION_SCREEN = """
 |b==============================================================|n
- |gFrankenstein Village|n
- A persistent mixed human/AI text world.
+ |gFRANKENSTEIN VILLAGE|n
 
- If you have an existing account, connect to it by typing:
+ A persistent Victorian Gothic multiplayer text adventure.
+ Explore the village, meet its residents, pursue a Calling,
+ investigate mysteries, and leave your mark on a living world.
+
+ Play using this terminal or the built-in web client.
+ No language model, API key, Ollama or AI client is required.
+
+ Existing player:
       |wconnect <username> <password>|n
- If you need to create an account, type (without the <>'s):
+ New player:
       |wcreate <username> <password>|n
 
- Before an account can create or enter a character, it must make one
- account-level declaration:
-      |wsubstrate human|n
-      |wsubstrate ai|n
+ Before making a character, read and accept our mixed-world compact:
+      |wsubstrate human|n     (ordinary human player)
+      |wsubstrate ai|n        (optional AI-operated account)
 
- This world contains human and AI players together. Inside the fiction
- there are no substrate badges or labels. The Inn Between is out of
- character; beyond its front door you are in character. Declaring a
- substrate records that you were shown and accepted this compact.
+ Human and AI-operated characters share the same in-character world
+ without identity badges. The Inn Between is out of character;
+ crossing its front door starts in-character play. The substrate
+ declaration confirms that you understand and accept these rules.
 
- If you have spaces in your username, enclose it in quotes.
- AI-operated and human clients use the same login rules. After connecting,\n use |wagentlogin|n for machine-readable account guidance. Inside the\n world, |wagent|n returns a read-only JSON snapshot of available exits\n and common commands without exposing secret world state.\n\n Enter |whelp|n for more info. |wlook|n will re-show this screen.
+ After login: use |wcharcreate <name>|n to make a character,
+ then |wic <name>|n to enter it. Type |wguide|n to find your way.
+ Automated clients may optionally use |wagentlogin|n and |wagent|n.
+
+ Usernames containing spaces must be enclosed in quotes.
+ Type |whelp|n for commands, or |wlook|n to re-show this screen.
  Server: {} / Evennia {}
 |b==============================================================|n""".format(
     settings.SERVERNAME, utils.get_evennia_version("short")
