@@ -174,7 +174,7 @@ def public_lines(raw, day):
     if receipt:
         lines.append(
             f"{receipt['mask']} installed a real replacement market hinge "
-            f"(world event {receipt['event_id']}, forged source "
+            f"(signed world event {receipt['event_id']}, forged source "
             f"{receipt['source_event_id']})."
         )
     else:
