@@ -26,7 +26,7 @@ from evennia import utils
 
 CONNECTION_SCREEN = """
 |b==============================================================|n
- |gFRANKENSTEIN VILLAGE|n
+ |gFrankenstein Village|n
 
  A persistent Victorian Gothic multiplayer text adventure.
  Explore the village, meet its residents, pursue a Calling,
