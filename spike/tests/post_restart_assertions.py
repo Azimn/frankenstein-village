@@ -1275,7 +1275,12 @@ _ferry_receipt = _ferry["receipts"][0]
 _wanderer = one("WandererTester")
 assert active_calling(_wanderer) == "wanderer"
 assert _ferry_receipt["mask"] == "WandererTester"
-assert _ferry_receipt["account_id"] == _wanderer.account.id
+# An offline mask is no longer puppeted, so `mask.account` is None after
+# restart. Match the persisted courier account against the immutable
+# signed ledger actor, never a transient live session property.
+assert _ferry_receipt["account_id"] == warning_ledger.get_event(
+    _ferry_receipt["delivery_event_id"]
+)["actor"]["account_id"]
 assert calling_record(_wanderer, "wanderer")["participation"]["courier_collections"] == 1
 assert calling_record(_wanderer, "wanderer")["participation"]["courier_deliveries"] == 1
 assert not [x for x in _wanderer.contents if x.db.ferry_parcel], (
