@@ -44,6 +44,7 @@ class ModelFreeContractTests(unittest.TestCase):
             ROOT / "spike/fvillage/server/conf/connection_screens.py"
         ).read_text(encoding="utf-8")
         for phrase in (
+            "Frankenstein Village",
             "Victorian Gothic multiplayer text adventure",
             "No language model",
             "create <username> <password>",
