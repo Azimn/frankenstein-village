@@ -1753,6 +1753,46 @@ def main() -> int:
         require_all(out, "physically recalibrated", "MerchantTester", "SmithTester")
         out = c.command("look")
         require(out, "physically recalibrated")
+
+        # Ordinary Smith craftsmanship creates exactly one real repair
+        # object, which can be handed to another account for installation.
+        # The shared Market board changes only after physical custody.
+        out = merchant.command("workshop")
+        require_all(out, "2 of 2 iron offcuts", "uninstalled")
+        out = smith.command("workshop forge")
+        require(out, "at the real Market Workshop bench")
+        out = smith.command("east")
+        require(out, "market workshop")
+        out = smith.command("guide")
+        require_all(out, "smithing bench", "workshop forge")
+        out = smith.command("look smithing bench")
+        require_all(out, "repair docket", "2 of 2 iron offcuts")
+        out = smith.command("workshop forge")
+        require_all(out, "real transferable iron market hinge", "1 offcuts remain")
+        out = smith.command("workshop forge")
+        require(out, "already carry a forged market hinge")
+        out = merchant.command("workshop install")
+        require(out, "carry an actual forged market hinge")
+        out = smith.command("west")
+        require(out, "market lane")
+        out = smith.command("give forged market hinge = MerchantTester")
+        require(out, "forged market hinge")
+        out = merchant.command("inventory")
+        require(out, "forged market hinge")
+        out = merchant.command("workshop install")
+        require_all(out, "physically install", "signed world event", "forging source")
+        out = merchant.command("inventory")
+        assert "forged market hinge" not in out.lower(), (
+            "Installed hinge is still a portable item"
+        )
+        out = merchant.command("workshop install")
+        require(out, "carry an actual forged market hinge")
+        out = c.command("look market fittings board")
+        require_all(out, "MerchantTester", "signed", "forged source")
+        out = smith.command("agent")
+        assert agent_json(out)["commands"]["install_market_repair"] == "workshop install"
+        print("TELNET_TWO_ACCOUNT_PHYSICAL_MARKET_WORKSHOP_GREEN")
+
         for actor in (merchant, smith):
             for direction, expected in (
                 ("north", "lamp shop"),
