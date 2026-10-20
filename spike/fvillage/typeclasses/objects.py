@@ -813,6 +813,23 @@ class Object(ObjectParent, DefaultObject):
         return singular, plural
 
 
+class ClinicCot(DefaultObject):
+    """Physical Church clinic fixture showing only public patient state."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.locks.add("get:false()")
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.clinic_work import status
+        return (
+            "A real cot shelters the day's visiting patient in the "
+            "Church dispensary. The current complaint is visible to anyone "
+            "here; only an active Healer can file an assessment or care.\n"
+            + status(looker)
+        )
+
+
 class SoupPot(DefaultObject):
     """Persistent shared workplace fixture. Actual pantry lives on the Tavern."""
 

@@ -95,14 +95,19 @@ def payload_for(mask):
             result["commands"]["public_rumors"] = "rumors"
             result["commands"]["hearth"] = "hearth"
             result["commands"]["shared_kitchen"] = "soup"
+            result["commands"]["public_stage"] = "stage"
         if room and room.key == "Village Square":
             result["commands"]["public_commons"] = "commons"
             result["commands"]["firewood"] = "hearth gather"
         if room and room.key == "St. Lazarus Church":
             result["commands"]["confessional"] = "confess"
+            result["commands"]["clinic_care"] = "clinic"
         if room and room.key == "St. Lazarus Churchyard":
             result["commands"]["mystic_guild_studies"] = "mystic"
+        if room and room.key == "Riverside Path":
+            result["commands"]["ferry_post_delivery"] = "courier deliver"
         if room and room.key == "Market Lane":
+            result["commands"]["ferry_post_collect"] = "courier collect"
             result["commands"]["market_professions"] = "trade"
             result["commands"]["merchant_kitchen_supply"] = "soup procure"
             result["commands"]["physical_bridge_supplies"] = (

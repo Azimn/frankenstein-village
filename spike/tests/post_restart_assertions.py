@@ -1215,6 +1215,88 @@ assert projection_for("churchyard") == "St. Lazarus Churchyard"
 print("POST_RESTART_MYSTIC_GUILD_AND_STUDY_GREEN")
 
 
+# The real Tavern performance and actual audience survive process restart.
+from world.stage_state import normalize as _stage_normalize, public_lines as _stage_lines
+_stage_tavern = one("The Blood of the Vine")
+_stage = _stage_normalize(_stage_tavern.db.village_stage)
+_stage_performer = one("PerformerTester")
+assert active_calling(_stage_performer) == "performer"
+assert _stage["performance"] is not None, "The performance vanished after restart"
+assert _stage["performance"]["mask_id"] == _stage_performer.id
+assert _stage["performance"]["tune"] == "ballad"
+assert len(_stage["witnesses"]) == 1
+assert _stage["witnesses"][0]["mask"] == "InnkeepTester"
+assert calling_record(_stage_performer, "performer")["participation"]["stage_rehearse"] == 1
+assert calling_record(_stage_performer, "performer")["participation"]["stage_perform"] == 1
+for _action, _entry in (
+    ("rehearse", _stage["rehearsals"][0]),
+    ("perform", _stage["performance"]),
+    ("witness", _stage["witnesses"][0]),
+):
+    _event = warning_ledger.get_event(_entry["event_id"])
+    assert _event["kind"] == "village.stage_" + _action
+    assert _event["status"] == "complete"
+assert "PerformerTester" in _stage_lines(_stage, _stage["day"])
+print("POST_RESTART_SIGNED_TAVERN_PERFORMANCE_GREEN")
+# Physical St. Lazarus clinic, signed Healer work and consumed linen persist.
+from world.clinic_state import normalize as _clinic_norm, public_lines as _clinic_lines
+_church = one("St. Lazarus Church")
+_clinic = _clinic_norm(_church.db.village_clinic)
+assert _clinic["assessment"] is not None, "Clinical assessment lost on restart"
+assert _clinic["treatment"] is not None, "Clinical treatment lost on restart"
+assert _clinic["assessment"]["mask"] == "HealerTester"
+assert _clinic["treatment"]["mask"] == "HealerTester"
+assert _clinic["treatment"]["method"] == "compress"
+assert _clinic["linen"] == 1
+assert _clinic["treatment"]["assessment_event_id"] == _clinic["assessment"]["event_id"]
+assert calling_record(healer_tester, "healer")["participation"]["clinic_assess"] == 1
+assert calling_record(healer_tester, "healer")["participation"]["clinic_prepare"] == 1
+assert calling_record(healer_tester, "healer")["participation"]["clinic_treat"] == 1
+assert not [o for o in healer_tester.contents if o.db.clinic_compress], (
+    "The treatment dressing was not consumed from its physical carrier"
+)
+for _action, _entry in (
+    ("assess", _clinic["assessment"]),
+    ("treat", _clinic["treatment"]),
+):
+    _event = warning_ledger.get_event(_entry["event_id"])
+    assert _event["kind"] == "village.clinic_" + _action
+    assert _event["status"] == "complete"
+assert "HealerTester" in _clinic_lines(_clinic, _clinic["day"])
+assert len([o for o in _church.contents if o.key == "a clinic treatment cot"]) == 1
+print("POST_RESTART_PHYSICAL_CLINIC_CARE_GREEN")
+
+
+# Physical courier parcel is consumed only by real Riverside delivery.
+from world.courier_state import manifest as _ferry_manifest
+_ferry = _ferry_manifest(one("Riverside Path").db.ferry_manifest)
+assert len(_ferry["receipts"]) == 1, "Real ferry delivery vanished after restart"
+_ferry_receipt = _ferry["receipts"][0]
+_wanderer = one("WandererTester")
+assert active_calling(_wanderer) == "wanderer"
+assert _ferry_receipt["mask"] == "WandererTester"
+# An offline mask is no longer puppeted, so `mask.account` is None after
+# restart. Match the persisted courier account against the immutable
+# signed ledger actor, never a transient live session property.
+assert _ferry_receipt["account_id"] == warning_ledger.get_event(
+    _ferry_receipt["delivery_event_id"]
+)["actor"]["account_id"]
+assert calling_record(_wanderer, "wanderer")["participation"]["courier_collections"] == 1
+assert calling_record(_wanderer, "wanderer")["participation"]["courier_deliveries"] == 1
+assert not [x for x in _wanderer.contents if x.db.ferry_parcel], (
+    "An already delivered post parcel remains in the carrier's inventory"
+)
+for _kind, _eid in (
+    ("village.ferry_post_collected", _ferry_receipt["source_event_id"]),
+    ("village.ferry_post_delivered", _ferry_receipt["delivery_event_id"]),
+):
+    _event = warning_ledger.get_event(_eid)
+    assert _event["status"] == "complete"
+    assert _event["kind"] == _kind
+print("POST_RESTART_PHYSICAL_FERRY_POST_GREEN")
+
+
+
 print("POST_RESTART_MARKET_CALLINGS_ASSERTIONS_GREEN")
 
 

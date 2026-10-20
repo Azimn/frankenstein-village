@@ -115,6 +115,8 @@ def main() -> int:
     smith = None
     merchant = None
     mystic = None
+    performer = None
+    wanderer = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -1132,6 +1134,49 @@ def main() -> int:
         require(out, "all gone")
         print("TELNET_SHARED_SOUP_RECIPE_CRAFTING_GREEN")
 
+        # A distinct Performer account exercises the real Tavern stage.
+        performer = Client(args.host, args.port)
+        require(performer.sync_login_screen(), "frankenstein village")
+        perf_password = os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = performer.command(f"connect qa_performer_stage {perf_password}", wait=4.0)
+        require(out, "connected", "account qa_performer_stage")
+        performer.command("charcreate PerformerTester", wait=3.0)
+        out = performer.command("ic PerformerTester", wait=4.0)
+        require(out, "private room")
+        out = performer.command("calling choose performer")
+        require_all(out, "performer is now your active calling", "apprentice rank")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("east", "blood of the vine"),
+        ):
+            out = performer.command(move)
+            require(out, destination)
+        out = performer.command("look performance platform")
+        require_all(out, "raised wooden stage", "actual musicians")
+        out = performer.command("stage perform ballad")
+        require(out, "rehearse that piece")
+        out = inn.command("stage rehearse ballad")
+        require(out, "active performer")
+        out = performer.command("stage rehearse ballad")
+        require_all(out, "rehearse the ballad", "world event")
+        out = performer.command("stage rehearse ballad")
+        require(out, "already rehearsed")
+        out = performer.command("stage perform ballad")
+        require_all(out, "actually perform the ballad", "world event")
+        out = performer.command("look")
+        require_all(out, "raised stage remembers", "performertester", "ballad")
+        out = performer.command("stage witness")
+        require(out, "own audience")
+        out = inn.command("stage witness")
+        require(out, "actually witnessed")
+        out = inn.command("stage witness")
+        require(out, "already witnessed")
+        out = performer.command("stage")
+        require_all(out, "performertester", "1 other player account")
+        out = performer.command("agent")
+        assert agent_json(out)["commands"]["public_stage"] == "stage"
+        print("TELNET_RENEWABLE_PERFORMER_AND_REAL_AUDIENCE_GREEN")
+
         out = inn.command("care")
         require(out, "healer assessment filed by healertester")
         require(out, "hospitality is still needed")
@@ -1164,6 +1209,47 @@ def main() -> int:
         require(out, "care case has ended")
         require(out, "outcome")
 
+        # Healer career depth: an actual Church cot, renewable per-day
+        # professional assessment and physical, consumable linen dressings.
+        out = h.command("clinic assess")
+        require(out, "st. lazarus church")
+        out = h.command("west")
+        require(out, "village square")
+        out = h.command("west")
+        require(out, "st. lazarus church")
+        out = h.command("guide")
+        require_all(out, "clinic assess", "clinic treat")
+        out = h.command("look clinic cot")
+        require_all(out, "visiting patient", "fresh linen", "village day")
+        out = h.command("clinic treat rest")
+        require(out, "examine the actual patient first")
+        out = h.command("clinic assess")
+        require_all(out, "assess the visiting patient", "signed world event")
+        out = h.command("clinic assess")
+        require(out, "already assessed")
+        out = h.command("clinic prepare")
+        require_all(out, "real linen compress", "signed world event")
+        out = h.command("inventory")
+        require(out, "fresh linen compress")
+        out = h.command("clinic treat compress")
+        require_all(out, "carry out compress treatment", "signed as world event")
+        out = h.command("inventory")
+        assert "fresh linen compress" not in out.lower(), (
+            "Clinical dressing was not consumed by actual treatment"
+        )
+        out = h.command("clinic treat rest")
+        require(out, "already received treatment")
+        out = h.command("clinic")
+        require_all(out, "healertester", "compress", "signed", "less suited")
+        out = h.command("calling")
+        require_all(out, "clinic assess 1", "clinic prepare 1", "clinic treat 1")
+        out = h.command("agent")
+        assert agent_json(out)["commands"]["clinic_care"] == "clinic"
+        out = h.command("east")
+        require(out, "village square")
+        out = h.command("east")
+        require(out, "blood of the vine")
+        print("TELNET_HEALER_RENEWABLE_CLINIC_GREEN")
 
         # Third structural interdependence case: independent QA accounts each
         # own exactly one mask. The fixture provisions them before telnet so
@@ -1673,6 +1759,58 @@ def main() -> int:
         out = inn.command("look soup pot")
         require_all(out, "pantry day", "Last completed batch: InnkeepTester")
         print("TELNET_MARKET_TO_TAVERN_SOUP_SUPPLY_GREEN")
+
+        # A real Wanderer moves a finite, non-magical parcel between rooms.
+        wanderer = Client(args.host, args.port)
+        require(wanderer.sync_login_screen(), "frankenstein village")
+        travel_pw = os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = wanderer.command(f"connect qa_wanderer_mail {travel_pw}", wait=4.0)
+        require(out, "connected", "account qa_wanderer_mail")
+        wanderer.command("charcreate WandererTester", wait=3.0)
+        out = wanderer.command("ic WandererTester", wait=4.0)
+        require(out, "private room")
+        out = wanderer.command("calling choose wanderer")
+        require_all(out, "wanderer is now your active calling", "apprentice rank")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"),
+        ):
+            out = wanderer.command(move)
+            require(out, destination)
+        out = wanderer.command("look ferry postbag")
+        require_all(out, "two sealed outgoing parcels", "courier collect")
+        out = wanderer.command("courier")
+        require_all(out, "2 real parcels left", "Market Lane")
+        out = wanderer.command("courier deliver")
+        require(out, "deliver an actual post parcel from Riverside Path")
+        out = inn.command("courier collect")
+        require(out, "collect ferry post in Market Lane")
+        out = wanderer.command("courier collect")
+        require_all(out, "actual sealed ferry-post parcel", "world event")
+        out = wanderer.command("courier collect")
+        require(out, "already carry a post parcel")
+        out = wanderer.command("inventory")
+        require(out, "sealed village mail parcel")
+        for move, destination in (
+            ("north", "lamp shop"), ("north", "village square"),
+            ("east", "blood of the vine"), ("east", "riverside path"),
+        ):
+            out = wanderer.command(move)
+            require(out, destination)
+        out = wanderer.command("look riverside post chest")
+        require_all(out, "public chest", "signed public receipt")
+        out = wanderer.command("courier deliver")
+        require_all(out, "actual parcel enters", "signed")
+        out = wanderer.command("inventory")
+        assert "sealed village mail parcel" not in out.lower()
+        out = wanderer.command("courier deliver")
+        require(out, "must carry an actual sealed parcel")
+        out = wanderer.command("courier")
+        require_all(out, "wanderertester", "signed recent deliveries")
+        out = wanderer.command("agent")
+        assert agent_json(out)["commands"]["ferry_post_delivery"] == "courier deliver"
+        print("TELNET_WANDERER_REAL_FERRY_POST_GREEN")
         print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
         out = c.command("guide")
         require_all(out, "civic material table", "bridgework collect preserve")
@@ -1791,8 +1929,16 @@ def main() -> int:
             print("\nMERCHANT TRANSCRIPT\n" + "\n".join(merchant.transcript))
         if mystic is not None:
             print("\nMYSTIC TRANSCRIPT\n" + "\n".join(mystic.transcript))
+        if performer is not None:
+            print("\nPERFORMER TRANSCRIPT\n" + "\n".join(performer.transcript))
+        if wanderer is not None:
+            print("\nWANDERER TRANSCRIPT\n" + "\n".join(wanderer.transcript))
         raise
     finally:
+        if wanderer is not None:
+            wanderer.close()
+        if performer is not None:
+            performer.close()
         if mystic is not None:
             mystic.close()
         if merchant is not None:

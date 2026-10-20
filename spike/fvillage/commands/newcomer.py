@@ -66,6 +66,12 @@ class CmdGuide(Command):
                 "or |wask Bram about news|n. A notice can outlast "
                 "your visit: |wcommons follow <number>|n keeps it "
                 "on this mask's list for next time.\n"
+                "An Innkeep can make real, edible meals at the shared pot: "
+                "try |wsoup|n, |wsoup prep turnip thyme|n, then "
+                "|wsoup simmer|n. Musicians may use |wstage|n to rehearse "
+                "and perform actual public sets, which other visitors "
+                "can witness. These are renewable jobs, even when the "
+                "lamp or care cases have ended.\\n"
                 "Speak with someone nearby, or use "
                 "|wretell <person> R<number>|n to pass the story on. "
                 "|wjournal|n records situations your mask actually "
@@ -113,7 +119,12 @@ class CmdGuide(Command):
         elif place == "St. Lazarus Church":
             caller.msg(
                 "|wA first lead: St. Lazarus|n\n"
-                "Look about the church and use |wcalendar|n for "
+                "Look about the church and use |wclinic|n to inspect its "
+                "real treatment cot and daily patient. An active Healer "
+                "can |wclinic assess|n, |wclinic prepare|n a physical "
+                "linen compress, and |wclinic treat rest|n or "
+                "|wclinic treat compress|n. The clinic and its history "
+                "persist after departure. Use |wcalendar|n for "
                 "the public village schedule. Go |weast|n to the "
                 "square, then |weast|n again to the Tavern for "
                 "rumors. |wjournal|n remembers only discoveries "
@@ -146,11 +157,20 @@ class CmdGuide(Command):
                     "for the bridge mystery; inspect it, then use "
                     "|wbridgework collect preserve|n or "
                     "|wbridgework collect display|n to carry a real kit. "
+                    "A Wanderer can collect a real sealed ferry-post parcel "
+                    "with |wcourier collect|n, carry it toward the river, "
+                    "and use |wcourier deliver|n on Riverside Path. "
+                    "A Merchant may procure tangible kitchen crates with "
+                    "|wsoup procure|n; carrying one north, north and east "
+                    "to the Tavern supports the shared kitchen. "
                     "Talk to anyone actually present. North returns to "
                     "the Lamp Shop."
                 ),
                 "Riverside Path": (
-                    "Examine the river gauge. West returns to the Tavern, "
+                    "Examine the river gauge. Wanderers and their neighbors "
+                    "can deposit an actual carried ferry-post parcel using "
+                    "|wcourier deliver|n; |wcourier|n shows the signed route history. "
+                    "West returns to the Tavern, "
                     "and east leads to the bridge."
                 ),
                 "The Old Stone Bridge": (

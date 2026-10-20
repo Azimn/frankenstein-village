@@ -226,7 +226,7 @@ def main() -> int:
                 "import os\n"
                 "from evennia.utils import create\n"
                 "from evennia.accounts.models import AccountDB\n"
-                "for key in ('qa_smith_repair', 'qa_merchant_repair', 'qa_mystic_study'):\n"
+                "for key in ('qa_smith_repair', 'qa_merchant_repair', 'qa_mystic_study', 'qa_performer_stage', 'qa_wanderer_mail'):\n"
                 "    account = AccountDB.objects.filter(db_key=key).first()\n"
                 "    if account is None:\n"
                 "        account = create.create_account(\n"
