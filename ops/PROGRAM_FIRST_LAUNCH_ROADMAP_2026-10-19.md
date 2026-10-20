@@ -3,7 +3,7 @@
 Status: PROPOSED development plan, not a claim that the target features are implemented.
 Date: 2026-10-19
 Baseline: main b2088294c76961846acfdee3281f8d40c80ffdcd, passed GitHub Actions run 39189556568.
-Priority: Finish the game code and local verification first. Select and pay for hosting only after the code-ready gate is met.
+Priority: Finish the normal text-game code and local verification first. Select and pay for hosting only after the code-ready gate is met. No language model, local inference server, Ollama instance, API key, GPU, or agent framework is required to build, play, test or launch Frankenstein Village.
 
 ## Decision and product definition
 
@@ -145,7 +145,7 @@ Done when: ordinary residents pursue routines, change plans for authored needs, 
 
 ### 12. Harden human/AI access and multiplayer fairness
 
-Reconcile open PR #78 if appropriate, then continue the existing nonprivileged agent context: visible residents, objects, exits and locally possible actions. Test actual local-model decisions without privileged execution or hidden maps. Keep standard browser/terminal UX useful to humans: clear help, errors, contextual work directions and readable descriptions. Check multiaccount resource contention, attempts to forge events, Commons moderation privacy, alternate masks and colliding jobs. Do not add recurring expensive NPC-model inference to the baseline simulation.
+Reconcile open PR #78 if appropriate, then continue the existing nonprivileged agent context: visible residents, objects, exits and locally possible actions. Verify that ordinary browser and terminal clients can act without inference or agent-only commands. An independently run model-controlled client can be tested later but is optional, never a launch gate. Keep standard browser/terminal UX useful to humans: clear help, errors, contextual work directions and readable descriptions. Check multiaccount resource contention, attempts to forge events, Commons moderation privacy, alternate masks and colliding jobs. Do not add recurring expensive NPC-model inference to the baseline simulation.
 
 Deliverable: an AI or human can independently enter, discover work, collaborate or disagree, exit and recover, using the same world mechanics.
 Done when: local ordinary-account integration covers at least eight simultaneous connections, reconnect/disconnect, stale context, missing NPC, bad command, contested material, false report and mixed-player permissions. This is LOCAL verification, not public-host capacity proof.
