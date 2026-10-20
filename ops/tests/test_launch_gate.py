@@ -54,12 +54,33 @@ class LaunchGateTests(unittest.TestCase):
     def test_player_feedback_must_be_reviewed_without_a_required_llm_trial(self):
         self.assertIn("player_reported_blockers_cleared", REQUIRED)
         self.assertNotIn("independent_model_led_playtest", REQUIRED)
+        self.assertNotIn("ai_external_reconnect", REQUIRED)
+        self.assertNotIn("ai_account_access", REQUIRED)
+        self.assertIn("ordinary_client_reconnect", REQUIRED)
+        self.assertIn("ordinary_account_access", REQUIRED)
         record = valid_record()
         del record["checks"]["player_reported_blockers_cleared"]
         self.assertEqual(assess(record, now=NOW)["decision"], "NO-GO")
         record = valid_record()
         record["checks"]["player_reported_blockers_cleared"]["passed"] = False
         self.assertEqual(assess(record, now=NOW)["decision"], "NO-GO")
+
+    def test_optional_ai_evidence_never_blocks_ordinary_release(self):
+        record = valid_record()
+        # Old agent-specific evidence may exist but must never be required.
+        record["checks"]["ai_external_reconnect"] = {"passed": False}
+        record["checks"]["ai_account_access"] = {"passed": False}
+        record["checks"]["independent_model_led_playtest"] = {"passed": False}
+        self.assertEqual(
+            assess(record, now=NOW)["decision"], "READY_FOR_OPERATOR_APPROVAL"
+        )
+
+    def test_ordinary_player_access_and_reconnect_remain_mandatory(self):
+        for key in ("ordinary_client_reconnect", "ordinary_account_access"):
+            with self.subTest(key=key):
+                record = valid_record()
+                record["checks"].pop(key)
+                self.assertEqual(assess(record, now=NOW)["decision"], "NO-GO")
 
     def test_any_check_must_match_exact_deployed_sha(self):
         record = valid_record()
