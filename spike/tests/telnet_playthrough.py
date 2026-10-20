@@ -227,6 +227,13 @@ def main() -> int:
                    for obj in square_view["visible_nearby"])
         assert square_view["commands"]["firewood"] == "hearth gather"
         assert square_view["commands"]["community_work"] == "commission"
+        # The same local observation used by model-led players must expose
+        # legitimate, scheduled and conversation-capable villagers without
+        # leaking invisible or private offstage residents.
+        assert "Miklós Farkas" in square_view["visible_residents"]
+        assert "Offstage" not in str(square_view["visible_residents"])
+        assert not any("Private Room" in key for key in square_view["visible_residents"])
+
 
         # Exercise the real Gothic window early in the shared playthrough,
         # before unrelated professions and plots consume village-clock hours.
