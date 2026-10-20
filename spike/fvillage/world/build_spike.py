@@ -199,7 +199,7 @@ get_or_create_exit("north", churchyard, woods_edge, "evennia.objects.objects.Def
 get_or_create_exit("south", woods_edge, churchyard, "evennia.objects.objects.DefaultExit", aliases=["s"])
 get_or_create_exit("south", lamp_shop, market_lane, "evennia.objects.objects.DefaultExit", aliases=["s"])
 get_or_create_exit("north", market_lane, lamp_shop, "evennia.objects.objects.DefaultExit", aliases=["n"])
-get_or_create_exit("east", market_lane, market_workshop, "evennia.objects.objects.DefaultExit", aliases=["e", "workshop"])
+get_or_create_exit("east", market_lane, market_workshop, "evennia.objects.objects.DefaultExit", aliases=["e"])
 get_or_create_exit("west", market_workshop, market_lane, "evennia.objects.objects.DefaultExit", aliases=["w"])
 get_or_create_exit("east", tavern, riverside, "evennia.objects.objects.DefaultExit", aliases=["e"])
 get_or_create_exit("west", riverside, tavern, "evennia.objects.objects.DefaultExit", aliases=["w"])
