@@ -31,11 +31,12 @@ class CmdWorkshop(Command):
             if error:
                 caller.msg(error)
                 return
+            count = result["remaining"]
+            stock_phrase = "iron offcut remains" if count == 1 else "iron offcuts remain"
             caller.msg(
                 f"You forge a real transferable iron market hinge "
                 f"(world event {result['event_id']}). "
-                f"{result['remaining']} iron offcut"                + (" remains" if result["remaining"] == 1 else "s remain")
-                + " at the public bench. "
+                f"{count} {stock_phrase} at the public bench. "
                 "Carry it west to Market Lane, or give it to a neighbor."
             )
         elif raw == "install":
