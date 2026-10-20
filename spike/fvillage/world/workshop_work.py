@@ -13,7 +13,7 @@ from evennia.utils import search
 
 from world import workshop_state
 from world.callings import active_calling, record_participation
-from world.events import publish_world_event
+from world.events import get_event_ledger, publish_world_event
 
 WORKSHOP = "The Market Workshop"
 MARKET = "Market Lane"
@@ -142,6 +142,17 @@ def install(mask):
     if (type(event_id) is not int or event_id <= 0
             or source.get("source_room_id") != workplace.id):
         return None, "The fitting lacks authentic Workshop event provenance."
+    # A carried object is necessary but not sufficient: its immutable
+    # source event must independently confirm the exact object identity.
+    receipt = get_event_ledger().get_event(event_id)
+    if (not receipt or receipt.get("kind") != "village.market_hinge_forged"
+            or receipt.get("status") != "complete"
+            or not hasattr(receipt.get("consequence"), "get")
+            or receipt["consequence"].get("item_id") != item.id
+            or receipt["consequence"].get("source_room_id") != workplace.id
+            or (receipt.get("actor") or {}).get("account_id")
+            != source.get("smith_account_id")):
+        return None, "The hinge is not backed by the real signed forging event."
     day, hour = _clock()
     if int(source.get("issued_day") or 0) > day:
         return None, "That fitting is dated in a future village day."
