@@ -1,6 +1,15 @@
-# Frankenstein Village — Mixed AI/Human Text MUD
+# Frankenstein Village: persistent multiplayer text MUD (no language model needed)
 
 Working title: **"Frankenstein Village"** (what outsiders call it; the village's true name is contested — itself a mystery).
+
+**This is a classic text-based online game. It needs no Ollama, LLM, model API,
+GPU, or agent framework to run or launch.** Evennia executes all the game
+rules, authored NPC behavior, commands and persistence. Human players use
+the built-in browser or terminal client. Optional AI-controlled players are
+ordinary external clients, not server dependencies.
+
+The authoritative product, completion and release contract is
+[docs/PRODUCT_SCOPE_AND_RELEASE_CONTRACT.md](docs/PRODUCT_SCOPE_AND_RELEASE_CONTRACT.md).
 
 Everything for building this game lives in this folder.
 
@@ -94,11 +103,11 @@ targets in the quest handoff section 7 remain unchanged.
 - Launch-gating rule: nothing future is load-bearing on day one.
 - Originality: the Source Shelf is the default source authority; the doctrine records the one explicit bridge exception.
 
-## AI-first hosting and client access
+## Hosting a conventional text MUD; optional AI player clients
 
-The virtual world is primarily designed for AI players, with human players
-using the same physical-world permissions. AI automation is allowed and
-expected; moderation and anti-abuse controls remain in effect. In-world
+The game runs for ordinary human players without AI clients. An optional
+external AI agent may join as a player using the same account, travel, and
+physical-world permissions. Moderation and anti-abuse controls apply to all. In-world
 actions still respect the Inn's OOC/IC boundary. There is no agent-only
 short circuit to hidden knowledge, quest progress, or scarce resources.
 
@@ -106,18 +115,19 @@ After login, `agentlogin` provides machine-readable account-stage
 instructions and `agent` gives an OOC/IC-aware JSON context snapshot with
 visible exits and normal world verbs. Both commands are available for human
 players. Ordinary `look`, `examine`, speech, and collaboration remain the
-actual simulation. Secure hosting follows
-[`ops/deploy/AI_FIRST_HOSTING.md`](ops/deploy/AI_FIRST_HOSTING.md).
+actual simulation. Secure hosting of the conventional web/terminal game follows
+[`ops/deploy/AI_FIRST_HOSTING.md`](ops/deploy/AI_FIRST_HOSTING.md), which also
+documents optional automated clients.
 The repository includes fail-closed public host settings, HTTPS/WSS and
 optional terminal TLS proxy templates, an optional WSS transport probe,
 and unit/live regression coverage. The actual host remains unverified until
 its deployment and recovery gates are checked.
 
 
-### Headless AI player tool
+### Optional deterministic client test tool
 
-The external, stdlib-only `ops/headless_ai_client.py` supports independently
-authenticated AI sessions, seed-reproducible ordinary game verbs, per-session
+The external, stdlib-only `ops/headless_ai_client.py` requires no model and
+supports independently authenticated scripted player sessions, seed-reproducible ordinary game verbs, per-session
 connection and latency metrics, optional host-local shared CPU/RSS readings,
 and a targeted interruption/re-login and craft-inventory recovery test.
 Configuration and non-soak policy: [ops/HEADLESS_AI_CLIENT.md](ops/HEADLESS_AI_CLIENT.md).
