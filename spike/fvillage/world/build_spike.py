@@ -382,7 +382,7 @@ get_or_create_workshop_fixture(
     "a market fittings board", market_lane,
     "A public board of actual market repair receipts and outstanding work.",
     "typeclasses.objects.MarketRepairBoard",
-    aliases=["repair board", "market repair", "fittings board"],
+    aliases=["repair board", "market repair", "fittings board", "market fittings board"],
 )
 
 
