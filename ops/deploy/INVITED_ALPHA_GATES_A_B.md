@@ -223,21 +223,23 @@ Test cold boot, deliberate process crash, and clean stop/start.
 
 ## Gate B, held pending Gate A evidence
 
-Current prerequisite: Calibos's AI-first access audit passed at
-`4bab7877`; accepted, no new audit work required. The client at
+The earlier optional AI-client access audit passed at `4bab7877`, but
+it is not a launch dependency. The model-free client at
 `ops/headless_ai_client.py` is test-backed but has NOT been validated
-against a real public host. Do not start Phase 1 until actual deployment,
+against a real public host. Gate B verifies normal MUD access; no LLM,
+API key, or agent framework is required. Do not start Phase 1 until actual deployment,
 monitoring, backup, rollback and external login evidence are green.
 
-Phase 1: **8 independent AI accounts, 30 minutes**. All must
-login -> mask -> Tavern -> at least one legitimate game system. Immediately
+Phase 1: **8 independent ordinary non-staff game accounts, 30 minutes**,
+using standard browser/terminal connections or deterministic scripted clients.
+All must login -> mask -> Tavern -> at least one legitimate game system. Immediately
 abort on a server exception, or a session unable to complete this loop.
 DO NOT run Phase 2 on the same day after a Phase 1 latency or reliability
 failure. The existing headless client is a bounded functional probe: its
 present invocation does **not** by itself provide a 30-minute controlled
 load, account reinitialization, or verified live PvP.
 
-Phase 2: **24 independent AI accounts, 2 hours** only after documented
+Phase 2: **24 independent ordinary game accounts, 2 hours** only after documented
 Phase 1 acceptance. Record per-session p50/p95/p99 command latency,
 disconnect/reconnect/recovery, host CPU/RAM, storage growth, event-tick lag,
 and account-creation throttle counts. Include at least four live characters
@@ -245,7 +247,7 @@ in the Tavern; two must complete a peer-to-peer dice game and an entire
 wrestling bout, not merely play solo or invite without completion. Perform
 the live whittle-interrupt test with a clean dedicated mask and verify one
 item. Human-led moderation stays available and account abuse is watched
-without blocking AI automation.
+without blocking ordinary players or optional AI automation.
 
 After passing soak, publish a compact newcomer path: **notice a lead,
 take a Calling, work with another player, leave a persistent consequence,
