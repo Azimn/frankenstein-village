@@ -17,13 +17,15 @@ from urllib.parse import urlsplit
 REQUIRED = (
     "exact_deployed_sha", "main_ci_pass", "persistent_volume_restart",
     "snapshot_integrity", "disposable_restore", "off_host_encrypted_backup",
-    "external_https", "external_wss", "ai_external_reconnect",
-    "ai_account_access", "secure_telnet_policy", "new_account_consent",
+    "external_https", "external_wss", "ordinary_client_reconnect",
+    "ordinary_account_access", "secure_telnet_policy", "new_account_consent",
     "mask_front_door", "world_state_restart", "moderation_review",
     "clock_restart", "rollback_drill", "operator_alerting",
     "uncoached_gameplay", "cross_player_consequence", "return_session",
-    # Hosted soak is mandatory; actual uncoached player sessions must have
-    # their game-breaking issues triaged. No special LLM test is mandatory.
+    # Hosting, ordinary account access and reconnect are mandatory. An LLM,
+    # local model, agent framework or model-led playtest is never a runtime,
+    # CI or release requirement. Optional agent clients use ordinary rules.
+    # Hosted soak and uncoached normal-player issue triage remain mandatory.
     "continuous_multiplayer_soak", "event_tick_under_load",
     "player_reported_blockers_cleared", "full_launch_content_coverage",
 )

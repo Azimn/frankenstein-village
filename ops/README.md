@@ -1,5 +1,10 @@
 # Alpha persistence safety
 
+Frankenstein Village is a normal Evennia multiplayer MUD. Players can
+register, log in, explore and play with no language model, Ollama service,
+agent software or AI API. Release checks use ordinary client sessions.
+
+
 The current development instance uses Evennia's SQLite database at
 `spike/fvillage/server/evennia.db3`. That database is live world state,
 not source code. Accounts, player masks, rooms, resident memory, public records,
@@ -116,8 +121,10 @@ then stop it cleanly.
 ## Invited alpha Gate A and B
 
 [The costed host/recovery runbook](deploy/INVITED_ALPHA_GATES_A_B.md)
-selects a DigitalOcean 2-vCPU/4-GiB candidate, persistent SSD, private off-host
-encrypted backups, a human recovery owner, and ordered external evidence gates.
+records a historical, **declined** DigitalOcean 2-vCPU/4-GiB candidate
+and the separate host, backup, recovery and multiplayer evidence gates.
+No provider or recurring expense is currently authorized. None of the
+release operations requires a language model or AI player client.
 `deploy/alpha_restore_rehearsal.py` checks snapshot retrieval, exact restore,
 rollback and category presence **only on isolated copies**.
 `deploy/host_health.py` checks host-local listeners, DB existence, disk space
