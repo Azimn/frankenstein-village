@@ -39,6 +39,22 @@ class ModelFreeContractTests(unittest.TestCase):
                 with self.subTest(path=path.name, credential=credential):
                     self.assertNotIn(credential, source)
 
+    def test_login_banner_is_playable_without_agent_tools(self):
+        banner = (
+            ROOT / "spike/fvillage/server/conf/connection_screens.py"
+        ).read_text(encoding="utf-8")
+        for phrase in (
+            "Victorian Gothic multiplayer text adventure",
+            "No language model",
+            "create <username> <password>",
+            "connect <username> <password>",
+            "substrate human",
+            "charcreate <name>",
+            "Type |wguide|n",
+        ):
+            self.assertIn(phrase, banner)
+        self.assertIn("Automated clients may optionally", banner)
+
     def test_no_ai_client_or_model_is_part_of_release_manifest(self):
         for forbidden in (
             "ai_external_reconnect", "ai_account_access",
