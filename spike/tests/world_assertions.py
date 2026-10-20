@@ -3937,4 +3937,31 @@ for _key, _location in (
 assert not list(one("Offstage").exits), "Offstage became a public room"
 print("WALKABLE_DISTRICTS_ASSERTIONS_GREEN")
 
+# The Workshop is a playable production room, not an Offstage stand-in.
+_workroom = one("The Market Workshop")
+_marketroom = one("Market Lane")
+assert _workroom.tags.has("ic", category="side")
+assert _workroom.tags.has("market_workshop", category="place")
+for origin, direction, destination in (
+    (_marketroom, "east", _workroom),
+    (_workroom, "west", _marketroom),
+):
+    links = [
+        exit for exit in origin.exits
+        if exit.key == direction and exit.destination == destination
+    ]
+    assert len(links) == 1, "Workshop exit is missing or duplicated"
+_workbench = one("a public smithing bench")
+_repair_board = one("a market fittings board")
+assert _workbench.location == _workroom
+assert _repair_board.location == _marketroom
+assert _workbench.typeclass_path == "typeclasses.objects.MarketWorkshopBench"
+assert _repair_board.typeclass_path == "typeclasses.objects.MarketRepairBoard"
+assert not _workbench.access(None, "get", default=True)
+assert not _repair_board.access(None, "get", default=True)
+assert "2 of 2 iron offcuts" in _workbench.get_display_desc()
+assert "uninstalled" in _repair_board.get_display_desc()
+assert not list(one("Offstage").exits)
+print("PUBLIC_MARKET_WORKSHOP_WORLD_ASSERTIONS_GREEN")
+
 print("WORLD_ASSERTIONS_GREEN")
