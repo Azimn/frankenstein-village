@@ -1582,6 +1582,11 @@ def main() -> int:
         require(out, "hands grip")
         merchant.close()
         out = smith.command("wrestle quit")
+        # The other socket may have queued its public bout-start message
+        # before the quit response. Drain that independent broadcast once
+        # before deciding the server failed to process the actual quit.
+        if "gone cold" not in out.lower() and "steps back" not in out.lower():
+            out += smith.read_quiet(max_wait=4.0, quiet=0.35)
         require(out, "gone cold", "steps back")
         merchant = Client(args.host, args.port)
         merchant_banner = merchant.sync_login_screen()
