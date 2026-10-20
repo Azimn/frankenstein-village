@@ -108,6 +108,21 @@ def legal_actions(observation):
             continue
         actions.append(candidate)
 
+    # Only actual, co-located, view/search-authorized NPCs may be
+    # conversational targets. A model cannot make up a witness or aim a
+    # free-form command at another user's account or an unknown object.
+    targets = observation.get("visible_residents") or []
+    if not isinstance(targets, list):
+        raise ValueError("Malformed visible resident list")
+    for name in targets[:20]:
+        if not isinstance(name, str) or not NAME.fullmatch(name):
+            continue
+        actions.extend((
+            "talk " + name,
+            "ask " + name + " about survey",
+            "ask " + name + " about work",
+        ))
+
     visible = observation.get("visible_nearby") or []
     if not isinstance(visible, list):
         raise ValueError("Malformed nearby objects")
@@ -115,9 +130,6 @@ def legal_actions(observation):
         if not isinstance(candidate, str) or not NAME.fullmatch(candidate):
             continue
         actions.append("examine " + candidate)
-        # The normal talk command can ask a person or receive an in-world
-        # rejection from an inanimate item, without privileged state.
-        actions.append("talk " + candidate)
 
     # Never send a command just because a model generated a vaguely similar
     # string. Exactly matching the finite allowlist is the sole authorization.
@@ -125,7 +137,7 @@ def legal_actions(observation):
     for action in actions:
         if action not in result and (action in SAFE_SIMPLE
                                      or action in NAVIGATION
-                                     or action.startswith(("examine ", "talk "))
+                                     or action.startswith(("examine ", "talk ", "ask "))
                                      or action in commands.values()):
             result.append(action)
     return result[:80]
