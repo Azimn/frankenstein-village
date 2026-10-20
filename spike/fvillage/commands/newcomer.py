@@ -71,7 +71,7 @@ class CmdGuide(Command):
                 "|wsoup simmer|n. Musicians may use |wstage|n to rehearse "
                 "and perform actual public sets, which other visitors "
                 "can witness. These are renewable jobs, even when the "
-                "lamp or care cases have ended.\\n"
+                "lamp or care cases have ended.\n"
                 "Speak with someone nearby, or use "
                 "|wretell <person> R<number>|n to pass the story on. "
                 "|wjournal|n records situations your mask actually "
