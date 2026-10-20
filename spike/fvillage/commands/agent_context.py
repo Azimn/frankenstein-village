@@ -117,10 +117,15 @@ def payload_for(mask):
         if room and room.key == "Market Lane":
             result["commands"]["ferry_post_collect"] = "courier collect"
             result["commands"]["market_professions"] = "trade"
+            result["commands"]["market_repairs"] = "workshop"
+            result["commands"]["install_market_repair"] = "workshop install"
             result["commands"]["merchant_kitchen_supply"] = "soup procure"
             result["commands"]["physical_bridge_supplies"] = (
                 "bridgework collect preserve | bridgework collect display"
             )
+        if room and room.key == "The Market Workshop":
+            result["commands"]["smithing_bench"] = "workshop"
+            result["commands"]["forge_market_hinge"] = "workshop forge"
         if room and room.key == "The Old Stone Bridge":
             result["commands"]["bridge_investigation"] = "bridgework"
         if room and room.key == "The Lamp Shop":
