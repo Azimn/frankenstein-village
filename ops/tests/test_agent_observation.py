@@ -35,6 +35,14 @@ class Object:
     def get_display_name(self, _mask): return self.key
 
 
+class TalkableResident(Object):
+    def talk_to(self, player):
+        return None
+
+    def ask_about(self, player, topic):
+        return None
+
+
 class Room(Object):
     def __init__(self, name, kind="ic"):
         super().__init__(name, 500)
@@ -61,17 +69,27 @@ class AgentObservationTests(unittest.TestCase):
         public = Object("public noticeboard", 30)
         private = Object("private staff dossier", 31, hidden=True)
         nosearch = Object("secret map", 32, not_searchable=True)
-        room.contents = [east, north, no, secret, public, private, nosearch]
+        resident = TalkableResident("Miklós Farkas", 33)
+        hidden_resident = TalkableResident("Hidden Witness", 34, hidden=True)
+        room.contents = [
+            east, north, no, secret, public, private, nosearch,
+            resident, hidden_resident,
+        ]
         mask = Mask(room)
         room.contents.append(mask)
         data = payload_for(mask)
         self.assertEqual(data["exits"], ["east", "north"])
         self.assertEqual(data["exit_targets"], {"east": "The Blood of the Vine"})
-        self.assertEqual(data["visible_nearby"], ["public noticeboard"])
+        self.assertEqual(
+            data["visible_nearby"],
+            ["Miklós Farkas", "public noticeboard"],
+        )
+        self.assertEqual(data["visible_residents"], ["Miklós Farkas"])
         encoded = repr(data)
         self.assertNotIn("private staff dossier", encoded)
         self.assertNotIn("secret map", encoded)
         self.assertNotIn("Hidden Chamber", encoded)
+        self.assertNotIn("Hidden Witness", encoded)
 
     def test_public_navigation_and_contextual_actions(self):
         room = Room("Village Square")
@@ -87,6 +105,7 @@ class AgentObservationTests(unittest.TestCase):
         room.contents = [Object(f"object-{i:03d}", i) for i in range(60)]
         data = payload_for(Mask(room))
         self.assertEqual(len(data["visible_nearby"]), 32)
+        self.assertEqual(data["visible_residents"], [])
         self.assertEqual(data["commands"]["personal_return"], "agenda")
         self.assertNotIn("community_work", data["commands"])
 
