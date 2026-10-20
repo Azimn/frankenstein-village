@@ -170,6 +170,30 @@ class MarketBridgeMaterialTable(DefaultObject):
         )
 
 
+class MarketWorkshopBench(DefaultObject):
+    """Visible finite Smith worksite, never a free inventory source."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.locks.add("get:false()")
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.workshop_work import bench_description
+        return bench_description()
+
+
+class MarketRepairBoard(DefaultObject):
+    """Public result of actual installed physical market repairs."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.locks.add("get:false()")
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.workshop_work import market_board_description
+        return market_board_description()
+
+
 class BridgePlaqueView(DefaultObject):
     """Publicly visible bridge evidence, not an automatically solved case."""
 
