@@ -1768,7 +1768,7 @@ def main() -> int:
         out = smith.command("look smithing bench")
         require_all(out, "repair docket", "2 of 2 iron offcuts")
         out = smith.command("workshop forge")
-        require_all(out, "real transferable iron market hinge", "1 offcuts remain")
+        require_all(out, "real transferable iron market hinge", "1 iron offcut remains")
         out = smith.command("workshop forge")
         require(out, "already carry a forged market hinge")
         out = merchant.command("workshop install")
