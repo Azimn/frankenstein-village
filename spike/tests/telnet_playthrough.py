@@ -1147,6 +1147,10 @@ def main() -> int:
         perf_password = os.environ["FV_QA_REPAIR_PASSWORD"]
         out = performer.command(f"connect qa_performer_stage {perf_password}", wait=4.0)
         require(out, "connected", "account qa_performer_stage")
+        # Human-identified accounts use the same ordinary game commands and
+        # complete genuine stage work without model or agent commands.
+        out = performer.command("substrate")
+        require(out, "account substrate: human")
         performer.command("charcreate PerformerTester", wait=3.0)
         out = performer.command("ic PerformerTester", wait=4.0)
         require(out, "private room")
