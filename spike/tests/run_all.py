@@ -233,7 +233,7 @@ def main() -> int:
                 "            key, email=key + '@example.invalid',\n"
                 "            password=os.environ['FV_QA_REPAIR_PASSWORD']\n"
                 "        )\n"
-                "    account.db.substrate = 'ai'\n"
+                "    account.db.substrate = 'human' if key == 'qa_performer_stage' else 'ai'\n"
                 "    account.db.disclosure_consent = True\n"
                 "print('REPAIR_QA_ACCOUNTS_READY')\n"
             )
