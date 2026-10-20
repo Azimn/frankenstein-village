@@ -82,7 +82,7 @@ def forge(mask):
             item = create_object(
                 "typeclasses.objects.Object",
                 key=FITTING, location=mask,
-                aliases=["market hinge", "forged hinge", "iron hinge"],
+                aliases=["market hinge", "forged hinge", "forged market hinge", "iron hinge"],
             )
             item.db.forged_market_part = {
                 "source_event_id": event["id"],
