@@ -68,8 +68,10 @@ class FirstEveningTests(unittest.TestCase):
 
     def test_existing_profession_not_reselected(self):
         text = self.guide(active_profession="smith")
+        self.assertIn("Your profession", text)
         self.assertIn("current Calling is Smith", text)
         self.assertIn("calling work", text)
+        self.assertNotIn("Choose a profession", text)
         self.assertNotIn("calling choose", text)
 
     def test_closed_lamp_not_advertised_as_open(self):
