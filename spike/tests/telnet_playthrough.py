@@ -1434,6 +1434,12 @@ def main() -> int:
         require(out, "first gather a physical")
         out = smith.command("hearth gather")
         require(out, "1 bundles remain today")
+        # The guide reads actual inventory and does not offer duplicate
+        # gathering while the player already carries a real bundle.
+        out = smith.command("guide")
+        require(out, "hearth deliver")
+        if "|whearth gather|n" in out.lower() or "hearth gather" in out.lower():
+            raise AssertionError("Guide offers duplicate firewood while carrying")
         out = smith.command("commission pledge")
         require_all(out, "pledge your physical", "another player")
         out = smith.command("commission pledge")
