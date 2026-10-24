@@ -284,7 +284,12 @@ def main() -> int:
 
         out = c.command("next")
         require(out, "first lead: the village square")
-        require(out, "calling choose")
+        # This mask already chose Chronicler earlier. The guide must not
+        # advertise a new first-time Calling choice as still available.
+        require(out, "current calling is chronicler")
+        require(out, "calling work")
+        if "calling choose" in out.lower():
+            raise AssertionError("Guide offers a new Calling to an established mask")
         require(out, "a shared village need")
         require(out, "repair diagnose north-square gas lamp")
         require(out, "commons post need")
