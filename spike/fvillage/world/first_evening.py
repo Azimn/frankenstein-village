@@ -87,12 +87,16 @@ def render_square(
             "without declaring it true."
         )
 
+    profession_heading = (
+        "|wYour profession|n" if active_profession
+        else "|wChoose a profession|n"
+    )
     return "\n".join(
         (
             "|wA first lead: the village square|n",
             "|wEveryday life|n: " + practical,
             "|wA shared village need or its aftermath:|n " + str(lamp_status),
-            "|wChoose a profession|n: " + career,
+            profession_heading + ": " + career,
             "|wFollow a mystery|n: " + investigation,
             "You can return to the Square's |wcommons|n and save a "
             "private intention with |wagenda note = <words>|n.",
