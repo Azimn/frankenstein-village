@@ -66,6 +66,27 @@ class MasterGDDProgramTests(unittest.TestCase):
             with self.subTest(string=string):
                 self.assertIn(string,self.plan)
 
+    def test_source_pair_register_has_all_45_with_evidence_unverified(self):
+        register=json.loads(
+            (ROOT/"ops/MASTER_GDD_45_EDGE_REGISTER_2026-10-25.json").read_text(encoding="utf-8")
+        )
+        edges=register["edges"]
+        self.assertEqual(len(edges),45)
+        self.assertEqual([e["number"] for e in edges],list(range(1,46)))
+        self.assertEqual(register["baselines"],{"V":6,"S":6,"D":24,"C":9})
+        unique={(e["calling_a"],e["calling_b"]) for e in edges}
+        self.assertEqual(len(unique),45)
+        self.assertEqual((edges[2]["calling_a"],edges[2]["calling_b"],edges[2]["baseline_class"]),
+                         ("Innkeep","Healer","V"))
+        self.assertEqual((edges[3]["calling_a"],edges[3]["calling_b"],edges[3]["baseline_class"]),
+                         ("Innkeep","Merchant","V"))
+        for edge in edges:
+            self.assertFalse(edge["verified_complete"])
+            self.assertIsNone(edge["ordinary_player_discovery_proof"])
+            self.assertIsNone(edge["two_account_test"])
+            self.assertIsNone(edge["post_restart_test"])
+            self.assertGreater(len(edge["design_contract"]),60)
+
     def test_does_not_claim_implementation_or_canon_approval(self):
         self.assertIn("REVIEW DRAFT",self.gdd)
         self.assertIn("Do not describe this file as a lossless PDF",self.gdd)
