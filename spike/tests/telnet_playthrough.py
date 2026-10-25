@@ -1389,6 +1389,10 @@ def main() -> int:
         out = smith.command("guide")
         require(out, "lamp is burning again")
         require(out, "no longer an open job")
+        # A finished one-time case must offer a real alternate route based
+        # on the still-stocked Square woodpile, never reopen the old case.
+        require(out, "alternative available now")
+        require(out, "hearth gather")
         if "repair diagnose" in out.lower() or "repair procure" in out.lower():
             raise AssertionError("Guide advertises completed repair as open work")
 
