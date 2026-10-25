@@ -93,7 +93,9 @@ class CmdGuide(Command):
             from world.callings import active_calling
             from world.discoveries import LANDMARKS
             from world.first_evening import render_square
+            from world.situations import LAMP_REPAIR_ID, get_situation
 
+            lamp_case = get_situation(LAMP_REPAIR_ID)
             hearth = community_hearth._status()
             source = hearth["woodpile"]
             rack = hearth["hearth"]
@@ -120,6 +122,7 @@ class CmdGuide(Command):
                 active_profession=active_calling(caller),
                 unreported_sites=open_sites,
                 lamp_status=lamp_lead(caller),
+                lamp_case_state=(lamp_case or {}).get("state"),
             ))
         elif place == "The Lamp Shop":
             caller.msg(
