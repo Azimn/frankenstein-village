@@ -2,14 +2,14 @@
 
 **Status:** Operational planning draft dated 2026-10-25. This is the **game-completion** production plan, not deployment authorization or a World Bible amendment.  
 **Controlling reference:** [Master GDD searchable review text](../docs/FRANKENSTEIN_VILLAGE_MASTER_GDD_REVIEW_2026-10-25.md), especially §§2, 5–6, 8–10, 12–15, 17–23 and Appendices A–C. The original 31-page review-draft PDF remains layout-authoritative.  
-**Repository baseline:** main \`9b16f73f1acec60cd7803476caaa744a5be4a42f\` before subsequent PR integration.  
+**Repository baseline:** main `9b16f73f1acec60cd7803476caaa744a5be4a42f` before subsequent PR integration.  
 **Integration policy:** No new repository, no new quest engine, no redesign of already implemented Evennia world systems; use approved systems and profession contracts. No automatic merges. No schedules, staffing, hosting costs or commercial assumptions invented.
 
 ## Decision: what "finish the game" means
 
 **The milestone is a complete, richly playable 1.0 game build, not an invited-alpha host.** Maintain the full GDD §15/World handoff §7 content goals. All ten Callings must offer meaningful, varied choices and real connected professional lives. Author and test actual world effects, not merely definitions or command aliases. Ordinary village life and third-place social play are intrinsically valuable even when no quest is active. Rare supernatural events matter by contrast.
 
-Until measured, code and documents represent **source claims**, not proof of fun or finished systems. \`V/S/D/C\` pair classifications are **starting evidence only**, never readiness percentages.
+Until measured, code and documents represent **source claims**, not proof of fun or finished systems. `V/S/D/C` pair classifications are **starting evidence only**, never readiness percentages.
 
 We distinguish two independent decisions:
 - **G-Complete:** fully authored, integrated, balanced, tested, polished game on reproducible local build; no purchased host needed.
