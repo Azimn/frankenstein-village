@@ -223,6 +223,8 @@ Hound must not merely reuse Wanderer's exact survey as its sole game loop; inves
 
 ## 45-edge contract ledger (GDD §§9–10 and §19.2)
 
+**Working evidence register:** [`MASTER_GDD_45_EDGE_REGISTER_2026-10-25.json`](MASTER_GDD_45_EDGE_REGISTER_2026-10-25.json) contains all 45 source-extracted numbered pair contracts. Every entry begins **unverified** and exposes fields for normal-client discovery, two distinct methods, source owner, finite guard, solo fallback, state change, negative cases, two-account trace, restart proof and uninformed-player feedback. Update a record only from evidence, not prose.
+
 Every distinct pair gets its own **evidence dossier** keyed by the PDF's numbered map. The baseline classification is **V6, S6, D24, C9**. Be careful with the PDF's explicit earlier-label correction: **V3 = Innkeep–Healer, V4 = Innkeep–Merchant**. The earlier draft's opposite example was a cross-reference typo. Never blindly import pair IDs from earlier PR #94 without checking this correction.
 
 Evidence fields: two real professions; actual location/item/encounter; source-of-truth module; two distinct professional methods; material cost or bounded time; limited witnesses/consent; co-op and zero-population fallback; conflicting simultaneous action; completed/expired/shortage/restart behavior; authorial source; exact commit and automated tests; uncoached player understanding. A power-dependent C edge cannot ship until keeper approves its canon.
