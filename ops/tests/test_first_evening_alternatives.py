@@ -72,6 +72,17 @@ class AlternativeLeadsTests(unittest.TestCase):
         self.assertIn("hearth deliver", output)
         self.assertNotIn("hearth gather", output)
 
+    def test_unresolved_case_remains_a_discovery_route_if_other_work_is_exhausted(self):
+        output = self.guide(
+            unreported_sites=(),
+            lamp_case_state="investigating",
+            lamp_status="The gas lamp is dark; the repair remains unresolved.",
+        )
+        self.assertIn("Alternative available now", output)
+        self.assertIn("repair", output)
+        self.assertNotIn("No verified open work", output)
+        self.assertNotIn("hearth gather", output)
+
     def test_not_triggered_when_all_primary_work_is_available(self):
         output = self.guide(
             wood_remaining=3,
