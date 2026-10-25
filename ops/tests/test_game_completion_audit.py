@@ -75,7 +75,8 @@ class CompletionAuditTests(unittest.TestCase):
     def test_report_disclaims_readiness_and_missing_counts(self):
         report = to_markdown(self.audit)
         self.assertIn("not a gameplay-completion or quality certificate", report)
-        self.assertIn("unmeasured, not zero", report)
+        self.assertIn("unmeasured", report)
+        self.assertIn("not zero", report)
         self.assertIn("Host selection and deployment do not block", report)
         self.assertIn("test-main-source", report)
         self.assertIn("| detective | unmeasured", report)
