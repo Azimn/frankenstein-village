@@ -62,13 +62,13 @@ class MasterGDDProgramTests(unittest.TestCase):
 
     def test_gdd_content_contract_kept_full_scope(self):
         for string in ("60 minimum","80–120 distinct loops","75+","30","10","250+",
-                       "all 45","T-01","T-16"):
+                       "45 pairwise","T-01","T-16"):
             with self.subTest(string=string):
                 self.assertIn(string,self.plan)
 
     def test_does_not_claim_implementation_or_canon_approval(self):
         self.assertIn("REVIEW DRAFT",self.gdd)
-        self.assertIn("not a lossless PDF",self.gdd)
+        self.assertIn("Do not describe this file as a lossless PDF",self.gdd)
         self.assertIn("Mystic B1",self.plan)
         self.assertTrue(any("Mystic keeper B1" in x for x in self.data["warnings"]))
         self.assertTrue(all(x["verified_evidence"]==[] for x in self.data["work_packages"]))
