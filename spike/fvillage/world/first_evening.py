@@ -125,6 +125,19 @@ def render_square(
                 + ". Check |wsurvey|n, examine the landmark in person, "
                 "then use |wsurvey report|n at that location."
             )
+        elif lamp_case_state in {"surfaced", "investigating", "changing"}:
+            alternative = (
+                "|wAlternative available now|n: The public lamp case is "
+                "unresolved. Examine the north-square gas lamp and use "
+                "|wrepair|n to inspect its recorded stage. Work may depend "
+                "on another Calling; do not claim an unseen repair is done."
+            )
+        elif lamp_case_state == "dormant":
+            alternative = (
+                "|wAlternative available now|n: Examine the north-square "
+                "gas lamp in person to discover whether a practical need "
+                "is present. This is observation, not a promised repair."
+            )
         else:
             alternative = (
                 "|wNo verified open work|n remains in the checked hearth, "
