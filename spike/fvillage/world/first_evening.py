@@ -16,6 +16,7 @@ def render_square(
     active_profession,
     unreported_sites,
     lamp_status,
+    lamp_case_state=None,
 ):
     """Present three grounded choices without changing world or player state."""
     capacity_known = (
@@ -87,18 +88,67 @@ def render_square(
             "without declaring it true."
         )
 
+    # The ordinary text comes from the real snapshot above; this selection
+    # only names routes whose mechanical prerequisites are demonstrably met.
+    stock_can_move = (
+        rack_has_space
+        and (
+            carrying_firewood
+            or (
+                not carrying_firewood
+                and isinstance(wood_remaining, int)
+                and wood_remaining > 0
+            )
+        )
+    )
+    closed_lamp = lamp_case_state == "aftermath"
+    alternative = None
+    if not stock_can_move or closed_lamp:
+        if stock_can_move and carrying_firewood:
+            alternative = (
+                "|wAlternative available now|n: You already carry a signed "
+                "firewood bundle and the rack has capacity. Go |weast|n to "
+                "the Tavern and use |whearth deliver|n."
+            )
+        elif stock_can_move:
+            alternative = (
+                "|wAlternative available now|n: The Square woodpile still "
+                "has a finite bundle and the Tavern rack has room. Use "
+                "|whearth gather|n here and |whearth deliver|n at the "
+                "Blood of the Vine."
+            )
+        elif unreported_sites:
+            alternative = (
+                "|wAlternative available now|n: The public daily survey "
+                "has an unsigned checkpoint at "
+                + str(unreported_sites[0])
+                + ". Check |wsurvey|n, examine the landmark in person, "
+                "then use |wsurvey report|n at that location."
+            )
+        else:
+            alternative = (
+                "|wNo verified open work|n remains in the checked hearth, "
+                "lamp and survey records right now. You can still inspect "
+                "|wcommons|n for newly posted needs, check |wcalendar|n "
+                "for the next village day, and read |wjournal|n. "
+                "These are discovery actions, not promised jobs."
+            )
+
     profession_heading = (
         "|wYour profession|n" if active_profession
         else "|wChoose a profession|n"
     )
-    return "\n".join(
-        (
-            "|wA first lead: the village square|n",
-            "|wEveryday life|n: " + practical,
-            "|wA shared village need or its aftermath:|n " + str(lamp_status),
-            profession_heading + ": " + career,
-            "|wFollow a mystery|n: " + investigation,
-            "You can return to the Square's |wcommons|n and save a "
-            "private intention with |wagenda note = <words>|n.",
-        )
-    )
+    lines = [
+        "|wA first lead: the village square|n",
+        "|wEveryday life|n: " + practical,
+        "|wA shared village need or its aftermath:|n " + str(lamp_status),
+    ]
+    if alternative:
+        lines.append(alternative)
+    lines += [
+        profession_heading + ": " + career,
+        "|wFollow a mystery|n: " + investigation,
+        "You can return to the Square's |wcommons|n and save a "
+        "private intention with |wagenda note = <words>|n.",
+    ]
+    return "\n".join(lines)
