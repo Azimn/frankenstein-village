@@ -67,7 +67,7 @@ class TenCallingDesignTests(unittest.TestCase):
                 self.assertIn(phrase.lower(), self.text.lower())
 
     def test_document_does_not_claim_missing_systems_shipped(self):
-        self.assertIn("Status: **REVIEW DRAFT", self.text)
+        self.assertIn("**Status:** REVIEW DRAFT", self.text)
         self.assertIn("proposal", self.text.lower())
         self.assertIn("V (existing scripted cross-Calling chain)", self.text)
         self.assertIn("S (shared live system; distinct joint loop unverified)", self.text)
