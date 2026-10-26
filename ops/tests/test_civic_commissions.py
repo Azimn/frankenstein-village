@@ -285,5 +285,73 @@ class CivicCommissionTests(unittest.TestCase):
                 self.assertEqual(renewed["commission"]["status"], "open")
 
 
+    def test_t13_signed_state_rejects_invalid_actor_item_and_receipt_ids(self):
+        """Invalid receipts and actors must never become signed order history.
+
+        The ordinary command service supplies real positive integer event IDs.
+        A pure-state boundary must not silently coerce booleans, strings or
+        zero into apparent canonical ledger references.
+        """
+        base = refresh(None, 1)
+        for invalid in (None, True, False, 0, -1, "17", 3.5):
+            with self.subTest(stage_receipt=invalid):
+                result, accepted, _ = pledge(
+                    base, 1, 101, "Supplier", bundle_id=450,
+                    event_id=invalid,
+                )
+                self.assertFalse(accepted)
+                self.assertEqual(result, base)
+
+            with self.subTest(stage_actor=invalid):
+                result, accepted, _ = pledge(
+                    base, 1, invalid, "Supplier", bundle_id=450,
+                    event_id=10,
+                )
+                self.assertFalse(accepted)
+                self.assertEqual(result, base)
+
+        for invalid_bundle in (None, True, False, 0, -1, "450", 4.5):
+            with self.subTest(stage_bundle=invalid_bundle):
+                result, accepted, _ = pledge(
+                    base, 1, 101, "Supplier", bundle_id=invalid_bundle,
+                    event_id=10,
+                )
+                self.assertFalse(accepted)
+                self.assertEqual(result, base)
+
+        pledged, accepted, error = stage(base)
+        self.assertTrue(accepted, error)
+        for invalid in (None, True, False, 0, -1, "18", 3.5):
+            with self.subTest(finish_receipt=invalid):
+                result, accepted, _ = finish(
+                    pledged, 1, 202, "Finisher",
+                    carried_bundle_id=450, reserve_has_space=True,
+                    event_id=invalid,
+                )
+                self.assertFalse(accepted)
+                self.assertEqual(result, pledged)
+
+            with self.subTest(finish_actor=invalid):
+                result, accepted, _ = finish(
+                    pledged, 1, invalid, "Finisher",
+                    carried_bundle_id=450, reserve_has_space=True,
+                    event_id=11,
+                )
+                self.assertFalse(accepted)
+                self.assertEqual(result, pledged)
+
+        # Python bool is a subclass of int; it is not a physical object ID.
+        one, accepted, error = pledge(
+            base, 1, 101, "Supplier", bundle_id=1, event_id=10,
+        )
+        self.assertTrue(accepted, error)
+        rejected, accepted, _ = finish(
+            one, 1, 202, "Finisher",
+            carried_bundle_id=True, reserve_has_space=True, event_id=11,
+        )
+        self.assertFalse(accepted)
+        self.assertEqual(rejected, one)
+
+
 if __name__ == "__main__":
     unittest.main()
