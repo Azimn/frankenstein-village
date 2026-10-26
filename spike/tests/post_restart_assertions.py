@@ -1287,7 +1287,15 @@ assert _first_witness["grave_id"] == _second_witness["grave_id"] == (
 assert not healer_tester.db.mystic_grave_witness, (
     "An absent Healer acquired another account's firsthand grave witness"
 )
-assert healer_tester.account.id not in (
+# A disconnected Evennia character has no active .account puppet link.
+# Resolve durable ownership through AccountDB's character relation instead.
+_healer_owner = next(
+    (account for account in AccountDB.objects.all()
+     if any(char.id == healer_tester.id for char in account.characters.all())),
+    None,
+)
+assert _healer_owner is not None, "Third observer's durable account is missing"
+assert _healer_owner.id not in (
     _first_witness["account_id"], _second_witness["account_id"]
 )
 print("POST_RESTART_GDD_T11_TWO_WITNESSES_ONE_ABSENT_GREEN")
