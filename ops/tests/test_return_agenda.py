@@ -142,5 +142,25 @@ class ReturnAgendaTests(unittest.TestCase):
         ), [])
 
 
+    def test_lamp_agenda_accepts_evennia_style_nested_mutable_mappings(self):
+        """Persisted Evennia attributes expose MutableMapping, not dict.
+
+        An in-world Smith diagnosis must remain visible in that exact mask's
+        agenda without exposing it to another mask after DB deserialization.
+        """
+        from collections import UserDict
+
+        case = {
+            "state": "investigating",
+            "objective_mutations": UserDict({
+                "smith_diagnosis": UserDict({"mask_id": 7}),
+            }),
+        }
+        own = " ".join(lamp_repair_work_lines(case, 7))
+        self.assertIn("your Smith diagnosis", own)
+        self.assertIn("Merchant must procure", own)
+        self.assertEqual(lamp_repair_work_lines(case, 8), [])
+
+
 if __name__ == "__main__":
     unittest.main()
