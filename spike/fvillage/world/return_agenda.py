@@ -44,12 +44,15 @@ def reentry_lines(*, note, following):
         lines.append("Use |wagenda|n for the current state of your plans.")
     return lines
 
-def summary(*, note, followed, day, location):
+def summary(*, note, followed, day, location, work_lines=None):
     lines = [
         "|wYour next visit|n",
         f"Village day {int(day)}. Currently at {str(location)[:90]}.",
         "Your private reminder: " + (clean_note(note) or "none yet."),
     ]
+    if work_lines:
+        lines.append("|wYour current village work:|n")
+        lines.extend(str(line) for line in work_lines)
     if not followed:
         lines += [
             "No Commons correspondence is followed by this mask.",

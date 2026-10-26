@@ -122,3 +122,66 @@ def cancel(raw, day, account_id, *, event_id):
     state["history"].append(copy.deepcopy(item))
     state["history"] = state["history"][-MAX_HISTORY:]
     return state, True, None
+
+
+
+def personal_agenda(raw, day, account_id, carried_bundle_ids=()):
+    """Read-only, actor-scoped continuity for the existing firewood order.
+
+    Never infer custody from a pledge. The caller supplies IDs of actual
+    objects currently carried by this mask. No new store or game action.
+    """
+    if type(account_id) is not int or account_id < 1:
+        return []
+    state = refresh(raw, day)
+    item = state.get("commission") or {}
+    status = item.get("status")
+    order = item.get("id")
+    held = {value for value in carried_bundle_ids
+            if type(value) is int and value > 0}
+    supplier = item.get("supplier_account") == account_id
+    finisher = item.get("finisher_account") == account_id
+
+    if status == "pledged":
+        if supplier:
+            return [
+                f"Commission {order}: your firewood pledge is pending. "
+                "A different account must deliver the actual bundle to the "
+                "Blood of the Vine. Coordinate the handoff or use "
+                "|wcommission cancel|n while the pledge remains open."
+            ]
+        if item.get("bundle_id") in held:
+            return [
+                f"Commission {order}: you carry the exact pledged bundle. "
+                "Take it to the Blood of the Vine and use "
+                "|wcommission deliver|n, unless the supplier cancels first."
+            ]
+    if status == "complete" and (supplier or finisher):
+        if supplier:
+            return [
+                f"Commission {order}: completed by another account. "
+                "Your pledge is fulfilled; the real wood reached the Tavern."
+            ]
+        return [
+            f"Commission {order}: your delivery is complete. "
+            "The pledged bundle is now in the shared Tavern rack."
+        ]
+    if status == "cancelled" and supplier:
+        return [
+            f"Commission {order}: your pledge was cancelled. "
+            "The physical bundle was not confiscated; use "
+            "|whearth deliver|n if you still carry it."
+        ]
+
+    # A new day's public order must not make yesterday's personal pledge
+    # appear pending. Only the immediately previous day's expiry is relevant.
+    previous = f"civic-{int(day) - 1}"
+    for old in reversed(state.get("history") or []):
+        if (old.get("id") == previous and old.get("status") == "expired"
+                and old.get("supplier_account") == account_id):
+            return [
+                f"Commission {previous}: yesterday's pledge expired. "
+                "No wood was confiscated by expiry. Today's commission "
+                "is a separate order; use |wcommission|n for its status."
+            ]
+    return []

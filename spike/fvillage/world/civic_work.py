@@ -52,8 +52,23 @@ def _state(tavern, day):
     return civic_commissions.refresh(tavern.db.civic_commission, day)
 
 
-def status_lines():
+
+def personal_agenda(mask):
+    """Project current physical custody and public commission state to agenda."""
+    account = getattr(mask, "account", None)
+    if account is None:
+        return []
     tavern = _tavern()
+    if tavern is None:
+        return []
+    day, _hour = _clock()
+    return civic_commissions.personal_agenda(
+        tavern.db.civic_commission, day, account.id,
+        carried_bundle_ids=[obj.id for obj in _carried(mask)],
+    )
+
+
+def status_lines():    tavern = _tavern()
     if not tavern:
         return "The village commissions are unavailable; the Tavern is missing."
     day, hour = _clock()

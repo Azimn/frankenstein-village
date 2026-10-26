@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "spike" / "fvillage"))
-from world.civic_commissions import refresh, pledge, finish, cancel
+from world.civic_commissions import refresh, pledge, finish, cancel, personal_agenda
 
 
 def stage(state, day=1, supplier=101, bundle=450, event=10):
@@ -351,6 +351,44 @@ class CivicCommissionTests(unittest.TestCase):
         )
         self.assertFalse(accepted)
         self.assertEqual(rejected, one)
+
+
+    def test_t16_returning_player_sees_real_commission_outcome(self):
+        """No phantom delivery, and the original supplier sees a true outcome."""
+        state, ok, reason = stage(refresh(None, 1))
+        self.assertTrue(ok, reason)
+        pending = " ".join(personal_agenda(state, 1, 101, [450]))
+        self.assertIn("pending", pending)
+        self.assertIn("commission cancel", pending)
+        self.assertEqual(personal_agenda(state, 1, 303, []), [])
+        carrier = " ".join(personal_agenda(state, 1, 202, [450]))
+        self.assertIn("commission deliver", carrier)
+        self.assertEqual(personal_agenda(state, 1, 202, [999]), [])
+
+        completed, ok, reason = complete(state)
+        self.assertTrue(ok, reason)
+        completed = json.loads(json.dumps(completed))
+        self.assertIn("completed by another account",
+                      " ".join(personal_agenda(completed, 1, 101)))
+        self.assertIn("your delivery is complete",
+                      " ".join(personal_agenda(completed, 1, 202)))
+        self.assertEqual(personal_agenda(completed, 1, 303), [])
+
+        cancelled, ok, reason = cancel(state, 1, 101, event_id=12)
+        self.assertTrue(ok, reason)
+        self.assertIn("cancelled",
+                      " ".join(personal_agenda(cancelled, 1, 101)))
+        self.assertEqual(personal_agenda(cancelled, 1, 202, [450]), [])
+
+        expired = refresh(json.loads(json.dumps(state)), 2)
+        self.assertIn("yesterday's pledge expired",
+                      " ".join(personal_agenda(expired, 2, 101)))
+        self.assertNotIn("pending",
+                         " ".join(personal_agenda(expired, 2, 101)))
+        self.assertEqual(personal_agenda(expired, 2, 202, [450]), [])
+        self.assertEqual(personal_agenda(state, 1, True, [450]), [])
+        self.assertEqual(personal_agenda(state, 1, 202, [True]), [])
+
 
 
 if __name__ == "__main__":

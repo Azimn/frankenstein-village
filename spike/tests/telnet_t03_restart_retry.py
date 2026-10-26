@@ -35,6 +35,8 @@ def main():
         after = smith.command("repair")
         require_all(after, "repair complete", "north-square gas lamp is working again")
         require(smith.command("calling"), "repair completions 1")
+        require(smith.command("agenda"), "completed by another account")
+        print("TELNET_GDD_T16_POST_RESTART_COMMISSION_OUTCOME_GREEN")
         print("TELNET_GDD_T03_POST_RESTART_REPAIR_RETRY_DENIED_GREEN")
 
         # A different authenticated player must not reopen the already

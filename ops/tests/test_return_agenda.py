@@ -67,5 +67,18 @@ class ReturnAgendaTests(unittest.TestCase):
         self.assertIn("agenda", " ".join(lines))
 
 
+    def test_current_work_is_displayed_without_exposing_other_player_orders(self):
+        result = summary(
+            note=None, followed=[], day=2, location="Village Square",
+            work_lines=["Commission civic-2: your firewood pledge is pending."],
+        )
+        self.assertIn("Your current village work", result)
+        self.assertIn("your firewood pledge is pending", result)
+        other = summary(note=None, followed=[], day=2,
+                        location="Village Square", work_lines=[])
+        self.assertNotIn("Your current village work", other)
+
+
+
 if __name__ == "__main__":
     unittest.main()
