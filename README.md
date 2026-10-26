@@ -131,4 +131,4 @@ supports independently authenticated scripted player sessions, seed-reproducible
 connection and latency metrics, optional host-local shared CPU/RSS readings,
 and a targeted interruption/re-login and craft-inventory recovery test.
 Configuration and non-soak policy: [ops/HEADLESS_AI_CLIENT.md](ops/HEADLESS_AI_CLIENT.md).
-**Do not begin multiplayer soak until the independent AI-first audit clears.**
+An AI-client load soak requires separate authorization and safety review. That optional test does not gate ordinary multiplayer testing or release of the model-free game.
