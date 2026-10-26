@@ -5330,7 +5330,10 @@ def _fare_depleted(caller, item):
             left, item.db.fare_stock_day, day, max_s
         )
         item.db.fare_stock_day = recorded
-        if renewed:
+        # Respect the original item contract: when a legacy live counter
+        # is absent, initialize it from the current mechanical capacity.
+        # This is NOT a same-day top-up of a genuinely depleted item.
+        if renewed or left is None:
             item.db.servings = current
         left = current
     if left is None:  # safety: fare created before servings existed
