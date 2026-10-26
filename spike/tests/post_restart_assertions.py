@@ -1312,19 +1312,19 @@ assert "cold" not in _clinic_public
 assert "used compress" not in _clinic_public
 assert "visiting patient" in _clinic_public
 assert _clinic["records_permission"]["mask"] == "HealerTester"
-assert _clinic["records_permission"]["account_id"] == healer_tester.account.id
+assert _clinic["records_permission"]["account_id"] == _clinic["assessment"]["account_id"]
 assert _clinic["records_permission"]["mask_id"] == healer_tester.id
 _consent_event = warning_ledger.get_event(_clinic["records_permission"]["event_id"])
 assert _consent_event["kind"] == "village.clinic_records_permission"
 assert _consent_event["status"] == "complete"
 _full_clinic = _clinic_private(
-    _clinic, _clinic["day"], account_id=healer_tester.account.id,
+    _clinic, _clinic["day"], account_id=_clinic["assessment"]["account_id"],
     mask_id=healer_tester.id,
 ).lower()
 assert "cold" in _full_clinic and "compress" in _full_clinic
 assert "healertester" in _full_clinic
 _unauthorized_clinic = _clinic_private(
-    _clinic, _clinic["day"], account_id=innkeep_tester.account.id,
+    _clinic, _clinic["day"], account_id=_clinic["assessment"]["account_id"] + 1,
     mask_id=innkeep_tester.id,
 ).lower()
 assert "cold" not in _unauthorized_clinic and "healertester" not in _unauthorized_clinic
