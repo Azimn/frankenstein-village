@@ -56,6 +56,60 @@ class RouteHistoryTests(unittest.TestCase):
         self.assertEqual(route.history_records(state, 11, limit=0), [])
         self.assertEqual(route.history_records(state, 11, limit=-3), [])
 
+    def test_select_older_day_beyond_recent_five_without_changing_history(self):
+        state = None
+        for day in range(1, 19):
+            state, ok, error = route.report(
+                state, day, "river_gauge", day, f"Reporter{day}", day + 100
+            )
+            self.assertTrue(ok, error)
+        before = copy.deepcopy(state)
+        self.assertEqual(
+            [row["day"] for row in route.history_records(state, 19)],
+            [18, 17, 16, 15, 14],
+        )
+        selected = route.history_records(state, 19, selected_day=3)
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(selected[0]["day"], 3)
+        self.assertEqual(selected[0]["reports"]["river_gauge"]["mask"], "Reporter3")
+        self.assertEqual(selected[0]["reports"]["river_gauge"]["event_id"], 103)
+        self.assertEqual(state, before, "Selecting history must not mutate world")
+        selected[0]["reports"]["river_gauge"]["mask"] = "Tampered"
+        self.assertEqual(state, before, "Archive projections are independent")
+
+    def test_exact_day_lookup_fails_closed_for_absent_future_or_invalid_days(self):
+        state, ok, error = route.report(
+            None, 1, "grave_marker", 9, "Observer", 81
+        )
+        self.assertTrue(ok, error)
+        self.assertEqual(route.history_records(state, 2, selected_day=2), [])
+        self.assertEqual(route.history_records(state, 2, selected_day=50), [])
+        for requested in (True, False, -1, 0, "1", 1.5):
+            with self.subTest(requested=requested):
+                self.assertEqual(
+                    route.history_records(state, 2, selected_day=requested),
+                    [],
+                )
+        self.assertEqual(
+            route.history_records(state, 2, selected_day=1)[0]["day"], 1
+        )
+
+    def test_selected_archive_day_is_bounded_by_retained_thirty_days(self):
+        state = None
+        for day in range(1, route.MAX_HISTORY + 6):
+            state, ok, error = route.report(
+                state, day, "grave_marker", day, f"Walker{day}", day + 200
+            )
+            self.assertTrue(ok, error)
+        future_day = route.MAX_HISTORY + 6
+        self.assertEqual(
+            route.history_records(state, future_day, selected_day=1), []
+        )
+        newest = route.history_records(
+            state, future_day, selected_day=future_day - 1
+        )
+        self.assertEqual(newest[0]["day"], future_day - 1)
+
     def test_forged_boolean_receipts_never_become_real_accounts(self):
         for account, event in ((True, 20), (9, False)):
             state, ok, error = route.report(
