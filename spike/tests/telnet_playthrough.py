@@ -298,7 +298,12 @@ def main() -> int:
 
         out = c.command("next")
         require(out, "first lead: the village square")
-        require(out, "calling choose")
+        # This mask already chose Chronicler earlier. The guide must not
+        # advertise a new first-time Calling choice as still available.
+        require(out, "current calling is chronicler")
+        require(out, "calling work")
+        if "calling choose" in out.lower():
+            raise AssertionError("Guide offers a new Calling to an established mask")
         require(out, "a shared village need")
         require(out, "repair diagnose north-square gas lamp")
         require(out, "commons post need")
@@ -1489,6 +1494,10 @@ def main() -> int:
         out = smith.command("guide")
         require(out, "lamp is burning again")
         require(out, "no longer an open job")
+        # A finished one-time case must offer a real alternate route based
+        # on the still-stocked Square woodpile, never reopen the old case.
+        require(out, "alternative available now")
+        require(out, "hearth gather")
         if "repair diagnose" in out.lower() or "repair procure" in out.lower():
             raise AssertionError("Guide advertises completed repair as open work")
 
@@ -1539,6 +1548,12 @@ def main() -> int:
         require(out, "first gather a physical")
         out = smith.command("hearth gather")
         require(out, "1 bundles remain today")
+        # The guide reads actual inventory and does not offer duplicate
+        # gathering while the player already carries a real bundle.
+        out = smith.command("guide")
+        require(out, "hearth deliver")
+        if "|whearth gather|n" in out.lower() or "hearth gather" in out.lower():
+            raise AssertionError("Guide offers duplicate firewood while carrying")
         out = smith.command("commission pledge")
         require_all(out, "pledge your physical", "another player")
         out = smith.command("commission pledge")

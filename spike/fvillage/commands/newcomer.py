@@ -88,28 +88,42 @@ class CmdGuide(Command):
                 "|wchronicle|n and file testimony from a known rumor."
             )
         elif place == "Village Square":
-            caller.msg(
-                "|wA first lead: the village square|n\n"
-                "Go |weast|n to the Blood of the Vine and use |wrumors|n "
-                "to find a story worth following. The |wcommons|n board "
-                "holds requests, offers, and gatherings left by real visitors.\n"
-                "|wcalling list|n describes available professions. "
-                "Choose one with |wcalling choose <name>|n, or keep "
-                "exploring without one. |wjournal|n only shows what "
-                "you have personally discovered.\n"
-                "|wA shared village need:|n "
-                + lamp_lead(caller)
-                + "\n|wA practical action you can take alone:|n "
-                "Use |whearth|n to check the public wood supply. "
-                "If there is wood and the Tavern rack has space, "
-                "|whearth gather|n here, go |weast|n to the Tavern, "
-                "and use |whearth deliver|n. That changes a shared "
-                "physical reserve even when no neighbor is online. "
-                "You can also use |wsurvey|n for firsthand district "
-                "investigation without taking a calling. "
-                "|wcommission|n offers cooperative work when someone "
-                "else is available."
-            )
+            # Read authoritative public state, without reserving or spending.
+            from world import community_hearth, route_surveys, route_work
+            from world.callings import active_calling
+            from world.discoveries import LANDMARKS
+            from world.first_evening import render_square
+            from world.situations import LAMP_REPAIR_ID, get_situation
+
+            lamp_case = get_situation(LAMP_REPAIR_ID)
+            hearth = community_hearth._status()
+            source = hearth["woodpile"]
+            rack = hearth["hearth"]
+            survey_square = route_work._square()
+            if survey_square:
+                day, _hour = route_work._day_hour()
+                surveys = route_surveys.refresh(
+                    survey_square.db.daily_route_survey, day
+                )
+                open_sites = tuple(
+                    LANDMARKS[ident]["room"]
+                    for ident in route_surveys.SITES
+                    if ident not in surveys["reports"]
+                )
+            else:
+                open_sites = None
+            caller.msg(render_square(
+                wood_remaining=(
+                    source["remaining"] if source is not None else None
+                ),
+                hearth_reserve=(rack["reserve"] if rack is not None else None),
+                hearth_limit=community_hearth.hearth_state.MAX_RESERVE,
+                carrying_firewood=bool(community_hearth._carried(caller)),
+                active_profession=active_calling(caller),
+                unreported_sites=open_sites,
+                lamp_status=lamp_lead(caller),
+                lamp_case_state=(lamp_case or {}).get("state"),
+            ))
         elif place == "The Lamp Shop":
             caller.msg(
                 "|wA first lead: the Lamp Shop|n\n"
