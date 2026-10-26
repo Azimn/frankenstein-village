@@ -44,6 +44,11 @@ def main():
         require_all(missing, "no signed route archive", "village day 999")
         invalid = supplier.command("survey history tomorrow")
         require(invalid, "survey history <positive village day>")
+        # The public daily board must also project the persisted previous
+        # day safely, without changing signed archive or current reports.
+        board = supplier.command("survey")
+        require_all(board, "previous surveyed day 1", "use survey history")
+        print("TELNET_POST_RESTART_ROUTE_BOARD_SUMMARY_GREEN")
         print("TELNET_POST_RESTART_EXACT_DAY_ROUTE_HISTORY_GREEN")
         print("TELNET_POST_RESTART_SIGNED_ROUTE_HISTORY_GREEN")
         out = supplier.command("commission")
