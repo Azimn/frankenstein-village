@@ -175,6 +175,53 @@ class RouteHistoryTests(unittest.TestCase):
         self.assertEqual(set(latest[0]["reports"]), {"river_gauge"})
         self.assertEqual(route.history_records(raw, 3, selected_day=1)[0]["reports"], {})
 
+    def test_corrupt_current_receipts_do_not_crash_board_or_erase_valid_archive(self):
+        signed = {
+            "day": 1, "completed": False,
+            "reports": {
+                "river_gauge": {
+                    "account_id": 7, "event_id": 19, "mask": "RiverWitness"
+                }
+            },
+            "field_decisions": {},
+        }
+        for bad in ("damaged", 42, True, [1, 2], {"unknown": "value"}):
+            with self.subTest(bad=bad):
+                raw = {
+                    "day": 2, "reports": bad, "field_decisions": bad,
+                    "history": [copy.deepcopy(signed)],
+                }
+                before = copy.deepcopy(raw)
+                current = route.normalize(raw)
+                self.assertEqual(current["reports"], {})
+                self.assertEqual(current["field_decisions"], {})
+                archive = route.history_records(raw, 2)
+                self.assertEqual(archive[0]["reports"]["river_gauge"]["mask"],
+                                 "RiverWitness")
+                self.assertEqual(raw, before, "Read-only board must not rewrite saves")
+                after, accepted, error = route.report(
+                    raw, 2, "grave_marker", 8, "NewWitness", 21
+                )
+                self.assertTrue(accepted, error)
+                self.assertEqual(after["reports"]["grave_marker"]["event_id"], 21)
+                self.assertEqual(len(after["history"]), 1)
+
+    def test_invalid_root_and_history_shapes_fail_closed_without_crashing(self):
+        for raw in (7, True, "broken", [7], [("bad",)]):
+            with self.subTest(raw=raw):
+                self.assertEqual(route.normalize(raw)["reports"], {})
+                self.assertEqual(route.history_records(raw, 2), [])
+                state, accepted, error = route.report(
+                    raw, 2, "red_cord", 9, "Observer", 23
+                )
+                self.assertTrue(accepted, error)
+                self.assertEqual(state["reports"]["red_cord"]["event_id"], 23)
+        for invalid in ("not an archive", 99, True, {"day": 1}):
+            with self.subTest(history=invalid):
+                raw = {"day": 2, "reports": {}, "history": invalid}
+                self.assertEqual(route.history_records(raw, 2), [])
+                self.assertEqual(route.normalize(raw)["history"], [])
+
     def test_prior_wanderer_observation_not_rewritten_by_later_protection(self):
         state, ok, error = route.field_decision(
             None, 1, "red_cord", "wanderer", "passability",
