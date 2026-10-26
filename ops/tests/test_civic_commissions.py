@@ -353,6 +353,40 @@ class CivicCommissionTests(unittest.TestCase):
         self.assertEqual(rejected, one)
 
 
+
+    def test_t13_terminal_event_must_not_reuse_pledge_receipt(self):
+        """A terminal action cannot cite its own pledge as a second signed event.
+
+        This pure boundary must reject duplicate provenance even when the
+        normal Evennia ledger supplies unique IDs. Rejection cannot mutate
+        the live order or add a terminal history entry.
+        """
+        pledged, accepted, error = stage(refresh(None, 1), event=10)
+        self.assertTrue(accepted, error)
+        original = json.loads(json.dumps(pledged))
+        for action in ("finish", "cancel"):
+            with self.subTest(action=action):
+                if action == "finish":
+                    result, accepted, _ = complete(
+                        pledged, day=1, finisher=202, bundle=450, event=10,
+                    )
+                else:
+                    result, accepted, _ = cancel(
+                        pledged, 1, 101, event_id=10,
+                    )
+                self.assertFalse(accepted)
+                self.assertEqual(result, original)
+                self.assertEqual(pledged, original)
+                self.assertEqual(pledged["history"], [])
+
+        completed, accepted, error = complete(
+            pledged, day=1, finisher=202, bundle=450, event=11,
+        )
+        self.assertTrue(accepted, error)
+        self.assertEqual(completed["commission"]["event_ids"], [10, 11])
+        self.assertEqual(len(completed["history"]), 1)
+
+
     def test_t16_returning_player_sees_real_commission_outcome(self):
         """No phantom delivery, and the original supplier sees a true outcome."""
         state, ok, reason = stage(refresh(None, 1))
