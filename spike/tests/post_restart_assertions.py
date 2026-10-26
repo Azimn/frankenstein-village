@@ -1226,6 +1226,13 @@ assert _stage["performance"]["mask_id"] == _stage_performer.id
 assert _stage["performance"]["tune"] == "ballad"
 assert len(_stage["witnesses"]) == 1
 assert _stage["witnesses"][0]["mask"] == "InnkeepTester"
+# GDD T-06: HealerTester left the room before the show, arrived afterward,
+# and was refused a firsthand witness record by the ordinary stage command.
+# That refusal must not be lost on a real game-server process restart.
+assert not any(
+    witness.get("mask") == "HealerTester"
+    for witness in _stage["witnesses"]
+), "A late spectator gained a fabricated firsthand record after restart"
 assert calling_record(_stage_performer, "performer")["participation"]["stage_rehearse"] == 1
 assert calling_record(_stage_performer, "performer")["participation"]["stage_perform"] == 1
 for _action, _entry in (
@@ -1238,6 +1245,7 @@ for _action, _entry in (
     assert _event["status"] == "complete"
 assert "PerformerTester" in _stage_lines(_stage, _stage["day"])
 print("POST_RESTART_SIGNED_TAVERN_PERFORMANCE_GREEN")
+print("POST_RESTART_GDD_T06_LATE_NONWITNESS_GREEN")
 # Physical St. Lazarus clinic, signed Healer work and consumed linen persist.
 from world.clinic_state import normalize as _clinic_norm, public_lines as _clinic_lines
 _church = one("St. Lazarus Church")

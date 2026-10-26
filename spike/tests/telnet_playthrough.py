@@ -1168,6 +1168,10 @@ def main() -> int:
         require_all(out, "rehearse the ballad", "world event")
         out = performer.command("stage rehearse ballad")
         require(out, "already rehearsed")
+        # A real Healer leaves BEFORE the show, so no one can credit that
+        # later-arriving account with witnessing this actual performance.
+        out = h.command("west")
+        require(out, "village square")
         out = performer.command("stage perform ballad")
         require_all(out, "actually perform the ballad", "world event")
         out = performer.command("look")
@@ -1178,12 +1182,25 @@ def main() -> int:
         require(out, "actually witnessed")
         out = inn.command("stage witness")
         require(out, "already witnessed")
+        # T-06: This character was in the village but not in the room when
+        # the show actually occurred; arriving within the same hour must
+        # never confer a fabricated firsthand audience record.
+        out = h.command("east")
+        require(out, "blood of the vine")
+        out = h.command("stage witness")
+        require(out, "only an audience member present for the actual performance")
         out = performer.command("stage")
         require_all(out, "performertester", "1 other player account")
+        print("TELNET_GDD_T06_LATE_ARRIVAL_WITNESS_DENIED_GREEN")
         out = performer.command("agent")
         assert agent_json(out)["commands"]["public_stage"] == "stage"
         print("TELNET_RENEWABLE_PERFORMER_AND_REAL_AUDIENCE_GREEN")
 
+        # The Healer's return generated an unsolicited room-arrival broadcast
+        # for the Innkeep. Drain that queued notification before requesting
+        # a care response; otherwise the telnet reader can mistake the
+        # broadcast for the next command's reply.
+        inn.read_quiet()
         out = inn.command("care")
         require(out, "healer assessment filed by healertester")
         require(out, "hospitality is still needed")
