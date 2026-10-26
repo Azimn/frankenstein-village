@@ -1302,9 +1302,39 @@ for _action, _entry in (
     _event = warning_ledger.get_event(_entry["event_id"])
     assert _event["kind"] == "village.clinic_" + _action
     assert _event["status"] == "complete"
-assert "HealerTester" in _clinic_lines(_clinic, _clinic["day"])
+# GDD T-08: a shared cot and public board do not reveal private case
+# details even after a real process restart. Permission is a separate,
+# signed, day-scoped fact tied to both account and mask identity.
+from world.clinic_state import private_lines as _clinic_private
+_clinic_public = _clinic_lines(_clinic, _clinic["day"]).lower()
+assert "healertester" not in _clinic_public
+assert "cold" not in _clinic_public
+assert "used compress" not in _clinic_public
+assert "visiting patient" in _clinic_public
+assert _clinic["records_permission"]["mask"] == "HealerTester"
+assert _clinic["records_permission"]["account_id"] == _clinic["assessment"]["account_id"]
+assert _clinic["records_permission"]["mask_id"] == healer_tester.id
+_consent_event = warning_ledger.get_event(_clinic["records_permission"]["event_id"])
+assert _consent_event["kind"] == "village.clinic_records_permission"
+assert _consent_event["status"] == "complete"
+_full_clinic = _clinic_private(
+    _clinic, _clinic["day"], account_id=_clinic["assessment"]["account_id"],
+    mask_id=healer_tester.id,
+).lower()
+assert "cold" in _full_clinic and "compress" in _full_clinic
+assert "healertester" in _full_clinic
+_unauthorized_clinic = _clinic_private(
+    _clinic, _clinic["day"], account_id=_clinic["assessment"]["account_id"] + 1,
+    mask_id=innkeep_tester.id,
+).lower()
+assert "cold" not in _unauthorized_clinic and "healertester" not in _unauthorized_clinic
+assert "permission" in _unauthorized_clinic
+from world.clinic_state import refresh as _clinic_refresh
+_assert_tomorrow_clinic = _clinic_refresh(_clinic, _clinic["day"] + 1)
+assert _assert_tomorrow_clinic["records_permission"] is None
 assert len([o for o in _church.contents if o.key == "a clinic treatment cot"]) == 1
 print("POST_RESTART_PHYSICAL_CLINIC_CARE_GREEN")
+print("POST_RESTART_GDD_T08_PRIVATE_CLINIC_PERMISSION_GREEN")
 
 
 # Physical courier parcel is consumed only by real Riverside delivery.

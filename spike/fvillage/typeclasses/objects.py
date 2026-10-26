@@ -858,8 +858,9 @@ class ClinicCot(DefaultObject):
         from world.clinic_work import status
         return (
             "A real cot shelters the day's visiting patient in the "
-            "Church dispensary. The current complaint is visible to anyone "
-            "here; only an active Healer can file an assessment or care.\n"
+            "Church dispensary. The patient is visible, but confidential "
+            "case notes are not public. Only an active Healer can file care, "
+            "and the patient's permission is needed for private notes.\n"
             + status(looker)
         )
 

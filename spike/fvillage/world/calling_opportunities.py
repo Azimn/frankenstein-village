@@ -32,7 +32,9 @@ WORK = {
         "village day. Use clinic assess to record a firsthand finding; "
         "clinic prepare makes real transferable linen dressings, and "
         "clinic treat rest or compress offers consequential care with a "
-        "signed, restart-safe history.",
+        "signed, restart-safe history. After personally assessing the visitor, "
+        "use clinic request records to obtain consent before opening private "
+        "notes with clinic records. Public clinic status omits those notes.",
         "At the Square: investigate the pale well mushrooms; use assess "
         "on the real object, rather than trusting the public appearance.",
         "At the Tavern: inspect care needs; the Cold Hunter at Supper "
