@@ -157,8 +157,10 @@ class CivicCommissionTests(unittest.TestCase):
         self.assertEqual(rejected, state)
         state, accepted, error = stage(state)
         self.assertTrue(accepted, error)
+        with self.assertRaises(ValueError):
+            cancel(state, 0, 101, event_id=12)
         for account, day, event in (
-            (202, 1, 12), (101, 0, 12), (101, 1, 0), (101, 1, -2)
+            (202, 1, 12), (101, 1, 0), (101, 1, -2)
         ):
             rejected, accepted, _ = cancel(state, day, account, event_id=event)
             self.assertFalse(accepted)
