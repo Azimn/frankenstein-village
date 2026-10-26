@@ -1,5 +1,6 @@
 """Guard the default startup and release path against accidental LLM requirements."""
 from pathlib import Path
+import re
 import sys
 import unittest
 
@@ -17,16 +18,45 @@ MODEL_ENV = (
 )
 
 
+def _distribution_name(declaration):
+    """Return the normalized PEP 503 name before extras or version constraints."""
+    match = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)", declaration.strip())
+    if not match:
+        return None
+    return re.sub(r"[-_.]+", "-", match.group(1)).lower()
+
+
 class ModelFreeContractTests(unittest.TestCase):
     def test_core_install_has_no_llm_dependencies(self):
         requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
         packages = [
-            row.split("==", 1)[0].split(">=", 1)[0].strip().lower()
+            name
             for line in requirements.splitlines()
             if (row := line.split("#", 1)[0].strip())
+            if (name := _distribution_name(row))
         ]
         for package in MODEL_PACKAGES:
             self.assertNotIn(package, packages)
+
+    def test_requirement_name_variants_cannot_bypass_model_guard(self):
+        for declaration, name in (
+            ("openai~=2.0", "openai"),
+            ("openai[async]>=2", "openai"),
+            ("sentence_transformers==3.0", "sentence-transformers"),
+            ("sentence.transformers >= 3", "sentence-transformers"),
+            ("llama_cpp_python[server] >= 0.3", "llama-cpp-python"),
+            ("transformers @ https://example.org/package.whl", "transformers"),
+        ):
+            with self.subTest(declaration=declaration):
+                self.assertEqual(_distribution_name(declaration), name)
+
+    def test_optional_ai_client_audit_is_not_ordinary_release_gate(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        optional_client = (ROOT / "ops/HEADLESS_AI_CLIENT.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("Do not begin multiplayer soak until the independent AI-first audit clears.", readme)
+        self.assertNotIn("independent AI observations are still required before approving the public alpha.", optional_client.lower())
 
     def test_startup_and_public_host_do_not_demand_model_credentials(self):
         for path in (
