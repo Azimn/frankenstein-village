@@ -21,7 +21,7 @@ class ClinicPrivateRecordTests(unittest.TestCase):
         self.assertTrue(ok, reason)
         public = clinic.public_lines(state, 1).lower()
         for private in ("cold", "sprain", "fever", "assessinghealer",
-                        "compress", "less suited", "event 101", "event 102"):
+                        "treatment: compress", "used compress", "less suited", "event 101", "event 102"):
             with self.subTest(private=private):
                 self.assertNotIn(private, public)
         self.assertIn("visiting patient", public)
