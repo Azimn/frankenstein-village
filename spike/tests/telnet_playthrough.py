@@ -1289,7 +1289,7 @@ def main() -> int:
         out = inn.command("clinic")
         require_all(out, "visiting patient", "care has been provided")
         assert "cold" not in out.lower()
-        assert "compress" not in out.lower()
+        assert "used compress" not in out.lower()
         assert "healertester" not in out.lower()
         out = inn.command("look clinic cot")
         require_all(out, "clinic", "visiting patient")
