@@ -386,5 +386,42 @@ class CivicCommissionTests(unittest.TestCase):
         self.assertEqual(len(completed["history"]), 1)
 
 
+    def test_t13_village_day_requires_an_exact_positive_integer(self):
+        """No truncated or coerced clock values may sign a daily commission.
+
+        World clock days are integers. Accepting True as day one, or
+        truncating 2.9 to day two, can attach a real signed event to the
+        wrong daily order. Rejected inputs must leave prior state untouched.
+        """
+        baseline = refresh(None, 2)
+        pledged, accepted, error = stage(
+            baseline, day=2, supplier=101, bundle=450, event=10,
+        )
+        self.assertTrue(accepted, error)
+        original = json.loads(json.dumps(pledged))
+        for bad_day in (
+            None, True, False, 0, -1, 2.9, 0.9, "2", "2.9",
+            float("nan"), float("inf"),
+        ):
+            with self.subTest(day=repr(bad_day)):
+                with self.assertRaises(ValueError):
+                    refresh(pledged, bad_day)
+                with self.assertRaises(ValueError):
+                    pledge(
+                        pledged, bad_day, 101, "Supplier",
+                        bundle_id=451, event_id=20,
+                    )
+                with self.assertRaises(ValueError):
+                    finish(
+                        pledged, bad_day, 202, "Finisher",
+                        carried_bundle_id=450, reserve_has_space=True,
+                        event_id=21,
+                    )
+                with self.assertRaises(ValueError):
+                    cancel(pledged, bad_day, 101, event_id=22)
+                self.assertEqual(pledged, original)
+        self.assertEqual(refresh(pledged, 2), original)
+
+
 if __name__ == "__main__":
     unittest.main()
