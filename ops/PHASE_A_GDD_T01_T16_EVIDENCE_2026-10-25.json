@@ -1,0 +1,336 @@
+{
+  "schema": "fvillage.phase_a_negative_case_trace.v1",
+  "based_on_main": "9b16f73f1acec60cd7803476caaa744a5be4a42f",
+  "gdd_pdf_source": "docs/FRANKENSTEIN_VILLAGE_MASTER_GDD_REVIEW_2026-10-25.md",
+  "full_pass_count": 0,
+  "evidence_policy": "A nearby passing source test is supporting evidence, never proof of the full GDD T scenario. Tests T-01 through T-16 remain incomplete pending explicit exact-scenario execution.",
+  "cases": [
+    {
+      "id": "T-01",
+      "gdd_section": "19.4",
+      "scenario": "Deliver one finite item, restart mid-handoff",
+      "canonical_invariant": "Exactly one custodian and one valid ledger sequence",
+      "assessment": "partial",
+      "source_evidence": [
+        {
+          "path": "ops/tests/test_courier_state.py",
+          "symbol": "test_delivery_receipt_and_duplicate_guard",
+          "evidence_tier": "unit_test_case"
+        },
+        {
+          "path": "ops/tests/test_civic_commissions.py",
+          "symbol": "test_restart_and_bounded_history",
+          "evidence_tier": "unit_test_case"
+        }
+      ],
+      "open_gap": "Missing forced real process restart precisely between custody transfer and ledger commit.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-02",
+      "gdd_section": "19.4",
+      "scenario": "Two players reserve last material",
+      "canonical_invariant": "One succeeds and the other receives truthful shortage",
+      "assessment": "partial",
+      "source_evidence": [
+        {
+          "path": "ops/tests/test_civic_commissions.py",
+          "symbol": "test_two_accounts_exact_same_physical_object_and_no_replay",
+          "evidence_tier": "unit_test_case"
+        },
+        {
+          "path": "ops/tests/test_clinic_state.py",
+          "symbol": "test_dressings_are_finite_and_clock_cannot_refill_backwards",
+          "evidence_tier": "unit_test_case"
+        }
+      ],
+      "open_gap": "Missing simultaneous independent clients contending for the final identical stock unit.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-03",
+      "gdd_section": "19.4",
+      "scenario": "Retry finished lamp repair",
+      "canonical_invariant": "No reopened broken lamp or duplicate fitting",
+      "assessment": "partial",
+      "source_evidence": [
+        {
+          "path": "spike/tests/telnet_playthrough.py",
+          "symbol": "repair finish north-square gas lamp",
+          "evidence_tier": "existing_scripted_fixture"
+        },
+        {
+          "path": "spike/tests/post_restart_assertions.py",
+          "symbol": "lamp_repair_case[\"state\"] == \"aftermath\"",
+          "evidence_tier": "existing_scripted_fixture"
+        }
+      ],
+      "open_gap": "Post-restart physical state and pre-restart duplicate attempt exist; explicit retry after process restart remains untraced.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-04",
+      "gdd_section": "19.4",
+      "scenario": "Merchant market hold across offline clock",
+      "canonical_invariant": "Timed resolution is honest and cannot deadlock all professions",
+      "assessment": "partial",
+      "source_evidence": [
+        {
+          "path": "ops/tests/test_market_standards.py",
+          "symbol": "test_merchant_release_and_daily_renewal_with_explicit_history",
+          "evidence_tier": "unit_test_case"
+        },
+        {
+          "path": "spike/tests/telnet_playthrough.py",
+          "symbol": "trade hold",
+          "evidence_tier": "existing_scripted_fixture"
+        }
+      ],
+      "open_gap": "Pure day transition is covered; missing real offline clock passage with client reconnect/other-role progress.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-05",
+      "gdd_section": "19.4",
+      "scenario": "Chronicler prints unsupported claim",
+      "canonical_invariant": "Claim preserved without altering physical objective truth",
+      "assessment": "partial",
+      "source_evidence": [
+        {
+          "path": "spike/tests/post_restart_assertions.py",
+          "symbol": "truth status must remain deliberately unset after restart",
+          "evidence_tier": "existing_scripted_fixture"
+        },
+        {
+          "path": "spike/tests/telnet_playthrough.py",
+          "symbol": "story isn't a witness",
+          "evidence_tier": "existing_scripted_fixture"
+        }
+      ],
+      "open_gap": "Missing targeted negative publisher action proving unsupported allegation never changes the actual object.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-06",
+      "gdd_section": "19.4",
+      "scenario": "Non-witness arrives after performance",
+      "canonical_invariant": "No direct witnessed memory absent real plausible dissemination",
+      "assessment": "partial",
+      "source_evidence": [
+        {
+          "path": "ops/tests/test_stage_state.py",
+          "symbol": "test_real_audience_and_hour_guard",
+          "evidence_tier": "unit_test_case"
+        },
+        {
+          "path": "spike/tests/telnet_playthrough.py",
+          "symbol": "stage witness",
+          "evidence_tier": "existing_scripted_fixture"
+        }
+      ],
+      "open_gap": "Attendance/hour guards exist; missing explicit late-arrival independent client and post-restart social-memory check.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-07",
+      "gdd_section": "19.4",
+      "scenario": "Hound and Wanderer inspect same route",
+      "canonical_invariant": "Different analysis of one physical route, no competing worlds",
+      "assessment": "gap",
+      "source_evidence": [
+        {
+          "path": "ops/tests/test_route_surveys.py",
+          "symbol": "test_collaboration_repeatability_and_event_receipts",
+          "evidence_tier": "unit_test_case"
+        }
+      ],
+      "open_gap": "Current shared report does not establish distinctive passability versus threat/protection decisions.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-08",
+      "gdd_section": "19.4",
+      "scenario": "Healer assessment without patient consent",
+      "canonical_invariant": "No unauthorized private case disclosure",
+      "assessment": "gap",
+      "source_evidence": [
+        {
+          "path": "ops/tests/test_clinic_state.py",
+          "symbol": "test_today_requires_real_signed_assessment",
+          "evidence_tier": "unit_test_case"
+        }
+      ],
+      "open_gap": "Existing treatment/assessment test is not patient privacy or consent; needs real patient-record permission case.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-09",
+      "gdd_section": "19.4",
+      "scenario": "Bodily need when item exhausted",
+      "canonical_invariant": "Valid alternate relief or drive cannot ship",
+      "assessment": "gap",
+      "source_evidence": [
+        {
+          "path": "ops/tests/test_soup_state.py",
+          "symbol": "test_real_daily_stock_and_no_duplicate_refill",
+          "evidence_tier": "unit_test_case"
+        }
+      ],
+      "open_gap": "Food stock guards do not establish that every live bodily need has valid alternative relief when exhausted.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-10",
+      "gdd_section": "19.4",
+      "scenario": "Human versus AI client same action",
+      "canonical_invariant": "Equal role permission, matter, time and privacy outcome",
+      "assessment": "partial",
+      "source_evidence": [
+        {
+          "path": "ops/tests/test_headless_ai_client.py",
+          "symbol": "test_independent_accounts_recover_without_duplicate_items",
+          "evidence_tier": "unit_test_case"
+        },
+        {
+          "path": "spike/tests/telnet_playthrough.py",
+          "symbol": "agent_json(out)",
+          "evidence_tier": "existing_scripted_fixture"
+        }
+      ],
+      "open_gap": "AI client test uses fake transport; explicit independent human/AI same-state action parity matrix not evidenced.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-11",
+      "gdd_section": "19.4",
+      "scenario": "Rare inscription seen by two, missed by third",
+      "canonical_invariant": "First two see same objective fact, third no firsthand claim",
+      "assessment": "partial",
+      "source_evidence": [
+        {
+          "path": "ops/tests/test_mystic_circles.py",
+          "symbol": "test_signed_approaches_and_independent_player_limit",
+          "evidence_tier": "unit_test_case"
+        },
+        {
+          "path": "spike/tests/telnet_playthrough.py",
+          "symbol": "mystic study measure",
+          "evidence_tier": "existing_scripted_fixture"
+        }
+      ],
+      "open_gap": "Signed studies and firsthand viewing exercised; missing explicitly coordinated 3-account witness/nonwitness test.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-12",
+      "gdd_section": "19.4",
+      "scenario": "Scheduled incident with no active players",
+      "canonical_invariant": "Bounded NPC or expiry result, never forged player contribution",
+      "assessment": "gap",
+      "source_evidence": [
+        {
+          "path": "ops/tests/test_market_standards.py",
+          "symbol": "test_merchant_release_and_daily_renewal_with_explicit_history",
+          "evidence_tier": "unit_test_case"
+        }
+      ],
+      "open_gap": "Day renewal is not proof of a no-players scheduled event reaching its canonical NPC/expiry outcome.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-13",
+      "gdd_section": "19.4",
+      "scenario": "Two accounts cancel versus complete same order",
+      "canonical_invariant": "Exactly one terminal result, reconciled supplies",
+      "assessment": "gap",
+      "source_evidence": [
+        {
+          "path": "ops/tests/test_civic_commissions.py",
+          "symbol": "test_two_accounts_exact_same_physical_object_and_no_replay",
+          "evidence_tier": "unit_test_case"
+        }
+      ],
+      "open_gap": "Duplicate delivery guards exist; no documented competing cancellation/completion terminal transaction.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-14",
+      "gdd_section": "19.4",
+      "scenario": "Apprentice leaves consensual relationship",
+      "canonical_invariant": "Both sides revoke, professional biography retained",
+      "assessment": "partial",
+      "source_evidence": [
+        {
+          "path": "spike/tests/telnet_playthrough.py",
+          "symbol": "authored respecialization opportunity",
+          "evidence_tier": "existing_scripted_fixture"
+        },
+        {
+          "path": "spike/tests/post_restart_assertions.py",
+          "symbol": "Respecialization did not erase the earlier Chronicler record.",
+          "evidence_tier": "existing_scripted_fixture"
+        }
+      ],
+      "open_gap": "Profession respecialization is not a bilateral apprenticeship withdrawal; requires explicit two-account relationship test.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-15",
+      "gdd_section": "19.4",
+      "scenario": "Article corrected after dispute",
+      "canonical_invariant": "Revision audit, recipient awareness and claim/source separation preserved",
+      "assessment": "partial",
+      "source_evidence": [
+        {
+          "path": "spike/tests/post_restart_assertions.py",
+          "symbol": "Harbinger The Correction must survive restart as an archive discrepancy.",
+          "evidence_tier": "existing_scripted_fixture"
+        },
+        {
+          "path": "spike/tests/post_restart_assertions.py",
+          "symbol": "source_deposition_id",
+          "evidence_tier": "existing_scripted_fixture"
+        }
+      ],
+      "open_gap": "Archive and discrepancy persist; missing explicit after-correction resident recipient knowledge/awareness differentiation.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    },
+    {
+      "id": "T-16",
+      "gdd_section": "19.4",
+      "scenario": "Return after interrupted 1–2 hour activity",
+      "canonical_invariant": "Pending, resumed, expired, completed-by-others truthfully exposed",
+      "assessment": "partial",
+      "source_evidence": [
+        {
+          "path": "ops/tests/test_return_agenda.py",
+          "symbol": "test_returning_mask_sees_own_goal_without_undisclosed_board_content",
+          "evidence_tier": "unit_test_case"
+        },
+        {
+          "path": "ops/tests/test_civic_commissions.py",
+          "symbol": "test_bad_bundle_and_day_renewal",
+          "evidence_tier": "unit_test_case"
+        }
+      ],
+      "open_gap": "Agenda and expiry each work separately; missing integrated genuine interrupted multi-step responsibility and reentry narrative.",
+      "exact_gdd_scenario_executed_end_to_end": false,
+      "uncoached_player_verified": false
+    }
+  ]
+}
