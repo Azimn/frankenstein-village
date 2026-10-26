@@ -8,6 +8,7 @@ class CmdSurvey(Command):
     Usage:
         survey
         survey report
+        survey history      (previous signed daily records)
         survey protect       (Hound, Northern Treeline)
         survey passability   (Wanderer, Northern Treeline)
 
@@ -31,6 +32,9 @@ class CmdSurvey(Command):
         verb = (self.args or "").strip().lower()
         if verb in {"", "status", "help"}:
             caller.msg(route_work.status_lines())
+            return
+        if verb == "history":
+            caller.msg(route_work.history_lines())
             return
         if verb in {"report", "inspect"}:
             result, error = route_work.report(caller)
@@ -71,4 +75,4 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
-        caller.msg("Use: survey | survey report | survey protect | survey passability")
+        caller.msg("Use: survey | survey history | survey report | survey protect | survey passability")
