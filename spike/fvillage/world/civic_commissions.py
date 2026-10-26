@@ -182,8 +182,8 @@ def personal_agenda(raw, day, account_id, carried_bundle_ids=()):
             return [
                 f"Commission {order}: the supplier cancelled the pledge "
                 "while you carried its physical bundle. "
-                "|wcommission deliver|n no longer applies; use "
-                "|whearth deliver|n at the Blood of the Vine instead."
+                "The commission is closed; use |whearth deliver|n "
+                "at the Blood of the Vine instead."
             ]
 
     # A new day's public order must not make yesterday's personal pledge
@@ -202,7 +202,7 @@ def personal_agenda(raw, day, account_id, carried_bundle_ids=()):
             return [
                 f"Commission {previous}: yesterday's pledge expired "
                 "while you carried its physical bundle. "
-                "|wcommission deliver|n is no longer valid; use "
+                "Today's commission is a separate order; use "
                 "|whearth deliver|n at the Blood of the Vine instead."
             ]
     return []
