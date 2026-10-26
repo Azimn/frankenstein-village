@@ -432,6 +432,37 @@ def main() -> int:
                 checkout / "spike" / "tests" / "gdd_t13_cancel_restart_assertions.py"
             ).read_text(encoding="utf-8")
             run([evennia, "shell"], cwd=game, env=env, input_text=t13_restart)
+
+            # T-13: independently exercise a live two-socket cancel/deliver
+            # contest, then verify physical custody and signed outcome before
+            # and after a THIRD real Evennia process restart. The socket send
+            # barrier does not assert parallel server-side execution.
+            race_setup = (
+                checkout / "spike" / "tests" / "gdd_t13_race_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env, input_text=race_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" / "telnet_t13_race.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=140,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            race_assertions = (
+                checkout / "spike" / "tests" / "gdd_t13_race_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=race_assertions)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            restarted_env = dict(env)
+            restarted_env["FV_T13_RACE_RESTART"] = "1"
+            run([evennia, "shell"], cwd=game, env=restarted_env,
+                input_text=race_assertions)
         except Exception:
             dump_logs(game)
             raise
