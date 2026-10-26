@@ -80,5 +80,27 @@ class AmbientFareConservationTests(unittest.TestCase):
         self.assertEqual(self.consumed[0][2:4], ("food", "eat"))
 
 
+    def test_last_serving_exhaustion_prevents_second_ambient_meal(self):
+        """One actual serving cannot nourish two successive NPC beats.
+
+        This is a routing/conservation test with the production guard mocked.
+        The separate Evennia acceptance suite must still prove persistence.
+        """
+        stew = fare("a bowl of stew", 1)
+        fake_commands = sys.modules["commands.village_cmds"]
+
+        def consume(actor, item, *args):
+            self.consumed.append((actor, item, *args))
+            item.db.servings -= 1
+
+        fake_commands._consume = consume
+        self.assertEqual(self.beat([stew]), "consume")
+        self.assertEqual(stew.db.servings, 0)
+        self.assertEqual(self.beat([stew]), "consume-skipped")
+        self.assertEqual(stew.db.servings, 0)
+        self.assertEqual(len(self.consumed), 1)
+        self.assertEqual(len(self.guarded), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
