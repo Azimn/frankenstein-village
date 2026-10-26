@@ -89,6 +89,8 @@ def finish(raw, day, account_id, mask, *, carried_bundle_id, reserve_has_space, 
         return state, False, "The Tavern rack is full. Try again when space opens."
     if not isinstance(event_id, int) or isinstance(event_id, bool) or event_id < 1:
         return state, False, "A signed delivery event is required."
+    if event_id in item["event_ids"]:
+        return state, False, "The delivery needs a distinct signed event."
     item["finisher_account"] = account_id
     item["finisher_mask"] = str(mask)[:70]
     item["status"] = "complete"
@@ -117,6 +119,8 @@ def cancel(raw, day, account_id, *, event_id):
         return state, False, "Only the original supplier may cancel this pledge."
     if not isinstance(event_id, int) or isinstance(event_id, bool) or event_id < 1:
         return state, False, "A signed cancellation event is required."
+    if event_id in item["event_ids"]:
+        return state, False, "The cancellation needs a distinct signed event."
     item["status"] = "cancelled"
     item["event_ids"].append(event_id)
     state["history"].append(copy.deepcopy(item))
