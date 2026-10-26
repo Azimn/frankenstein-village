@@ -1268,6 +1268,29 @@ assert _mystic_event["status"] == "complete"
 assert _mystic_event["payload"]["observation_quality"] == "firsthand"
 assert _mystic_event["actor"]["mask_id"] == _mystic_mask.id
 assert _mystic_event["consequence"]["observed_grave_id"] > 0
+# GDD T-11: two independently logged-in players observed the same physical
+# anomaly, while a third ordinary account learned nothing firsthand from
+# the public study or from being created after the event. All three records
+# are checked after a real Evennia server process restart.
+_first_witness = dict(_mystic_mask.db.mystic_grave_witness or {})
+_second_witness = dict(smoke.db.mystic_grave_witness or {})
+assert _first_witness and _second_witness, "Two firsthand observers missing"
+assert _first_witness["account_id"] != _second_witness["account_id"]
+assert _first_witness["mask_id"] == _mystic_mask.id
+assert _second_witness["mask_id"] == smoke.id
+assert _first_witness["day"] == _second_witness["day"] == _signed_study["day"]
+assert _first_witness["hour"] in (21, 22)
+assert _second_witness["hour"] in (21, 22)
+assert _first_witness["grave_id"] == _second_witness["grave_id"] == (
+    _mystic_event["consequence"]["observed_grave_id"]
+)
+assert not healer_tester.db.mystic_grave_witness, (
+    "An absent Healer acquired another account's firsthand grave witness"
+)
+assert healer_tester.account.id not in (
+    _first_witness["account_id"], _second_witness["account_id"]
+)
+print("POST_RESTART_GDD_T11_TWO_WITNESSES_ONE_ABSENT_GREEN")
 for _resident_id in ("beatrice_harcourt", "mirela_dobre"):
     _resident = RESIDENT_BY_ID[_resident_id]
     assert _resident["faction"] == "Guild of Mystics"
