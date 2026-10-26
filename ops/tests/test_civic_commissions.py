@@ -227,5 +227,63 @@ class CivicCommissionTests(unittest.TestCase):
         )
 
 
+    def test_t13_all_serialized_terminal_action_interleavings(self):
+        """All 720 six-action schedules produce one terminal result, never two.
+
+        The Evennia command loop serializes actual command consequences.
+        This checks the pure state transition against every ordering of
+        two legitimate cancellations, two legitimate deliveries, and two
+        unauthorized/invalid attempts. It is NOT a simultaneous socket race.
+        """
+        from itertools import permutations
+
+        actions = ("cancel_a", "finish_a", "cancel_b", "finish_b",
+                   "wrong_account", "wrong_bundle")
+        winners = {"cancel_a", "cancel_b", "finish_a", "finish_b"}
+        event_ids = {action: 20 + index for index, action in enumerate(actions)}
+        for schedule in permutations(actions):
+            with self.subTest(schedule=schedule):
+                state, accepted, error = stage(refresh(None, 1))
+                self.assertTrue(accepted, error)
+                successful = []
+                for action in schedule:
+                    previous = json.loads(json.dumps(state))
+                    if action in ("cancel_a", "cancel_b"):
+                        state, accepted, _ = cancel(
+                            state, 1, 101, event_id=event_ids[action],
+                        )
+                    elif action == "wrong_account":
+                        state, accepted, _ = cancel(
+                            state, 1, 303, event_id=event_ids[action],
+                        )
+                    else:
+                        state, accepted, _ = complete(
+                            state, finisher=202,
+                            bundle=450 if action != "wrong_bundle" else 999,
+                            event=event_ids[action],
+                        )
+                    if accepted:
+                        successful.append(action)
+                    else:
+                        self.assertEqual(state, previous)
+                    state = json.loads(json.dumps(state))
+
+                first_valid = next(action for action in schedule if action in winners)
+                self.assertEqual(successful, [first_valid])
+                expected_status = (
+                    "cancelled" if first_valid.startswith("cancel") else "complete"
+                )
+                self.assertEqual(state["commission"]["status"], expected_status)
+                self.assertEqual(
+                    state["commission"]["event_ids"], [10, event_ids[first_valid]]
+                )
+                self.assertEqual(len(state["history"]), 1)
+                self.assertEqual(state["history"][0], state["commission"])
+                renewed = refresh(state, 2)
+                self.assertEqual(len(renewed["history"]), 1)
+                self.assertEqual(renewed["history"][0]["status"], expected_status)
+                self.assertEqual(renewed["commission"]["status"], "open")
+
+
 if __name__ == "__main__":
     unittest.main()
