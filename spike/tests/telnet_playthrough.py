@@ -1928,7 +1928,10 @@ def main() -> int:
         out = hound.command("survey protect")
         require_all(out, "tie the original frayed cord", "visible warning", "signed event")
         out = hound.command("survey protect")
-        require(out, "already tied as a visible caution marker")
+        require(out, "already signed today")
+        # The Hound's movement and action notified the nearby Wanderer.
+        # Drain unsolicited room broadcasts before testing object look.
+        wanderer.read_quiet()
         out = wanderer.command("look cord")
         require_all(out, "cut cleanly", "clear caution marker")
         out = wanderer.command("survey")
