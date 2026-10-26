@@ -56,7 +56,11 @@ class ModelFreeContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertNotIn("Do not begin multiplayer soak until the independent AI-first audit clears.", readme)
-        self.assertNotIn("independent AI observations are still required before approving the public alpha.", optional_client.lower())
+        self.assertNotIn(
+            "independent ai observations are still required before approving the public alpha.",
+            " ".join(optional_client.lower().split()),
+        )
+        self.assertIn("not a model-free release gate", optional_client)
 
     def test_startup_and_public_host_do_not_demand_model_credentials(self):
         for path in (
