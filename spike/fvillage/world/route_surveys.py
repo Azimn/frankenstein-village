@@ -32,7 +32,9 @@ def normalize(raw):
             event = int(entry["event_id"])
         except (ValueError, TypeError, KeyError, OverflowError):
             continue
-        if account < 1 or event < 1:
+        if (isinstance(entry.get("account_id"), bool)
+                or isinstance(entry.get("event_id"), bool)
+                or account < 1 or event < 1):
             continue
         reports[ident] = {
             "account_id": account, "mask": str(entry.get("mask") or "")[:70],
@@ -98,6 +100,8 @@ def report(raw, day, ident, account_id, mask, event_id):
         return state, False, "That location is not on today's inspection route."
     if ident in state["reports"]:
         return state, False, "Today's report for this landmark is already signed."
+    if isinstance(account_id, bool) or isinstance(event_id, bool):
+        return state, False, "A signed account and canonical event are required."
     try:
         account_id, event_id = int(account_id), int(event_id)
     except (ValueError, TypeError, OverflowError):
@@ -153,6 +157,46 @@ def field_decision(raw, day, site, role, action, caution_marked,
         entry["observation"] = "marked_caution" if caution_marked else "unmarked"
     state["field_decisions"][role] = entry
     return state, True, None
+
+
+def history_records(raw, day, *, limit=5):
+    """Public, read-only snapshots of previous village days, newest first.
+
+    A day transition can be viewed before the next report is signed. Archive
+    rows are normalized through the same public report and field-decision
+    validators, so unrelated private keys and malformed receipts never leak.
+    The stored record is not mutated and no new canonical state is created.
+    """
+    state = refresh(raw, day)
+    try:
+        count = max(0, min(10, int(limit)))
+    except (TypeError, ValueError, OverflowError):
+        count = 0
+    if count == 0:
+        return []
+    rows = []
+    for raw_row in state["history"][-MAX_HISTORY:]:
+        if not hasattr(raw_row, "get"):
+            continue
+        try:
+            old_day = int(raw_row.get("day"))
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if (isinstance(raw_row.get("day"), bool)
+                or old_day < 1 or old_day >= state["day"]):
+            continue
+        clean = normalize({
+            "day": old_day,
+            "reports": raw_row.get("reports"),
+            "field_decisions": raw_row.get("field_decisions"),
+        })
+        rows.append({
+            "day": old_day,
+            "completed": len(clean["reports"]) == len(SITES),
+            "reports": clean["reports"],
+            "field_decisions": clean["field_decisions"],
+        })
+    return rows[-count:][::-1]
 
 
 def field_lines(raw):
