@@ -412,14 +412,27 @@ class CivicCommissionTests(unittest.TestCase):
         self.assertTrue(ok, reason)
         self.assertIn("cancelled",
                       " ".join(personal_agenda(cancelled, 1, 101)))
-        self.assertEqual(personal_agenda(cancelled, 1, 202, [450]), [])
+        # A different account holding the cancelled physical bundle needs
+        # the real recovery route. The public cancellation is not a secret,
+        # but strangers and masks without custody must not see this work.
+        carrier_after_cancel = " ".join(personal_agenda(cancelled, 1, 202, [450]))
+        self.assertIn("cancelled", carrier_after_cancel)
+        self.assertIn("hearth deliver", carrier_after_cancel)
+        self.assertNotIn("commission deliver", carrier_after_cancel)
+        self.assertEqual(personal_agenda(cancelled, 1, 202, []), [])
+        self.assertEqual(personal_agenda(cancelled, 1, 303, [999]), [])
 
         expired = refresh(json.loads(json.dumps(state)), 2)
         self.assertIn("yesterday's pledge expired",
                       " ".join(personal_agenda(expired, 2, 101)))
         self.assertNotIn("pending",
                          " ".join(personal_agenda(expired, 2, 101)))
-        self.assertEqual(personal_agenda(expired, 2, 202, [450]), [])
+        carrier_after_expiry = " ".join(personal_agenda(expired, 2, 202, [450]))
+        self.assertIn("expired", carrier_after_expiry)
+        self.assertIn("hearth deliver", carrier_after_expiry)
+        self.assertNotIn("commission deliver", carrier_after_expiry)
+        self.assertEqual(personal_agenda(expired, 2, 202, []), [])
+        self.assertEqual(personal_agenda(expired, 3, 202, [450]), [])
         self.assertEqual(personal_agenda(state, 1, True, [450]), [])
         self.assertEqual(personal_agenda(state, 1, 202, [True]), [])
 
