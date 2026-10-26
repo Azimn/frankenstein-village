@@ -5314,15 +5314,35 @@ def _fare_depleted(caller, item):
     if not max_s:
         return False
     max_s = int(max_s)
+    # The same actual sideboard item has a finite daily stock. Bram, an
+    # already staffed NPC keeper, replaces sold-out fare after the village
+    # clock advances, not every time someone looks, logs in or runs the
+    # world builder. Preserve pre-existing depleted legacy stock on upgrade.
+    from world.tavern_fare_restock import restock
+    from evennia.scripts.models import ScriptDB
+    try:
+        day = int(ScriptDB.objects.get(db_key="village_time").db.day)
+    except (ValueError, TypeError, ScriptDB.DoesNotExist):
+        day = None
     left = item.db.servings
+    if day is not None:
+        current, recorded, renewed = restock(
+            left, item.db.fare_stock_day, day, max_s
+        )
+        item.db.fare_stock_day = recorded
+        if renewed:
+            item.db.servings = current
+        left = current
     if left is None:  # safety: fare created before servings existed
         item.db.servings = max_s
         return False
     if left > 0:
         return False
     caller.msg(
-        f"The {_fare_short(item)}'s all gone. The keeper will set more "
-        "out when he has a moment."
+        f"The {_fare_short(item)}'s all gone for this village day. "
+        "Try another real food serving, or come back after the keeper "
+        "restocks at the next village day. Hunger is uncomfortable, "
+        "not damaging."
     )
     return True
 
