@@ -171,22 +171,38 @@ def personal_agenda(raw, day, account_id, carried_bundle_ids=()):
             f"Commission {order}: your delivery is complete. "
             "The pledged bundle is now in the shared Tavern rack."
         ]
-    if status == "cancelled" and supplier:
-        return [
-            f"Commission {order}: your pledge was cancelled. "
-            "The physical bundle was not confiscated; use "
-            "|whearth deliver|n if you still carry it."
-        ]
+    if status == "cancelled":
+        if supplier:
+            return [
+                f"Commission {order}: your pledge was cancelled. "
+                "The physical bundle was not confiscated; use "
+                "|whearth deliver|n if you still carry it."
+            ]
+        if item.get("bundle_id") in held:
+            return [
+                f"Commission {order}: the supplier cancelled the pledge "
+                "while you carried its physical bundle. "
+                "|wcommission deliver|n no longer applies; use "
+                "|whearth deliver|n at the Blood of the Vine instead."
+            ]
 
     # A new day's public order must not make yesterday's personal pledge
     # appear pending. Only the immediately previous day's expiry is relevant.
     previous = f"civic-{int(day) - 1}"
     for old in reversed(state.get("history") or []):
-        if (old.get("id") == previous and old.get("status") == "expired"
-                and old.get("supplier_account") == account_id):
+        if old.get("id") != previous or old.get("status") != "expired":
+            continue
+        if old.get("supplier_account") == account_id:
             return [
                 f"Commission {previous}: yesterday's pledge expired. "
                 "No wood was confiscated by expiry. Today's commission "
                 "is a separate order; use |wcommission|n for its status."
+            ]
+        if old.get("bundle_id") in held:
+            return [
+                f"Commission {previous}: yesterday's pledge expired "
+                "while you carried its physical bundle. "
+                "|wcommission deliver|n is no longer valid; use "
+                "|whearth deliver|n at the Blood of the Vine instead."
             ]
     return []
