@@ -374,6 +374,14 @@ def main() -> int:
                 env=env,
                 input_text=post_restart,
             )
+            # GDD T-13: on the following village day, cancel a real signed
+            # commission after a physical two-account handoff. Verify that
+            # the normal hearth path can still consume the retained bundle.
+            t13_cancel = (
+                checkout / "spike" / "tests" / "gdd_t13_cancel_world_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env, input_text=t13_cancel)
+
             # GDD T-12: the same disposable QA database, now after a genuine
             # server restart and with no connected players, must resolve a
             # scheduled blackout by expiry without inventing player help.
@@ -401,6 +409,12 @@ def main() -> int:
                 env=env,
                 input_text=persisted_blackout,
             )
+            # T-13's signed cancellation, physical recovery and finite rack
+            # must persist through the same real second server restart.
+            t13_restart = (
+                checkout / "spike" / "tests" / "gdd_t13_cancel_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env, input_text=t13_restart)
         except Exception:
             dump_logs(game)
             raise
