@@ -152,6 +152,29 @@ class RouteHistoryTests(unittest.TestCase):
         self.assertEqual(entries[0]["reports"], {})
         self.assertEqual(entries[0]["field_decisions"], {})
 
+    def test_daily_board_projection_ignores_malformed_and_stale_archive_flags(self):
+        # The public survey board now uses this validated projection instead
+        # of indexing unchecked persisted history dictionaries directly.
+        raw = {
+            "day": 3, "reports": {},
+            "history": [
+                {"day": 1, "completed": True, "reports": "corrupt"},
+                {"day": 2, "completed": True, "reports": {
+                    "river_gauge": {
+                        "account_id": 4, "event_id": 20, "mask": "Observer"
+                    }
+                }},
+                {"bad": "untrusted"},
+            ],
+        }
+        latest = route.history_records(raw, 3, limit=1)
+        self.assertEqual(len(latest), 1)
+        self.assertEqual(latest[0]["day"], 2)
+        self.assertFalse(latest[0]["completed"],
+                         "Stale completion flags must not fabricate surveys")
+        self.assertEqual(set(latest[0]["reports"]), {"river_gauge"})
+        self.assertEqual(route.history_records(raw, 3, selected_day=1)[0]["reports"], {})
+
     def test_prior_wanderer_observation_not_rewritten_by_later_protection(self):
         state, ok, error = route.field_decision(
             None, 1, "red_cord", "wanderer", "passability",
