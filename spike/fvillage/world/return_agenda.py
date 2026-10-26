@@ -7,6 +7,7 @@ continues to work even across restarts.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 
 MAX_NOTE = 200
 
@@ -50,14 +51,14 @@ def lamp_repair_work_lines(case, mask_id):
     Case mutations, not a remembered quest flag, own the truth. Do not show
     another account's work to a mask that never participated.
     """
-    if not isinstance(case, dict) or mask_id is None:
+    if not isinstance(case, Mapping) or mask_id is None:
         return []
     changes = case.get("objective_mutations") or {}
-    if not isinstance(changes, dict):
+    if not isinstance(changes, Mapping):
         return []
     roles = ("smith_diagnosis", "merchant_procurement", "smith_repair")
     own = {
-        role: isinstance(changes.get(role), dict)
+        role: isinstance(changes.get(role), Mapping)
         and changes[role].get("mask_id") == mask_id
         for role in roles
     }
