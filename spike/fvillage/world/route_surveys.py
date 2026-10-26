@@ -185,10 +185,12 @@ def history_records(raw, day, *, limit=5):
         if (isinstance(raw_row.get("day"), bool)
                 or old_day < 1 or old_day >= state["day"]):
             continue
+        reports = raw_row.get("reports")
+        decisions = raw_row.get("field_decisions")
         clean = normalize({
             "day": old_day,
-            "reports": raw_row.get("reports"),
-            "field_decisions": raw_row.get("field_decisions"),
+            "reports": reports if isinstance(reports, dict) else {},
+            "field_decisions": decisions if isinstance(decisions, dict) else {},
         })
         rows.append({
             "day": old_day,
