@@ -52,7 +52,6 @@ def _state(tavern, day):
     return civic_commissions.refresh(tavern.db.civic_commission, day)
 
 
-
 def personal_agenda(mask):
     """Project current physical custody and public commission state to agenda."""
     account = getattr(mask, "account", None)
@@ -68,7 +67,8 @@ def personal_agenda(mask):
     )
 
 
-def status_lines():    tavern = _tavern()
+def status_lines():
+    tavern = _tavern()
     if not tavern:
         return "The village commissions are unavailable; the Tavern is missing."
     day, hour = _clock()
