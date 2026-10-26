@@ -45,6 +45,12 @@ def main():
         out = supplier.command("commission cancel")
         require_all(out, "signed firewood pledge is cancelled", "remains")
         require(supplier.command("agenda"), "your pledge was cancelled")
+        # T-16: the distinct account still holding the physical bundle
+        # must discover the honest recovery route, not a phantom commission.
+        out = carrier.command("agenda")
+        require_all(out, "supplier cancelled the pledge", "hearth deliver")
+        if "commission deliver" in out.lower():
+            raise AssertionError("Cancelled commission still offered as live carrier work")
         out = carrier.command("commission deliver")
         require(out, "must first pledge")
         out = carrier.command("hearth deliver")
