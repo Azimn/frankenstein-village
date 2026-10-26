@@ -374,9 +374,26 @@ def main() -> int:
                 env=env,
                 input_text=post_restart,
             )
-            # GDD T-13: on the following village day, cancel a real signed
-            # commission after a physical two-account handoff. Verify that
-            # the normal hearth path can still consume the retained bundle.
+            # GDD T-13: prepare day two while the server is stopped, then
+            # perform every state-changing action with two authenticated
+            # ordinary telnet accounts. Offline masks cannot sign events.
+            t13_setup = (
+                checkout / "spike" / "tests" / "gdd_t13_cancel_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env, input_text=t13_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [
+                        vpython,
+                        checkout / "spike" / "tests" / "telnet_t13_cancel.py",
+                        "--host", "127.0.0.1", "--port", "4000",
+                    ],
+                    cwd=checkout, env=env, timeout=140,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
             t13_cancel = (
                 checkout / "spike" / "tests" / "gdd_t13_cancel_world_assertions.py"
             ).read_text(encoding="utf-8")
