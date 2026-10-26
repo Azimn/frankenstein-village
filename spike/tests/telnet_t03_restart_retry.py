@@ -18,7 +18,7 @@ def main():
     parser.add_argument("--port", type=int, default=4000)
     args = parser.parse_args()
 
-    smith = None
+    smith = merchant = None
     try:
         smith = connect(
             args.host, args.port, "qa_smith_repair",
@@ -36,9 +36,30 @@ def main():
         require_all(after, "repair complete", "north-square gas lamp is working again")
         require(smith.command("calling"), "repair completions 1")
         print("TELNET_GDD_T03_POST_RESTART_REPAIR_RETRY_DENIED_GREEN")
+
+        # A different authenticated player must not reopen the already
+        # completed cross-Calling transaction or spend a second part.
+        merchant = connect(
+            args.host, args.port, "qa_merchant_repair",
+            os.environ["FV_QA_REPAIR_PASSWORD"], "MerchantTester",
+            "The Blood of the Vine",
+        )
+        require(merchant.command("repair"), "repair complete")
+        require(merchant.command("calling"), "repair procurements 1")
+        require(merchant.command("repair procure"), "already procured")
+        require(merchant.command("west"), "village square")
+        require(
+            merchant.command("repair finish north-square gas lamp"),
+            "already complete",
+        )
+        require(merchant.command("calling"), "repair procurements 1")
+        require(merchant.command("repair"), "working again")
+        require(smith.command("calling"), "repair completions 1")
+        print("TELNET_GDD_T03_TWO_ROLE_POST_RESTART_REPLAY_DENIED_GREEN")
     finally:
-        if smith is not None:
-            smith.close()
+        for client in (merchant, smith):
+            if client is not None:
+                client.close()
 
 
 if __name__ == "__main__":
