@@ -35,7 +35,10 @@ def main():
         after = smith.command("repair")
         require_all(after, "repair complete", "north-square gas lamp is working again")
         require(smith.command("calling"), "repair completions 1")
-        require(smith.command("agenda"), "completed by another account")
+        smith_agenda = smith.command("agenda")
+        require(smith_agenda, "completed by another account")
+        require_all(smith_agenda, "north-square gas lamp is repaired",
+                    "no repeat repair is needed")
         print("TELNET_GDD_T16_POST_RESTART_COMMISSION_OUTCOME_GREEN")
         print("TELNET_GDD_T03_POST_RESTART_REPAIR_RETRY_DENIED_GREEN")
 
@@ -56,7 +59,11 @@ def main():
         )
         require(merchant.command("calling"), "repair procurements 1")
         require(merchant.command("repair"), "working again")
+        require_all(merchant.command("agenda"),
+                    "north-square gas lamp is repaired",
+                    "no repeat repair is needed")
         require(smith.command("calling"), "repair completions 1")
+        print("TELNET_GDD_T16_POST_RESTART_LAMP_AGENDA_GREEN")
         print("TELNET_GDD_T03_TWO_ROLE_POST_RESTART_REPLAY_DENIED_GREEN")
     finally:
         for client in (merchant, smith):
