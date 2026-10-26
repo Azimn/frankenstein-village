@@ -1113,6 +1113,38 @@ assert calling_record(smith_tester, "smith")["participation"][
     "community_route_contributions"
 ] == 1, "Smith civic work participation was lost"
 print("POST_RESTART_DAILY_ROUTE_SURVEY_GREEN")
+# GDD T-07: two ordinary accounts share the same real physical red cord,
+# but only Hound changed its protection marker; Wanderer's earlier signed
+# interpretation remains an accurate, time-scoped observation.
+_treeline = one("The Northern Treeline")
+_cords = [x for x in _treeline.contents if x.key == "a frayed red cord"]
+assert len(_cords) == 1, "Treeline physical evidence missing or duplicated"
+_cord = _cords[0]
+_hound_protect = one("HoundTester")
+_wanderer_field = one("WandererTester")
+assert active_calling(_hound_protect) == "hound"
+assert active_calling(_wanderer_field) == "wanderer"
+assert _cord.db.route_caution["mask"] == "HoundTester"
+assert _cord.db.route_caution["event_id"] > 0
+assert "clear caution marker" in _cord.get_display_desc(looker=_wanderer_field)
+_actions = route_board["field_decisions"]
+assert set(_actions) == {"hound", "wanderer"}
+assert _actions["hound"]["mask"] == "HoundTester"
+assert _actions["wanderer"]["mask"] == "WandererTester"
+assert _actions["wanderer"]["observation"] == "unmarked", (
+    "Later protection overwrote the original Wanderer's observation"
+)
+assert _actions["hound"]["event_id"] == _cord.db.route_caution["event_id"]
+for _role, _kind in (("hound", "village.route_protected"),
+                     ("wanderer", "village.route_passability_observed")):
+    _signed = warning_ledger.get_event(_actions[_role]["event_id"])
+    assert _signed["kind"] == _kind
+    assert _signed["status"] == "complete"
+assert calling_record(_hound_protect, "hound")["participation"]["field_surveys"] == 1
+assert calling_record(_wanderer_field, "wanderer")["participation"]["field_surveys"] == 1
+assert set(_next_survey_day["history"][-1]["field_decisions"]) == {"hound", "wanderer"}
+print("POST_RESTART_GDD_T07_SHARED_CORD_AND_DISTINCT_ACTIONS_GREEN")
+
 from world.residents import (
     resident_state as _resident_state, relationship_for as _relationship_for
 )

@@ -117,6 +117,7 @@ def main() -> int:
     mystic = None
     performer = None
     wanderer = None
+    hound = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -1875,6 +1876,69 @@ def main() -> int:
         out = wanderer.command("agent")
         assert agent_json(out)["commands"]["ferry_post_delivery"] == "courier deliver"
         print("TELNET_WANDERER_REAL_FERRY_POST_GREEN")
+
+        # GDD T-07: two independent ordinary accounts, same physical cord.
+        # Travel, inspect, and act from their real locations. The Wanderer
+        # records logistical caution before a Hound physically marks it;
+        # a later Hound action must not rewrite the earlier field observation.
+        for move, destination in (
+            ("west", "blood of the vine"),
+            ("west", "village square"),
+            ("west", "st. lazarus church"),
+            ("west", "churchyard"),
+            ("north", "northern treeline"),
+        ):
+            out = wanderer.command(move)
+            require(out, destination)
+        out = wanderer.command("survey passability")
+        require(out, "examine the physical red cord")
+        out = wanderer.command("look cord")
+        require_all(out, "scarlet cord", "cut cleanly")
+        out = wanderer.command("survey protect")
+        require(out, "only a hound")
+        out = wanderer.command("survey passability")
+        require(out, "record firsthand passability evidence")
+        out = wanderer.command("survey passability")
+        require(out, "already signed today")
+
+        hound = Client(args.host, args.port)
+        require(hound.sync_login_screen(), "frankenstein village")
+        hound_pass = os.environ["FV_QA_REPAIR_PASSWORD"]
+        hound_user = "qa_hound_protection"
+        out = hound.command(f"connect {hound_user} {hound_pass}", wait=4.0)
+        require(out, "connected", "account qa_hound_protection")
+        hound.command("charcreate HoundTester", wait=3.0)
+        out = hound.command("ic HoundTester", wait=4.0)
+        require(out, "private room")
+        out = hound.command("calling choose hound")
+        require_all(out, "hound is now your active calling", "apprentice rank")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("west", "st. lazarus church"),
+            ("west", "churchyard"), ("north", "northern treeline"),
+        ):
+            out = hound.command(move)
+            require(out, destination)
+        out = hound.command("survey protect")
+        require(out, "examine the physical red cord")
+        out = hound.command("look cord")
+        require(out, "scarlet cord")
+        out = hound.command("survey passability")
+        require(out, "only a hound")
+        out = hound.command("survey protect")
+        require_all(out, "tie the original frayed cord", "visible warning", "signed event")
+        out = hound.command("survey protect")
+        require(out, "already signed today")
+        # The Hound's movement and action notified the nearby Wanderer.
+        # Drain unsolicited room broadcasts before testing object look.
+        wanderer.read_quiet()
+        out = wanderer.command("look cord")
+        require_all(out, "cut cleanly", "clear caution marker")
+        out = wanderer.command("survey")
+        require_all(out, "houndtester", "wanderertester", "unmarked cord",
+                    "does not repair the cord")
+        print("TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN")
+
         print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
         out = c.command("guide")
         require_all(out, "civic material table", "bridgework collect preserve")
@@ -1997,8 +2061,12 @@ def main() -> int:
             print("\nPERFORMER TRANSCRIPT\n" + "\n".join(performer.transcript))
         if wanderer is not None:
             print("\nWANDERER TRANSCRIPT\n" + "\n".join(wanderer.transcript))
+        if hound is not None:
+            print("\nHOUND TRANSCRIPT\n" + "\n".join(hound.transcript))
         raise
     finally:
+        if hound is not None:
+            hound.close()
         if wanderer is not None:
             wanderer.close()
         if performer is not None:
