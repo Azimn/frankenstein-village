@@ -5374,6 +5374,9 @@ def _consume(caller, item, kind, verb_self, verb_room):
         toxic = data.get("toxic", 0) or 0
     toxic = toxic or 0
     sobering = data.get("sobering", 0) or 0
+    # Existing free well water can offer gradual stomach relief. This never
+    # erases an unknown toxin, invents a medicine or grants nourishment.
+    stomach_relief = data.get("settle_queasy", 0) or 0
     heal = data.get("heal", 0) or 0
 
     # Apply to the body.
@@ -5384,6 +5387,9 @@ def _consume(caller, item, kind, verb_self, verb_room):
         me.db.drunkenness = min(100, drunk_before + alcohol)
     if sobering and hasattr(me, "_drunkenness"):
         me.db.drunkenness = max(0, me._drunkenness() - sobering)
+    if stomach_relief and (me.db.queasy or 0) > 0:
+        me.db.queasy = max(0, (me.db.queasy or 0) - stomach_relief)
+        me.msg("The cool water stays down. The queasiness eases a little.")
     learned_hidden_toxin = False
     if toxic:
         me.db.queasy = max(me.db.queasy or 0, toxic)
