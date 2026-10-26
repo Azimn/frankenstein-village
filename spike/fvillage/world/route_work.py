@@ -106,7 +106,7 @@ def history_lines():
     lines = ["|wSigned village route history|n"]
     if not previous:
         lines.append("No earlier village day has an archived route record yet.")
-        return "\\n".join(lines)
+        return "\n".join(lines)
     for row in previous:
         lines.append(
             f"Village day {row['day']}: "
@@ -125,7 +125,7 @@ def history_lines():
         "These are dated observations and signed actions, not proof of "
         "what caused a hazard or whether the route is safe today."
     )
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 
 def report(mask):
