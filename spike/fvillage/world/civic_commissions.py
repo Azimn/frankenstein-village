@@ -24,9 +24,10 @@ def normalize(raw):
 
 def refresh(raw, day):
     state = normalize(raw)
-    day = int(day)
-    if day < 1:
-        raise ValueError("Village day must be positive")
+    # Never truncate fractional days or treat bool as an integer clock tick.
+    # A coerced day could attach a signed event to the wrong daily order.
+    if isinstance(day, bool) or not isinstance(day, int) or day < 1:
+        raise ValueError("Village day must be a positive integer")
     if day <= int(state["day"]):
         return state
     old = state["commission"]
