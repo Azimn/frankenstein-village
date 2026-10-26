@@ -924,6 +924,15 @@ tavern_public_ids_snapshot = copy.deepcopy(
 tavern_player_rumors_snapshot = copy.deepcopy(
     list(tavern_for_snapshot.db.player_rumors or [])
 )
+# Preserve the authored care patient's *life* precondition before the
+# independent Resident Life day-two fast-forward below. The village clock
+# does not advance with that QA simulation, so the later care scenario must
+# not depend on incidental body decay from an unrelated population test.
+silas_care_life_baseline = copy.deepcopy(
+    resident_state(by_resident_id["silas_crowe"])["life"]
+)
+assert silas_care_life_baseline["body"]["cold"] >= 35
+assert silas_care_life_baseline["body"]["wet"] >= 30
 
 # Acceptance scenario: Wren follows school without cognition when the routine
 # is valid, falls back home with an attributable cause when the school is
@@ -1431,6 +1440,13 @@ from world.tavern_care import (
 )
 
 silas_care = one("Silas Crowe")
+# Restore only this patient's staged life/commitment state for the distinct
+# cold-care test, preserving resident facts, rumors and world ledger from
+# the earlier population simulation. This is QA fixture isolation, not a
+# production self-healing mechanic or a rewritten canonical world outcome.
+silas_care_state = resident_state(silas_care)
+silas_care_state["life"] = copy.deepcopy(silas_care_life_baseline)
+save_state(silas_care, silas_care_state)
 cold_case = care_status()
 cold_mutations = dict(cold_case.get("objective_mutations") or {})
 assert cold_mutations["patient_initialized"]["resident_id"] == "silas_crowe"

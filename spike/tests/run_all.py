@@ -364,6 +364,17 @@ def main() -> int:
             # exists, then inspect the database through a fresh process.
             run([evennia, "start"], cwd=game, env=env, timeout=120)
             wait_for_port("127.0.0.1", 4000)
+            # GDD T-03: retry the already completed physical lamp repair through
+            # the original Smith's authenticated client after a real restart.
+            # A read-only post-restart shell then verifies the objective record.
+            run(
+                [
+                    vpython,
+                    checkout / "spike" / "tests" / "telnet_t03_restart_retry.py",
+                    "--host", "127.0.0.1", "--port", "4000",
+                ],
+                cwd=checkout, env=env, timeout=90,
+            )
             run([evennia, "stop"], cwd=game, env=env, timeout=60)
             post_restart = (
                 checkout / "spike" / "tests" / "post_restart_assertions.py"

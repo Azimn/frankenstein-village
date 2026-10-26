@@ -32,16 +32,25 @@ def main():
         require(out, "bundles remain today")
         out = supplier.command("commission pledge")
         require_all(out, "pledge your physical", "another player")
+        require_all(supplier.command("agenda"), "your firewood pledge is pending", "commission cancel")
         out = carrier.command("west")
         require(out, "village square")
         out = supplier.command("give firewood = MerchantTester")
         require(out, "you give")
+        require(carrier.command("agenda"), "you carry the exact pledged bundle")
         out = carrier.command("east")
         require(out, "blood of the vine")
         out = carrier.command("commission cancel")
         require(out, "only the original supplier")
         out = supplier.command("commission cancel")
         require_all(out, "signed firewood pledge is cancelled", "remains")
+        require(supplier.command("agenda"), "your pledge was cancelled")
+        # T-16: the distinct account still holding the physical bundle
+        # must discover the honest recovery route, not a phantom commission.
+        out = carrier.command("agenda")
+        require_all(out, "supplier cancelled the pledge", "hearth deliver")
+        if "commission deliver" in out.lower():
+            raise AssertionError("Cancelled commission still offered as live carrier work")
         out = carrier.command("commission deliver")
         require(out, "must first pledge")
         out = carrier.command("hearth deliver")
@@ -52,6 +61,7 @@ def main():
         require(out, "only an outstanding commission")
         out = supplier.command("commission")
         require_all(out, "cancelled", "hearth deliver")
+        print("TELNET_GDD_T16_COMMISSION_RETURN_AGENDA_GREEN")
         print("TELNET_GDD_T13_CANCEL_BEFORE_DELIVER_TWO_ACCOUNT_GREEN")
     finally:
         for client in (carrier, supplier):

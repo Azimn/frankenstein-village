@@ -88,6 +88,58 @@ class MarketStandardsTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual(again, honored)
 
+    def test_t16_market_return_agenda_tracks_real_three_role_resolution(self):
+        import json
+
+        held, ok, error = sign(None, "hold", actor=5, event=10)
+        self.assertTrue(ok, error)
+        merchant = " ".join(market.personal_agenda(held, 1, 105))
+        self.assertIn("your Merchant market hold remains active", merchant)
+        self.assertIn("trade release", merchant)
+        self.assertEqual(market.personal_agenda(held, 1, 109), [])
+        self.assertEqual(market.personal_agenda(held, 1, True), [])
+        self.assertEqual(market.personal_agenda(held, True, 105), [])
+
+        calibrated, ok, error = sign(held, "calibrate", actor=9, event=12)
+        self.assertTrue(ok, error)
+        calibrated = json.loads(json.dumps(calibrated))
+        merchant = " ".join(market.personal_agenda(calibrated, 1, 105))
+        self.assertIn("market hold was resolved", merchant)
+        self.assertIn("Smith calibrated", merchant)
+        smith = " ".join(market.personal_agenda(calibrated, 1, 109))
+        self.assertIn("your Smith calibration", smith)
+        self.assertIn("Chronicler can attest", smith)
+
+        attested, ok, error = sign(calibrated, "attest", actor=11, event=13)
+        self.assertTrue(ok, error)
+        chronicler = " ".join(market.personal_agenda(attested, 1, 111))
+        self.assertIn("your Chronicler attestation", chronicler)
+        self.assertIn("both source events", chronicler)
+        self.assertEqual(market.personal_agenda(attested, 1, 999), [])
+        nextday = market.refresh(json.loads(json.dumps(attested)), 2)
+        self.assertIn("previous day's standards work is archived",
+                      " ".join(market.personal_agenda(nextday, 2, 105)))
+        self.assertNotIn("hold remains active",
+                         " ".join(market.personal_agenda(nextday, 2, 105)))
+        self.assertEqual(market.personal_agenda(nextday, 1, 105), [])
+        self.assertEqual(market.personal_agenda(nextday, 3, 105), [])
+
+    def test_t16_market_release_and_honor_have_truthful_personal_outcomes(self):
+        held, ok, error = sign(None, "hold", actor=5, event=10)
+        self.assertTrue(ok, error)
+        released, ok, error = sign(held, "release", actor=17, event=25)
+        self.assertTrue(ok, error)
+        self.assertIn("market hold was released",
+                      " ".join(market.personal_agenda(released, 1, 105)))
+        self.assertIn("your Merchant release of the hold",
+                      " ".join(market.personal_agenda(released, 1, 117)))
+        self.assertNotIn("trade release",
+                         " ".join(market.personal_agenda(released, 1, 105)))
+        honored, ok, error = sign(None, "honor", actor=5, event=30)
+        self.assertTrue(ok, error)
+        self.assertIn("decision to honor the disputed prices",
+                      " ".join(market.personal_agenda(honored, 1, 105)))
+
     def test_bad_actor_does_not_create_public_event_record(self):
         state, ok, error = market.apply(
             None, "hold", day=1, hour=13, account_id=True,

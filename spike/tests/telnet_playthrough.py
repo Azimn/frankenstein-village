@@ -1392,6 +1392,9 @@ def main() -> int:
         require_all(out, "merchant")
         out = smith.command("repair finish north-square gas lamp")
         require(out, "merchant must procure the replacement collar")
+        out = smith.command("agenda")
+        require_all(out, "your smith diagnosis", "merchant must procure",
+                    "lamp shop")
         out = smith.command("calling")
         require(out, "repair diagnoses 1")
         out = smith.command("repair diagnose north-square gas lamp")
@@ -1438,6 +1441,11 @@ def main() -> int:
         require(out, "procure one brass mantle collar")
         require(out, "one real stock unit")
         require(out, "smith must install")
+        out = merchant.command("agenda")
+        require_all(out, "your merchant procurement", "smith must install")
+        out = smith.command("agenda")
+        require_all(out, "merchant has procured",
+                    "repair finish north-square gas lamp")
         out = h.command("ask Bram about the lamp")
         require_all(out, "got the collar")
         require_all(out, "lamp's still dark")
@@ -1473,6 +1481,11 @@ def main() -> int:
         require(out, "repair complete")
         require(out, "smithtester")
         require(out, "merchanttester")
+        for participant in (smith, merchant):
+            out = participant.command("agenda")
+            require_all(out, "north-square gas lamp is repaired",
+                        "no repeat repair is needed")
+        print("TELNET_GDD_T16_LAMP_REPAIR_RETURN_AGENDA_GREEN")
         out = smith.command("guide")
         require(out, "lamp is burning again")
         require(out, "no longer an open job")
@@ -1824,6 +1837,8 @@ def main() -> int:
         require(out, "two prices")
         out = merchant.command("trade hold")
         require_all(out, "signed", "temporarily on hold")
+        require_all(merchant.command("agenda"),
+                    "your merchant market hold remains active", "trade release")
         out = merchant.command("soup procure")
         require_all(out, "physical crate of kitchen roots", "market crates remain")
         out = merchant.command("soup procure")
@@ -1845,10 +1860,17 @@ def main() -> int:
         require(out, "two prices")
         out = smith.command("trade calibrate")
         require_all(out, "signed", "physically recalibrated")
+        require_all(merchant.command("agenda"),
+                    "your merchant market hold was resolved", "smith calibrated")
+        require_all(smith.command("agenda"),
+                    "your smith calibration", "chronicler can attest")
         out = smith.command("trade calibrate")
         require(out, "already been calibrated")
         out = c.command("trade attest")
         require_all(out, "signed", "attested both source events")
+        require_all(c.command("agenda"),
+                    "your chronicler attestation", "both source events")
+        print("TELNET_GDD_T16_MARKET_THREE_CALLING_AGENDA_GREEN")
         out = c.command("trade attest")
         require(out, "already attested")
         out = c.command("look market scale")
