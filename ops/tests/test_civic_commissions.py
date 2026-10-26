@@ -170,5 +170,62 @@ class CivicCommissionTests(unittest.TestCase):
         self.assertEqual(rejected, state)
 
 
+    def test_t13_mixed_cancelled_and_completed_orders_remain_bounded(self):
+        """Repeated day changes preserve one terminal record per order.
+
+        Cancellation cannot add an expiry record on the following day,
+        including after JSON roundtrips and repeated board refreshes.
+        """
+        state = None
+        for day in range(1, 81):
+            state = refresh(state, day)
+            supplier = 100 + day
+            bundle = 1000 + day
+            state, accepted, error = stage(
+                state, day=day, supplier=supplier, bundle=bundle,
+                event=day * 10,
+            )
+            self.assertTrue(accepted, error)
+            if day % 2:
+                state, accepted, error = cancel(
+                    state, day, supplier, event_id=day * 10 + 1,
+                )
+                expected = "cancelled"
+            else:
+                state, accepted, error = complete(
+                    state, day=day, finisher=500 + day,
+                    bundle=bundle, event=day * 10 + 1,
+                )
+                expected = "complete"
+            self.assertTrue(accepted, error)
+            self.assertEqual(state["commission"]["status"], expected)
+            self.assertEqual(state["commission"]["event_ids"],
+                             [day * 10, day * 10 + 1])
+
+            # Simulate serialization between sessions; repeat status reads
+            # and rejected terminal actions without changing persisted data.
+            state = json.loads(json.dumps(state))
+            for _ in range(3):
+                self.assertEqual(refresh(state, day), state)
+                replay, accepted, _ = cancel(
+                    state, day, supplier, event_id=day * 10 + 2,
+                )
+                self.assertFalse(accepted)
+                self.assertEqual(replay, state)
+
+            state = refresh(state, day + 1)
+            self.assertEqual(state["commission"]["status"], "open")
+            self.assertEqual(len(state["history"]), min(day, 32))
+            self.assertEqual(state["history"][-1]["id"], f"civic-{day}")
+            self.assertEqual(state["history"][-1]["status"], expected)
+            self.assertEqual(state["history"][-1]["bundle_id"], bundle)
+            self.assertEqual(refresh(state, day + 1), state)
+
+        self.assertEqual(
+            [item["id"] for item in state["history"]],
+            [f"civic-{day}" for day in range(49, 81)],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
