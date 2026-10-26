@@ -28,7 +28,7 @@ assert item["finisher_account"] is None
 assert len(item["event_ids"]) == 2
 assert len([h for h in state["history"] if h["id"] == "civic-2"]) == 1
 assert not ObjectDB.objects.filter(id=item["bundle_id"]).exists()
-before = tavern.db._qa_t13_initial_reserve
+before = tavern.db.qa_t13_initial_reserve
 assert isinstance(before, int)
 assert hearth_state.hearth(tavern.db.civic_hearth)["reserve"] == before + 1
 
