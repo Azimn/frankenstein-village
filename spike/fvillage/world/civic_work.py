@@ -9,7 +9,8 @@ from django.db import transaction
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
 
-from world import civic_commissions, hearth_state
+from world import civic_commissions, hearth_state, repair_case, return_agenda
+from world.situations import LAMP_REPAIR_ID, get_situation
 from world.community_hearth import FIREWOOD_KEY, SQUARE_KEY, TAVERN_KEY
 from world.events import publish_world_event
 
@@ -53,18 +54,27 @@ def _state(tavern, day):
 
 
 def personal_agenda(mask):
-    """Project current physical custody and public commission state to agenda."""
+    """Show this mask's real unfinished work, never another player's private state."""
     account = getattr(mask, "account", None)
     if account is None:
         return []
+    lines = []
     tavern = _tavern()
-    if tavern is None:
-        return []
-    day, _hour = _clock()
-    return civic_commissions.personal_agenda(
-        tavern.db.civic_commission, day, account.id,
-        carried_bundle_ids=[obj.id for obj in _carried(mask)],
-    )
+    if tavern is not None:
+        day, _hour = _clock()
+        lines.extend(civic_commissions.personal_agenda(
+            tavern.db.civic_commission, day, account.id,
+            carried_bundle_ids=[obj.id for obj in _carried(mask)],
+        ))
+
+    # Read the established situation, not a parallel agenda quest flag.
+    # Reconcile elapsed deadlines only when this mask actually participated.
+    case = get_situation(LAMP_REPAIR_ID)
+    mask_id = getattr(mask, "id", None)
+    if return_agenda.lamp_repair_work_lines(case, mask_id):
+        case = repair_case.reconcile_lamp_repair_case()
+        lines.extend(return_agenda.lamp_repair_work_lines(case, mask_id))
+    return lines
 
 
 def status_lines():
