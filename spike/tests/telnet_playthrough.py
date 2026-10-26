@@ -1905,9 +1905,8 @@ def main() -> int:
         require(hound.sync_login_screen(), "frankenstein village")
         hound_pass = os.environ["FV_QA_REPAIR_PASSWORD"]
         hound_user = "qa_hound_protection"
-        out = hound.command(f"create {hound_user} {hound_pass}", wait=4.0)
-        if "connected" not in out.lower() and "account qa_hound_protection" not in out.lower():
-            out = hound.command(f"connect {hound_user} {hound_pass}", wait=4.0)
+        out = hound.command(f"connect {hound_user} {hound_pass}", wait=4.0)
+        require(out, "connected", "account qa_hound_protection")
         hound.command("charcreate HoundTester", wait=3.0)
         out = hound.command("ic HoundTester", wait=4.0)
         require(out, "private room")
