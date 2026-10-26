@@ -11,6 +11,8 @@ class CmdClinic(Command):
         clinic prepare
         clinic treat rest
         clinic treat compress
+        clinic request records
+        clinic records
 
     A fresh prepared dressing can be carried or handed to a different
     Healer. Only actual signed treatment changes the clinic's public record.
@@ -26,18 +28,32 @@ class CmdClinic(Command):
         if raw in ([], ["status"], ["help"]):
             self.caller.msg(clinic_work.status(self.caller))
             return
-        if raw in (["assess"], ["prepare"]):
+        if raw == ["records"]:
+            self.caller.msg(clinic_work.confidential_records(self.caller))
+            return
+        if raw == ["request", "records"]:
+            result, error = clinic_work.act(self.caller, "request_records")
+        elif raw in (["assess"], ["prepare"]):
             result, error = clinic_work.act(self.caller, raw[0])
         elif len(raw) == 2 and raw[0] == "treat":
             result, error = clinic_work.act(self.caller, "treat", raw[1])
         else:
-            self.caller.msg("Use clinic | clinic assess | clinic prepare | clinic treat rest|compress.")
+            self.caller.msg(
+                "Use clinic | clinic assess | clinic prepare | "
+                "clinic treat rest|compress | clinic request records | clinic records."
+            )
             return
         if error:
             self.caller.msg(error)
             return
         action = result["action"]
-        if action == "assess":
+        if action == "request_records":
+            self.caller.msg(
+                f"The visiting patient grants this examining Healer "
+                f"permission to consult today's private case notes "
+                f"(signed event {result['event_id']}). Use clinic records."
+            )
+        elif action == "assess":
             self.caller.msg(
                 f"You assess the visiting patient and document a "
                 f"{result['condition']} complaint (signed world event "
@@ -55,7 +71,10 @@ class CmdClinic(Command):
                 f"{result['condition']} complaint. The clinical outcome "
                 f"is signed as world event {result['event_id']}."
             )
-        self.caller.location.msg_contents(
-            f"{self.caller.key} performs a real clinic {action} action.",
-            exclude=[self.caller],
-        )
+        # Consent is private: neither the patient's details nor a consent
+        # notification should be broadcast to other people in the room.
+        if action != "request_records":
+            self.caller.location.msg_contents(
+                f"{self.caller.key} performs a real clinic {action} action.",
+                exclude=[self.caller],
+            )
