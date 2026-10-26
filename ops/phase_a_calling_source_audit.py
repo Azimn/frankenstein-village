@@ -95,8 +95,26 @@ def _command_key(file: Path, name: str) -> str:
     raise ValueError(f"{name} not defined in {file}")
 
 def _registered_commands(file: Path) -> set[str]:
+    # Only CharacterCmdSet.at_cmdset_creation installs commands on a
+    # puppeted village character. Account, session and unused helper
+    # registrations cannot count as character gameplay entrypoints.
+    character = next(
+        (node for node in _tree(file).body
+         if isinstance(node, ast.ClassDef) and node.name == "CharacterCmdSet"),
+        None,
+    )
+    if character is None:
+        raise ValueError(f"Missing CharacterCmdSet in {file}")
+    creation = next(
+        (node for node in character.body
+         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+         and node.name == "at_cmdset_creation"),
+        None,
+    )
+    if creation is None:
+        raise ValueError(f"Missing CharacterCmdSet.at_cmdset_creation in {file}")
     commands = set()
-    for node in ast.walk(_tree(file)):
+    for node in ast.walk(creation):
         if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
             and node.func.attr == "add"
             and isinstance(node.func.value, ast.Name)

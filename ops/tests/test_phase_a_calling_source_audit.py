@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "ops"))
 
 from phase_a_calling_source_audit import (  # noqa: E402
-    ANCHORS, V_OWNERS, audit, markdown,
+    ANCHORS, V_OWNERS, _registered_commands, audit, markdown,
 )
 
 class PhaseACallingAuditTests(unittest.TestCase):
@@ -67,6 +67,29 @@ class PhaseACallingAuditTests(unittest.TestCase):
         self.assertIsNone(roles["wanderer"]["distinct_jobs_verified"])
         self.assertIn("GDD 8.9", markdown(self.result))
 
+    def test_character_command_registration_cannot_be_laundered_from_account_cmdset(self):
+        # A player entrypoint must be installed on the character, not merely
+        # mentioned by a different cmdset or an unused helper method.
+        source = (ROOT / "spike/fvillage/commands/default_cmdsets.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("        self.add(CmdMystic())", source)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "default_cmdsets.py"
+            path.write_text(source, encoding="utf-8")
+            self.assertIn("CmdMystic", _registered_commands(path))
+            # Removing a character command while retaining the same add call
+            # in AccountCmdSet must not produce a false positive.
+            moved = source.replace(
+                "        self.add(CmdMystic())\n", "", 1
+            ).replace(
+                "        self.add(CmdAgentLobby())\n",
+                "        self.add(CmdMystic())\n        self.add(CmdAgentLobby())\n",
+                1,
+            )
+            path.write_text(moved, encoding="utf-8")
+            self.assertNotIn("CmdMystic", _registered_commands(path))
+            self.assertIn("CmdAgentContext", _registered_commands(path))
     def test_source_drift_fails_closed_instead_of_inventing_progress(self):
         import shutil
         with tempfile.TemporaryDirectory() as folder:
