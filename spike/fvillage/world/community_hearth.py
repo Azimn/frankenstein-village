@@ -160,35 +160,59 @@ def gather(mask):
         )
     day, hour = _clock()
     current = hearth_state.source(wood.db.civic_wood, day)
-    updated, permitted = hearth_state.take(current, day)
-    if not permitted:
+    if current["remaining"] < 1:
         return None, "The woodpile has no more bundles ready today."
+
     def consequence(event):
-        bundle = create_object(
-            "typeclasses.objects.Object", key=FIREWOOD_KEY,
-            location=mask, aliases=["firewood", "wood bundle"],
+        # A preview does not reserve stock. Competing ordinary players may
+        # gather the final bundle before this event's consequence executes.
+        with transaction.atomic():
+            still_allowed, reason = _actor_ok(mask, SQUARE_KEY)
+            if not still_allowed:
+                raise RuntimeError(reason)
+            if _clock()[0] != day:
+                raise RuntimeError("The village day changed before gathering.")
+            if _woodpile() != wood:
+                raise RuntimeError("The square woodpile is no longer available.")
+            if _carried(mask):
+                raise RuntimeError(
+                    "You already carry a firewood bundle; deliver it first."
+                )
+            updated, permitted = hearth_state.take(wood.db.civic_wood, day)
+            if not permitted:
+                raise RuntimeError("The woodpile has no more bundles ready today.")
+            bundle = create_object(
+                "typeclasses.objects.Object", key=FIREWOOD_KEY,
+                location=mask, aliases=["firewood", "wood bundle"],
+            )
+            bundle.db.civic_firewood = True
+            bundle.db.source_day = day
+            bundle.db.gather_event_id = event["id"]
+            bundle.db.desc = (
+                "One tangible bundle of dry split wood, carried from the "
+                "Village Square pile. Deliver it to the Blood of the Vine "
+                "or give it to someone who will."
+            )
+            wood.db.civic_wood = updated
+            return {
+                "bundle_id": bundle.id, "woodpile_object_id": wood.id,
+                "remaining": updated["remaining"],
+            }
+
+    try:
+        event = publish_world_event(
+            "civic.hearth_firewood_gathered", actor=mask,
+            payload={"day": day, "hour": hour, "resource": FIREWOOD_KEY,
+                     "chronicle_eligible": False, "harbinger": False},
+            consequence=consequence,
         )
-        bundle.db.civic_firewood = True
-        bundle.db.source_day = day
-        bundle.db.gather_event_id = event["id"]
-        bundle.db.desc = (
-            "One tangible bundle of dry split wood, carried from the "
-            "Village Square pile. Deliver it to the Blood of the Vine "
-            "or give it to someone who will."
-        )
-        wood.db.civic_wood = updated
-        return {
-            "bundle_id": bundle.id, "woodpile_object_id": wood.id,
-            "remaining": updated["remaining"],
-        }
-    event = publish_world_event(
-        "civic.hearth_firewood_gathered", actor=mask,
-        payload={"day": day, "hour": hour, "resource": FIREWOOD_KEY,
-                 "chronicle_eligible": False, "harbinger": False},
-        consequence=consequence,
-    )
+    except RuntimeError as err:
+        # Preserve finite stock and return an ordinary retryable message when
+        # another player has already taken the final bundle.
+        return None, str(err)
     return {
-        "event_id": event["id"], "remaining": updated["remaining"],
+        "event_id": event["id"],
+        "remaining": event["consequence"]["remaining"],
     }, None
 
 
