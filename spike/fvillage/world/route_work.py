@@ -188,6 +188,12 @@ def report(mask):
         with transaction.atomic():
             if mask.location != room or clue.location != room:
                 raise RuntimeError("The observer left the actual landmark.")
+            # A report must belong to the hour and day actually witnessed.
+            # Field actions already enforce this boundary; civic reports must
+            # not sign a stale day if the village clock advances mid-command.
+            now_day, now_hour = _day_hour()
+            if (now_day, now_hour) != (day, hour):
+                raise RuntimeError("Village time advanced before this route report.")
             changed, accepted, error = route_surveys.report(
                 square.db.daily_route_survey, day, site,
                 mask.account.id, mask.key, event["id"],
