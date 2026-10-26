@@ -474,6 +474,38 @@ def main() -> int:
             restarted_env["FV_T13_RACE_RESTART"] = "1"
             run([evennia, "shell"], cwd=game, env=restarted_env,
                 input_text=race_assertions)
+
+            # T-13: the previous contested outcome must not strand the next
+            # day's commission. Advance only the disposable QA clock, then
+            # exercise a fresh pledge and cancellation through normal telnet.
+            day4_setup = (
+                checkout / "spike" / "tests" / "gdd_t13_day4_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=day4_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_t13_day4_recovery.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=100,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            day4_assertions = (
+                checkout / "spike" / "tests" / "gdd_t13_day4_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=day4_assertions)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            day4_restart_env = dict(env)
+            day4_restart_env["FV_T13_DAY4_RESTART"] = "1"
+            run([evennia, "shell"], cwd=game, env=day4_restart_env,
+                input_text=day4_assertions)
         except Exception:
             dump_logs(game)
             raise
