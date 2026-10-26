@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import copy
 
+from django.db import transaction
+
 from evennia import create_object
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
@@ -111,44 +113,64 @@ def prep(mask, base, seasoning):
     if _held(mask, "soup_preparation"):
         return None, "You already carry a prepared packet; cook or hand it off first."
     day, hour = _clock()
-    prepared, ok, why = soup_state.reserve(
+    _preview, ok, why = soup_state.reserve(
         tavern.db.soup_pantry, day, base, seasoning)
     if not ok:
         return None, why
 
     def consequence(event):
-        # Both reservation and exact physical custody live in this event.
-        if _held(mask, "soup_preparation"):
-            raise RuntimeError("A prepared packet was added during work.")
-        item = create_object(
-            "typeclasses.objects.Object", key=PACKET,
-            location=mask, aliases=["soup packet", "ingredients"],
-        )
-        item.db.soup_preparation = {
-            "base": base, "seasoning": seasoning,
-            "day": day, "hour": hour,
-            "prep_event_id": event["id"], "preparer_id": mask.id,
-            "preparer": mask.key, "source_room_id": tavern.id,
-        }
-        item.db.desc = (
-            f"A packet of real measured {base} and {seasoning} from the "
-            "shared tavern cupboard. Give it to another Innkeep, or "
-            "bring it back to the communal pot and use soup simmer."
-        )
-        tavern.db.soup_pantry = prepared
-        return {"packet_id": item.id, "room_id": tavern.id,
-                "stock_after": copy.deepcopy(prepared["stock"])}
+        # A preflight is not a stock reservation. Recheck live inventory,
+        # village time and the shared pantry inside the signed consequence.
+        with transaction.atomic():
+            _room_now, reason = _access(mask, TAVERN)
+            if reason:
+                raise RuntimeError(reason)
+            if _room_now != tavern:
+                raise RuntimeError("The kitchen changed during preparation.")
+            if active_calling(mask) != "innkeep":
+                raise RuntimeError("An active Innkeep is needed to prepare a recipe.")
+            if _clock()[0] != day:
+                raise RuntimeError("The village day changed during preparation.")
+            if _held(mask, "soup_preparation"):
+                raise RuntimeError("You already carry a prepared packet.")
+            updated, accepted, reason = soup_state.reserve(
+                tavern.db.soup_pantry, day, base, seasoning)
+            if not accepted:
+                raise RuntimeError(reason)
+            item = create_object(
+                "typeclasses.objects.Object", key=PACKET,
+                location=mask, aliases=["soup packet", "ingredients"],
+            )
+            item.db.soup_preparation = {
+                "base": base, "seasoning": seasoning,
+                "day": day, "hour": hour,
+                "prep_event_id": event["id"], "preparer_id": mask.id,
+                "preparer": mask.key, "source_room_id": tavern.id,
+            }
+            item.db.desc = (
+                f"A packet of real measured {base} and {seasoning} from the "
+                "shared tavern cupboard. Give it to another Innkeep, or "
+                "bring it back to the communal pot and use soup simmer."
+            )
+            tavern.db.soup_pantry = updated
+            return {"packet_id": item.id, "room_id": tavern.id,
+                    "stock_after": copy.deepcopy(updated["stock"])}
 
-    event = publish_world_event(
-        "professional.innkeep_soup_prepared", actor=mask,
-        payload={"day": day, "hour": hour, "base": base,
-                 "seasoning": seasoning, "room_id": tavern.id,
-                 "chronicle_eligible": False, "harbinger": False},
-        consequence=consequence)
+    try:
+        event = publish_world_event(
+            "professional.innkeep_soup_prepared", actor=mask,
+            payload={"day": day, "hour": hour, "base": base,
+                     "seasoning": seasoning, "room_id": tavern.id,
+                     "chronicle_eligible": False, "harbinger": False},
+            consequence=consequence)
+    except RuntimeError as error:
+        # Another player may have taken the last ingredient; never mint
+        # a packet, overwrite a pantry update or expose a server traceback.
+        return None, str(error)
     record_participation(mask, "soup_preparations", calling="innkeep")
     return {"event_id": event["id"], "base": base,
             "seasoning": seasoning,
-            "stock": prepared["stock"]}, None
+            "stock": event["consequence"]["stock_after"]}, None
 
 
 def simmer(mask):
@@ -244,36 +266,57 @@ def procure(mask):
     if _held(mask, "soup_delivery"):
         return None, "You already carry a kitchen delivery; take it to the Tavern."
     day, hour = _clock()
-    next_stock, okay = soup_state.issue_crate(market.db.soup_market, day)
+    _preview, okay = soup_state.issue_crate(market.db.soup_market, day)
     if not okay:
         return None, "The market has no more kitchen root crates available today."
 
     def consequence(event):
-        crate = create_object(
-            "typeclasses.objects.Object", key=CRATE,
-            location=mask, aliases=["kitchen roots", "root crate"],
-        )
-        crate.db.soup_delivery = {
-            "day": day, "market_id": market.id,
-            "procurement_event_id": event["id"],
-            "merchant_id": mask.id,
-        }
-        crate.db.desc = (
-            "A real crate with two turnip portions for the Blood of the Vine. "
-            "Carry it there and use soup deliver, or hand it to a courier."
-        )
-        market.db.soup_market = next_stock
-        return {"crate_id": crate.id,
-                "remaining_crates": next_stock["remaining"]}
+        with transaction.atomic():
+            _room_now, reason = _access(mask, MARKET)
+            if reason:
+                raise RuntimeError(reason)
+            if _room_now != market:
+                raise RuntimeError("The market changed during procurement.")
+            if active_calling(mask) != "merchant":
+                raise RuntimeError("An active Merchant must procure this crate.")
+            if _clock()[0] != day:
+                raise RuntimeError("The village day changed before procurement.")
+            if _held(mask, "soup_delivery"):
+                raise RuntimeError("You already carry a kitchen delivery.")
+            updated, accepted = soup_state.issue_crate(
+                market.db.soup_market, day)
+            if not accepted:
+                raise RuntimeError(
+                    "The market has no more kitchen root crates available today."
+                )
+            crate = create_object(
+                "typeclasses.objects.Object", key=CRATE,
+                location=mask, aliases=["kitchen roots", "root crate"],
+            )
+            crate.db.soup_delivery = {
+                "day": day, "market_id": market.id,
+                "procurement_event_id": event["id"],
+                "merchant_id": mask.id,
+            }
+            crate.db.desc = (
+                "A real crate with two turnip portions for the Blood of the Vine. "
+                "Carry it there and use soup deliver, or hand it to a courier."
+            )
+            market.db.soup_market = updated
+            return {"crate_id": crate.id,
+                    "remaining_crates": updated["remaining"]}
 
-    event = publish_world_event(
-        "professional.merchant_kitchen_procurement", actor=mask,
-        payload={"day": day, "hour": hour, "market_room_id": market.id,
-                 "chronicle_eligible": False, "harbinger": False},
-        consequence=consequence)
+    try:
+        event = publish_world_event(
+            "professional.merchant_kitchen_procurement", actor=mask,
+            payload={"day": day, "hour": hour, "market_room_id": market.id,
+                     "chronicle_eligible": False, "harbinger": False},
+            consequence=consequence)
+    except RuntimeError as error:
+        return None, str(error)
     record_participation(mask, "kitchen_procurements", calling="merchant")
     return {"event_id": event["id"],
-            "remaining": next_stock["remaining"]}, None
+            "remaining": event["consequence"]["remaining_crates"]}, None
 
 
 def deliver(mask):
@@ -285,7 +328,7 @@ def deliver(mask):
         return None, "Bring a physical kitchen root crate from Market Lane."
     crate = crates[0]
     day, hour = _clock()
-    result, okay = soup_state.deliver(tavern.db.soup_pantry, day)
+    _preview, okay = soup_state.deliver(tavern.db.soup_pantry, day)
     if not okay:
         return None, "The pantry already has enough turnips for now."
     source = dict(crate.db.soup_delivery or {})
@@ -293,19 +336,38 @@ def deliver(mask):
         return None, "The crate's procurement lies in the future."
 
     def consequence(event):
-        if crate.location != mask or not crate.db.soup_delivery:
-            raise RuntimeError("The delivery crate was moved or consumed.")
-        tavern.db.soup_pantry = result
-        crate.delete()
-        return {"turnip_stock": result["stock"]["turnip"],
-                "procurement_event_id": source.get("procurement_event_id")}
+        # Another player can fill the pantry between the preview and event.
+        # The crate is consumed only after revalidating the real shared stock.
+        with transaction.atomic():
+            _room_now, reason = _access(mask, TAVERN)
+            if reason:
+                raise RuntimeError(reason)
+            if _room_now != tavern:
+                raise RuntimeError("The kitchen changed before delivery.")
+            if _clock()[0] != day:
+                raise RuntimeError("The village day changed before delivery.")
+            if crate.location != mask or dict(crate.db.soup_delivery or {}) != source:
+                raise RuntimeError("The physical kitchen crate changed hands or contents.")
+            updated, accepted = soup_state.deliver(
+                tavern.db.soup_pantry, day)
+            if not accepted:
+                raise RuntimeError(
+                    "The pantry already has enough turnips. Keep the crate for later."
+                )
+            crate.delete()
+            tavern.db.soup_pantry = updated
+            return {"turnip_stock": updated["stock"]["turnip"],
+                    "procurement_event_id": source.get("procurement_event_id")}
 
-    event = publish_world_event(
-        "village.kitchen_delivery", actor=mask,
-        payload={"day": day, "hour": hour,
-                 "crate_id": crate.id,
-                 "procurement_event_id": source.get("procurement_event_id"),
-                 "chronicle_eligible": False, "harbinger": False},
-        consequence=consequence)
+    try:
+        event = publish_world_event(
+            "village.kitchen_delivery", actor=mask,
+            payload={"day": day, "hour": hour,
+                     "crate_id": crate.id,
+                     "procurement_event_id": source.get("procurement_event_id"),
+                     "chronicle_eligible": False, "harbinger": False},
+            consequence=consequence)
+    except RuntimeError as error:
+        return None, str(error)
     return {"event_id": event["id"],
-            "turnips": result["stock"]["turnip"]}, None
+            "turnips": event["consequence"]["turnip_stock"]}, None
