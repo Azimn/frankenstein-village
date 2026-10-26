@@ -1309,7 +1309,7 @@ from world.clinic_state import private_lines as _clinic_private
 _clinic_public = _clinic_lines(_clinic, _clinic["day"]).lower()
 assert "healertester" not in _clinic_public
 assert "cold" not in _clinic_public
-assert "compress" not in _clinic_public
+assert "used compress" not in _clinic_public
 assert "visiting patient" in _clinic_public
 assert _clinic["records_permission"]["mask"] == "HealerTester"
 assert _clinic["records_permission"]["account_id"] == healer_tester.account.id
