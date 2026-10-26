@@ -1837,6 +1837,8 @@ def main() -> int:
         require(out, "two prices")
         out = merchant.command("trade hold")
         require_all(out, "signed", "temporarily on hold")
+        require_all(merchant.command("agenda"),
+                    "your merchant market hold remains active", "trade release")
         out = merchant.command("soup procure")
         require_all(out, "physical crate of kitchen roots", "market crates remain")
         out = merchant.command("soup procure")
@@ -1858,10 +1860,17 @@ def main() -> int:
         require(out, "two prices")
         out = smith.command("trade calibrate")
         require_all(out, "signed", "physically recalibrated")
+        require_all(merchant.command("agenda"),
+                    "your merchant market hold was resolved", "smith calibrated")
+        require_all(smith.command("agenda"),
+                    "your smith calibration", "chronicler can attest")
         out = smith.command("trade calibrate")
         require(out, "already been calibrated")
         out = c.command("trade attest")
         require_all(out, "signed", "attested both source events")
+        require_all(c.command("agenda"),
+                    "your chronicler attestation", "both source events")
+        print("TELNET_GDD_T16_MARKET_THREE_CALLING_AGENDA_GREEN")
         out = c.command("trade attest")
         require(out, "already attested")
         out = c.command("look market scale")
