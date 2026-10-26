@@ -21,9 +21,15 @@ registry = server_events.get_server_event_registry()
 assert ScriptDB.objects.filter(db_key="server_event_registry").count() == 1
 
 # Settle the earlier telnet scenario in this disposable QA database, without
-# changing its receipts. A distant scheduled day exercises the actual 28-day clock trigger.
-preparation = server_events.advance_server_events(day=1018, hour=18)
-assert server_events.get_server_event(stable_id)["state"] == "dormant", preparation
+# changing its receipts. Resolving an active incident creates six hours of
+# aftermath, so advance through BOTH boundaries before the next scheduled
+# 28-day trigger. A single advance at 18:00 leaves an active aftermath and
+# incorrectly prevents the 19:00 recurrence.
+preparation = server_events.advance_server_events(day=1018, hour=0)
+clearance = server_events.advance_server_events(day=1018, hour=6)
+assert server_events.get_server_event(stable_id)["state"] == "dormant", (
+    preparation, clearance
+)
 
 before = server_events.get_server_event(stable_id)
 previous_occurrences = int(before.get("occurrence_count") or 0)
