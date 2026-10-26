@@ -108,6 +108,24 @@ assert known, "revealed fact was not recorded for the player mask"
 
 # Calling identity and work history belong to the mask and survive a real
 # server restart. Respecialization did not erase the earlier Chronicler record.
+# GDD T-09: character sensations are projections of one existing body
+# and persist across real restart without a second need ledger.
+_emic = smoke.sensory_snapshot()
+assert _emic["body_model"] == "represented_character_sensations_not_ai_biology"
+assert _emic["bands"]["hunger"] in {"sated", "settled", "hungry", "famished"}
+assert _emic["first_person"] and _emic["possible_relief"]
+# The physical Tavern objects and their mutable serving counts persist
+# through restart. Bram's ORIGINAL routine may legitimately refill a plate
+# while he is actually at the Tavern. Assert conservation and identity, not
+# a fabricated permanent depletion or exact refill day.
+_bread = one("a loaf of bread")
+_cheese = one("a wedge of cheese")
+assert _bread.location.key == "The Blood of the Vine"
+assert _cheese.location.key == "The Blood of the Vine"
+assert 0 <= _bread.db.servings <= 6
+assert 0 <= _cheese.db.servings <= 5
+print("POST_RESTART_GDD_T09_REAL_FOOD_AND_FIRST_PERSON_STATE_GREEN")
+
 assert active_calling(smoke) == "chronicler"
 assert active_rank(smoke) == RANK_APPRENTICE
 smoke_chronicler = calling_record(smoke, "chronicler")

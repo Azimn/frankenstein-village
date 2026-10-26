@@ -99,6 +99,12 @@ def payload_for(mask):
             "public_schedule": "calendar",
         })
         result["boundary"] = "in_character"
+        # These simulated sensations are the exact same information any
+        # human player may request with score deep. They are read-only
+        # projections of this mask's existing body, not an AI privilege.
+        if callable(getattr(mask, "sensory_snapshot", None)):
+            result["embodiment"] = mask.sensory_snapshot()
+            result["commands"]["embodied_senses"] = "score deep"
         if room and room.tags.has("tavern", category="place"):
             result["commands"]["public_rumors"] = "rumors"
             result["commands"]["hearth"] = "hearth"

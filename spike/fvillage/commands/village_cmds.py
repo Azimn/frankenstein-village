@@ -4855,6 +4855,7 @@ class CmdScore(Command):
 
     Usage:
         score
+        score deep
 
     For players whose memories don't persist: the world will tell you
     who you are right now — your posture, your body's state, what your
@@ -4873,6 +4874,20 @@ class CmdScore(Command):
 
     def func(self):
         me = self.caller
+        arg = (self.args or "").strip().lower()
+        if arg == "deep":
+            if not callable(getattr(me, "sensory_snapshot", None)):
+                me.msg("This character has no modeled bodily sensations.")
+                return
+            if not (me.location and me.location.tags.has("ic", category="side")):
+                me.msg("The character's embodied world is beyond the Inn's front door.")
+                return
+            from world.embodied_perception import deep_lines
+            me.msg("\n".join(deep_lines(me.sensory_snapshot())))
+            return
+        if arg:
+            me.msg("Use: score | score deep")
+            return
         lines = [me.key]
         posture = me.db.posture
         if posture:
@@ -5306,8 +5321,9 @@ def _fare_depleted(caller, item):
     if left > 0:
         return False
     caller.msg(
-        f"The {_fare_short(item)}'s all gone. The keeper will set more "
-        "out when he has a moment."
+        f"The {_fare_short(item)}'s all gone for now. Bram can replenish "
+        "the same finite sideboard when his actual Tavern routine brings "
+        "him here. Try another real food serving in the meantime."
     )
     return True
 
@@ -5339,6 +5355,9 @@ def _consume(caller, item, kind, verb_self, verb_room):
         toxic = data.get("toxic", 0) or 0
     toxic = toxic or 0
     sobering = data.get("sobering", 0) or 0
+    # Existing free well water can offer gradual stomach relief. This never
+    # erases an unknown toxin, invents a medicine or grants nourishment.
+    stomach_relief = data.get("settle_queasy", 0) or 0
     heal = data.get("heal", 0) or 0
 
     # Apply to the body.
@@ -5349,6 +5368,9 @@ def _consume(caller, item, kind, verb_self, verb_room):
         me.db.drunkenness = min(100, drunk_before + alcohol)
     if sobering and hasattr(me, "_drunkenness"):
         me.db.drunkenness = max(0, me._drunkenness() - sobering)
+    if stomach_relief and (me.db.queasy or 0) > 0:
+        me.db.queasy = max(0, (me.db.queasy or 0) - stomach_relief)
+        me.msg("The cool water stays down. The queasiness eases a little.")
     learned_hidden_toxin = False
     if toxic:
         me.db.queasy = max(me.db.queasy or 0, toxic)
