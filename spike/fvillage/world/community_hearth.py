@@ -8,6 +8,7 @@ No free points, mastery, impossible offscreen jobs or paid model service.
 
 from __future__ import annotations
 
+from django.db import transaction
 from evennia import create_object
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
@@ -202,43 +203,79 @@ def deliver(mask):
             "Nothing has been placed in the Tavern stock."
         )
     tavern = _room(TAVERN_KEY)
-    # A bundle already pledged to a cooperative work order must be accepted
-    # only through the commission path. Otherwise the regular hearth command
-    # could consume it while silently leaving the signed work order stranded.
+    if tavern is None:
+        return None, "The Tavern hearth is unavailable."
+    # Never consume the physical bundle reserved by a cooperative commission.
+    # A carrier may also hold another, unpledged bundle, which remains usable.
     from world import civic_commissions
     day, _hour = _clock()
     commission = civic_commissions.refresh(
         tavern.db.civic_commission, day
     )["commission"]
-    bundle = bundles[0]
-    if (commission and commission["status"] == "pledged"
-            and int(bundle.id) == commission["bundle_id"]):
+
+    def is_pledged(obj, order):
+        return bool(
+            order and order["status"] == "pledged"
+            and int(obj.id) == order["bundle_id"]
+        )
+
+    bundle = next((obj for obj in bundles if not is_pledged(obj, commission)), None)
+    if bundle is None:
         return None, (
             "That exact bundle is pledged to today's commission. "
             "A different player's account must use |wcommission deliver|n "
             "at the Tavern instead."
         )
     current = hearth_state.hearth(tavern.db.civic_hearth)
-    updated, allowed = hearth_state.deliver(current)
-    if not allowed:
+    if current["reserve"] >= hearth_state.MAX_RESERVE:
         return None, "The Tavern's firewood rack is full. Leave this bundle for later."
-    bundle = bundles[0]
     source_id = bundle.db.gather_event_id
+
     def consequence(event):
-        tavern.db.civic_hearth = updated
-        bundle.delete()
-        return {
-            "resource": FIREWOOD_KEY, "reserve": updated["reserve"],
-            "gather_event_id": source_id,
-        }
-    event = publish_world_event(
-        "civic.hearth_firewood_delivered", actor=mask,
-        payload={"resource": FIREWOOD_KEY, "gather_event_id": source_id,
-                 "chronicle_eligible": False, "harbinger": False},
-        consequence=consequence,
-    )
+        # Preview checks are not authority. Re-read the actual order, custody
+        # and rack inside the same transaction as deletion and stock update.
+        with transaction.atomic():
+            still_allowed, reason = _actor_ok(mask, TAVERN_KEY)
+            if not still_allowed:
+                raise RuntimeError(reason)
+            if _clock()[0] != day:
+                raise RuntimeError("The village day changed before delivery.")
+            if bundle.location != mask or bundle.db.civic_firewood is not True:
+                raise RuntimeError("The firewood is no longer in your hands.")
+            live_order = civic_commissions.refresh(
+                tavern.db.civic_commission, day
+            )["commission"]
+            if is_pledged(bundle, live_order):
+                raise RuntimeError(
+                    "This bundle is now pledged to a commission; "
+                    "use |wcommission deliver|n instead."
+                )
+            updated, accepted = hearth_state.deliver(tavern.db.civic_hearth)
+            if not accepted:
+                raise RuntimeError(
+                    "The Tavern's firewood rack is full. Leave this bundle for later."
+                )
+            bundle.delete()
+            tavern.db.civic_hearth = updated
+            return {
+                "resource": FIREWOOD_KEY, "reserve": updated["reserve"],
+                "gather_event_id": source_id,
+            }
+
+    try:
+        event = publish_world_event(
+            "civic.hearth_firewood_delivered", actor=mask,
+            payload={"resource": FIREWOOD_KEY, "gather_event_id": source_id,
+                     "chronicle_eligible": False, "harbinger": False},
+            consequence=consequence,
+        )
+    except RuntimeError as err:
+        # A competing ordinary action can invalidate the preview. Preserve
+        # the player's bundle and give a useful response, not a traceback.
+        return None, str(err)
     return {
-        "event_id": event["id"], "reserve": updated["reserve"],
+        "event_id": event["id"],
+        "reserve": event["consequence"]["reserve"],
     }, None
 
 
