@@ -1329,11 +1329,8 @@ _unauthorized_clinic = _clinic_private(
 ).lower()
 assert "cold" not in _unauthorized_clinic and "healertester" not in _unauthorized_clinic
 assert "permission" in _unauthorized_clinic
-_assert_tomorrow_clinic = _clinic_norm(
-    __import__("world.clinic_state", fromlist=["refresh"]).refresh(
-        _clinic, _clinic["day"] + 1
-    )
-)
+from world.clinic_state import refresh as _clinic_refresh
+_assert_tomorrow_clinic = _clinic_refresh(_clinic, _clinic["day"] + 1)
 assert _assert_tomorrow_clinic["records_permission"] is None
 assert len([o for o in _church.contents if o.key == "a clinic treatment cot"]) == 1
 print("POST_RESTART_PHYSICAL_CLINIC_CARE_GREEN")
