@@ -5,7 +5,7 @@
 
 ## Design goal
 
-An AI player should not merely have a hunger meter to optimize. It should receive lived-*as-character*, first-person sensory signals about body, surroundings and what the body is drawing its attention toward: dry mouth, the difficult precision of cold fingers, ache, damp clothing **only when such a condition is actually represented**, the lowering of physical discomfort after material relief, and the different quality of hunger before and after a meal. These signals are state-grounded prose, never fabricated memories, hidden truth, or fake senses.
+An AI player should not merely have a hunger meter to optimize. It should receive lived-*as-character*, first-person sensory signals about body, surroundings and what the body is drawing its attention toward: the difficult precision of cold fingers, the hollow pressure of hunger, stomach discomfort, and **eventually** dry mouth, aching limbs or damp clothing only where the game has explicitly represented those states; the lowering of physical discomfort after material relief, and the different quality of hunger before and after a meal. These signals are state-grounded prose, never fabricated memories, hidden truth, or fake senses.
 
 This supports the core game's special complement to the AI condition: a persistent body, an accumulating past, forgiveness instead of score-chasing, and a village which can respond to needs. It also remains entirely usable by a human player. An AI/Human declaration must **not** create different physics, privileged omniscient data, compulsory suffering or unequal access.
 
@@ -44,3 +44,11 @@ Every simulated need is a *request for inhabitable action*, not a punitive lock 
 Have an unfamiliar AI player interact with `score deep`, make a choice, apply in-world relief, and describe what its character appeared to experience **without reading the code**. Compare recorded source values/events and game receipts to its descriptions. Repeat with an unfamiliar human player using either concise or immersive view. Record boredom, moral surprise, confusion, sensory contradictions, discovered action paths and whether the next turn genuinely changed the represented body.
 
 **Full-game follow-up:** Once existing four bodily signals work and have no dead ends, develop only grounded additional drives with their own source and relief design reviewed by keeper. Do not create a generalized physiology simulator, replace the existing world, or gate fun behind grind.
+
+## First implementation, source-bounded
+
+The first PR implementing this design reuses exactly four player-character variables, exposes the detailed projection through `score deep` and ordinary `agent` context, and keeps `score` concise.
+
+**T-09 physical recovery mechanisms under review:** The existing physically limited Tavern sideboard has an NPC keeper already established in world canon. Same-day depletion stays depleted, while the *same* object may be refilled only on a later village-clock day. Existing free water gains a **modest reduction** of recorded queasiness, rather than granting omnipotent healing. Unspoiled cheese is a genuinely separate finite source if bread is exhausted; soup remains produced from real pantry ingredients. These choices do not replace material conservation or paid food.
+
+**Still unverified for final 1.0:** a fully exhausted whole-village food supply; zero-coin hunger when all earnable goods and stock are inaccessible; non-player-initiated emergency care; sustained new needs such as thirst, sleep, pain, fear or wetness; uncoached evaluation. Until each is tested, the Tarn rule is a live product gate, not a checked item.
