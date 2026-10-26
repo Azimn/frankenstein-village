@@ -24,13 +24,14 @@ def normalize(raw):
 
 def refresh(raw, day):
     state = normalize(raw)
-    day = int(day)
-    if day < 1:
-        raise ValueError("Village day must be positive")
+    # Never truncate fractional days or treat bool as an integer clock tick.
+    # A coerced day could attach a signed event to the wrong daily order.
+    if isinstance(day, bool) or not isinstance(day, int) or day < 1:
+        raise ValueError("Village day must be a positive integer")
     if day <= int(state["day"]):
         return state
     old = state["commission"]
-    if old and old["status"] != "complete":
+    if old and old["status"] not in {"complete", "cancelled"}:
         state["history"].append({**copy.deepcopy(old), "status": "expired"})
     state["day"] = day
     state["commission"] = {
@@ -55,9 +56,13 @@ def pledge(raw, day, account_id, mask, *, bundle_id, event_id):
         return state, False, "The village clock cannot reopen an earlier commission."
     if not item or item["status"] != "open":
         return state, False, "Today's commission is no longer open."
-    if not isinstance(bundle_id, int) or bundle_id < 1:
+    if not isinstance(account_id, int) or isinstance(account_id, bool) or account_id < 1:
+        return state, False, "A signed supplier account is required."
+    if not isinstance(bundle_id, int) or isinstance(bundle_id, bool) or bundle_id < 1:
         return state, False, "A real firewood bundle is required."
-    item["supplier_account"] = int(account_id)
+    if not isinstance(event_id, int) or isinstance(event_id, bool) or event_id < 1:
+        return state, False, "A signed pledge event is required."
+    item["supplier_account"] = account_id
     item["supplier_mask"] = str(mask)[:70]
     item["bundle_id"] = bundle_id
     item["status"] = "pledged"
@@ -72,16 +77,53 @@ def finish(raw, day, account_id, mask, *, carried_bundle_id, reserve_has_space, 
         return state, False, "The village clock cannot complete an earlier commission."
     if not item or item["status"] != "pledged":
         return state, False, "A neighbor must first pledge a bundle in the Square."
-    if int(account_id) == item["supplier_account"]:
+    if not isinstance(account_id, int) or isinstance(account_id, bool) or account_id < 1:
+        return state, False, "A signed delivery account is required."
+    if account_id == item["supplier_account"]:
         return state, False, "Another account must deliver the pledged bundle."
-    if carried_bundle_id != item["bundle_id"]:
+    if (not isinstance(carried_bundle_id, int)
+            or isinstance(carried_bundle_id, bool)
+            or carried_bundle_id < 1
+            or carried_bundle_id != item["bundle_id"]):
         return state, False, "Carry the actual pledged bundle to the Tavern."
     if not reserve_has_space:
         return state, False, "The Tavern rack is full. Try again when space opens."
-    item["finisher_account"] = int(account_id)
+    if not isinstance(event_id, int) or isinstance(event_id, bool) or event_id < 1:
+        return state, False, "A signed delivery event is required."
+    if event_id in item["event_ids"]:
+        return state, False, "The delivery needs a distinct signed event."
+    item["finisher_account"] = account_id
     item["finisher_mask"] = str(mask)[:70]
     item["status"] = "complete"
     item["event_ids"].append(int(event_id))
+    state["history"].append(copy.deepcopy(item))
+    state["history"] = state["history"][-MAX_HISTORY:]
+    return state, True, None
+
+
+def cancel(raw, day, account_id, *, event_id):
+    """Cancel a live pledge, never the physical bundle held by a player.
+
+    This competes with finish for the SAME terminal commission state.
+    Rechecking inside the world's atomic event consequence prevents a stale
+    caller from reopening a finished order or producing a second terminal
+    outcome. The bundle is neither confiscated nor added to the hearth.
+    """
+    state = refresh(raw, day)
+    item = state["commission"]
+    if int(day) < state["day"]:
+        return state, False, "The village clock cannot cancel an earlier commission."
+    if not item or item["status"] != "pledged":
+        return state, False, "Only an outstanding pledge can be cancelled."
+    if (not isinstance(account_id, int) or isinstance(account_id, bool)
+            or account_id < 1 or account_id != item["supplier_account"]):
+        return state, False, "Only the original supplier may cancel this pledge."
+    if not isinstance(event_id, int) or isinstance(event_id, bool) or event_id < 1:
+        return state, False, "A signed cancellation event is required."
+    if event_id in item["event_ids"]:
+        return state, False, "The cancellation needs a distinct signed event."
+    item["status"] = "cancelled"
+    item["event_ids"].append(event_id)
     state["history"].append(copy.deepcopy(item))
     state["history"] = state["history"][-MAX_HISTORY:]
     return state, True, None

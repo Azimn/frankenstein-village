@@ -1546,10 +1546,20 @@ def main() -> int:
         require_all(out, "commission complete", "now holds 1 bundles")
         out = merchant.command("commission deliver")
         require(out, "must first pledge")
+        # GDD T-13, real two-account ordering A: the carrier finishes first.
+        # Neither the original supplier nor the carrier can then cancel or
+        # reopen the signed order. A refused command must not credit fuel.
+        out = smith.command("commission cancel")
+        require(out, "only an outstanding commission pledge can be cancelled")
+        out = merchant.command("commission cancel")
+        require(out, "only an outstanding commission pledge can be cancelled")
+        out = merchant.command("commission deliver")
+        require(out, "must first pledge")
         out = merchant.command("hearth")
         require(out, "reserve: 1")
         out = smith.command("commission")
         require_all(out, "completed by", "smithtester", "merchanttester")
+        print("TELNET_GDD_T13_COMPLETE_BEFORE_CANCEL_TWO_ACCOUNT_GREEN")
 
         # Restore Merchant's earlier Lamp Shop position so independent
         # Commons tests keep their original room-isolation expectations.

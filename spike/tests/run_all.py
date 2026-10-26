@@ -374,6 +374,31 @@ def main() -> int:
                 env=env,
                 input_text=post_restart,
             )
+            # GDD T-13: prepare day two while the server is stopped, then
+            # perform every state-changing action with two authenticated
+            # ordinary telnet accounts. Offline masks cannot sign events.
+            t13_setup = (
+                checkout / "spike" / "tests" / "gdd_t13_cancel_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env, input_text=t13_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [
+                        vpython,
+                        checkout / "spike" / "tests" / "telnet_t13_cancel.py",
+                        "--host", "127.0.0.1", "--port", "4000",
+                    ],
+                    cwd=checkout, env=env, timeout=140,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            t13_cancel = (
+                checkout / "spike" / "tests" / "gdd_t13_cancel_world_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env, input_text=t13_cancel)
+
             # GDD T-12: the same disposable QA database, now after a genuine
             # server restart and with no connected players, must resolve a
             # scheduled blackout by expiry without inventing player help.
@@ -401,6 +426,75 @@ def main() -> int:
                 env=env,
                 input_text=persisted_blackout,
             )
+            # T-13's signed cancellation, physical recovery and finite rack
+            # must persist through the same real second server restart.
+            t13_restart = (
+                checkout / "spike" / "tests" / "gdd_t13_cancel_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env, input_text=t13_restart)
+
+            # T-13: independently exercise a live two-socket cancel/deliver
+            # contest, then verify physical custody and signed outcome before
+            # and after a THIRD real Evennia process restart. The socket send
+            # barrier does not assert parallel server-side execution.
+            race_setup = (
+                checkout / "spike" / "tests" / "gdd_t13_race_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env, input_text=race_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" / "telnet_t13_race.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=140,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            race_assertions = (
+                checkout / "spike" / "tests" / "gdd_t13_race_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=race_assertions)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            restarted_env = dict(env)
+            restarted_env["FV_T13_RACE_RESTART"] = "1"
+            run([evennia, "shell"], cwd=game, env=restarted_env,
+                input_text=race_assertions)
+
+            # T-13: the previous contested outcome must not strand the next
+            # day's commission. Advance only the disposable QA clock, then
+            # exercise a fresh pledge and cancellation through normal telnet.
+            day4_setup = (
+                checkout / "spike" / "tests" / "gdd_t13_day4_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=day4_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_t13_day4_recovery.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=100,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            day4_assertions = (
+                checkout / "spike" / "tests" / "gdd_t13_day4_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=day4_assertions)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            day4_restart_env = dict(env)
+            day4_restart_env["FV_T13_DAY4_RESTART"] = "1"
+            run([evennia, "shell"], cwd=game, env=day4_restart_env,
+                input_text=day4_assertions)
         except Exception:
             dump_logs(game)
             raise

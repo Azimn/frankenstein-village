@@ -78,6 +78,14 @@ def status_lines():
             "Another account must carry that exact bundle to the Blood of the Vine.",
             "Use |wcommission deliver|n there to add it to the public hearth rack.",
             "A pledged bundle can still be exchanged or dropped normally.",
+            "The original supplier may use |wcommission cancel|n from any IC room.",
+        ]
+    elif item["status"] == "cancelled":
+        lines += [
+            f"The original supplier {item['supplier_mask']} cancelled the pledge.",
+            "The real bundle remains with its current holder; it was not confiscated.",
+            "It can still be carried to the Tavern with |whearth deliver|n.",
+            "The cancelled commission cannot be completed or reopened today.",
         ]
     else:
         lines += [
@@ -187,3 +195,54 @@ def deliver(mask):
     )
     return {"event_id": event["id"], "reserve": current["reserve"] + 1,
             "supplier_mask": item["supplier_mask"]}, None
+
+
+def cancel(mask):
+    """Let the original supplier withdraw an uncompleted pledge.
+
+    Cancellation changes the signed order, not the ownership or location of
+    the physical wood. The existing hearth delivery remains available after
+    cancellation. A completed order cannot be revoked or refunded.
+    """
+    account = getattr(mask, "account", None)
+    room = getattr(mask, "location", None)
+    if not account or not room or not room.tags.has("ic", category="side"):
+        return None, "Enter the in-character village to cancel your pledge."
+    tavern = _tavern()
+    if not tavern:
+        return None, "The Tavern has not been constructed."
+    day, hour = _clock()
+    state = _state(tavern, day)
+    item = state["commission"]
+    if not item or item["status"] != "pledged":
+        return None, "Only an outstanding commission pledge can be cancelled."
+    if account.id != item["supplier_account"]:
+        return None, "Only the original supplier may cancel this pledge."
+
+    def consequence(event):
+        with transaction.atomic():
+            # Recheck the live state, never the earlier command preview.
+            changed, accepted, reason = civic_commissions.cancel(
+                tavern.db.civic_commission, day, account.id,
+                event_id=event["id"],
+            )
+            if not accepted:
+                raise RuntimeError(reason)
+            tavern.db.civic_commission = changed
+            return {
+                "commission_id": changed["commission"]["id"],
+                "bundle_id": changed["commission"]["bundle_id"],
+                "day": day,
+                "physical_bundle_retained": True,
+            }
+
+    event = publish_world_event(
+        "civic.commission_cancelled", actor=mask,
+        payload={
+            "day": day, "hour": hour, "commission_id": item["id"],
+            "bundle_id": item["bundle_id"],
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "bundle_id": item["bundle_id"]}, None
