@@ -83,6 +83,7 @@ def status_lines():
         "about the survey (|wask <resident> about survey|n); they may "
         "recognize the person who signed a real inspection."
     )
+    lines.append("Use |wsurvey history|n to read earlier signed daily records.")
     if state["history"]:
         prior = state["history"][-1]
         lines.append(
@@ -91,6 +92,40 @@ def status_lines():
             + f" ({len(prior['reports'])} of {len(route_surveys.SITES)})."
         )
     return "\n".join(lines)
+
+
+def history_lines():
+    """Show bounded, source-attributed public route history without writing it."""
+    square = _square()
+    if square is None:
+        return "The route report is unavailable; the Square is missing."
+    day, _hour = _day_hour()
+    previous = route_surveys.history_records(
+        square.db.daily_route_survey, day, limit=5
+    )
+    lines = ["|wSigned village route history|n"]
+    if not previous:
+        lines.append("No earlier village day has an archived route record yet.")
+        return "\\n".join(lines)
+    for row in previous:
+        lines.append(
+            f"Village day {row['day']}: "
+            + ("complete" if row["completed"] else "unfinished")
+            + f" ({len(row['reports'])} of {len(route_surveys.SITES)} checkpoints)."
+        )
+        for site in route_surveys.SITES:
+            report = row["reports"].get(site)
+            if report:
+                lines.append(
+                    f"  {LANDMARKS[site]['room']}: {report['mask']} "
+                    f"(signed event {report['event_id']})."
+                )
+        lines.extend("  " + line for line in route_surveys.field_lines(row))
+    lines.append(
+        "These are dated observations and signed actions, not proof of "
+        "what caused a hazard or whether the route is safe today."
+    )
+    return "\\n".join(lines)
 
 
 def report(mask):
