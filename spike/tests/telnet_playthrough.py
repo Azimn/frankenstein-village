@@ -2091,10 +2091,10 @@ def main() -> int:
         print("TELNET_FIRSTHAND_LANDMARK_DISCOVERIES_GREEN")
         print("TELNET_COOPERATIVE_DAILY_SURVEY_GREEN")
 
-        # GDD T-09 real physical shortage: stock may vary with legitimate
-        # world setup and restocking. Consume the existing bread's finite
-        # declared capacity, then observe its truthful depleted state and
-        # eat a different real food. Never infer inventory from fixture lore.
+        # GDD T-09: Bram's existing routine can refill the physical
+        # sideboard when he is present. Consume a bounded number of real
+        # servings, check for truthful shortage, then eat alternate food.
+        # Do not create a second stock owner or promise next-day magic.
         # Earlier a genuine hidden mushroom toxin caused queasiness.
         # If it still blocks eating, use the existing free well-water item
         # for bounded, actually measured relief rather than a fake cure.
@@ -2112,9 +2112,9 @@ def main() -> int:
         bread_depleted = False
         for _ in range(7):  # source mechanical capacity is six
             out = c.command("eat bread")
-            if "all gone for this village day" in out.lower():
+            if "all gone for now" in out.lower():
                 bread_depleted = True
-                require(out, "next village day")
+                require(out, "bram can replenish")
                 break
             require(out, "bread", "rye")
         assert bread_depleted, "Repeated eating never depleted finite real bread"
