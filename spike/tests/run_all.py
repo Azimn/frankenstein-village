@@ -386,6 +386,21 @@ def main() -> int:
                 env=env,
                 input_text=unattended,
             )
+            # Verify that unattended resolution, history and event-ledger
+            # receipts survive a SECOND real Evennia server process restart.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            persisted_blackout = (
+                checkout / "spike" / "tests"
+                / "unattended_blackout_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run(
+                [evennia, "shell"],
+                cwd=game,
+                env=env,
+                input_text=persisted_blackout,
+            )
         except Exception:
             dump_logs(game)
             raise
