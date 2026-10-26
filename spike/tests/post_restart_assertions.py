@@ -108,6 +108,29 @@ assert known, "revealed fact was not recorded for the player mask"
 
 # Calling identity and work history belong to the mask and survive a real
 # server restart. Respecialization did not erase the earlier Chronicler record.
+# GDD T-09: character sensations are projections of one existing body
+# and persist across real restart without a second need ledger.
+_emic = smoke.sensory_snapshot()
+assert _emic["body_model"] == "represented_character_sensations_not_ai_biology"
+assert _emic["bands"]["hunger"] in {"sated", "settled", "hungry", "famished"}
+assert _emic["first_person"] and _emic["possible_relief"]
+# The depleted bread and eaten alternative cheese are the original Tavern
+# physical items, not duplicate stock synthesized for this test.
+_bread = one("a loaf of bread")
+_cheese = one("a wedge of cheese")
+assert _bread.db.servings == 0, "Depleted bread refilled on mere server restart"
+assert _cheese.db.servings == 4, "An alternative cheese serving was not really spent"
+from world.tavern_fare_restock import restock as _fare_restock
+assert _fare_restock(
+    _bread.db.servings, _bread.db.fare_stock_day,
+    _bread.db.fare_stock_day, 6,
+) == (0, _bread.db.fare_stock_day, False)
+assert _fare_restock(
+    _bread.db.servings, _bread.db.fare_stock_day,
+    _bread.db.fare_stock_day + 1, 6,
+) == (6, _bread.db.fare_stock_day + 1, True)
+print("POST_RESTART_GDD_T09_REAL_FOOD_AND_FIRST_PERSON_STATE_GREEN")
+
 assert active_calling(smoke) == "chronicler"
 assert active_rank(smoke) == RANK_APPRENTICE
 smoke_chronicler = calling_record(smoke, "chronicler")
