@@ -8,6 +8,7 @@ incomplete to complete. Incomplete days become explicit historical outcomes.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping
 
 SITES = ("grave_marker", "red_cord", "market_scale", "river_gauge")
 MAX_HISTORY = 30
@@ -18,13 +19,16 @@ def fresh(day=0):
 
 
 def normalize(raw):
-    value = copy.deepcopy(dict(raw or {}))
+    # Persisted Evennia attributes can be malformed after interrupted or old
+    # writes. Reject invalid shapes instead of crashing every survey reader.
+    value = copy.deepcopy(dict(raw)) if isinstance(raw, Mapping) else {}
     try:
         day = max(0, int(value.get("day") or 0))
     except (TypeError, ValueError, OverflowError):
         day = 0
     reports = {}
-    for ident, entry in dict(value.get("reports") or {}).items():
+    saved_reports = value.get("reports")
+    for ident, entry in (saved_reports.items() if isinstance(saved_reports, Mapping) else ()):
         if ident not in SITES or not hasattr(entry, "get"):
             continue
         try:
@@ -41,7 +45,8 @@ def normalize(raw):
             "event_id": event,
         }
     decisions = {}
-    for role, entry in dict(value.get("field_decisions") or {}).items():
+    saved_decisions = value.get("field_decisions")
+    for role, entry in (saved_decisions.items() if isinstance(saved_decisions, Mapping) else ()):
         if role not in {"hound", "wanderer"} or not hasattr(entry, "get"):
             continue
         try:
@@ -62,11 +67,14 @@ def normalize(raw):
                            "event_id": event, "action": action, "site": "red_cord"}
         if role == "wanderer":
             decisions[role]["observation"] = observation
+    saved_history = value.get("history")
+    if not isinstance(saved_history, (list, tuple)):
+        saved_history = []
     return {
         "day": day,
         "reports": reports,
         "field_decisions": decisions,
-        "history": list(value.get("history") or [])[-MAX_HISTORY:],
+        "history": list(saved_history)[-MAX_HISTORY:],
     }
 
 
