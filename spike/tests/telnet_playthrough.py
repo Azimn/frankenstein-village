@@ -230,6 +230,19 @@ def main() -> int:
                    for obj in square_view["visible_nearby"])
         assert square_view["commands"]["firewood"] == "hearth gather"
         assert square_view["commands"]["community_work"] == "commission"
+        # Emic-first GDD: the machine-readable view of this mask's embodied
+        # experience is the same state accessible to humans via score deep.
+        assert square_view["commands"]["embodied_senses"] == "score deep"
+        assert square_view["embodiment"]["body_model"] == (
+            "represented_character_sensations_not_ai_biology"
+        )
+        assert len(square_view["embodiment"]["first_person"]) >= 2
+        assert "hunger" in square_view["embodiment"]["bands"]
+        out = c.command("score deep")
+        require_all(out, "a moment inside your character's body",
+                    "what might help", "simulated character sensations")
+        assert "hunger 50" not in out.lower()
+        print("TELNET_AI_RICH_FIRST_PERSON_BODILY_SENSES_GREEN")
         # The same local observation used by model-led players must expose
         # legitimate, scheduled and conversation-capable villagers without
         # leaking invisible or private offstage residents.
@@ -426,8 +439,18 @@ def main() -> int:
         # natural while the underlying rule is object data rather than item ID.
         out = c.command("purse")
         require(out, "2 ft")
+        hunger_before_eating = agent_json(c.command("agent"))["embodiment"]
         out = c.command("eat bread")
         require(out, "4 kr", "purse: 1 ft 96 kr")
+        hunger_after_eating = agent_json(c.command("agent"))["embodiment"]
+        assert hunger_after_eating["bands"]["hunger"] != "famished" or (
+            hunger_before_eating["bands"]["hunger"] == "famished"
+        ), "A physical meal did not return updated body perception"
+        assert hunger_after_eating["first_person"], "Body perception went blank"
+        out = c.command("score deep")
+        require_all(out, "a moment inside your character's body",
+                    "what might help")
+        print("TELNET_GDD_T09_MEAL_CHANGES_EXISTING_EMBODIED_STATE_GREEN")
         out = c.command("purse")
         require(out, "1 ft 96 kr")
 
