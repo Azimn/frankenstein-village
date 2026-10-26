@@ -83,7 +83,7 @@ def status_lines():
         "about the survey (|wask <resident> about survey|n); they may "
         "recognize the person who signed a real inspection."
     )
-    lines.append("Use |wsurvey history|n to read earlier signed daily records.")
+    lines.append("Use |wsurvey history|n for the latest signed days, or |wsurvey history <day>|n for an older retained record.")
     if state["history"]:
         prior = state["history"][-1]
         lines.append(
@@ -94,18 +94,24 @@ def status_lines():
     return "\n".join(lines)
 
 
-def history_lines():
+def history_lines(day_filter=None):
     """Show bounded, source-attributed public route history without writing it."""
     square = _square()
     if square is None:
         return "The route report is unavailable; the Square is missing."
     day, _hour = _day_hour()
     previous = route_surveys.history_records(
-        square.db.daily_route_survey, day, limit=5
+        square.db.daily_route_survey, day, limit=5, selected_day=day_filter
     )
     lines = ["|wSigned village route history|n"]
     if not previous:
-        lines.append("No earlier village day has an archived route record yet.")
+        if day_filter is None:
+            lines.append("No earlier village day has an archived route record yet.")
+        else:
+            lines.append(
+                f"No signed route archive is retained for village day {day_filter}. "
+                "The Square preserves at most 30 previous recorded days."
+            )
         return "\n".join(lines)
     for row in previous:
         lines.append(
