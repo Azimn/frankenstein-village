@@ -1196,6 +1196,11 @@ def main() -> int:
         assert agent_json(out)["commands"]["public_stage"] == "stage"
         print("TELNET_RENEWABLE_PERFORMER_AND_REAL_AUDIENCE_GREEN")
 
+        # The Healer's return generated an unsolicited room-arrival broadcast
+        # for the Innkeep. Drain that queued notification before requesting
+        # a care response; otherwise the telnet reader can mistake the
+        # broadcast for the next command's reply.
+        inn.read_quiet()
         out = inn.command("care")
         require(out, "healer assessment filed by healertester")
         require(out, "hospitality is still needed")
