@@ -2098,27 +2098,31 @@ def main() -> int:
         # Earlier a genuine hidden mushroom toxin caused queasiness.
         # If it still blocks eating, use the existing free well-water item
         # for bounded, actually measured relief rather than a fake cure.
-        prior_body = c.command("score deep")
+        # Use the Innkeep account to test physical depletion so the
+        # Chronicler's established conversation history with Bram is not
+        # artificially evicted by a QA-only run of repetitive meals.
+        inn.read_quiet()
+        prior_body = inn.command("score deep")
         if "a small wave of queasiness" in prior_body.lower():
             relieved = False
             for _ in range(5):
-                out = c.command("drink water")
+                out = inn.command("drink water")
                 require(out, "cold water")
-                after_water = c.command("score deep")
+                after_water = inn.command("score deep")
                 if "a small wave of queasiness" not in after_water.lower():
                     relieved = True
                     break
             assert relieved, "Finite nausea had no playable relief through real water"
         bread_depleted = False
         for _ in range(7):  # source mechanical capacity is six
-            out = c.command("eat bread")
+            out = inn.command("eat bread")
             if "all gone for now" in out.lower():
                 bread_depleted = True
                 require(out, "bram can replenish")
                 break
             require(out, "bread", "rye")
         assert bread_depleted, "Repeated eating never depleted finite real bread"
-        out = c.command("eat cheese")
+        out = inn.command("eat cheese")
         require(out, "cheese bites back")
         print("TELNET_GDD_T09_DEPLETED_BREAD_ALTERNATE_REAL_FOOD_GREEN")
         out = c.command("west")
