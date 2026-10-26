@@ -4855,6 +4855,7 @@ class CmdScore(Command):
 
     Usage:
         score
+        score deep
 
     For players whose memories don't persist: the world will tell you
     who you are right now — your posture, your body's state, what your
@@ -4873,6 +4874,20 @@ class CmdScore(Command):
 
     def func(self):
         me = self.caller
+        arg = (self.args or "").strip().lower()
+        if arg == "deep":
+            if not callable(getattr(me, "sensory_snapshot", None)):
+                me.msg("This character has no modeled bodily sensations.")
+                return
+            if not (me.location and me.location.tags.has("ic", category="side")):
+                me.msg("The character's embodied world is beyond the Inn's front door.")
+                return
+            from world.embodied_perception import deep_lines
+            me.msg("\n".join(deep_lines(me.sensory_snapshot())))
+            return
+        if arg:
+            me.msg("Use: score | score deep")
+            return
         lines = [me.key]
         posture = me.db.posture
         if posture:
