@@ -294,6 +294,23 @@ def main() -> int:
         require_all(out, "active calling: mystic", "mystic grave studies 1")
         out = c.command("mystic")
         require_all(out, "mystictester", "signed measured study")
+        # GDD T-11: public knowledge of a signed study is not firsthand
+        # perception. A second ordinary account must visit the same real
+        # stone to observe the same physical event. A third account (the
+        # later HealerTester) remains absent and cannot inherit either
+        # observer's private witness record.
+        remote = c.command("look grave marker")
+        if "older engraved date advances" in remote.lower():
+            raise AssertionError("Distant account saw physical grave event")
+        require(c.command("west"), "st. lazarus church")
+        require(c.command("west"), "churchyard")
+        second_observation = c.command("look grave marker")
+        require_all(second_observation, "older engraved date advances",
+                    "groove itself changes shape", "original cutting slowly returns")
+        require(c.command("mystic study measure"), "only an active mystic")
+        require(c.command("east"), "st. lazarus church")
+        require(c.command("east"), "village square")
+        print("TELNET_GDD_T11_SECOND_PHYSICAL_OBSERVER_GREEN")
         print("TELNET_MYSTIC_GUILD_AND_GOTHIC_OBSERVATION_GREEN")
 
         out = c.command("next")
