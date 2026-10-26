@@ -9,7 +9,7 @@ from django.db import transaction
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
 
-from world import civic_commissions, hearth_state, repair_case, return_agenda
+from world import civic_commissions, hearth_state, market_standards, market_work, repair_case, return_agenda
 from world.situations import LAMP_REPAIR_ID, get_situation
 from world.community_hearth import FIREWOOD_KEY, SQUARE_KEY, TAVERN_KEY
 from world.events import publish_world_event
@@ -74,6 +74,14 @@ def personal_agenda(mask):
     if return_agenda.lamp_repair_work_lines(case, mask_id):
         case = repair_case.reconcile_lamp_repair_case()
         lines.extend(return_agenda.lamp_repair_work_lines(case, mask_id))
+    # Market work is read directly from the signed public standards board.
+    # Returning Smiths, Merchants and Chroniclers see only their own actions.
+    market = market_work.market_room()
+    if market is not None:
+        market_day, _market_hour = market_work.clock()
+        lines.extend(market_standards.personal_agenda(
+            market.db.market_standards, market_day, mask_id,
+        ))
     return lines
 
 
