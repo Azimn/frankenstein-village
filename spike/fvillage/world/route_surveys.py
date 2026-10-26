@@ -61,7 +61,7 @@ def normalize(raw):
         observation = entry.get("observation")
         if entry.get("action") != action:
             continue
-        if role == "wanderer" and observation not in {"unmarked", "marked_caution"}:
+        if role == "wanderer" and observation not in ("unmarked", "marked_caution"):
             continue
         decisions[role] = {"account_id": account, "mask": str(entry.get("mask") or "")[:70],
                            "event_id": event, "action": action, "site": "red_cord"}
