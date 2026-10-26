@@ -26,6 +26,14 @@ def main():
                            "SmithTester", "Village Square")
         carrier = connect(args.host, args.port, "qa_merchant_repair", password,
                           "MerchantTester", "The Blood of the Vine")
+        # The server was genuinely restarted and the village clock is now
+        # on day two. Earlier players' signed route work must remain legible
+        # to an ordinary account, without treating dated caution as truth now.
+        history = supplier.command("survey history")
+        require_all(history, "signed village route history", "village day 1",
+                    "wanderertester", "houndtester", "unmarked cord",
+                    "not proof of what caused a hazard")
+        print("TELNET_POST_RESTART_SIGNED_ROUTE_HISTORY_GREEN")
         out = supplier.command("commission")
         require_all(out, "village commission", "open")
         out = supplier.command("hearth gather")
