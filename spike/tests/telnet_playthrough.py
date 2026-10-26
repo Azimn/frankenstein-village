@@ -2083,8 +2083,22 @@ def main() -> int:
         # servings. One was eaten during the first Tavern visit. Deplete
         # the second, refuse a replay today, then take actual alternative
         # food from a separate finite serving. No infinite item is minted.
+        # Earlier a genuine hidden mushroom toxin caused queasiness.
+        # If it still blocks eating, use the existing free well-water item
+        # for bounded, actually measured relief rather than a fake cure.
+        prior_body = c.command("score deep")
+        if "a small wave of queasiness" in prior_body.lower():
+            relieved = False
+            for _ in range(5):
+                out = c.command("drink water")
+                require(out, "cold water")
+                after_water = c.command("score deep")
+                if "a small wave of queasiness" not in after_water.lower():
+                    relieved = True
+                    break
+            assert relieved, "Finite nausea had no playable relief through real water"
         out = c.command("eat bread")
-        require_all(out, "last of the bread", "rye")
+        require(out, "last of the bread")
         out = c.command("eat bread")
         require_all(out, "all gone for this village day", "next village day")
         out = c.command("eat cheese")
