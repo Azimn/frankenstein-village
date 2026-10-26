@@ -1813,7 +1813,12 @@ def main() -> int:
         require_all(out, "1 of 4", "smithtester", "not yet inspected")
 
         out = c.command("journal discoveries")
-        require(out, "not personally inspected")
+        # This mask already inspected the grave for T-11. A different
+        # player's river survey must not create a false personal river
+        # discovery, even when our own grave observation is retained.
+        require(out, "weathered grave marker")
+        if "river gauge" in out.lower():
+            raise AssertionError("Another account's river survey leaked into this journal")
         out = c.command("west")
         require(out, "village square")
         out = c.command("west")
