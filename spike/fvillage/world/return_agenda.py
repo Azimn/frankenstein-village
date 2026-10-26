@@ -44,6 +44,57 @@ def reentry_lines(*, note, following):
         lines.append("Use |wagenda|n for the current state of your plans.")
     return lines
 
+def lamp_repair_work_lines(case, mask_id):
+    """Resume only work this exact character performed on the public lamp.
+
+    Case mutations, not a remembered quest flag, own the truth. Do not show
+    another account's work to a mask that never participated.
+    """
+    if not isinstance(case, dict) or mask_id is None:
+        return []
+    changes = case.get("objective_mutations") or {}
+    if not isinstance(changes, dict):
+        return []
+    roles = ("smith_diagnosis", "merchant_procurement", "smith_repair")
+    own = {
+        role: isinstance(changes.get(role), dict)
+        and changes[role].get("mask_id") == mask_id
+        for role in roles
+    }
+    if not any(own.values()):
+        return []
+
+    if case.get("state") == "aftermath":
+        if case.get("branch") == "repaired":
+            return [
+                "Broken Mantle: the north-square gas lamp is repaired. "
+                "Your contribution is recorded; no repeat repair is needed."
+            ]
+        return [
+            "Broken Mantle: the repair window closed and the lamp remains dark. "
+            "Your contribution is recorded, but this case can no longer be finished."
+        ]
+    if own["smith_diagnosis"]:
+        if changes.get("merchant_procurement"):
+            return [
+                "Broken Mantle: the Merchant has procured the replacement collar. "
+                "Return to the Village Square and use "
+                "|wrepair finish north-square gas lamp|n."
+            ]
+        return [
+            "Broken Mantle: your Smith diagnosis is recorded. "
+            "A Merchant must procure a brass mantle collar at the Lamp Shop "
+            "before you can finish the repair."
+        ]
+    if own["merchant_procurement"]:
+        return [
+            "Broken Mantle: your Merchant procurement is recorded. "
+            "A Smith must install the collar at the Village Square using "
+            "|wrepair finish north-square gas lamp|n."
+        ]
+    return []
+
+
 def summary(*, note, followed, day, location, work_lines=None):
     lines = [
         "|wYour next visit|n",
