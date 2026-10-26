@@ -31,5 +31,5 @@ assert carrier.move_to(tavern, quiet=True)
 before = hearth_state.hearth(tavern.db.civic_hearth)["reserve"]
 assert before < hearth_state.MAX_RESERVE
 # This marker is only written in the disposable QA database.
-tavern.db._qa_t13_initial_reserve = before
+tavern.db.qa_t13_initial_reserve = before
 print("GDD_T13_DAY_TWO_AUTHENTICATED_SCENARIO_READY")
