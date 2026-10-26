@@ -43,4 +43,30 @@ assert not end.get("actor"), "Restart invented a player contributor"
 # second incident. No artificial clock advance is needed for this assertion.
 assert server_events.get_server_event(stable_id)["history"] == history
 assert ScriptDB.objects.filter(db_key="server_event_registry").count() == 1
+
+# The event is over. Restart must not resurrect any of its temporary room
+# descriptions, even while unrelated scheduled overlays remain untouched.
+# This is a player-visible world-state invariant, not just ledger persistence.
+from evennia.utils import search
+definition = server_events.DEFINITIONS[stable_id]
+active_overlay_id = f"{stable_id}:active"
+aftermath_overlay_id = f"{stable_id}:aftermath"
+affected_rooms = set(definition["active_overlays"]) | set(definition["aftermath_overlays"])
+assert affected_rooms, "T-12 needs actual public locations to verify"
+for room_key in sorted(affected_rooms):
+    matches = [room for room in search.search_object(room_key) if room.key == room_key]
+    assert len(matches) == 1, f"T-12 expected one real room: {room_key}"
+    overlays = dict(matches[0].db.scheduled_overlays or {})
+    assert active_overlay_id not in overlays, (
+        f"Expired blackout still appears active in {room_key}"
+    )
+    assert aftermath_overlay_id not in overlays, (
+        f"Expired blackout aftermath still appears in {room_key}"
+    )
+
+# Reconciliation after restart must be idempotent. It must not recreate
+# cleared blackout overlays or require a player to dismiss the incident.
+assert server_events.reconcile_server_event_overlays() == 0
+assert server_events.status_lines() == ["No village-wide emergency is active."]
+print("GDD_T12_UNATTENDED_BLACKOUT_OVERLAY_CLEANUP_GREEN")
 print("GDD_T12_UNATTENDED_BLACKOUT_RESTART_PERSISTENCE_GREEN")
