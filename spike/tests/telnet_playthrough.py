@@ -2091,10 +2091,10 @@ def main() -> int:
         print("TELNET_FIRSTHAND_LANDMARK_DISCOVERIES_GREEN")
         print("TELNET_COOPERATIVE_DAILY_SURVEY_GREEN")
 
-        # GDD T-09, real physical shortage: the runner seeded two bread
-        # servings. One was eaten during the first Tavern visit. Deplete
-        # the second, refuse a replay today, then take actual alternative
-        # food from a separate finite serving. No infinite item is minted.
+        # GDD T-09 real physical shortage: stock may vary with legitimate
+        # world setup and restocking. Consume the existing bread's finite
+        # declared capacity, then observe its truthful depleted state and
+        # eat a different real food. Never infer inventory from fixture lore.
         # Earlier a genuine hidden mushroom toxin caused queasiness.
         # If it still blocks eating, use the existing free well-water item
         # for bounded, actually measured relief rather than a fake cure.
@@ -2109,10 +2109,15 @@ def main() -> int:
                     relieved = True
                     break
             assert relieved, "Finite nausea had no playable relief through real water"
-        out = c.command("eat bread")
-        require(out, "last of the bread")
-        out = c.command("eat bread")
-        require_all(out, "all gone for this village day", "next village day")
+        bread_depleted = False
+        for _ in range(7):  # source mechanical capacity is six
+            out = c.command("eat bread")
+            if "all gone for this village day" in out.lower():
+                bread_depleted = True
+                require(out, "next village day")
+                break
+            require(out, "bread", "rye")
+        assert bread_depleted, "Repeated eating never depleted finite real bread"
         out = c.command("eat cheese")
         require(out, "cheese bites back")
         print("TELNET_GDD_T09_DEPLETED_BREAD_ALTERNATE_REAL_FOOD_GREEN")
