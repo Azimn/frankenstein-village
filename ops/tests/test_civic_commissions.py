@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "spike" / "fvillage"))
-from world.civic_commissions import refresh, pledge, finish
+from world.civic_commissions import refresh, pledge, finish, cancel
 
 
 def stage(state, day=1, supplier=101, bundle=450, event=10):
@@ -105,6 +105,67 @@ class CivicCommissionTests(unittest.TestCase):
         stale, accepted, _ = complete(state, day=2)
         self.assertFalse(accepted)
         self.assertEqual(stale, state)
+
+
+    def test_t13_supplier_cancels_before_neighbor_delivers(self):
+        state, accepted, error = stage(refresh(None, 1))
+        self.assertTrue(accepted, error)
+        state, accepted, error = cancel(state, 1, 101, event_id=12)
+        self.assertTrue(accepted, error)
+        self.assertEqual(state["commission"]["status"], "cancelled")
+        self.assertEqual(state["commission"]["bundle_id"], 450)
+        self.assertEqual(state["commission"]["event_ids"], [10, 12])
+        self.assertEqual(len(state["history"]), 1)
+        self.assertEqual(state["history"][0]["status"], "cancelled")
+
+        # A different account may still physically hold the bundle. Canceling
+        # the ORDER cannot delete that object, mint a rack delivery or reopen it.
+        replay, accepted, _ = complete(state, finisher=202, event=13)
+        self.assertFalse(accepted)
+        self.assertEqual(replay, state)
+        replay, accepted, _ = cancel(state, 1, 101, event_id=14)
+        self.assertFalse(accepted)
+        self.assertEqual(replay, state)
+
+        restored = json.loads(json.dumps(state))
+        renewed = refresh(restored, 2)
+        self.assertEqual(renewed["commission"]["status"], "open")
+        self.assertEqual(len(renewed["history"]), 1)
+        self.assertEqual(renewed["history"][0]["status"], "cancelled")
+        self.assertEqual(renewed["history"][0]["bundle_id"], 450)
+
+    def test_t13_neighbor_finishes_before_supplier_cancels(self):
+        state, accepted, error = stage(refresh(None, 1))
+        self.assertTrue(accepted, error)
+        state, accepted, error = complete(state, finisher=202, event=11)
+        self.assertTrue(accepted, error)
+        self.assertEqual(state["commission"]["status"], "complete")
+        self.assertEqual(len(state["history"]), 1)
+        rejected, accepted, _ = cancel(state, 1, 101, event_id=12)
+        self.assertFalse(accepted)
+        self.assertEqual(rejected, state)
+        rejected, accepted, _ = complete(state, finisher=303, event=13)
+        self.assertFalse(accepted)
+        self.assertEqual(rejected, state)
+        self.assertEqual(len(state["history"]), 1)
+        self.assertEqual(state["history"][0]["event_ids"], [10, 11])
+
+    def test_t13_only_original_supplier_can_cancel_live_pledge(self):
+        state = refresh(None, 1)
+        rejected, accepted, _ = cancel(state, 1, 101, event_id=12)
+        self.assertFalse(accepted)
+        self.assertEqual(rejected, state)
+        state, accepted, error = stage(state)
+        self.assertTrue(accepted, error)
+        for account, day, event in (
+            (202, 1, 12), (101, 0, 12), (101, 1, 0), (101, 1, -2)
+        ):
+            rejected, accepted, _ = cancel(state, day, account, event_id=event)
+            self.assertFalse(accepted)
+            self.assertEqual(rejected, state)
+        rejected, accepted, _ = cancel(state, 1, 101, event_id=True)
+        self.assertFalse(accepted)
+        self.assertEqual(rejected, state)
 
 
 if __name__ == "__main__":
