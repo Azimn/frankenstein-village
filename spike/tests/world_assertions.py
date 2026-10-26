@@ -404,6 +404,50 @@ assert bread.db.servings == 2, (
     "mechanical uses configuration reset mutable serving state"
 )
 
+# T-09: exercise the REAL Evennia item, depletion guard and consumption
+# pipeline through an ambient beat. The actor is a deliberately isolated QA
+# regular, so no permanent NPC relationship or unsolicited room event is
+# created. Restore the physical stew after this disposable-world probe.
+from unittest.mock import patch as _ambient_patch
+from world import tavern_life as _tavern_life
+_ambient_original_servings = stew.db.servings
+_ambient_original_consume = copy.deepcopy(dict(stew.db.consume or {}))
+_ambient_messages = []
+_ambient_actor = SimpleNamespace(
+    key="QA Tavern Regular",
+    location=None,
+    db=SimpleNamespace(hunger=70, queasy=0, drunkenness=0),
+    _hunger=lambda: 70,
+    msg=_ambient_messages.append,
+)
+try:
+    stew.db.servings = 1
+    stew.db.consume = dict(_ambient_original_consume, surprises=[])
+    _ambient_room = SimpleNamespace(contents=[stew])
+    with _ambient_patch.object(
+        _tavern_life, "_tavern", return_value=_ambient_room
+    ):
+        assert _tavern_life._beat_consume(
+            [_ambient_actor], None, lambda _line: None
+        ) == "consume"
+        assert stew.db.servings == 0, "ambient meal did not spend real stock"
+        _ambient_hunger_after = _ambient_actor.db.hunger
+        assert _ambient_hunger_after < 70, "real meal gave no hunger relief"
+        assert _tavern_life._beat_consume(
+            [_ambient_actor], None, lambda _line: None
+        ) == "consume-skipped", "ambient NPC bypassed depleted physical stock"
+        assert stew.db.servings == 0, "second beat created ghost food"
+        assert _ambient_actor.db.hunger == _ambient_hunger_after
+        assert any("all gone for now" in str(m).lower()
+                   for m in _ambient_messages), (
+            "depleted real fare did not use the ordinary shortage guard"
+        )
+finally:
+    stew.db.consume = _ambient_original_consume
+    stew.db.servings = _ambient_original_servings
+assert stew.db.servings == _ambient_original_servings
+print("TAVERN_REAL_EVENNIA_AMBIENT_FARE_CONSERVATION_GREEN")
+
 # First specialized-calling integration: an active Healer can safely identify
 # supported hidden toxin without ingesting the object. The finding remains
 # mask-specific knowledge and only first discovery counts as participation.
