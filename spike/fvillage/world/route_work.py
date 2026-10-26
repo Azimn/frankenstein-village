@@ -84,8 +84,12 @@ def status_lines():
         "recognize the person who signed a real inspection."
     )
     lines.append("Use |wsurvey history|n for the latest signed days, or |wsurvey history <day>|n for an older retained record.")
-    if state["history"]:
-        prior = state["history"][-1]
+    # Use the same validated public projection as survey history. Old or
+    # malformed persisted archive rows must not crash the daily board or
+    # let a stale "completed" flag misrepresent signed checkpoint counts.
+    previous = route_surveys.history_records(state, day, limit=1)
+    if previous:
+        prior = previous[0]
         lines.append(
             f"Previous surveyed day {prior['day']}: "
             + ("complete" if prior["completed"] else "unfinished")
