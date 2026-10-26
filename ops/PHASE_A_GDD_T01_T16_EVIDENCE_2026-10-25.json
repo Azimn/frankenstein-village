@@ -131,9 +131,14 @@
           "path": "spike/tests/telnet_playthrough.py",
           "symbol": "stage witness",
           "evidence_tier": "existing_scripted_fixture"
+        },
+        {
+          "path": "spike/tests/telnet_playthrough.py",
+          "symbol": "TELNET_GDD_T06_LATE_ARRIVAL_WITNESS_DENIED_GREEN",
+          "evidence_tier": "existing_scripted_fixture"
         }
       ],
-      "open_gap": "Attendance/hour guards exist; missing explicit late-arrival independent client and post-restart social-memory check.",
+      "open_gap": "Exact late-arrival nonwitness rejection is now asserted in the ordinary-client telnet regression; remaining acceptance requires completed CI on this exact head, post-restart source-limited resident/character memory and uncoached comprehension.",
       "exact_gdd_scenario_executed_end_to_end": false,
       "uncoached_player_verified": false
     },
