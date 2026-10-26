@@ -218,7 +218,10 @@ def deliver(mask):
                  "harbinger": False, "chronicle_eligible": False},
         consequence=consequence,
     )
-    return {"event_id": event["id"], "reserve": current["reserve"] + 1,
+    # The command preview can be stale if another hearth delivery commits
+    # before this signed consequence. Report the actual persisted rack count.
+    return {"event_id": event["id"],
+            "reserve": event["consequence"]["reserve"],
             "supplier_mask": item["supplier_mask"]}, None
 
 
