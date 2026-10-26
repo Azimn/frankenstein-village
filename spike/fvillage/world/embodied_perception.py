@@ -25,7 +25,7 @@ def perception(*, hunger=50, warmth=1.0, drunkenness=0, queasy=0,
     No environmental weather, wounds, movement penalty or other character's
     experiences are inferred from these personal variables.
     """
-    h = bounded(hunger)
+    h = bounded(hunger, default=50.0)
     w = bounded(warmth, low=0.0, high=1.0, default=1.0)
     d = bounded(drunkenness)
     q = bounded(queasy)
