@@ -33,6 +33,18 @@ def main():
         require_all(history, "signed village route history", "village day 1",
                     "wanderertester", "houndtester", "unmarked cord",
                     "not proof of what caused a hazard")
+        # Exact-day history uses the same persisted Square records, not a
+        # separately fabricated answer. Both clients are authenticated after
+        # the actual Evennia process restart.
+        dated = carrier.command("survey history 1")
+        require_all(dated, "village day 1", "wanderertester",
+                    "houndtester", "unmarked cord",
+                    "not proof of what caused a hazard")
+        missing = supplier.command("survey history 999")
+        require_all(missing, "no signed route archive", "village day 999")
+        invalid = supplier.command("survey history tomorrow")
+        require(invalid, "survey history <positive village day>")
+        print("TELNET_POST_RESTART_EXACT_DAY_ROUTE_HISTORY_GREEN")
         print("TELNET_POST_RESTART_SIGNED_ROUTE_HISTORY_GREEN")
         out = supplier.command("commission")
         require_all(out, "village commission", "open")
