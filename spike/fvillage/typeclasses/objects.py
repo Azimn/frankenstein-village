@@ -131,7 +131,7 @@ class DiscoveryScenery(DefaultObject):
             marker = getattr(self.db, "route_caution", None)
             if hasattr(marker, "get") and marker.get("event_id"):
                 detail += (
-                    "\\nThe original loose length has now been tied up where "
+                    "\nThe original loose length has now been tied up where "
                     "a traveler can see it as a clear caution marker. "
                     "The cut and torn fibers remain unchanged. "
                     "This warns of an uncertain path; it does not establish "
