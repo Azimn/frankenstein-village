@@ -222,6 +222,31 @@ class RouteHistoryTests(unittest.TestCase):
                 self.assertEqual(route.history_records(raw, 2), [])
                 self.assertEqual(route.normalize(raw)["history"], [])
 
+    def test_unhashable_wanderer_observation_cannot_break_public_archive(self):
+        bad = {
+            "account_id": 4, "event_id": 8, "mask": "Malformed",
+            "action": "passability", "observation": ["unmarked"],
+        }
+        signed = {
+            "account_id": 5, "event_id": 9, "mask": "Protector",
+            "action": "protect",
+        }
+        raw = {
+            "day": 2, "reports": {},
+            "field_decisions": {"wanderer": bad, "hound": signed},
+            "history": [{
+                "day": 1, "reports": {},
+                "field_decisions": {"wanderer": dict(bad, observation={"x": 1}),
+                                    "hound": signed},
+            }],
+        }
+        before = copy.deepcopy(raw)
+        current = route.normalize(raw)
+        self.assertEqual(set(current["field_decisions"]), {"hound"})
+        archive = route.history_records(raw, 2)
+        self.assertEqual(set(archive[0]["field_decisions"]), {"hound"})
+        self.assertEqual(raw, before)
+
     def test_prior_wanderer_observation_not_rewritten_by_later_protection(self):
         state, ok, error = route.field_decision(
             None, 1, "red_cord", "wanderer", "passability",
