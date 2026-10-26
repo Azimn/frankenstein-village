@@ -389,6 +389,19 @@ assert completion_event["kind"] == "professional.smith_lamp_repair_completed"
 assert procurement_event["payload"]["source_smith_event_id"] == diagnosis_event["id"]
 assert completion_event["payload"]["source_merchant_event_id"] == procurement_event["id"]
 assert completion_event["consequence"]["repair_state"] == "working"
+# T-03: the authenticated Smith retried after an actual server restart.
+# A truthful "already complete" response must not conceal a second signed
+# completion, new part expenditure or replacement of the lamp's repair receipt.
+lamp_completion_events = [
+    event for event in (repair_ledger.db.events or [])
+    if event.get("kind") == "professional.smith_lamp_repair_completed"
+    and event.get("payload", {}).get("situation_id") == LAMP_REPAIR_ID
+    and event.get("status") == "complete"
+]
+assert len(lamp_completion_events) == 1, lamp_completion_events
+assert lamp_completion_events[0]["id"] == lamp_completion["event_id"]
+assert north_square_lamp.db.repaired_by_event_id == lamp_completion["event_id"]
+print("POST_RESTART_GDD_T03_SINGLE_REPAIR_EVENT_AND_STOCK_GREEN")
 
 # Harbinger The Correction must survive restart as an archive discrepancy.
 # The old story body remains the surviving copy; the claimant's alleged wording
