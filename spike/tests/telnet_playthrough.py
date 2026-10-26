@@ -685,7 +685,14 @@ def main() -> int:
         require(out, "numbered page stubs", "surviving harbinger files")
         require(out, "reconstruct or preserve")
 
-        out = c.command("decide chronicle reconstruct", wait=3.0)
+        # Publication fans out to persistent records and residents. Keep the
+        # outcome assertion strict while diagnosing slow clean-checkout replies
+        # instead of treating a three-second silent socket as proof of failure.
+        decision_started = time.monotonic()
+        out = c.command("decide chronicle reconstruct", wait=8.0)
+        decision_elapsed = time.monotonic() - decision_started
+        if decision_elapsed > 4.0:
+            print(f"TELNET_CHRONICLE_DECISION_SLOW {decision_elapsed:.2f}s")
         require(out, "reconstruction from the harbinger archive")
         require(out, "press-derived")
 
