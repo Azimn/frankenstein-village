@@ -57,6 +57,20 @@ def status(mask=None):
     return clinic_state.public_lines(room.db.village_clinic, day)
 
 
+def confidential_records(mask):
+    """Restrict personal case data to this patient's consenting examiner."""
+    room, error = _guard(mask)
+    if error:
+        return error
+    if active_calling(mask) != "healer":
+        return "Private clinical notes require an attending Healer and patient permission."
+    day, _hour = _clock()
+    return clinic_state.private_lines(
+        room.db.village_clinic, day,
+        account_id=mask.account.id, mask_id=mask.id,
+    )
+
+
 def _compresses(mask, day):
     return [
         o for o in mask.contents
@@ -72,8 +86,8 @@ def act(mask, action, method=None):
         return None, error
     if active_calling(mask) != "healer":
         return None, "An active Healer must undertake clinical work."
-    if action not in {"assess", "prepare", "treat"}:
-        return None, "Use clinic | clinic assess | clinic prepare | clinic treat rest|compress."
+    if action not in {"assess", "prepare", "treat", "request_records"}:
+        return None, "Use clinic | clinic assess | clinic prepare | clinic treat rest|compress | clinic request records."
     if action == "treat" and method not in clinic_state.METHODS:
         return None, "Choose clinic treat rest or clinic treat compress."
     if action != "treat" and method is not None:
@@ -86,7 +100,8 @@ def act(mask, action, method=None):
     linen = _compresses(mask, day) if action == "treat" and method == "compress" else []
     if action == "treat" and method == "compress" and not linen:
         return None, "Carry a real fresh linen compress, prepared at this clinic."
-    transform = getattr(clinic_state, action)
+    transform = (clinic_state.grant_records_permission if action == "request_records"
+                 else getattr(clinic_state, action))
     if action == "prepare":
         preview, valid, reason = transform(room.db.village_clinic, day=day)
     else:
@@ -132,6 +147,12 @@ def act(mask, action, method=None):
             if not good:
                 raise RuntimeError(problem)
             room.db.village_clinic = changed
+            if action == "request_records":
+                return {
+                    "room_id": room.id,
+                    "examiner_mask_id": mask.id,
+                    "records_permission_event_id": event["id"],
+                }
             used_id = None
             source_id = None
             if action == "treat" and method == "compress":
@@ -149,12 +170,17 @@ def act(mask, action, method=None):
                     "room_id": room.id}
 
     event = publish_world_event(
-        "village.clinic_" + action, actor=mask,
+        "village.clinic_" + (
+            "records_permission" if action == "request_records" else action
+        ), actor=mask,
         payload={"day": day, "hour": hour, "method": method,
                  "professional_calling": "healer",
                  "harbinger": False, "chronicle_eligible": False},
         consequence=consequence,
     )
-    record_participation(mask, "clinic_" + action, calling="healer")
-    return {"event_id": event["id"], "action": action,
-            "method": method, "condition": preview["condition"]}, None
+    if action != "request_records":
+        record_participation(mask, "clinic_" + action, calling="healer")
+    return {
+        "event_id": event["id"], "action": action, "method": method,
+        "condition": None if action == "request_records" else preview["condition"],
+    }, None
