@@ -1392,6 +1392,9 @@ def main() -> int:
         require_all(out, "merchant")
         out = smith.command("repair finish north-square gas lamp")
         require(out, "merchant must procure the replacement collar")
+        out = smith.command("agenda")
+        require_all(out, "your smith diagnosis", "merchant must procure",
+                    "lamp shop")
         out = smith.command("calling")
         require(out, "repair diagnoses 1")
         out = smith.command("repair diagnose north-square gas lamp")
@@ -1438,6 +1441,11 @@ def main() -> int:
         require(out, "procure one brass mantle collar")
         require(out, "one real stock unit")
         require(out, "smith must install")
+        out = merchant.command("agenda")
+        require_all(out, "your merchant procurement", "smith must install")
+        out = smith.command("agenda")
+        require_all(out, "merchant has procured",
+                    "repair finish north-square gas lamp")
         out = h.command("ask Bram about the lamp")
         require_all(out, "got the collar")
         require_all(out, "lamp's still dark")
@@ -1473,6 +1481,11 @@ def main() -> int:
         require(out, "repair complete")
         require(out, "smithtester")
         require(out, "merchanttester")
+        for participant in (smith, merchant):
+            out = participant.command("agenda")
+            require_all(out, "north-square gas lamp is repaired",
+                        "no repeat repair is needed")
+        print("TELNET_GDD_T16_LAMP_REPAIR_RETURN_AGENDA_GREEN")
         out = smith.command("guide")
         require(out, "lamp is burning again")
         require(out, "no longer an open job")
