@@ -136,9 +136,14 @@
           "path": "spike/tests/telnet_playthrough.py",
           "symbol": "TELNET_GDD_T06_LATE_ARRIVAL_WITNESS_DENIED_GREEN",
           "evidence_tier": "existing_scripted_fixture"
+        },
+        {
+          "path": "spike/tests/post_restart_assertions.py",
+          "symbol": "POST_RESTART_GDD_T06_LATE_NONWITNESS_GREEN",
+          "evidence_tier": "existing_scripted_fixture"
         }
       ],
-      "open_gap": "Exact late-arrival nonwitness rejection is now asserted in the ordinary-client telnet regression; remaining acceptance requires completed CI on this exact head, post-restart source-limited resident/character memory and uncoached comprehension.",
+      "open_gap": "A real late-arriving Healer's stage-witness claim is now refused through telnet, and its absence from the signed witness list is asserted after process restart. Exact-head clean-checkout CI and uncoached player comprehension are still required before full GDD acceptance.",
       "exact_gdd_scenario_executed_end_to_end": false,
       "uncoached_player_verified": false
     },
