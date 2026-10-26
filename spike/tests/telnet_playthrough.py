@@ -2079,6 +2079,17 @@ def main() -> int:
         print("TELNET_FIRSTHAND_LANDMARK_DISCOVERIES_GREEN")
         print("TELNET_COOPERATIVE_DAILY_SURVEY_GREEN")
 
+        # GDD T-09, real physical shortage: the runner seeded two bread
+        # servings. One was eaten during the first Tavern visit. Deplete
+        # the second, refuse a replay today, then take actual alternative
+        # food from a separate finite serving. No infinite item is minted.
+        out = c.command("eat bread")
+        require_all(out, "last of the bread", "rye")
+        out = c.command("eat bread")
+        require_all(out, "all gone for this village day", "next village day")
+        out = c.command("eat cheese")
+        require(out, "cheese bites back")
+        print("TELNET_GDD_T09_DEPLETED_BREAD_ALTERNATE_REAL_FOOD_GREEN")
         out = c.command("west")
         require(out, "village square")
         # Only a co-located resident who can consult public signed evidence
