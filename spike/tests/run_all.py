@@ -374,6 +374,18 @@ def main() -> int:
                 env=env,
                 input_text=post_restart,
             )
+            # GDD T-12: the same disposable QA database, now after a genuine
+            # server restart and with no connected players, must resolve a
+            # scheduled blackout by expiry without inventing player help.
+            unattended = (
+                checkout / "spike" / "tests" / "unattended_blackout_assertions.py"
+            ).read_text(encoding="utf-8")
+            run(
+                [evennia, "shell"],
+                cwd=game,
+                env=env,
+                input_text=unattended,
+            )
         except Exception:
             dump_logs(game)
             raise
