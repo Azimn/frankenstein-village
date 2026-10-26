@@ -9,6 +9,7 @@ class CmdCommission(Command):
         commission
         commission pledge
         commission deliver
+        commission cancel
 
     Gather one real firewood bundle in the Square, pledge it, then hand it to
     someone else. That person's account must carry the same bundle into the
@@ -45,6 +46,22 @@ class CmdCommission(Command):
                 f"{caller.key} signs the public firewood pledge.", exclude=[caller],
             )
             return
+        if action in {"cancel", "withdraw"}:
+            result, error = civic_work.cancel(caller)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                "Your signed firewood pledge is cancelled. The actual bundle "
+                "remains with whoever holds it; nothing was added to the rack. "
+                "It can still be delivered with |whearth deliver|n. "
+                "A new commission opens tomorrow."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} withdraws a public firewood pledge.",
+                exclude=[caller],
+            )
+            return
         if action in {"deliver", "finish"}:
             result, error = civic_work.deliver(caller)
             if error:
@@ -62,4 +79,4 @@ class CmdCommission(Command):
                 exclude=[caller],
             )
             return
-        caller.msg("Use: commission | commission pledge | commission deliver")
+        caller.msg("Use: commission | commission pledge | commission deliver | commission cancel")
