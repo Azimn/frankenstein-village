@@ -215,16 +215,21 @@ def report(mask):
                 "count": len(changed["reports"]),
             }
 
-    event = publish_world_event(
-        "village.route_inspected",
-        actor=mask,
-        payload={
-            "site": site, "day": day, "hour": hour,
-            "location": room.key,
-            "harbinger": False, "chronicle_eligible": False,
-        },
-        consequence=consequence,
-    )
+    try:
+        event = publish_world_event(
+            "village.route_inspected",
+            actor=mask,
+            payload={
+                "site": site, "day": day, "hour": hour,
+                "location": room.key,
+                "harbinger": False, "chronicle_eligible": False,
+            },
+            consequence=consequence,
+        )
+    except RuntimeError as error:
+        # The canonical ledger records the rejected consequence. Show a
+        # recoverable command response instead of a player-facing traceback.
+        return None, str(error)
     current = route_surveys.refresh(square.db.daily_route_survey, day)
     return {
         "event_id": event["id"], "site": site,
