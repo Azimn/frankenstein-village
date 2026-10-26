@@ -113,8 +113,9 @@ def perception(*, hunger=50, warmth=1.0, drunkenness=0, queasy=0,
         )
     if q > 0:
         relief.append(
-            "A little nausea passes with movement in the existing rules; "
-            "food currently waits until your stomach settles."
+            "Nausea can ease gradually with movement or a real cup of free "
+            "water from the Tavern. It does not instantly cure illness; "
+            "food waits until the stomach settles."
         )
     if drink_band != "clear":
         relief.append(
