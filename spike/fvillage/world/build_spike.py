@@ -833,6 +833,7 @@ _fare(
     "strategically useful.",
     {
         "sobering": 15,
+        "settle_queasy": 5,
         "flavor": "Cold water. It clears the head and steadies the hands.",
         "room": "drinks a full cup of water, deliberately.",
     },
