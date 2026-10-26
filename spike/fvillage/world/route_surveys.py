@@ -159,7 +159,7 @@ def field_decision(raw, day, site, role, action, caution_marked,
     return state, True, None
 
 
-def history_records(raw, day, *, limit=5):
+def history_records(raw, day, *, limit=5, selected_day=None):
     """Public, read-only snapshots of previous village days, newest first.
 
     A day transition can be viewed before the next report is signed. Archive
@@ -168,6 +168,12 @@ def history_records(raw, day, *, limit=5):
     The stored record is not mutated and no new canonical state is created.
     """
     state = refresh(raw, day)
+    # Exact-day lookups may inspect the whole retained archive, but never
+    # private keys, dates at/after the current day, or malformed day values.
+    if selected_day is not None and (
+        type(selected_day) is not int or selected_day < 1
+    ):
+        return []
     try:
         count = max(0, min(10, int(limit)))
     except (TypeError, ValueError, OverflowError):
@@ -198,6 +204,9 @@ def history_records(raw, day, *, limit=5):
             "reports": clean["reports"],
             "field_decisions": clean["field_decisions"],
         })
+    if selected_day is not None:
+        matches = [row for row in rows if row["day"] == selected_day]
+        return matches[-1:]  # one authoritative dated snapshot
     return rows[-count:][::-1]
 
 
