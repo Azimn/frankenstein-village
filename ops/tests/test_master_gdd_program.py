@@ -82,9 +82,15 @@ class MasterGDDProgramTests(unittest.TestCase):
                          ("Innkeep","Merchant","V"))
         for edge in edges:
             self.assertFalse(edge["verified_complete"])
-            self.assertIsNone(edge["ordinary_player_discovery_proof"])
-            self.assertIsNone(edge["two_account_test"])
-            self.assertIsNone(edge["post_restart_test"])
+            self.assertIsNone(edge["uncoached_gameplay_evidence"])
+            for field in (
+                "ordinary_player_discovery_proof", "two_account_test",
+                "post_restart_test", "authoritative_state_change_proof",
+            ):
+                evidence = edge[field]
+                if evidence is not None:
+                    self.assertIsInstance(evidence, str)
+                    self.assertGreater(len(evidence.strip()), 20)
             self.assertGreater(len(edge["design_contract"]),60)
 
     def test_does_not_claim_implementation_or_canon_approval(self):
