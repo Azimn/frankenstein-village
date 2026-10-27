@@ -289,6 +289,7 @@ def welcome(mask, guest_name):
     cook_id = serving.get("event_id")
     bowl_event = ledger.get_event(cook_id) if type(cook_id) is int else None
     if (not bowl_event or not hasattr(bowl_event.get("consequence"), "get")
+            or not hasattr(bowl_event.get("payload"), "get")
             or bowl_event["consequence"].get("bowl_id") != bowl.id
             or serving.get("prep_event_id")
             != bowl_event["payload"].get("prep_event_id")):
@@ -316,8 +317,16 @@ def welcome(mask, guest_name):
                     or mask.account.id == guest.account.id
                     or active_calling(mask) != "innkeep"
                     or active_calling(guest) != "wanderer"
-                    or int(bowl.db.servings or 0) != 1):
+                    or int(bowl.db.servings or 0) != 1
+                    or dict(bowl.db.soup_serving or {}) != serving
+                    or not bowl.tags.has("food")
+                    or not bowl.tags.has("consumable")):
                 raise RuntimeError("The physical guest, serving or village time changed.")
+            try:
+                if not guest.account.sessions.all():
+                    raise RuntimeError("The returning Wanderer disconnected.")
+            except (AttributeError, TypeError):
+                raise RuntimeError("The returning Wanderer disconnected.")
             fresh_route = route_surveys.refresh(square.db.daily_route_survey, day)
             if fresh_route["day"] != day:
                 raise RuntimeError("The route record changed before the welcome.")
