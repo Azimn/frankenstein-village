@@ -104,9 +104,14 @@ class MasterGDDProgramTests(unittest.TestCase):
                          ("Innkeep","Merchant","V"))
         for edge in edges:
             self.assertFalse(edge["verified_complete"])
-            self.assertIsNone(edge["ordinary_player_discovery_proof"])
-            self.assertIsNone(edge["two_account_test"])
-            self.assertIsNone(edge["post_restart_test"])
+            # Candidate references are permitted, but they cannot certify an
+            # edge without independent acceptance and exact-main verification.
+            for key in ("ordinary_player_discovery_proof", "two_account_test",
+                        "post_restart_test"):
+                proof = edge[key]
+                self.assertTrue(proof is None or
+                                (isinstance(proof, str) and proof.startswith("CANDIDATE:")))
+            self.assertIsNone(edge["uncoached_gameplay_evidence"])
             self.assertGreater(len(edge["design_contract"]),60)
 
     def test_does_not_claim_implementation_or_canon_approval(self):
