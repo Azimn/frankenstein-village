@@ -35,6 +35,9 @@ WORK = {
         "signed, restart-safe history. After personally assessing the visitor, "
         "use clinic request records to obtain consent before opening private "
         "notes with clinic records. Public clinic status omits those notes.",
+        "After completing real treatment at St. Lazarus, look at the cot "
+        "and use clinic invite to ask whether the visitor wants voluntary "
+        "music. This is separate from permission for private case notes.",
         "At the Square: investigate the pale well mushrooms; use assess "
         "on the real object, rather than trusting the public appearance.",
         "At the Tavern: inspect care needs; the Cold Hunter at Supper "
@@ -68,6 +71,9 @@ WORK = {
         "then stage perform the rehearsed piece. Other real visitors can "
         "stage witness during that hour; the signed performance remains in "
         "the public Tavern history.",
+        "After a Healer has treated a real St. Lazarus visitor and signed "
+        "a consented invitation, go to the Church, look at the clinic cot "
+        "and use clinic music. Companionship is not a medical cure.",
         "Also play, practice or perform a duet with a willing partner using "
         "the normal leisure commands.",
         "Read the public calendar, then invite neighbors to an in-world "
