@@ -118,6 +118,7 @@ def main() -> int:
     performer = None
     wanderer = None
     hound = None
+    detective = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -1881,6 +1882,38 @@ def main() -> int:
                     "your smith calibration", "chronicler can attest")
         out = smith.command("trade calibrate")
         require(out, "already been calibrated")
+        # EDGE-22: a separate Detective independently inspects the real
+        # scale only after the Smith's completed, signed calibration.
+        detective = Client(args.host, args.port)
+        require(detective.sync_login_screen(), "frankenstein village")
+        out = detective.command(
+            f"connect qa_detective_forensic {repair_password}", wait=4.0
+        )
+        require(out, "connected", "account qa_detective_forensic")
+        detective.command("charcreate DetectiveTester", wait=3.0)
+        require(detective.command("ic DetectiveTester", wait=4.0), "private room")
+        require(detective.command("calling choose detective"),
+                "detective is now your active calling")
+        for direction, expected in (
+            ("down", "inn common room"),
+            ("east", "inn hallway"),
+            ("south", "village square"),
+            ("south", "lamp shop"),
+            ("south", "market lane"),
+        ):
+            require(detective.command(direction), expected)
+        require(smith.command("trade inspect"), "Detective Calling")
+        require(detective.command("trade inspect"),
+                "First inspect the actual crooked market scale")
+        require(detective.command("look market scale"), "two prices")
+        out = detective.command("trade inspect")
+        require_all(out, "signed", "DetectiveTester",
+                    "Smith source", "does not establish")
+        require(detective.command("trade inspect"),
+                "already has an independent custody inquiry")
+        require(merchant.command("trade inspect"), "Detective Calling")
+        print("TELNET_GDD_EDGE22_TWO_ACCOUNT_SIGNED_SCALE_INQUIRY_GREEN")
+
         out = c.command("trade attest")
         require_all(out, "signed", "attested both source events")
         require_all(c.command("agenda"),
@@ -2218,8 +2251,12 @@ def main() -> int:
             print("\nWANDERER TRANSCRIPT\n" + "\n".join(wanderer.transcript))
         if hound is not None:
             print("\nHOUND TRANSCRIPT\n" + "\n".join(hound.transcript))
+        if detective is not None:
+            print("\nDETECTIVE TRANSCRIPT\n" + "\n".join(detective.transcript))
         raise
     finally:
+        if detective is not None:
+            detective.close()
         if hound is not None:
             hound.close()
         if wanderer is not None:
