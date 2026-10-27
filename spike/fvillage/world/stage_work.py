@@ -118,3 +118,102 @@ def act(mask, action, tune=None):
     if action != "witness":
         record_participation(mask, "stage_" + action, calling="performer")
     return {"event_id": event["id"], "action": action, "tune": tune}, None
+
+def serve(mask, target_name):
+    """Transfer an existing edible bowl, never a fictitious catering credit."""
+    tavern, error = _guard(mask)
+    if error:
+        return None, error
+    if active_calling(mask) != "innkeep":
+        return None, "An active Innkeep must provide performance hospitality."
+    matches = [
+        person for person in tavern.contents
+        if getattr(person, "key", "").casefold() == target_name.casefold()
+        and getattr(person, "account", None) is not None
+    ]
+    if len(matches) != 1:
+        return None, "The recipient must be a distinct player present at the Tavern."
+    guest = matches[0]
+    if guest == mask:
+        return None, "You cannot serve yourself."
+    try:
+        connected = bool(guest.account.sessions.all())
+    except (AttributeError, TypeError):
+        connected = False
+    if not connected:
+        return None, "The recipient must be connected and present for service."
+    day, hour = _clock()
+    bowls = [
+        obj for obj in mask.contents
+        if obj.location == mask and getattr(obj.db, "soup_serving", None)
+        and int(getattr(obj.db, "servings", 0) or 0) > 0
+    ]
+    if not bowls:
+        return None, "Carry a real uneaten homemade soup bowl; use soup prep and soup simmer."
+    bowl = bowls[0]
+    source = dict(bowl.db.soup_serving)
+    details = dict(
+        day=day, hour=hour, account_id=mask.account.id,
+        mask_id=mask.id, mask=mask.key,
+        recipient_account_id=guest.account.id, recipient_mask_id=guest.id,
+        bowl_id=bowl.id, cook_event_id=source.get("event_id"),
+    )
+    _preview, ok, reason = stage_state.serve(
+        tavern.db.village_stage, event_id=1, **details,
+    )
+    if not ok:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            current_tavern, access_error = _guard(mask)
+            if access_error or current_tavern != tavern:
+                raise RuntimeError(access_error or "The Innkeep left the Tavern.")
+            if active_calling(mask) != "innkeep":
+                raise RuntimeError("The Innkeep Calling changed before service.")
+            if _clock() != (day, hour):
+                raise RuntimeError("The performance hour changed before service.")
+            if guest.location != tavern or guest.account.id != details["recipient_account_id"]:
+                raise RuntimeError("The guest left the Tavern before service.")
+            try:
+                if not guest.account.sessions.all():
+                    raise RuntimeError("The guest disconnected before service.")
+            except (AttributeError, TypeError):
+                raise RuntimeError("The guest is no longer connected.")
+            if (bowl.location != mask or
+                    dict(bowl.db.soup_serving or {}) != source or
+                    int(bowl.db.servings or 0) < 1):
+                raise RuntimeError("The physical soup bowl was moved or consumed.")
+            updated, accepted, reason = stage_state.serve(
+                tavern.db.village_stage, event_id=event["id"], **details,
+            )
+            if not accepted:
+                raise RuntimeError(reason)
+            if not bowl.move_to(guest, quiet=True):
+                raise RuntimeError("The soup bowl could not be transferred.")
+            tavern.db.village_stage = updated
+            return {
+                "tavern_room_id": tavern.id, "bowl_id": bowl.id,
+                "recipient_mask_id": guest.id,
+                "cook_event_id": source["event_id"],
+                "performance_event_id": updated["performance"]["event_id"],
+            }
+
+    try:
+        event = publish_world_event(
+            "village.stage_hospitality", actor=mask,
+            payload={
+                "day": day, "hour": hour, "bowl_id": bowl.id,
+                "cook_event_id": source["event_id"],
+                "recipient_mask_id": guest.id,
+                "chronicle_eligible": False, "harbinger": False,
+            },
+            consequence=consequence,
+        )
+    except RuntimeError as error:
+        return None, str(error)
+    record_participation(mask, "stage_hospitality", calling="innkeep")
+    return {
+        "action": "serve", "event_id": event["id"],
+        "recipient": guest.key, "bowl_id": bowl.id,
+    }, None
