@@ -37,7 +37,8 @@ def _time(day, hour):
 
 def fresh(day=1):
     return {"day": day, "rehearsals": [], "performance": None,
-            "witnesses": [], "history": []}
+            "witnesses": [], "safety_warning": None,
+            "safety_decision": None, "history": []}
 
 
 def normalize(raw):
@@ -67,6 +68,22 @@ def normalize(raw):
                     and _ident(r.get("event_id"))):
                 result["witnesses"].append(dict(r))
     result["witnesses"] = result["witnesses"][-MAX_WITNESSES:]
+    warning = raw.get("safety_warning")
+    if (hasattr(warning, "get")
+            and all(_ident(warning.get(k)) for k in (
+                "account_id", "mask_id", "event_id", "source_event_id",
+                "cord_id"))
+            and _time(day, warning.get("hour"))):
+        result["safety_warning"] = dict(warning)
+    decision = raw.get("safety_decision")
+    if (hasattr(decision, "get") and result["safety_warning"]
+            and all(_ident(decision.get(k)) for k in (
+                "account_id", "mask_id", "event_id", "warning_event_id"))
+            and decision.get("choice") in {"indoor", "cancel"}
+            and decision["warning_event_id"] == result["safety_warning"]["event_id"]
+            and decision["account_id"] != result["safety_warning"]["account_id"]
+            and _time(day, decision.get("hour"))):
+        result["safety_decision"] = dict(decision)
     result["history"] = [
         copy.deepcopy(r) for r in list(raw.get("history") or [])
         if hasattr(r, "get") and _ident(r.get("day"))
@@ -79,14 +96,17 @@ def refresh(raw, day):
     target = _ident(day)
     if not target or target <= state["day"]:
         return state
-    if state["performance"]:
+    if state["performance"] or state["safety_decision"]:
         state["history"].append({
             "day": state["day"],
             "performance": copy.deepcopy(state["performance"]),
             "witnesses": copy.deepcopy(state["witnesses"]),
+            "safety_warning": copy.deepcopy(state["safety_warning"]),
+            "safety_decision": copy.deepcopy(state["safety_decision"]),
         })
     return {"day": target, "rehearsals": [], "performance": None,
-            "witnesses": [], "history": state["history"][-MAX_HISTORY:]}
+            "witnesses": [], "safety_warning": None, "safety_decision": None,
+            "history": state["history"][-MAX_HISTORY:]}
 
 
 def rehearse(raw, *, day, hour, account_id, mask_id, mask, tune, event_id):
@@ -122,6 +142,10 @@ def perform(raw, *, day, hour, account_id, mask_id, mask, tune, event_id,
         return state, False, "An actual player and signed world event are required."
     if state["performance"]:
         return state, False, "Today's public performance has already taken place."
+    if state["safety_warning"] and not state["safety_decision"]:
+        return state, False, "A Hound warning requires a Performer decision before the show."
+    if state["safety_decision"] and state["safety_decision"]["choice"] == "cancel":
+        return state, False, "Today's performance was cancelled after a signed warning."
     rehearsal = next((r for r in state["rehearsals"]
                       if r["account_id"] == aid and r["tune"] == tune), None)
     if not rehearsal:
@@ -130,6 +154,10 @@ def perform(raw, *, day, hour, account_id, mask_id, mask, tune, event_id,
         "account_id": aid, "mask_id": mid, "mask": str(mask)[:70],
         "tune": tune, "hour": hour, "event_id": eid,
         "rehearsal_event_id": rehearsal["event_id"],
+        "safety_decision_event_id": (
+            state["safety_decision"]["event_id"] if state["safety_decision"] else None),
+        "safety_mode": (
+            state["safety_decision"]["choice"] if state["safety_decision"] else "normal"),
         # Eligible accounts must have been actually connected and present
         # at performance time. Arriving later this hour is not witnessing.
         "eligible_audience_ids": sorted({
@@ -138,6 +166,55 @@ def perform(raw, *, day, hour, account_id, mask_id, mask, tune, event_id,
         })[:MAX_WITNESSES],
     }
     state["witnesses"] = []
+    return state, True, None
+
+
+def warn(raw, *, day, hour, account_id, mask_id, mask, event_id,
+         source_event_id, cord_id):
+    """Hound brings a firsthand, signed physical route caution to the Tavern."""
+    state = refresh(raw, day)
+    if not _time(day, hour) or day < state["day"]:
+        return state, False, "The village clock cannot be rewound."
+    values = (account_id, mask_id, event_id, source_event_id, cord_id)
+    if not all(_ident(v) for v in values):
+        return state, False, "A signed physical source and ordinary account are required."
+    if state["performance"]:
+        return state, False, "A warning cannot retroactively change an actual show."
+    if state["safety_warning"]:
+        return state, False, "Today's stage warning is already signed."
+    state["safety_warning"] = {
+        "account_id": int(account_id), "mask_id": int(mask_id),
+        "mask": str(mask)[:70], "event_id": int(event_id),
+        "source_event_id": int(source_event_id), "cord_id": int(cord_id),
+        "hour": int(hour),
+    }
+    return state, True, None
+
+
+def adapt(raw, *, day, hour, account_id, mask_id, mask, event_id, choice):
+    """Independent Performer elects a bounded indoor show or cancellation."""
+    state = refresh(raw, day)
+    if not _time(day, hour) or day < state["day"]:
+        return state, False, "The village clock cannot be rewound."
+    if choice not in {"indoor", "cancel"}:
+        return state, False, "Choose indoor or cancel."
+    if not all(_ident(v) for v in (account_id, mask_id, event_id)):
+        return state, False, "A signed ordinary account is required."
+    warning = state["safety_warning"]
+    if not warning:
+        return state, False, "A verified Hound warning is required first."
+    if int(account_id) == warning["account_id"]:
+        return state, False, "The Hound cannot also sign the Performer decision."
+    if state["performance"]:
+        return state, False, "The actual show cannot be changed retroactively."
+    if state["safety_decision"]:
+        return state, False, "Today's stage safety decision is already signed."
+    state["safety_decision"] = {
+        "account_id": int(account_id), "mask_id": int(mask_id),
+        "mask": str(mask)[:70], "event_id": int(event_id),
+        "warning_event_id": warning["event_id"], "hour": int(hour),
+        "choice": choice,
+    }
     return state, True, None
 
 
@@ -170,6 +247,12 @@ def public_lines(raw, day):
     state = refresh(raw, day)
     lines = ["The Tavern stage", "Today: village day %d." % state["day"]]
     p = state["performance"]
+    if state["safety_warning"]:
+        w = state["safety_warning"]
+        lines.append("A Hound signed a route caution for this stage (event %d; physical source %d)." % (w["event_id"], w["source_event_id"]))
+    if state["safety_decision"]:
+        d = state["safety_decision"]
+        lines.append("A Performer chose %s after the warning (event %d)." % (d["choice"], d["event_id"]))
     if p:
         lines.append("%s actually performed a %s at hour %02d."
                      % (p["mask"], p["tune"], p["hour"]))
@@ -179,8 +262,14 @@ def public_lines(raw, day):
         lines.append("No public performance has occurred today.")
     if state["history"]:
         last = state["history"][-1]
-        lines.append("Previous recorded show: %s, day %d."
-                     % (last["performance"]["mask"], last["day"]))
+        if last.get("performance"):
+            lines.append("Previous recorded show: %s, day %d."
+                         % (last["performance"]["mask"], last["day"]))
+        elif last.get("safety_decision"):
+            lines.append("Previous stage decision: %s, day %d."
+                         % (last["safety_decision"]["choice"], last["day"]))
+    lines.append("Hounds: after survey protect at the real red cord, visit here and stage warn.")
+    lines.append("Performers: stage adapt indoor|cancel after a Hound warning.")
     lines.append("Performers: stage rehearse ballad|reel, then stage perform ballad|reel.")
     lines.append("During the actual performance hour, other visitors may stage witness.")
     return "\n".join(lines)
