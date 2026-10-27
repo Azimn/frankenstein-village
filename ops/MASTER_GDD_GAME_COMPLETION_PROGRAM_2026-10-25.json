@@ -11,12 +11,14 @@
       "depends": [],
       "deliver": "Exact SHA authority/conflict register; select surviving #89/#90 and #91/#92 code paths; review #93/#94 as subordinate sources; retain draft status until separately approved.",
       "proof": "No duplicate changes, higher-authority World Bible conflicts marked for keeper, fresh exact-commit CI after eventual integration.",
-      "status": "planned",
+      "status": "in_progress",
       "verified_evidence": [],
       "source_sections": [
         "19",
         "21"
-      ]
+      ],
+      "audit_register": "ops/FV_G00_INTEGRATION_REGISTER_2026-10-26.md",
+      "next_dependency": "Independent review and exact-head CI for #85/#89; authorized integration to main; exact-main regression; record proof before marking verified."
     },
     {
       "id": "FV-G01",
