@@ -85,6 +85,7 @@ def perform(mask, action):
     room = market_room()
     if not account or not room or getattr(mask, "location", None) != room:
         return None, "This professional work must be done in Market Lane."
+    account_id, mask_id = account.id, mask.id
     role = ACTION_ROLE[action]
     if active_calling(mask) != role:
         return None, f"An active {role.title()} Calling must perform that action."
@@ -98,7 +99,7 @@ def perform(mask, action):
     # do not add misleading failed-event records.
     _proposed, accepted, error = market_standards.apply(
         room.db.market_standards, action,
-        account_id=account.id, mask_id=mask.id, mask=mask.key,
+        account_id=account_id, mask_id=mask_id, mask=mask.key,
         day=day, hour=hour, event_id=1,
     )
     if not accepted:
@@ -112,6 +113,13 @@ def perform(mask, action):
 
     def consequence(event):
         with transaction.atomic():
+            # Delayed event consequences cannot sign a stale hour or borrow
+            # another authenticated account's authority.
+            if (not getattr(mask, "account", None)
+                    or mask.account.id != account_id or mask.id != mask_id):
+                raise RuntimeError("The market account changed before signing.")
+            if clock() != (day, hour):
+                raise RuntimeError("Village time advanced before the market decision.")
             if mask.location != room or not witnessed_scale_today(mask, day):
                 raise RuntimeError("The witness left the market scale.")
             if active_calling(mask) != role:
@@ -121,7 +129,7 @@ def perform(mask, action):
                 raise RuntimeError("The signed market source events changed.")
             changed, valid, problem = market_standards.apply(
                 room.db.market_standards, action,
-                account_id=account.id, mask_id=mask.id, mask=mask.key,
+                account_id=account_id, mask_id=mask_id, mask=mask.key,
                 day=day, hour=hour, event_id=event["id"],
             )
             if not valid:
@@ -141,15 +149,19 @@ def perform(mask, action):
                 ),
             }
 
-    event = publish_world_event(
-        "village.market_" + action, actor=mask,
-        payload={
-            "action": action, "day": day, "hour": hour,
-            "location": MARKET, "professional_calling": role,
-            "harbinger": False, "chronicle_eligible": False,
-        },
-        consequence=consequence,
-    )
+    try:
+        event = publish_world_event(
+            "village.market_" + action, actor=mask,
+            payload={
+                "action": action, "day": day, "hour": hour,
+                "location": MARKET, "professional_calling": role,
+                "harbinger": False, "chronicle_eligible": False,
+            },
+            consequence=consequence,
+        )
+    except RuntimeError as error:
+        # The signed event was rejected; present a recoverable player error.
+        return None, str(error)
     record_participation(mask, "market_" + action, calling=role)
     return {
         "event_id": event["id"], "action": action,
