@@ -1176,6 +1176,35 @@ def main() -> int:
         require_all(out, "real, shareable bowl", "quality", "world event")
         out = inn.command("soup notebook")
         require_all(out, "signed soup notebook", "turnip with thyme")
+        # EDGE-01: real finite batch, explicit Innkeep disclosure, and
+        # a different authenticated Chronicler's bounded public receipt.
+        out = c.command("soup publish")
+        require(out, "physically at the blood of the vine")
+        out = h.command("soup receipt")
+        require(out, "active innkeep")
+        out = inn.command("soup publish")
+        require(out, "active chronicler")
+        out = inn.command("soup receipts")
+        require(out, "no kitchen receipt has been independently published")
+        out = inn.command("soup receipt")
+        require_all(out, "authorize public kitchen batch facts only",
+                    "signed disclosure event", "no guest identity")
+        out = inn.command("soup receipt")
+        require(out, "already has a signed disclosure decision")
+        out = c.command("east")
+        require(out, "blood of the vine")
+        out = c.command("soup publish")
+        require_all(out, "independent chronicler publication event",
+                    "signed consent event", "no guest behavior")
+        out = c.command("soup publish")
+        require(out, "already published")
+        out = c.command("soup receipts")
+        require_all(out, "consented public house receipts", "innkeeptester",
+                    "chronicler smoketester", "not a guest list")
+        out = c.command("west")
+        require(out, "village square")
+        print("TELNET_GDD_EDGE01_CONSENTED_TWO_ACCOUNT_HOUSE_RECEIPT_GREEN")
+
         out = inn.command("eat homemade soup")
         require_all(out, "taste", "earthy turnip")
         out = inn.command("eat homemade soup")
