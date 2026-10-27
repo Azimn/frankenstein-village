@@ -1181,6 +1181,10 @@ def main() -> int:
         out = inn.command("eat homemade soup")
         require(out, "all gone")
         print("TELNET_SHARED_SOUP_RECIPE_CRAFTING_GREEN")
+        out = inn.command("soup prep barley salt")
+        require(out, "measure real barley and salt")
+        out = inn.command("soup simmer")
+        require_all(out, "real, shareable bowl", "quality")
 
         # A distinct Performer account exercises the real Tavern stage.
         performer = Client(args.host, args.port)
@@ -1223,6 +1227,15 @@ def main() -> int:
         require(out, "actually witnessed")
         out = inn.command("stage witness")
         require(out, "already witnessed")
+        out = performer.command("stage serve PerformerTester")
+        require(out, "active innkeep")
+        out = inn.command("stage serve PerformerTester")
+        require_all(out, "serve a real cooked soup bowl", "performertester", "world event")
+        out = inn.command("stage serve PerformerTester")
+        require(out, "carry a real uneaten homemade soup bowl")
+        out = performer.command("eat homemade soup")
+        require_all(out, "taste", "simple bowl of barley")
+        print("TELNET_EDGE_06_REAL_STAGE_HOSPITALITY_GREEN")
         # T-06: This character was in the village but not in the room when
         # the show actually occurred; arriving within the same hour must
         # never confer a fabricated firsthand audience record.
@@ -1230,6 +1243,8 @@ def main() -> int:
         require(out, "blood of the vine")
         out = h.command("stage witness")
         require(out, "only an audience member present for the actual performance")
+        out = inn.command("stage serve HealerTester")
+        require(out, "carry a real uneaten homemade soup bowl")
         out = performer.command("stage")
         require_all(out, "performertester", "1 other player account")
         print("TELNET_GDD_T06_LATE_ARRIVAL_WITNESS_DENIED_GREEN")
