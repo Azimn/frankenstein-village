@@ -241,7 +241,7 @@ def public_lines(raw, day):
         ("Care has been provided."
          if state["treatment"] else
          "Treatment remains available after assessment."),
-        "Healers: clinic assess | clinic prepare | clinic treat rest|compress | clinic receive.",
+        "Healers: clinic assess | clinic prepare | clinic treat rest or clinic treat compress | clinic receive.",
         "Merchants: clinic procure at Market Lane; carry a real parcel here for Healer acceptance.",
         "The examining Healer may request this patient's permission using "
         "clinic request records, then use clinic records for confidential notes.",

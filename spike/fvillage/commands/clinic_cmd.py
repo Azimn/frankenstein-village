@@ -58,7 +58,7 @@ class CmdClinic(Command):
         else:
             self.caller.msg(
                 "Use clinic | clinic assess | clinic prepare | "
-                "clinic treat rest|compress | clinic request records | clinic records | clinic procure | clinic receive."
+                "clinic treat rest or clinic treat compress | clinic request records | clinic records | clinic procure | clinic receive."
             )
             return
         if error:

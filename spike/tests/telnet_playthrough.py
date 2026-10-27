@@ -1475,6 +1475,8 @@ def main() -> int:
         require(out, "supply is exhausted")
         out = merchant.command("north")
         require(out, "lamp shop")
+        out = merchant.command("north")
+        require(out, "village square")
         out = h.command("east")
         require(out, "village square")
         out = h.command("east")
