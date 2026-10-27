@@ -529,7 +529,9 @@ def examine_bridge_case(player):
     ]
     if not observations:
         return None, "Look at the physical plaque today before filing a case examination."
-    observation = observations[-1]
+    # Evennia may return SaverDict wrappers for nested persisted records.
+    observation = dict(observations[-1])
+    observation["witnesses"] = [dict(w) for w in observation.get("witnesses") or []]
     signed_observation = get_event_ledger().get_event(observation.get("source_event_id"))
     payload = (signed_observation or {}).get("payload") or {}
     if (not signed_observation or signed_observation.get("status") != "complete"
