@@ -81,9 +81,9 @@ def normalize(raw):
             and not isinstance(service.get("witness_count"), bool)
             and _ident(service.get("witness_count"))
             and int(service["witness_count"]) <= len(result["witnesses"])
-            and service["event_id"] > max(
-                show["event_id"], service["cook_event_id"],
-                service["witness_event_id"])
+            and _ident(service.get("event_id")) > max(
+                show["event_id"], _ident(service.get("cook_event_id")),
+                _ident(service.get("witness_event_id")))
             and any(w["event_id"] == service["witness_event_id"]
                     for w in result["witnesses"])):
         result["service"] = {
