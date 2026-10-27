@@ -14,11 +14,73 @@ ROOT = Path(__file__).resolve().parents[1]
 RECEIPT = Path("ops/GDD_G01_CI_OBSERVATIONS_2026-10-27.json")
 
 
-def _call_nodes(path: Path) -> list[ast.Call]:
-    """AST calls only: never count comments or inert quoted source text."""
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    return [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
+def _static_truth(node: ast.AST) -> bool | None:
+    """Evaluate only trivially constant boolean guards, never arbitrary code."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, bool):
+        return node.value
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        value = _static_truth(node.operand)
+        return None if value is None else not value
+    return None
 
+
+class _ReachableCallCollector(ast.NodeVisitor):
+    """Collect possible executed AST calls, excluding constant-dead branches.
+
+    This intentionally does not pretend to prove every dynamic branch ran.
+    Actual execution proof comes from the pinned, successful CI transcript.
+    """
+    def __init__(self) -> None:
+        self.calls: list[ast.Call] = []
+
+    def visit_Call(self, node: ast.Call) -> None:
+        self.calls.append(node)
+        self.generic_visit(node)
+
+    def visit_If(self, node: ast.If) -> None:
+        self.visit(node.test)
+        decision = _static_truth(node.test)
+        branches = (node.body if decision is True else
+                    node.orelse if decision is False else
+                    node.body + node.orelse)
+        for stmt in branches:
+            self.visit(stmt)
+
+    def visit_IfExp(self, node: ast.IfExp) -> None:
+        self.visit(node.test)
+        decision = _static_truth(node.test)
+        if decision is True:
+            self.visit(node.body)
+        elif decision is False:
+            self.visit(node.orelse)
+        else:
+            self.visit(node.body)
+            self.visit(node.orelse)
+
+    def visit_BoolOp(self, node: ast.BoolOp) -> None:
+        for value in node.values:
+            self.visit(value)
+            decision = _static_truth(value)
+            if isinstance(node.op, ast.And) and decision is False:
+                break
+            if isinstance(node.op, ast.Or) and decision is True:
+                break
+
+    def visit_While(self, node: ast.While) -> None:
+        self.visit(node.test)
+        decision = _static_truth(node.test)
+        if decision is not False:
+            for stmt in node.body:
+                self.visit(stmt)
+        for stmt in node.orelse:
+            self.visit(stmt)
+
+
+def _call_nodes(path: Path) -> list[ast.Call]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    visitor = _ReachableCallCollector()
+    visitor.visit(tree)
+    return visitor.calls
 
 def _in_range(node: ast.Call, span: list[int]) -> bool:
     return span[0] <= node.lineno <= span[1]
