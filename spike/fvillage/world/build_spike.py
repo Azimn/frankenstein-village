@@ -564,6 +564,26 @@ if tavern.db.civic_hearth is None:
         "reserve": 0, "warm_until": 0, "history": [],
     }
 
+# Shared non-Calling civic project. The physical object owns its one fire
+# record; the existing village woodpile remains the ONLY source of fuel.
+# Rebuilding never relights the fire or resets its signed history.
+square_brazier = get_or_create_scenery(
+    "a public warming brazier", square,
+    "A communal iron fire-basin beside the woodpile.",
+    aliases=["brazier", "public brazier", "square fire", "warming brazier"],
+)
+if not square_brazier.is_typeclass(
+    "typeclasses.objects.SquareBrazier", exact=True
+):
+    square_brazier.swap_typeclass(
+        "typeclasses.objects.SquareBrazier", clean_attributes=False
+    )
+square_brazier.locks.add("get:false();give:false();drop:false()")
+if square_brazier.db.square_brazier is None:
+    square_brazier.db.square_brazier = {
+        "warm_until": 0, "last_action_at": 0, "history": [],
+    }
+
 # Mushrooms by the well are the first hidden-property production object.
 # Toxin remains authoritative simulation truth, but ordinary description does
 # not label the mechanical property. A mask can learn it from direct effects
