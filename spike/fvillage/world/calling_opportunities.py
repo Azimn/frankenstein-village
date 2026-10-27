@@ -28,6 +28,13 @@ WORK = {
         "one-time and may already have been finished by a neighbor.",
     ),
     "healer": (
+        "At St. Lazarus Church a patient comes to the staffed clinic every "
+        "village day. Use clinic assess to record a firsthand finding; "
+        "clinic prepare makes real transferable linen dressings, and "
+        "clinic treat rest or compress offers consequential care with a "
+        "signed, restart-safe history. After personally assessing the visitor, "
+        "use clinic request records to obtain consent before opening private "
+        "notes with clinic records. Public clinic status omits those notes.",
         "At the Square: investigate the pale well mushrooms; use assess "
         "on the real object, rather than trusting the public appearance.",
         "At the Tavern: inspect care needs; the Cold Hunter at Supper "
@@ -44,14 +51,25 @@ WORK = {
         "commission. At the Square, examine the noticeboard for needs.",
     ),
     "wanderer": (
+        "Collect actual sealed ferry-post parcels in Market Lane with courier collect. "
+        "Carry or give them to another person for courier deliver at Riverside Path. "
+        "The limited daily supply and signed ferry manifest persist.",
+        "At the Northern Treeline, examine the frayed red cord and use "
+        "survey passability to record whether a real caution marker was "
+        "present when you visited. This is a dated route judgment, not "
+        "a guarantee of safety.",
         "Use survey to see the four current district checkpoints. "
         "Travel there, look at each actual clue, and use survey report.",
         "Examine the Riverside Path, churchyard, treeline, and market "
         "before forming route judgments; the daily reports are renewable.",
     ),
     "performer": (
-        "At the Blood of the Vine: play, practice or perform a duet "
-        "with a willing partner using the normal leisure commands.",
+        "At the Blood of the Vine: use stage rehearse ballad or reel, "
+        "then stage perform the rehearsed piece. Other real visitors can "
+        "stage witness during that hour; the signed performance remains in "
+        "the public Tavern history.",
+        "Also play, practice or perform a duet with a willing partner using "
+        "the normal leisure commands.",
         "Read the public calendar, then invite neighbors to an in-world "
         "gathering through commons rather than claiming one occurred.",
     ),
@@ -62,6 +80,10 @@ WORK = {
         "Claims and suspicions do not become facts just by being published.",
     ),
     "hound": (
+        "At the Northern Treeline, examine the frayed red cord and use "
+        "survey protect to tie its loose end into a real caution marker. "
+        "The physical change is one-time; it cannot be repeated after "
+        "someone else has already protected the route.",
         "Use survey and perform signed firsthand inspections in the "
         "churchyard, treeline, market and riverside districts.",
         "Talk to residents you physically encounter during their "

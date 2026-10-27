@@ -239,6 +239,22 @@ class SpikeCharacter(Character):
     def _queasy(self):
         return self.db.queasy or 0
 
+    def sensory_snapshot(self):
+        """Read-only first-person view of the existing persistent body.
+
+        No new needs, no new physics, no knowledge of anyone else's state.
+        The same projection is available in score deep and agent context.
+        """
+        from world.embodied_perception import perception
+        return perception(
+            hunger=50 if self.db.hunger is None else self.db.hunger,
+            warmth=1.0 if self.db.warmth is None else self.db.warmth,
+            drunkenness=0 if self.db.drunkenness is None else self.db.drunkenness,
+            queasy=0 if self.db.queasy is None else self.db.queasy,
+            seated=bool(self.db.posture),
+            place=self.location.key if self.location else None,
+        )
+
     def hunger_band(self):
         h = self._hunger()
         if h >= 80:

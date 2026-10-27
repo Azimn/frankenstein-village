@@ -156,12 +156,21 @@ bridge = get_or_create_room(
     "The riverside path leads west.",
     side="ic", place="bridge",
 )
+market_workshop = get_or_create_room(
+    "The Market Workshop", ROOM,
+    "A communal forge and repair room just east of Market Lane. The hearth "
+    "is low, the vise is worn, and a timber rail holds numbered iron offcuts "
+    "for village maintenance. A public repair docket records genuine work, "
+    "not promises of work. West returns to the market stalls.",
+    side="ic", place="market_workshop",
+)
 # Existing persistent room descriptions are gently amended on a rebuild:
 # merely adding new exits would leave the old textual map incomplete.
 for _room_obj, _line in (
     (church, "A graveyard path runs west behind the church."),
     (lamp_shop, "South, the cobbles widen into Market Lane."),
     (tavern, "East, a damp path follows the river toward the old bridge."),
+    (market_lane, "East, a public repair workshop opens off the market stalls."),
 ):
     if _line not in str(_room_obj.db.desc or ""):
         _room_obj.db.desc = (str(_room_obj.db.desc or "").rstrip() + " " + _line)
@@ -190,6 +199,8 @@ get_or_create_exit("north", churchyard, woods_edge, "evennia.objects.objects.Def
 get_or_create_exit("south", woods_edge, churchyard, "evennia.objects.objects.DefaultExit", aliases=["s"])
 get_or_create_exit("south", lamp_shop, market_lane, "evennia.objects.objects.DefaultExit", aliases=["s"])
 get_or_create_exit("north", market_lane, lamp_shop, "evennia.objects.objects.DefaultExit", aliases=["n"])
+get_or_create_exit("east", market_lane, market_workshop, "evennia.objects.objects.DefaultExit", aliases=["e"])
+get_or_create_exit("west", market_workshop, market_lane, "evennia.objects.objects.DefaultExit", aliases=["w"])
 get_or_create_exit("east", tavern, riverside, "evennia.objects.objects.DefaultExit", aliases=["e"])
 get_or_create_exit("west", riverside, tavern, "evennia.objects.objects.DefaultExit", aliases=["w"])
 get_or_create_exit("east", riverside, bridge, "evennia.objects.objects.DefaultExit", aliases=["e"])
@@ -351,6 +362,28 @@ def get_or_create_scenery(key, location, desc, aliases=()):
         if alias not in (obj.aliases.all() or []):
             obj.aliases.add(alias)
     return obj
+
+
+def get_or_create_workshop_fixture(key, location, desc, typeclass, aliases=()):
+    obj = get_or_create_scenery(key, location, desc, aliases=aliases)
+    if not obj.is_typeclass(typeclass, exact=True):
+        obj.swap_typeclass(typeclass, clean_attributes=False)
+    obj.locks.add("get:false()")
+    return obj
+
+
+get_or_create_workshop_fixture(
+    "a public smithing bench", market_workshop,
+    "A working village forge with a finite iron rack and a signed repair docket.",
+    "typeclasses.objects.MarketWorkshopBench",
+    aliases=["repair bench", "forge", "smithing bench", "repair docket"],
+)
+get_or_create_workshop_fixture(
+    "a market fittings board", market_lane,
+    "A public board of actual market repair receipts and outstanding work.",
+    "typeclasses.objects.MarketRepairBoard",
+    aliases=["repair board", "market repair", "fittings board", "market fittings board"],
+)
 
 
 def get_or_create_discovery(key, location, desc, aliases=()):
@@ -800,6 +833,7 @@ _fare(
     "strategically useful.",
     {
         "sobering": 15,
+        "settle_queasy": 5,
         "flavor": "Cold water. It clears the head and steadies the hands.",
         "room": "drinks a full cup of water, deliberately.",
     },
@@ -1140,6 +1174,50 @@ soup_pot = relocate_or_create_typed(
     aliases=["soup pot", "kitchen pot", "cookpot"],
 )
 soup_pot.locks.add("get:false()")
+
+stage_platform = get_or_create_scenery(
+    "a modest performance platform", tavern,
+    "A low raised wooden stage stands beside the hearth, its boards "
+    "polished by years of boots. This is a place for actual musicians, "
+    "not a promise of automatic applause. Try stage to read the public "
+    "record, stage rehearse ballad or reel, stage perform, or stage witness "
+    "when somebody really plays.",
+    aliases=["stage", "platform", "tavern stage"],
+)
+stage_platform.locks.add("get:false()")
+
+clinic_cot = relocate_or_create_typed(
+    "a clinic treatment cot", church, "typeclasses.objects.ClinicCot",
+    aliases=["clinic cot", "treatment cot", "patient cot"],
+)
+clinic_cot.locks.add("get:false()")
+clinic_cabinet = get_or_create_scenery(
+    "a shared dispensary linen cabinet", church,
+    "Clean cloth and simple dressings for the village's visiting patients. "
+    "Healers may use clinic prepare to turn the day's finite stock into "
+    "a real portable dressing, or clinic assess and clinic treat to follow "
+    "the current patient's needs. No private diagnosis or special AI "
+    "permissions are stored in the cabinet.",
+    aliases=["dispensary cabinet", "linen cabinet", "clinic cabinet"],
+)
+clinic_cabinet.locks.add("get:false()")
+
+ferry_post_bag = get_or_create_scenery(
+    "a village ferry postbag", market_lane,
+    "A restricted official cloth postbag with two sealed outgoing parcels "
+    "allocated each village day. Active Wanderers can use courier collect "
+    "while here. The letter contents are never exposed to other players.",
+    aliases=["postbag", "ferry postbag", "mailbag"],
+)
+ferry_post_bag.locks.add("get:false()")
+ferry_post_chest = get_or_create_scenery(
+    "a riverside post chest", riverside,
+    "A stout public chest at the ferry station. Anyone with a real sealed "
+    "parcel from Market Lane can use courier deliver. The physical parcel "
+    "enters ferry-post custody, and a signed public receipt remains.",
+    aliases=["post chest", "ferry chest", "mail chest"],
+)
+ferry_post_chest.locks.add("get:false()")
 
 register = relocate_or_create_typed(
     "register", tavern, "typeclasses.objects.Register", aliases=["guest book"]

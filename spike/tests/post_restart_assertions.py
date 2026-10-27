@@ -108,6 +108,24 @@ assert known, "revealed fact was not recorded for the player mask"
 
 # Calling identity and work history belong to the mask and survive a real
 # server restart. Respecialization did not erase the earlier Chronicler record.
+# GDD T-09: character sensations are projections of one existing body
+# and persist across real restart without a second need ledger.
+_emic = smoke.sensory_snapshot()
+assert _emic["body_model"] == "represented_character_sensations_not_ai_biology"
+assert _emic["bands"]["hunger"] in {"sated", "settled", "hungry", "famished"}
+assert _emic["first_person"] and _emic["possible_relief"]
+# The physical Tavern objects and their mutable serving counts persist
+# through restart. Bram's ORIGINAL routine may legitimately refill a plate
+# while he is actually at the Tavern. Assert conservation and identity, not
+# a fabricated permanent depletion or exact refill day.
+_bread = one("a loaf of bread")
+_cheese = one("a wedge of cheese")
+assert _bread.location.key == "The Blood of the Vine"
+assert _cheese.location.key == "The Blood of the Vine"
+assert 0 <= _bread.db.servings <= 6
+assert 0 <= _cheese.db.servings <= 5
+print("POST_RESTART_GDD_T09_REAL_FOOD_AND_FIRST_PERSON_STATE_GREEN")
+
 assert active_calling(smoke) == "chronicler"
 assert active_rank(smoke) == RANK_APPRENTICE
 smoke_chronicler = calling_record(smoke, "chronicler")
@@ -371,6 +389,19 @@ assert completion_event["kind"] == "professional.smith_lamp_repair_completed"
 assert procurement_event["payload"]["source_smith_event_id"] == diagnosis_event["id"]
 assert completion_event["payload"]["source_merchant_event_id"] == procurement_event["id"]
 assert completion_event["consequence"]["repair_state"] == "working"
+# T-03: the authenticated Smith retried after an actual server restart.
+# A truthful "already complete" response must not conceal a second signed
+# completion, new part expenditure or replacement of the lamp's repair receipt.
+lamp_completion_events = [
+    event for event in (repair_ledger.db.events or [])
+    if event.get("kind") == "professional.smith_lamp_repair_completed"
+    and event.get("payload", {}).get("situation_id") == LAMP_REPAIR_ID
+    and event.get("status") == "complete"
+]
+assert len(lamp_completion_events) == 1, lamp_completion_events
+assert lamp_completion_events[0]["id"] == lamp_completion["event_id"]
+assert north_square_lamp.db.repaired_by_event_id == lamp_completion["event_id"]
+print("POST_RESTART_GDD_T03_SINGLE_REPAIR_EVENT_AND_STOCK_GREEN")
 
 # Harbinger The Correction must survive restart as an archive discrepancy.
 # The old story body remains the surviving copy; the claimant's alleged wording
@@ -1113,6 +1144,38 @@ assert calling_record(smith_tester, "smith")["participation"][
     "community_route_contributions"
 ] == 1, "Smith civic work participation was lost"
 print("POST_RESTART_DAILY_ROUTE_SURVEY_GREEN")
+# GDD T-07: two ordinary accounts share the same real physical red cord,
+# but only Hound changed its protection marker; Wanderer's earlier signed
+# interpretation remains an accurate, time-scoped observation.
+_treeline = one("The Northern Treeline")
+_cords = [x for x in _treeline.contents if x.key == "a frayed red cord"]
+assert len(_cords) == 1, "Treeline physical evidence missing or duplicated"
+_cord = _cords[0]
+_hound_protect = one("HoundTester")
+_wanderer_field = one("WandererTester")
+assert active_calling(_hound_protect) == "hound"
+assert active_calling(_wanderer_field) == "wanderer"
+assert _cord.db.route_caution["mask"] == "HoundTester"
+assert _cord.db.route_caution["event_id"] > 0
+assert "clear caution marker" in _cord.get_display_desc(looker=_wanderer_field)
+_actions = route_board["field_decisions"]
+assert set(_actions) == {"hound", "wanderer"}
+assert _actions["hound"]["mask"] == "HoundTester"
+assert _actions["wanderer"]["mask"] == "WandererTester"
+assert _actions["wanderer"]["observation"] == "unmarked", (
+    "Later protection overwrote the original Wanderer's observation"
+)
+assert _actions["hound"]["event_id"] == _cord.db.route_caution["event_id"]
+for _role, _kind in (("hound", "village.route_protected"),
+                     ("wanderer", "village.route_passability_observed")):
+    _signed = warning_ledger.get_event(_actions[_role]["event_id"])
+    assert _signed["kind"] == _kind
+    assert _signed["status"] == "complete"
+assert calling_record(_hound_protect, "hound")["participation"]["field_surveys"] == 1
+assert calling_record(_wanderer_field, "wanderer")["participation"]["field_surveys"] == 1
+assert set(_next_survey_day["history"][-1]["field_decisions"]) == {"hound", "wanderer"}
+print("POST_RESTART_GDD_T07_SHARED_CORD_AND_DISTINCT_ACTIONS_GREEN")
+
 from world.residents import (
     resident_state as _resident_state, relationship_for as _relationship_for
 )
@@ -1213,6 +1276,169 @@ for _resident_id in ("beatrice_harcourt", "mirela_dobre"):
     assert _matching[0].db.resident_id == _resident_id
 assert projection_for("churchyard") == "St. Lazarus Churchyard"
 print("POST_RESTART_MYSTIC_GUILD_AND_STUDY_GREEN")
+
+
+# The real Tavern performance and actual audience survive process restart.
+from world.stage_state import normalize as _stage_normalize, public_lines as _stage_lines
+_stage_tavern = one("The Blood of the Vine")
+_stage = _stage_normalize(_stage_tavern.db.village_stage)
+_stage_performer = one("PerformerTester")
+assert active_calling(_stage_performer) == "performer"
+assert _stage["performance"] is not None, "The performance vanished after restart"
+assert _stage["performance"]["mask_id"] == _stage_performer.id
+assert _stage["performance"]["tune"] == "ballad"
+assert len(_stage["witnesses"]) == 1
+assert _stage["witnesses"][0]["mask"] == "InnkeepTester"
+# GDD T-06: HealerTester left the room before the show, arrived afterward,
+# and was refused a firsthand witness record by the ordinary stage command.
+# That refusal must not be lost on a real game-server process restart.
+assert not any(
+    witness.get("mask") == "HealerTester"
+    for witness in _stage["witnesses"]
+), "A late spectator gained a fabricated firsthand record after restart"
+assert calling_record(_stage_performer, "performer")["participation"]["stage_rehearse"] == 1
+assert calling_record(_stage_performer, "performer")["participation"]["stage_perform"] == 1
+for _action, _entry in (
+    ("rehearse", _stage["rehearsals"][0]),
+    ("perform", _stage["performance"]),
+    ("witness", _stage["witnesses"][0]),
+):
+    _event = warning_ledger.get_event(_entry["event_id"])
+    assert _event["kind"] == "village.stage_" + _action
+    assert _event["status"] == "complete"
+assert "PerformerTester" in _stage_lines(_stage, _stage["day"])
+print("POST_RESTART_SIGNED_TAVERN_PERFORMANCE_GREEN")
+print("POST_RESTART_GDD_T06_LATE_NONWITNESS_GREEN")
+# Physical St. Lazarus clinic, signed Healer work and consumed linen persist.
+from world.clinic_state import normalize as _clinic_norm, public_lines as _clinic_lines
+_church = one("St. Lazarus Church")
+_clinic = _clinic_norm(_church.db.village_clinic)
+assert _clinic["assessment"] is not None, "Clinical assessment lost on restart"
+assert _clinic["treatment"] is not None, "Clinical treatment lost on restart"
+assert _clinic["assessment"]["mask"] == "HealerTester"
+assert _clinic["treatment"]["mask"] == "HealerTester"
+assert _clinic["treatment"]["method"] == "compress"
+assert _clinic["linen"] == 1
+assert _clinic["treatment"]["assessment_event_id"] == _clinic["assessment"]["event_id"]
+assert calling_record(healer_tester, "healer")["participation"]["clinic_assess"] == 1
+assert calling_record(healer_tester, "healer")["participation"]["clinic_prepare"] == 1
+assert calling_record(healer_tester, "healer")["participation"]["clinic_treat"] == 1
+assert not [o for o in healer_tester.contents if o.db.clinic_compress], (
+    "The treatment dressing was not consumed from its physical carrier"
+)
+for _action, _entry in (
+    ("assess", _clinic["assessment"]),
+    ("treat", _clinic["treatment"]),
+):
+    _event = warning_ledger.get_event(_entry["event_id"])
+    assert _event["kind"] == "village.clinic_" + _action
+    assert _event["status"] == "complete"
+# GDD T-08: a shared cot and public board do not reveal private case
+# details even after a real process restart. Permission is a separate,
+# signed, day-scoped fact tied to both account and mask identity.
+from world.clinic_state import private_lines as _clinic_private
+_clinic_public = _clinic_lines(_clinic, _clinic["day"]).lower()
+assert "healertester" not in _clinic_public
+assert "cold" not in _clinic_public
+assert "used compress" not in _clinic_public
+assert "visiting patient" in _clinic_public
+assert _clinic["records_permission"]["mask"] == "HealerTester"
+assert _clinic["records_permission"]["account_id"] == _clinic["assessment"]["account_id"]
+assert _clinic["records_permission"]["mask_id"] == healer_tester.id
+_consent_event = warning_ledger.get_event(_clinic["records_permission"]["event_id"])
+assert _consent_event["kind"] == "village.clinic_records_permission"
+assert _consent_event["status"] == "complete"
+_full_clinic = _clinic_private(
+    _clinic, _clinic["day"], account_id=_clinic["assessment"]["account_id"],
+    mask_id=healer_tester.id,
+).lower()
+assert "cold" in _full_clinic and "compress" in _full_clinic
+assert "healertester" in _full_clinic
+_unauthorized_clinic = _clinic_private(
+    _clinic, _clinic["day"], account_id=_clinic["assessment"]["account_id"] + 1,
+    mask_id=innkeep_tester.id,
+).lower()
+assert "cold" not in _unauthorized_clinic and "healertester" not in _unauthorized_clinic
+assert "permission" in _unauthorized_clinic
+from world.clinic_state import refresh as _clinic_refresh
+_assert_tomorrow_clinic = _clinic_refresh(_clinic, _clinic["day"] + 1)
+assert _assert_tomorrow_clinic["records_permission"] is None
+assert len([o for o in _church.contents if o.key == "a clinic treatment cot"]) == 1
+print("POST_RESTART_PHYSICAL_CLINIC_CARE_GREEN")
+print("POST_RESTART_GDD_T08_PRIVATE_CLINIC_PERMISSION_GREEN")
+
+
+# Physical courier parcel is consumed only by real Riverside delivery.
+from world.courier_state import manifest as _ferry_manifest
+_ferry = _ferry_manifest(one("Riverside Path").db.ferry_manifest)
+assert len(_ferry["receipts"]) == 1, "Real ferry delivery vanished after restart"
+_ferry_receipt = _ferry["receipts"][0]
+_wanderer = one("WandererTester")
+assert active_calling(_wanderer) == "wanderer"
+assert _ferry_receipt["mask"] == "WandererTester"
+# An offline mask is no longer puppeted, so `mask.account` is None after
+# restart. Match the persisted courier account against the immutable
+# signed ledger actor, never a transient live session property.
+assert _ferry_receipt["account_id"] == warning_ledger.get_event(
+    _ferry_receipt["delivery_event_id"]
+)["actor"]["account_id"]
+assert calling_record(_wanderer, "wanderer")["participation"]["courier_collections"] == 1
+assert calling_record(_wanderer, "wanderer")["participation"]["courier_deliveries"] == 1
+assert not [x for x in _wanderer.contents if x.db.ferry_parcel], (
+    "An already delivered post parcel remains in the carrier's inventory"
+)
+for _kind, _eid in (
+    ("village.ferry_post_collected", _ferry_receipt["source_event_id"]),
+    ("village.ferry_post_delivered", _ferry_receipt["delivery_event_id"]),
+):
+    _event = warning_ledger.get_event(_eid)
+    assert _event["status"] == "complete"
+    assert _event["kind"] == _kind
+print("POST_RESTART_PHYSICAL_FERRY_POST_GREEN")
+
+# Smith workshop production and Merchant physical custody are durable:
+# the consumed item is absent and the Market board still records both
+# separately authenticated world events after the true stop/start.
+from world import workshop_state as _workshop_rules
+_workroom = one("The Market Workshop")
+_public_market = one("Market Lane")
+_work_docket = _workshop_rules.normalize(_workroom.db.repair_docket)
+assert _work_docket["offcuts"] == 1, "Workshop forged stock was replenished on restart"
+assert len(_work_docket["crafts"]) == 1
+assert _work_docket["installation"] is not None
+_repair_craft = _work_docket["crafts"][0]
+_repair_install = _work_docket["installation"]
+assert _repair_craft["mask"] == "SmithTester"
+assert _repair_install["mask"] == "MerchantTester"
+assert _repair_install["source_event_id"] == _repair_craft["event_id"]
+assert _repair_install["item_id"] == _repair_craft["item_id"]
+assert _repair_craft["account_id"] != _repair_install["account_id"]
+assert not [x for character in (one("SmithTester"), one("MerchantTester"))
+            for x in character.contents if x.db.forged_market_part], (
+    "A physically installed hinge remained in inventory after restart"
+)
+for _kind, _receipt in (
+    ("village.market_hinge_forged", _repair_craft),
+    ("village.market_hinge_installed", _repair_install),
+):
+    _event = warning_ledger.get_event(_receipt["event_id"])
+    assert _event["kind"] == _kind and _event["status"] == "complete"
+    assert _event["actor"]["account_id"] == _receipt["account_id"]
+assert calling_record(one("SmithTester"), "smith")["participation"][
+    "market_hinges_forged"
+] == 1
+assert calling_record(one("MerchantTester"), "merchant")["participation"][
+    "market_hinges_installed"
+] == 1
+assert "MerchantTester" in one("a market fittings board").get_display_desc()
+assert "1 of 2 iron offcuts" in one("a public smithing bench").get_display_desc()
+assert _public_market in [e.destination for e in _workroom.exits]
+_next_repair = _workshop_rules.refresh(_work_docket, _work_docket["day"] + 1)
+assert _next_repair["offcuts"] == _workshop_rules.DAILY_OFFCUTS
+assert _next_repair["installation"] is None
+assert _next_repair["history"][-1]["installation"]["mask"] == "MerchantTester"
+print("POST_RESTART_TWO_ACCOUNT_MARKET_WORKSHOP_GREEN")
+
 
 
 print("POST_RESTART_MARKET_CALLINGS_ASSERTIONS_GREEN")

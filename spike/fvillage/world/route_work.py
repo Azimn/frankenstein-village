@@ -60,6 +60,14 @@ def status_lines():
                 f"* {spec['room']}: not yet inspected. Find "
                 f"{spec['key']} and examine it."
             )
+    lines.extend(route_surveys.field_lines(state))
+    lines.append(
+        "At the Northern Treeline, an active Hound can examine the actual "
+        "frayed red cord and use |wsurvey protect|n to tie a visible warning. "
+        "An active Wanderer can independently use |wsurvey passability|n "
+        "there to record whether the warning was present when inspected. "
+        "Neither action proves why the cord was damaged."
+    )
     if route_surveys.complete(state):
         lines.append(
             "The public route is complete for today. Tomorrow's observations "
@@ -172,3 +180,94 @@ def report(mask):
         "count": len(current["reports"]),
         "completed": route_surveys.complete(current),
     }, None
+
+def field_action(mask, action):
+    """Professionally distinct decisions using the existing physical cord.
+
+    Route state remains the Square's daily record. The inspected, real cord is
+    the owner of its durable physical warning marker. There is no new quest,
+    separate hazard truth, cloned stock, or automatic success for a class tag.
+    """
+    if not getattr(mask, "account", None):
+        return None, "Use an ordinary logged-in player mask."
+    role = active_calling(mask)
+    if (role, action) not in {
+        ("hound", "protect"), ("wanderer", "passability")
+    }:
+        return None, "Only a Hound can protect a route and a Wanderer can assess passability."
+    site = "red_cord"
+    room = getattr(mask, "location", None)
+    if (not room or room.key != LANDMARKS[site]["room"]
+            or not room.tags.has("ic", category="side")):
+        return None, "Visit the Northern Treeline before assessing its physical route."
+    cord = next(
+        (obj for obj in room.contents
+         if obj.key == LANDMARKS[site]["key"]
+         and getattr(obj.db, "landmark_id", None) == site
+         and obj.access(mask, "view", default=True)),
+        None,
+    )
+    if cord is None:
+        return None, "The physical red cord is unavailable."
+    day, hour = _day_hour()
+    observed = any(e["id"] == site for e in known_landmarks(mask.db.landmark_discoveries))
+    try:
+        recent = dict(mask.db.landmark_latest_view or {}).get(site) or {}
+        today = int(recent.get("day") or 0) == day
+    except (ValueError, TypeError, OverflowError):
+        today = False
+    if not observed or not today:
+        return None, "Examine the physical red cord here today first."
+    square = _square()
+    if square is None:
+        return None, "The Square's existing public route board is missing."
+    marked = bool(getattr(cord.db, "route_caution", None))
+    current, allowed, why = route_surveys.field_decision(
+        square.db.daily_route_survey, day, site, role, action,
+        marked, mask.account.id, mask.key, 1,
+    )
+    if not allowed:
+        return None, why
+
+    def consequence(event):
+        with transaction.atomic():
+            if mask.location != room or cord.location != room:
+                raise RuntimeError("The real observer or cord moved away.")
+            now_day, now_hour = _day_hour()
+            if (now_day, now_hour) != (day, hour):
+                raise RuntimeError("Village time advanced before this route action.")
+            now_marked = bool(getattr(cord.db, "route_caution", None))
+            updated, valid, reason = route_surveys.field_decision(
+                square.db.daily_route_survey, day, site, role, action,
+                now_marked, mask.account.id, mask.key, event["id"],
+            )
+            if not valid:
+                raise RuntimeError(reason)
+            if action == "protect":
+                # Reposition the ORIGINAL cord as a truthful visual caution,
+                # no repair, consumed object, invented hazard or new material.
+                cord.db.route_caution = {
+                    "event_id": event["id"], "account_id": mask.account.id,
+                    "mask": mask.key, "day": day,
+                }
+            square.db.daily_route_survey = updated
+            record_participation(mask, "field_surveys", calling=role)
+            return {
+                "cord_object_id": cord.id, "square_room_id": square.id,
+                "site": site, "day": day, "role": role, "action": action,
+                "caution_marked": bool(cord.db.route_caution),
+                "interpretation": (
+                    updated["field_decisions"].get("wanderer") or {}
+                ).get("observation"),
+            }
+
+    event = publish_world_event(
+        "village.route_protected" if role == "hound"
+        else "village.route_passability_observed",
+        actor=mask,
+        payload={"site": site, "day": day, "hour": hour,
+                 "role": role, "action": action, "location": room.key,
+                 "harbinger": False, "chronicle_eligible": False},
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "role": role, "action": action}, None

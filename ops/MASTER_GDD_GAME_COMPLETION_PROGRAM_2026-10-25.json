@@ -1,0 +1,252 @@
+{
+  "schema": "fvillage.master_gdd_program.v1",
+  "document": "docs/FRANKENSTEIN_VILLAGE_MASTER_GDD_REVIEW_2026-10-25.md",
+  "pdf_sha256": "eaae1b0139de8453a74116b463ada8eacc93822010a665dbfb7976034524b567",
+  "baseline_main": "9b16f73f1acec60cd7803476caaa744a5be4a42f",
+  "work_packages": [
+    {
+      "id": "FV-G00",
+      "phase": "Setup",
+      "name": "Pin design authority and reconcile open PRs",
+      "depends": [],
+      "deliver": "Exact SHA authority/conflict register; select surviving #89/#90 and #91/#92 code paths; review #93/#94 as subordinate sources; retain draft status until separately approved.",
+      "proof": "No duplicate changes, higher-authority World Bible conflicts marked for keeper, fresh exact-commit CI after eventual integration.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "19",
+        "21"
+      ]
+    },
+    {
+      "id": "FV-G01",
+      "phase": "A",
+      "name": "Executable game-content and 45-edge coverage register",
+      "depends": [
+        "FV-G00"
+      ],
+      "deliver": "21-family section 15 inventory and all 10 Calling / 45 edge evidence cards, with source file + command + room + owner + canonical transition + restart/UX proof.",
+      "proof": "Live discoverability not inferred from manuscript counts; all unknown states explicitly unverified.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "19",
+        "21"
+      ]
+    },
+    {
+      "id": "FV-G02",
+      "phase": "A",
+      "name": "Verify common action/evidence architecture in place",
+      "depends": [
+        "FV-G00"
+      ],
+      "deliver": "Map existing Evennia CmdSets, physical inventory, clock, situation, ledger, Commons, NPC memory and job systems; test their existing contracts; no competing stores.",
+      "proof": "Ordinary account tests and §19 T-01–T-16 baseline gap report, including races and idempotency.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "19",
+        "21"
+      ]
+    },
+    {
+      "id": "FV-G03",
+      "phase": "A",
+      "name": "Verify bounded Mystic phenomenon without canon expansion",
+      "depends": [
+        "FV-G00",
+        "FV-G02"
+      ],
+      "deliver": "Inspect source-reported Harcourt/Dobre, current rare churchyard inscription, presence/observation and method record. Ledger, restart and non-witness claims checked.",
+      "proof": "Two observers agree on objective physical change; absent mask has no firsthand observation; B1–B4 remain BLOCKED.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "19",
+        "21"
+      ]
+    },
+    {
+      "id": "FV-G04",
+      "phase": "B",
+      "name": "Shared staffed work and care continuity",
+      "depends": [
+        "FV-G01",
+        "FV-G02"
+      ],
+      "deliver": "Extend existing Tavern hearth/soup, Innkeep shared services, Healer clinic patient state, guest/referral demand and limited NPC baseline. Consume authentic stock, preserve privacy and status.",
+      "proof": "Two distinct repeatable decisions, cross-role optional assistance, depleted/failure/return routes, exact state change and local restart.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "19",
+        "21"
+      ]
+    },
+    {
+      "id": "FV-G05",
+      "phase": "C",
+      "name": "Craft, trade and accountable public records",
+      "depends": [
+        "FV-G01",
+        "FV-G02"
+      ],
+      "deliver": "Extend real Merchant supplies, Smith Market Workshop and existing Chronicler source/attestation. Signed orders, repairs, material quality, refunds/corrections and contested claims.",
+      "proof": "Exactly-once material custody, real installed object change, fair actor guards, content choices, correct notice-versus-truth separation.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "19",
+        "21"
+      ]
+    },
+    {
+      "id": "FV-G06",
+      "phase": "D",
+      "name": "Distinct field, safety and investigation gameplay",
+      "depends": [
+        "FV-G01",
+        "FV-G02"
+      ],
+      "deliver": "Wanderer passability/logistics vs Hound threat/protection vs Detective provenance/inference; reuse route survey, bridge, ferry post, physical clues; include Healer/Smith/Merchant support.",
+      "proof": "One physical route may produce different justified professional reports; no cloned world truth, valid solo/late paths, conservation of courier/repair items.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "19",
+        "21"
+      ]
+    },
+    {
+      "id": "FV-G07",
+      "phase": "E",
+      "name": "Culture, social leisure and rare uncanniness",
+      "depends": [
+        "FV-G01",
+        "FV-G02",
+        "FV-G03"
+      ],
+      "deliver": "Performer rehearsal/booked audience/witnessed memory and Tavern demand, purposeful voluntary games, documented Gothic rarity; Mystic only approved observation until keeper rulings.",
+      "proof": "Quiet-room path valuable; no fabricated attendees; witnesses limited; no undocumented ritual powers or random fantasy truth.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "19",
+        "21"
+      ]
+    },
+    {
+      "id": "FV-G08",
+      "phase": "F",
+      "name": "Full Calling-authored jobs, quests and progression",
+      "depends": [
+        "FV-G04",
+        "FV-G05",
+        "FV-G06",
+        "FV-G07"
+      ],
+      "deliver": "All ten roles reach §15: 6 distinct authored quests each (≥60) and 8–12 distinct renewable professional loops each (80–120), four focuses as design organization; valid Apprentice/Master institutional paths.",
+      "proof": "Per-item cards with source, meaningful branch, cost, actual change, reentry, uncoached discovery; aliases and trivial recipe variants do not count.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "19",
+        "21"
+      ]
+    },
+    {
+      "id": "FV-G09",
+      "phase": "F",
+      "name": "World, mysteries, event and NPC content density",
+      "depends": [
+        "FV-G01",
+        "FV-G04",
+        "FV-G05",
+        "FV-G06",
+        "FV-G07"
+      ],
+      "deliver": "Reach other §15 families: newcomer paths, small/major mysteries, civic/faction/conflicts, expedition/social/group encounters, random/timed/world incidents, ambient/rumor/Harbinger, projects, discoveries, request templates and NPC arcs.",
+      "proof": "Complete inventory statuses and player-reachable results. Faction count and major NPC roster must come from controlling Bible, not guessed.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "19",
+        "21"
+      ]
+    },
+    {
+      "id": "FV-G10",
+      "phase": "F",
+      "name": "Coherence, UX and real-player engagement polish",
+      "depends": [
+        "FV-G08",
+        "FV-G09"
+      ],
+      "deliver": "Onboarding, help, action feedback, credible Bram/resident recognition, OOC/IC separation, consent, equal human/AI client affordances, Tarn needs with relief, agency and meaningful failure recovery.",
+      "proof": "Uncoached normal-client first evening, short/full session, return and voluntary leisure observations; no invisible dead ends, no known major usability blockers.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "19",
+        "21"
+      ]
+    },
+    {
+      "id": "FV-G11",
+      "phase": "F",
+      "name": "45-edge, 16 negative-case and full-game regression qualification",
+      "depends": [
+        "FV-G08",
+        "FV-G09",
+        "FV-G10"
+      ],
+      "deliver": "Source-linked evidence for 45 pairwise collaborations; rerun six V chains, verify six S, 24 D, and only authorized portions of nine C. Run all §19 T-01–T-16 negative scenarios and local multi-account/restart tests.",
+      "proof": "Per-edge signed dossiers: distinct role actions, finite objects, NPC/solo path, witnesses, idempotency, UI parity, real restart and uncoached quality.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "19",
+        "21"
+      ]
+    },
+    {
+      "id": "FV-G12",
+      "phase": "Game complete",
+      "name": "Freeze a game-complete 1.0 candidate",
+      "depends": [
+        "FV-G11"
+      ],
+      "deliver": "Lock exact reproducible main SHA, player-facing feature inventory, successful regression, known-defect register and verified content count; reviewer certifies GAME design and execution, not hosting.",
+      "proof": "No known critical/major gameplay defects, unchanged World Bible authority, complete §15 content evidence and meaningful player return experience.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "19",
+        "21"
+      ]
+    },
+    {
+      "id": "FV-G13",
+      "phase": "Post game-complete",
+      "name": "Public operations and shipping approval (separate)",
+      "depends": [
+        "FV-G12"
+      ],
+      "deliver": "After the game is complete, choose real platform/host/operator; prove privacy, rights/assets, moderation, external access, restore, concurrency and patch/rollback for intended public release.",
+      "proof": "GDD §22/Appendix C decisions documented and independently tested; never substitute server go-live for game completion.",
+      "status": "planned",
+      "verified_evidence": [],
+      "source_sections": [
+        "22",
+        "Appendix C"
+      ]
+    }
+  ],
+  "warnings": [
+    "PDF source document is review draft and did not inspect repository.",
+    "Documentation and audit are not launch/game-complete signoff.",
+    "Mystic keeper B1–B4 unresolved.",
+    "No public hosting selected/authorized."
+  ]
+}

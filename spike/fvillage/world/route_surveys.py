@@ -14,7 +14,7 @@ MAX_HISTORY = 30
 
 
 def fresh(day=0):
-    return {"day": int(day), "reports": {}, "history": []}
+    return {"day": int(day), "reports": {}, "field_decisions": {}, "history": []}
 
 
 def normalize(raw):
@@ -38,9 +38,32 @@ def normalize(raw):
             "account_id": account, "mask": str(entry.get("mask") or "")[:70],
             "event_id": event,
         }
+    decisions = {}
+    for role, entry in dict(value.get("field_decisions") or {}).items():
+        if role not in {"hound", "wanderer"} or not hasattr(entry, "get"):
+            continue
+        try:
+            account, event = int(entry["account_id"]), int(entry["event_id"])
+        except (ValueError, TypeError, KeyError, OverflowError):
+            continue
+        if (isinstance(entry.get("account_id"), bool)
+                or isinstance(entry.get("event_id"), bool)
+                or account < 1 or event < 1):
+            continue
+        action = "protect" if role == "hound" else "passability"
+        observation = entry.get("observation")
+        if entry.get("action") != action:
+            continue
+        if role == "wanderer" and observation not in {"unmarked", "marked_caution"}:
+            continue
+        decisions[role] = {"account_id": account, "mask": str(entry.get("mask") or "")[:70],
+                           "event_id": event, "action": action, "site": "red_cord"}
+        if role == "wanderer":
+            decisions[role]["observation"] = observation
     return {
         "day": day,
         "reports": reports,
+        "field_decisions": decisions,
         "history": list(value.get("history") or [])[-MAX_HISTORY:],
     }
 
@@ -57,11 +80,13 @@ def refresh(raw, day):
             "day": state["day"],
             "completed": len(state["reports"]) == len(SITES),
             "reports": copy.deepcopy(state["reports"]),
+            "field_decisions": copy.deepcopy(state["field_decisions"]),
         }
         state["history"].append(previous)
         state["history"] = state["history"][-MAX_HISTORY:]
     state["day"] = day
     state["reports"] = {}
+    state["field_decisions"] = {}
     return state
 
 
@@ -87,3 +112,67 @@ def report(raw, day, ident, account_id, mask, event_id):
 
 def complete(state):
     return len(normalize(state)["reports"]) == len(SITES)
+
+def field_decision(raw, day, site, role, action, caution_marked,
+                   account_id, mask, event_id):
+    """One signed profession-specific action at the same physical treeline.
+
+    The cord is the physical safety authority. A Hound may tie its existing
+    loose end into a visible caution marker, without magically repairing the
+    cord, removing a hazard or inventing materials. A Wanderer signs a dated
+    passability interpretation from the condition actually observed. Neither
+    rewrites an earlier report or creates a separate version of the route.
+    """
+    state = refresh(raw, day)
+    if day < state["day"]:
+        return state, False, "A later village day is already recorded."
+    if site != "red_cord" or (role, action) not in {
+        ("hound", "protect"), ("wanderer", "passability")
+    }:
+        return state, False, "That professional field action is not available here."
+    if not isinstance(caution_marked, bool):
+        return state, False, "The physical cord condition could not be verified."
+    for val in (account_id, event_id):
+        if isinstance(val, bool):
+            return state, False, "A signed ordinary account and event are required."
+        try:
+            if int(val) < 1:
+                return state, False, "A signed ordinary account and event are required."
+        except (TypeError, ValueError, OverflowError):
+            return state, False, "A signed ordinary account and event are required."
+    if role in state["field_decisions"]:
+        return state, False, "That professional field action is already signed today."
+    if role == "hound" and caution_marked:
+        return state, False, "The frayed cord is already tied as a visible caution marker."
+    entry = {
+        "site": site, "action": action,
+        "account_id": int(account_id), "mask": str(mask)[:70],
+        "event_id": int(event_id),
+    }
+    if role == "wanderer":
+        entry["observation"] = "marked_caution" if caution_marked else "unmarked"
+    state["field_decisions"][role] = entry
+    return state, True, None
+
+
+def field_lines(raw):
+    """Source-limited public record; a professional report is not a hazard oracle."""
+    state = normalize(raw)
+    entries = state["field_decisions"]
+    lines = []
+    if "hound" in entries:
+        hound = entries["hound"]
+        lines.append(
+            f"The Northern Treeline's frayed cord was tied as a caution marker "
+            f"by {hound['mask']} (signed event {hound['event_id']}). "
+            "This does not repair the cord or establish what damaged it."
+        )
+    if "wanderer" in entries:
+        traveler = entries["wanderer"]
+        label = "marked caution" if traveler["observation"] == "marked_caution" else "unmarked cord"
+        lines.append(
+            f"{traveler['mask']} recorded a Wanderer's passage observation: "
+            f"{label} (signed event {traveler['event_id']}). "
+            "It describes the observed route at that time, not guaranteed safety."
+        )
+    return lines

@@ -25,6 +25,7 @@ def payload_for(mask):
     visible_exits = []
     exit_targets = {}
     nearby = []
+    residents = []
     if room:
         for doorway in room.exits:
             # A search-locked or view-locked exit must not appear here.
@@ -50,6 +51,12 @@ def payload_for(mask):
             label = " ".join(str(obj.get_display_name(mask)).split())
             if label:
                 nearby.append(label[:100])
+                # The identical human view/search permissions gate this
+                # NPC list. Conversation methods only expose availability,
+                # never confidential facts or an alternate NPC API.
+                if (callable(getattr(obj, "talk_to", None))
+                        and callable(getattr(obj, "ask_about", None))):
+                    residents.append(label[:100])
     result = {
         "version": VERSION,
         "schema": "fvillage.agent_context.v1",
@@ -58,6 +65,7 @@ def payload_for(mask):
         "exits": sorted(set(visible_exits)),
         "exit_targets": {key: exit_targets[key] for key in sorted(exit_targets)},
         "visible_nearby": sorted(set(nearby), key=str.casefold)[:32],
+        "visible_residents": sorted(set(residents), key=str.casefold)[:20],
         "turn_model": "send one text command, read its response, observe again",
         "auth": "regular account and character rules apply",
         "commands": {
@@ -91,23 +99,39 @@ def payload_for(mask):
             "public_schedule": "calendar",
         })
         result["boundary"] = "in_character"
+        # These simulated sensations are the exact same information any
+        # human player may request with score deep. They are read-only
+        # projections of this mask's existing body, not an AI privilege.
+        if callable(getattr(mask, "sensory_snapshot", None)):
+            result["embodiment"] = mask.sensory_snapshot()
+            result["commands"]["embodied_senses"] = "score deep"
         if room and room.tags.has("tavern", category="place"):
             result["commands"]["public_rumors"] = "rumors"
             result["commands"]["hearth"] = "hearth"
             result["commands"]["shared_kitchen"] = "soup"
+            result["commands"]["public_stage"] = "stage"
         if room and room.key == "Village Square":
             result["commands"]["public_commons"] = "commons"
             result["commands"]["firewood"] = "hearth gather"
         if room and room.key == "St. Lazarus Church":
             result["commands"]["confessional"] = "confess"
+            result["commands"]["clinic_care"] = "clinic"
         if room and room.key == "St. Lazarus Churchyard":
             result["commands"]["mystic_guild_studies"] = "mystic"
+        if room and room.key == "Riverside Path":
+            result["commands"]["ferry_post_delivery"] = "courier deliver"
         if room and room.key == "Market Lane":
+            result["commands"]["ferry_post_collect"] = "courier collect"
             result["commands"]["market_professions"] = "trade"
+            result["commands"]["market_repairs"] = "workshop"
+            result["commands"]["install_market_repair"] = "workshop install"
             result["commands"]["merchant_kitchen_supply"] = "soup procure"
             result["commands"]["physical_bridge_supplies"] = (
                 "bridgework collect preserve | bridgework collect display"
             )
+        if room and room.key == "The Market Workshop":
+            result["commands"]["smithing_bench"] = "workshop"
+            result["commands"]["forge_market_hinge"] = "workshop forge"
         if room and room.key == "The Old Stone Bridge":
             result["commands"]["bridge_investigation"] = "bridgework"
         if room and room.key == "The Lamp Shop":
