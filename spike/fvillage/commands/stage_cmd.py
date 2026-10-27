@@ -12,6 +12,8 @@ class CmdStage(Command):
         stage perform ballad
         stage perform reel
         stage witness
+        stage review praise|critique
+        stage contest <review event ID>
 
     Performers must practice before playing a public set. The world records
     only real player action, never an imagined audience.
@@ -29,10 +31,12 @@ class CmdStage(Command):
             return
         if raw == ["witness"]:
             result, error = stage_work.act(self.caller, "witness")
-        elif len(raw) == 2 and raw[0] in ("rehearse", "perform"):
+        elif len(raw) == 2 and raw[0] in ("rehearse", "perform", "review", "contest"):
             result, error = stage_work.act(self.caller, raw[0], raw[1])
+        elif raw == ["contest"]:
+            result, error = stage_work.act(self.caller, "contest")
         else:
-            self.caller.msg("Use stage | stage rehearse ballad|reel | stage perform ballad|reel | stage witness")
+            self.caller.msg("Use stage | stage rehearse ballad|reel | stage perform ballad|reel | stage witness | stage review praise|critique | stage contest <review event>")
             return
         if error:
             self.caller.msg(error)
@@ -47,6 +51,12 @@ class CmdStage(Command):
                        "The Tavern records the music as world event %s, "
                        "without inventing spectators."
                        % (result["tune"], result["event_id"]))
+        elif action == "review":
+            message = ("You publish an attributed %s review of the witnessed performance (world event %s)."
+                       % (result["tune"], result["event_id"]))
+        elif action == "contest":
+            message = ("You contest the Chronicler's review without erasing it (world event %s)."
+                       % result["event_id"])
         else:
             message = ("You sign that you actually witnessed this hour's music "
                        "(world event %s)." % result["event_id"])
