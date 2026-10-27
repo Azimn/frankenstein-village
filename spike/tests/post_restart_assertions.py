@@ -1303,10 +1303,6 @@ assert len(_stage["performance"]["hospitality"]) == 1, (
        _raw_show.get("account_id"),
        [r.get("account_id") for r in _stage["witnesses"]],
        _stage["performance"].get("account_id"))
-), (
-    "Stage hospitality vanished from canonical Tavern state: "
-    f"raw={repr(_stage_tavern.db.village_stage)[:1400]}, "
-    f"normalized={repr(_stage['performance'])[:1400]}"
 )
 _stage_service = _stage["performance"]["hospitality"][0]
 assert _stage_service["recipient_mask_id"] == _stage_performer.id
