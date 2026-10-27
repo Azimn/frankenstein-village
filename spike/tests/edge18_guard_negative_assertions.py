@@ -7,6 +7,7 @@ tested in the stopped-server disposable QA database. This is not an
 authenticated player test and never signs an event. All mutations revert.
 """
 from copy import deepcopy
+from types import SimpleNamespace
 from unittest.mock import patch
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
@@ -47,6 +48,23 @@ try:
     clock.db.hour = 20
     ready, reason = downstream_ready()
     assert not ready and "still in the future" in reason.lower(), reason
+
+    # Inspect the authentic consumed hinge's immutable forge receipt with
+    # a read-only item proxy. It was forged at 21:00, so an attempted
+    # 20:00 same-day installation must fail before any player action.
+    brace = original_equipment["brace"]
+    forge_event = ledger.get_event(brace["forge_event_id"])
+    proxy = SimpleNamespace(
+        id=brace["item_id"],
+        db=SimpleNamespace(forged_market_part={
+            "source_event_id": brace["forge_event_id"],
+            "issued_day": forge_event["payload"]["day"],
+            "source_room_id": brace["workshop_id"],
+            "smith_account_id": forge_event["actor"]["account_id"],
+        }),
+    )
+    source, error = clinic_cot_work._forge(proxy)
+    assert source is None and "future workshop date" in error.lower(), error
     clock.db.day, clock.db.hour = original_clock
 
     # The next patient must have an actual signed examination, not an
