@@ -7,8 +7,8 @@
 ## 0. Authority and how to read this design
 
 This document **unifies, does not replace** the existing approved design:
-1. hidden_files/design-doctrine.md (including “invent each loop once,” third-place, source skepticism, ordinary human/AI equality);
-2. files/frankenstein-village-world-bible-v0.2.md (canon and open questions);
+1. files/frankenstein-village-world-bible-v0.2.md (controlling setting, canon, Compact, tone, and unresolved keeper rulings);
+2. hidden_files/design-doctrine.md (design method, “invent each loop once,” third-place, source skepticism, ordinary human/AI equality; subordinate to the World Bible on lore);
 3. design-decisions.md (one active Calling, bilateral apprenticeships, authoritative event ledger, property model, no instant promotion);
 4. docs/TEN_CALLINGS_LIVING_VILLAGE_V1.md (approved ten-Calling direction and proposed specialties);
 5. ops/CALLINGS_SIMULATION_DEPTH_PLAN.md (systems reused and verified market chain);
