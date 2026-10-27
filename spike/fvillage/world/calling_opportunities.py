@@ -12,6 +12,9 @@ WORK = {
         "when a neighbor has tended the hearth.",
         "At the Blood of the Vine: inspect the hearth, then use hearth "
         "tend when the fire has settled and delivered stock is available.",
+        "At the communal soup pot, inspect its lid hinge. Use soup restrict "
+        "to suspend unsafe player simmering until an independent Smith "
+        "installs a real Workshop-forged hinge with soup repair.",
         "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
         "only if that unresolved need remains in the village.",
     ),
@@ -24,6 +27,9 @@ WORK = {
     "smith": (
         "At Market Lane: look market scale and use trade calibrate for a "
         "signed physical correction, once per village day.",
+        "At the Tavern: inspect the communal soup pot. If an Innkeep "
+        "has restricted unsafe simmering, carry a physical Workshop-forged "
+        "hinge there and use soup repair. This spends the actual fitting.",
         "At the Square: examine north-square gas lamp; its repair is "
         "one-time and may already have been finished by a neighbor.",
     ),
