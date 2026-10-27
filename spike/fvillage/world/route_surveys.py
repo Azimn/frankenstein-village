@@ -256,9 +256,24 @@ def advisory_lines(raw):
     state = normalize(raw)
     item = state["advisory"]
     if item is None:
-        return ["No Chronicler route map edition has been published today. "
-                "A Chronicler can use survey publish in the Village Square "
-                "after an independent Wanderer signs survey passability."]
+        lines = ["No Chronicler route map edition has been published today. "
+                 "A Chronicler can use survey publish in the Village Square "
+                 "after an independent Wanderer signs survey passability."]
+        traveler = state["field_decisions"].get("wanderer")
+        if traveler:
+            lines.append(
+                f"Solo fallback: {traveler['mask']}'s firsthand Wanderer report "
+                f"(signed event {traveler['event_id']}) remains publicly readable "
+                "on this board even without a Chronicler. It is an observation, "
+                "not an edited map or a safety guarantee."
+            )
+        else:
+            lines.append(
+                "Solo fallback: any player may inspect and sign the public "
+                "district landmarks with survey report. No Chronicler or "
+                "invented map is required for those real contributions."
+            )
+        return lines
     label = "marked caution" if item["observation"] == "marked_caution" else "unmarked cord"
     return [
         f"Public route map v{item['version']} for day {item['source_day']}: "
