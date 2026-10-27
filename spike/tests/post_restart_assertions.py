@@ -1513,8 +1513,8 @@ from world.bridge_case_state import case_lines as _edge15_case_lines
 _edge15_detective = one("DetectiveTester")
 # A character's session-bound .account may be None after logout/restart.
 # Check persisted account identities through AccountDB instead.
-_edge15_detective_account = AccountDB.objects.get(db_key="qa_detective_case")
-_edge15_chronicler_account = AccountDB.objects.get(db_key="qa_admin")
+_edge15_detective_account = AccountDB.objects.get(db_key__iexact="qa_detective_case")
+_edge15_chronicler_account = AccountDB.objects.get(db_key__iexact="qa_admin")
 _edge15_bridge = get_public_mystery(BRIDGE_PLAQUE_ID)
 _edge15_exams = list(_edge15_bridge.get("case_examinations") or [])
 _edge15_bulletins = list(_edge15_bridge.get("case_bulletins") or [])
