@@ -80,7 +80,7 @@ assert any(
     "public square brazier" in line.lower()
     for line in smith.sensory_snapshot()["possible_relief"]
 ), "Actual warm project did not appear in the local body guidance"
-assert "last supplied by" in str(brazier.db.square_brazier).lower() or (
-    second["mask"] == "MerchantTester"
-)
+from world.square_brazier import status_lines
+assert "Last supplied by MerchantTester" in status_lines(smith)
+assert "Split logs glow" in brazier.get_display_desc(looker=smith)
 print("POST_RESTART_SQUARE_BRAZIER_REAL_TWO_ACCOUNT_FIRE_AND_WARMTH_GREEN")
