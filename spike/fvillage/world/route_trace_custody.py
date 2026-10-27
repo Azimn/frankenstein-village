@@ -97,6 +97,7 @@ def public_lines(raw):
         f"{record['detective_mask']} preserved a qualified physical trace record "
         f"(Detective event {record['event_id']}, Hound source "
         f"{record['source_event_id']}, day {record['day']}). "
-        "The tied warning is real, but neither tracks nor a culprit were established. "
+        "The tied warning is real, but neither tracks nor a culprit were established; "
+        "it is not proof of who damaged the cord. "
         + timing
     )
