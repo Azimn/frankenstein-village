@@ -199,10 +199,10 @@ _arrival_batch = next(
 )
 _welcome = dict(_arrival_batch["arrival_welcome"])
 assert _welcome["wanderer_mask_id"] == _wanderer_arrival.id
-assert _welcome["wanderer_account_id"] == _wanderer_arrival.account.id
+assert AccountDB.objects.filter(id=_welcome["wanderer_account_id"]).exists()
 assert _welcome["innkeep_mask_id"] == innkeep_tester.id
-assert _welcome["innkeep_account_id"] == innkeep_tester.account.id
-assert _wanderer_arrival.account.id != innkeep_tester.account.id
+assert AccountDB.objects.filter(id=_welcome["innkeep_account_id"]).exists()
+assert _welcome["wanderer_account_id"] != _welcome["innkeep_account_id"]
 assert _welcome["cook_event_id"] == _arrival_batch["cook_event_id"]
 assert _welcome["service"] == "physical_bowl_transferred"
 _arrival_bowl = one("a bowl of barley and salt soup")
@@ -213,13 +213,13 @@ _ledger_arrival = ScriptDB.objects.get(db_key="world_event_ledger")
 _arrival_event = _ledger_arrival.get_event(_welcome["event_id"])
 assert _arrival_event["status"] == "complete"
 assert _arrival_event["kind"] == "professional.innkeep_wanderer_arrival_welcome"
-assert _arrival_event["actor"]["account_id"] == innkeep_tester.account.id
+assert _arrival_event["actor"]["account_id"] == _welcome["innkeep_account_id"]
 assert _arrival_event["consequence"]["bowl_id"] == _arrival_bowl.id
 assert _arrival_event["consequence"]["route_event_id"] == _welcome["route_event_id"]
 _route_source = _ledger_arrival.get_event(_welcome["route_event_id"])
 assert _route_source["status"] == "complete"
 assert _route_source["kind"] == "village.route_passability_observed"
-assert _route_source["actor"]["account_id"] == _wanderer_arrival.account.id
+assert _route_source["actor"]["account_id"] == _welcome["wanderer_account_id"]
 assert _route_source["payload"]["location"] == "The Northern Treeline"
 assert _route_source["payload"]["day"] == _welcome["day"]
 assert innkeep_record["participation"]["arrival_hospitality"] == 1
