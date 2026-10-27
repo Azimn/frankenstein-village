@@ -50,8 +50,8 @@ try:
     assert not ready and "still in the future" in reason.lower(), reason
 
     # Inspect the authentic consumed hinge's immutable forge receipt with
-    # a read-only item proxy. It was forged at 21:00, so an attempted
-    # 20:00 same-day installation must fail before any player action.
+    # a read-only item proxy. Its signed hour is later than the rewound
+    # 20:00 clock, so installation must fail before any player action.
     brace = original_equipment["brace"]
     forge_event = ledger.get_event(brace["forge_event_id"])
     proxy = SimpleNamespace(
@@ -95,7 +95,8 @@ try:
     # A forged but already elapsed certification timestamp also fails.
     # Comparing only the clock to the mutable Attribute is insufficient.
     forged_equipment = deepcopy(original_equipment)
-    forged_equipment["certification"]["hour"] = 22
+    forged_equipment["certification"]["day"] = original_clock[0]
+    forged_equipment["certification"]["hour"] = 0
     cot.db.clinic_equipment = forged_equipment
     ready, reason = downstream_ready()
     assert not ready and "lacks a completed signed event" in reason.lower(), reason
