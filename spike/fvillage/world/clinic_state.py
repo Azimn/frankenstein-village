@@ -8,7 +8,7 @@ from __future__ import annotations
 import copy
 
 CONDITIONS = ("cold", "sprain", "fever")
-METHODS = ("rest", "compress")
+METHODS = ("rest", "compress", "supported")
 MAX_HISTORY = 36
 DAILY_LINEN = 2
 
@@ -134,7 +134,7 @@ def treat(raw, *, day, hour, account_id, mask_id, mask, event_id, method):
     if not actor:
         return state, False, "A signed, present player is required."
     if method not in METHODS:
-        return state, False, "Choose rest or compress."
+        return state, False, "Choose rest, compress or supported."
     if not state["assessment"]:
         return state, False, "A Healer must examine the actual patient first."
     if state["treatment"]:
@@ -142,11 +142,14 @@ def treat(raw, *, day, hour, account_id, mask_id, mask, event_id, method):
     best = {"cold": "rest", "sprain": "compress", "fever": "rest"}
     actor["method"] = method
     actor["assessment_event_id"] = state["assessment"]["event_id"]
-    actor["improvement"] = 25 if method == best[state["condition"]] else 10
+    actor["improvement"] = (30 if method == "supported" else
+                            25 if method == best[state["condition"]] else 10)
     actor["outcome"] = (
+        "The patient rests more comfortably on the inspected, reinforced cot."
+        if method == "supported" else
         "The patient is more comfortable after appropriate care."
-        if actor["improvement"] == 25
-        else "The visitor rests more easily, although the care was less suited to the complaint."
+        if actor["improvement"] == 25 else
+        "The visitor rests more easily, although the care was less suited to the complaint."
     )
     state["treatment"] = actor
     return state, True, None
@@ -224,7 +227,7 @@ def public_lines(raw, day):
         ("Care has been provided."
          if state["treatment"] else
          "Treatment remains available after assessment."),
-        "Healers: clinic assess | clinic prepare | clinic treat rest|compress.",
+        "Healers: clinic assess | clinic prepare | clinic treat rest|compress|supported.",
         "The examining Healer may request this patient's permission using "
         "clinic request records, then use clinic records for confidential notes.",
         "The public clinic board does not reveal individual findings or earlier patients.",
