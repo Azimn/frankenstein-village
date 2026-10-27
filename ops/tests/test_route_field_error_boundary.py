@@ -95,7 +95,7 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
         can_view = [True]
         mode = ["none"]
         cord = SimpleNamespace(
-            key="frayed red cord",
+            id=23, key="frayed red cord",
             db=SimpleNamespace(landmark_id="red_cord", route_caution=None),
             access=lambda *_args, **_kwargs: can_view[0],
         )
