@@ -7,7 +7,7 @@ from evennia.utils import search
 
 from world import stage_state
 from world.callings import active_calling, record_participation
-from world.events import publish_world_event
+from world.events import publish_world_event, get_event_ledger
 
 TAVERN = "The Blood of the Vine"
 
@@ -118,3 +118,167 @@ def act(mask, action, tune=None):
     if action != "witness":
         record_participation(mask, "stage_" + action, calling="performer")
     return {"event_id": event["id"], "action": action, "tune": tune}, None
+
+def _verified_route_source(*, account_id, mask_id, source_event_id,
+                           cord_id, day, hour):
+    """Check ledger, actual cord and Square record, not a claimed danger."""
+    from world import route_work, route_surveys
+    from world.discoveries import LANDMARKS
+
+    square = route_work._square()
+    if square is None:
+        return False
+    state = route_surveys.normalize(square.db.daily_route_survey)
+    if state["day"] != day:
+        return False
+    signed = state["field_decisions"].get("hound") or {}
+    if signed.get("event_id") != source_event_id or signed.get("account_id") != account_id:
+        return False
+    spec = LANDMARKS["red_cord"]
+    rooms = [o for o in search.search_object(spec["room"])
+             if o.key == spec["room"] and o.location is None]
+    if len(rooms) != 1:
+        return False
+    cord = next((o for o in rooms[0].contents
+                 if o.id == cord_id and o.key == spec["key"]
+                 and getattr(o.db, "landmark_id", None) == "red_cord"), None)
+    if cord is None:
+        return False
+    marker = dict(getattr(cord.db, "route_caution", None) or {})
+    if (marker.get("event_id") != source_event_id
+            or marker.get("account_id") != account_id
+            or marker.get("day") != day):
+        return False
+    event = get_event_ledger().get_event(source_event_id)
+    if not event or event.get("status") != "complete" or event.get("kind") != "village.route_protected":
+        return False
+    actor, payload, effect = (event.get("actor") or {}), (event.get("payload") or {}), (event.get("consequence") or {})
+    return (
+        actor.get("account_id") == account_id
+        and actor.get("mask_id") == mask_id
+        and payload.get("site") == "red_cord"
+        and payload.get("role") == "hound"
+        and payload.get("action") == "protect"
+        and payload.get("location") == spec["room"]
+        and payload.get("day") == day
+        and isinstance(payload.get("hour"), int)
+        and not isinstance(payload["hour"], bool)
+        and 0 <= payload["hour"] <= hour
+        and effect.get("cord_object_id") == cord_id
+        and effect.get("square_room_id") == square.id
+        and effect.get("role") == "hound"
+        and effect.get("action") == "protect"
+        and effect.get("day") == day
+        and effect.get("caution_marked") is True
+    )
+
+
+def _verified_warning(stage, day, hour):
+    warning = stage_state.refresh(stage, day).get("safety_warning")
+    if not warning:
+        return False
+    signed = get_event_ledger().get_event(warning["event_id"])
+    if not signed or signed.get("kind") != "village.stage_warned" or signed.get("status") != "complete":
+        return False
+    actor, payload, effect = (signed.get("actor") or {}), (signed.get("payload") or {}), (signed.get("consequence") or {})
+    if not (
+        actor.get("account_id") == warning["account_id"]
+        and actor.get("mask_id") == warning["mask_id"]
+        and payload.get("day") == day
+        and payload.get("source_event_id") == warning["source_event_id"]
+        and effect.get("source_event_id") == warning["source_event_id"]
+        and effect.get("cord_id") == warning["cord_id"]
+        and effect.get("tavern_room_id") == _tavern().id
+        and isinstance(warning["hour"], int)
+        and warning["hour"] <= hour
+    ):
+        return False
+    return _verified_route_source(
+        account_id=warning["account_id"], mask_id=warning["mask_id"],
+        source_event_id=warning["source_event_id"],
+        cord_id=warning["cord_id"], day=day, hour=hour,
+    )
+
+
+def safety_action(mask, action, choice=None):
+    """Hound brings actual route evidence; independent Performer chooses fate."""
+    tavern, error = _guard(mask)
+    if error:
+        return None, error
+    role = active_calling(mask)
+    if (action, role) not in {("warn", "hound"), ("adapt", "performer")}:
+        return None, "Only an active Hound may warn; only a Performer may adapt."
+    if action == "adapt" and choice not in {"indoor", "cancel"}:
+        return None, "Use stage adapt indoor or stage adapt cancel."
+    day, hour = _clock()
+    base = {"day": day, "hour": hour, "account_id": mask.account.id,
+            "mask_id": mask.id, "mask": mask.key}
+    if action == "warn":
+        from world import route_work, route_surveys
+        square = route_work._square()
+        if square is None:
+            return None, "The public route record is missing."
+        record = route_surveys.normalize(square.db.daily_route_survey)
+        source = record["field_decisions"].get("hound") or {}
+        source_id = source.get("event_id")
+        from world.discoveries import LANDMARKS
+        spec = LANDMARKS["red_cord"]
+        rooms = [o for o in search.search_object(spec["room"])
+                 if o.key == spec["room"] and o.location is None]
+        cord = next((o for o in rooms[0].contents
+                     if o.key == spec["key"]
+                     and getattr(o.db, "landmark_id", None) == "red_cord"), None) if len(rooms) == 1 else None
+        if not cord or not _verified_route_source(
+                account_id=mask.account.id, mask_id=mask.id,
+                source_event_id=source_id, cord_id=cord.id, day=day, hour=hour):
+            return None, "First protect the actual treeline cord today, then bring its signed warning here."
+        extra = {"source_event_id": source_id, "cord_id": cord.id}
+        transform = stage_state.warn
+    else:
+        if not _verified_warning(tavern.db.village_stage, day, hour):
+            return None, "The stage warning has no verified current physical source."
+        extra = {"choice": choice}
+        transform = stage_state.adapt
+
+    _preview, accepted, reason = transform(
+        tavern.db.village_stage, event_id=1, **base, **extra)
+    if not accepted:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            if mask.location != tavern or active_calling(mask) != role:
+                raise RuntimeError("The player left the stage or changed Calling.")
+            if _clock() != (day, hour):
+                raise RuntimeError("Village time changed before the stage decision.")
+            if action == "warn":
+                if not _verified_route_source(
+                        account_id=mask.account.id, mask_id=mask.id,
+                        source_event_id=extra["source_event_id"],
+                        cord_id=extra["cord_id"], day=day, hour=hour):
+                    raise RuntimeError("The physical route warning source changed.")
+            elif not _verified_warning(tavern.db.village_stage, day, hour):
+                raise RuntimeError("The signed warning cannot be verified.")
+            current, ok, why = transform(
+                tavern.db.village_stage, event_id=event["id"], **base, **extra)
+            if not ok:
+                raise RuntimeError(why)
+            tavern.db.village_stage = current
+            return {"tavern_room_id": tavern.id, "day": day, "hour": hour,
+                    "source_event_id": extra.get("source_event_id"),
+                    "cord_id": extra.get("cord_id"),
+                    "warning_event_id": (
+                        current["safety_warning"]["event_id"]
+                        if current["safety_warning"] else None),
+                    "choice": choice}
+
+    event = publish_world_event(
+        "village.stage_warned" if action == "warn" else "village.stage_adapted",
+        actor=mask,
+        payload={"day": day, "hour": hour, "choice": choice,
+                 "source_event_id": extra.get("source_event_id"),
+                 "harbinger": False, "chronicle_eligible": False},
+        consequence=consequence,
+    )
+    record_participation(mask, "stage_" + action, calling=role)
+    return {"event_id": event["id"], "action": action, "choice": choice}, None
