@@ -7,9 +7,6 @@ No clinical magnitude is copied into the public warning.
 
 from collections.abc import Mapping
 
-from world.situations import WELL_MUSHROOM_WARNING_ID
-
-
 def _id(value):
     return type(value) is int and value > 0
 
@@ -18,7 +15,7 @@ def _hour(value):
     return type(value) is int and 0 <= value <= 23
 
 
-def verify_healer_source(finding, event, *, chronicler_account_id, day, hour):
+def verify_healer_source(finding, event, *, chronicler_account_id, day, hour, situation_id):
     """Return (accepted, reason), without mutating either source.
 
     The two professional contributions must come from different authenticated
@@ -62,7 +59,7 @@ def verify_healer_source(finding, event, *, chronicler_account_id, day, hour):
     if type(finding.get("value")) not in (int, float) or finding["value"] <= 0:
         return False, invalid
     expected = {
-        "situation_id": WELL_MUSHROOM_WARNING_ID,
+        "situation_id": situation_id,
         "source_object_id": finding["object_id"],
         "source_object_key": finding["object_key"],
         "mechanical_property": finding["property"],
