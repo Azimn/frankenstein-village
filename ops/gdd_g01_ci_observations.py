@@ -17,8 +17,13 @@ RECEIPT = Path("ops/GDD_G01_CI_OBSERVATIONS_2026-10-27.json")
 
 def _static_truth(node: ast.AST) -> bool | None:
     """Evaluate only trivially constant boolean guards, never arbitrary code."""
-    if isinstance(node, ast.Constant) and isinstance(node.value, bool):
-        return node.value
+    if isinstance(node, ast.Constant) and type(node.value) in (
+            bool, int, float, str, bytes, type(None)):
+        return bool(node.value)
+    if isinstance(node, (ast.Tuple, ast.List, ast.Set)) and not node.elts:
+        return False
+    if isinstance(node, ast.Dict) and not node.keys:
+        return False
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
         value = _static_truth(node.operand)
         return None if value is None else not value
