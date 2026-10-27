@@ -147,6 +147,7 @@ class StageInquiryEdge40Tests(unittest.TestCase):
             (11, "consequence", {"tavern_room_id": 55, "performance_event_id": 11}),
             (10, "status", "recorded"),
             (10, "actor", {"account_id": 7, "mask_id": 71}),
+            (10, "payload", {"day": 1, "hour": 22, "tune": "ballad"}),
             (12, "status", "consequence_failed"),
             (12, "actor", {"account_id": 7, "mask_id": 80}),
             (12, "consequence", {"tavern_room_id": 99, "performance_event_id": 999}),
