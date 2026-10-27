@@ -112,6 +112,22 @@ class CompletionAuditTests(unittest.TestCase):
         self.assertFalse(evidence["package_complete"])
         self.assertFalse(evidence["live_game_session_executed"])
 
+    def test_g01_command_line_exports_reproducible_evidence_json(self):
+        import subprocess
+        process = subprocess.run(
+            [sys.executable, str(ROOT / "ops/gdd_g01_evidence_register.py"),
+             "--format", "json", "--source-ref", "ci-checked-head"],
+            capture_output=True, text=True, check=True, timeout=30,
+            cwd=ROOT,
+        )
+        cards = json.loads(process.stdout)
+        self.assertEqual(cards["source_ref"], "ci-checked-head")
+        self.assertEqual(len(cards["families"]), 21)
+        self.assertEqual(len(cards["callings"]), 10)
+        self.assertEqual(len(cards["edges"]), 45)
+        self.assertFalse(cards["live_game_session_executed"])
+        self.assertFalse(cards["package_complete"])
+
     def test_g01_verified_evidence_is_never_invented_from_source(self):
         evidence = build_register(ROOT, source_ref="unit-fixture")
         for category in ("families", "callings", "edges"):
