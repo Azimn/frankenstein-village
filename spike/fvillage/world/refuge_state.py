@@ -118,10 +118,16 @@ def history(raw):
     rows = raw.get("history")
     if rows is None:
         return []
-    if not isinstance(rows, (list, tuple)):
+    # Evennia persists nested lists as saver-backed mutable sequences, not
+    # necessarily built-in list/tuple instances. Materialize read-only first.
+    if isinstance(rows, (str, bytes)) or not hasattr(rows, "__iter__"):
+        return None
+    try:
+        entries = list(rows)[-MAX_RECEIPTS:]
+    except (TypeError, ValueError):
         return None
     result = []
-    for row in rows[-MAX_RECEIPTS:]:
+    for row in entries:
         if not hasattr(row, "get") or not all(ident(row.get(key)) for key in (
             "event_id", "dispatch_event_id", "hound_account_id",
             "innkeep_account_id", "item_id")):
