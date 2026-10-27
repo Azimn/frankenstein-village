@@ -68,6 +68,12 @@ def status_lines():
         "there to record whether the warning was present when inspected. "
         "Neither action proves why the cord was damaged."
     )
+    lines.append(
+        "A Hound may use |wsurvey assess|n after examining the red cord "
+        "each village day. A separate Chronicler who also examined it "
+        "may use |wsurvey notice|n at Village Square to publish a qualified "
+        "source-linked safety notice. No unseen danger is certified."
+    )
     if route_surveys.complete(state):
         lines.append(
             "The public route is complete for today. Tomorrow's observations "
