@@ -99,6 +99,28 @@ class HouseReceiptTests(unittest.TestCase):
         self.assertIn("not a guest list", lines)
         self.assertNotIn("guest identity", lines)
 
+    def test_canonical_mapping_wrappers_are_accepted(self):
+        # Evennia's persisted Attribute wrappers are Mapping, not necessarily
+        # a literal built-in dict after reading the script ledger.
+        from collections import UserDict
+        state, cooked, prep = fixture()
+        for event in (cooked, prep):
+            event["actor"] = UserDict(event["actor"])
+            event["payload"] = UserDict(event["payload"])
+            event["consequence"] = UserDict(event["consequence"])
+        state, record, error = consent(state, cooked, prep)
+        self.assertIsNone(error)
+        self.assertEqual(record["cook_event_id"], 31)
+        source = disclosure()
+        source["actor"] = UserDict(source["actor"])
+        source["payload"] = UserDict(source["payload"])
+        source["consequence"] = UserDict(source["consequence"])
+        state, record, error = publish(
+            state, cooked, prep, consent_event=source
+        )
+        self.assertIsNone(error)
+        self.assertEqual(record["consent_event_id"], 32)
+
     def test_no_consent_no_publication(self):
         state, cooked, prep = fixture()
         unchanged, result, error = publish(state, cooked, prep)
