@@ -1217,6 +1217,17 @@ assert _market_live["calibration"] and _market_live["attestation"]
 assert _market_live["review"]["mask_id"] == merchant_tester.id
 assert _market_live["calibration"]["mask_id"] == smith_tester.id
 assert _market_live["attestation"]["mask_id"] == smoke.id
+from world.market_standards import verified_sources as _market_verified_sources
+assert _market_verified_sources(_market_live, _market_live["day"], warning_ledger.get_event), (
+    "The Chronicler's durable attestation lacks actual Merchant/Smith receipts"
+)
+assert len({
+    _market_live["review"]["account_id"],
+    _market_live["calibration"]["account_id"],
+    _market_live["attestation"]["account_id"],
+}) == 3, "Market source, repair and publication were not independently authored"
+assert _market_live["attestation"]["review_event_id"] == _market_live["review"]["event_id"]
+assert _market_live["attestation"]["calibration_event_id"] == _market_live["calibration"]["event_id"]
 assert not _market_suspended(_market_live, _market_live["day"]), (
     "A Smith's completed physical correction left supplies blocked"
 )

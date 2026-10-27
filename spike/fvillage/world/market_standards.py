@@ -155,6 +155,56 @@ def apply(raw, action, *, day, hour, account_id, mask_id, mask, event_id):
     return state, True, None
 
 
+def verified_sources(raw, day, event_lookup):
+    """Check both actual signed ledger receipts before Chronicler attestation.
+
+    A docket row alone is not proof that the event occurred. This read-only
+    check uses the existing canonical ledger, not a second event store.
+    """
+    state = refresh(raw, day)
+    if state["day"] != day or not state["review"] or not state["calibration"]:
+        return False
+    sources = (
+        ("review", "merchant", frozenset({"hold", "honor"})),
+        ("calibration", "smith", frozenset({"calibrate"})),
+    )
+    seen = set()
+    for field, role, actions in sources:
+        row = state[field]
+        event_id = row["event_id"]
+        if event_id in seen:
+            return False
+        seen.add(event_id)
+        try:
+            event = event_lookup(event_id)
+        except Exception:
+            return False
+        if not hasattr(event, "get"):
+            return False
+        actor = event.get("actor")
+        payload = event.get("payload")
+        consequence = event.get("consequence")
+        if not all(hasattr(part, "get") for part in (actor, payload, consequence)):
+            return False
+        action = payload.get("action")
+        if (action not in actions
+                or event.get("id") != event_id
+                or event.get("kind") != "village.market_" + action
+                or event.get("status") != "complete"
+                or actor.get("account_id") != row["account_id"]
+                or actor.get("mask_id") != row["mask_id"]
+                or actor.get("mask") != row["mask"]
+                or payload.get("day") != row["day"]
+                or payload.get("hour") != row["hour"]
+                or payload.get("location") != "Market Lane"
+                or payload.get("professional_calling") != role
+                or consequence.get("action") != action):
+            return False
+        if field == "review" and row["choice"] != action:
+            return False
+    return True
+
+
 def public_lines(raw, day):
     state = refresh(raw, day)
     lines = ["|wMarket Lane: standards and trades|n"]
@@ -204,7 +254,9 @@ def public_lines(raw, day):
         row = state["attestation"]
         lines.append(
             f"Chronicler {row['mask']} attested both source events "
-            f"(event {row['event_id']})."
+            f"(event {row['event_id']}; Merchant source "
+            f"{row['review_event_id']}, Smith source "
+            f"{row['calibration_event_id']})."
         )
     if state["history"]:
         recent = state["history"][-1]

@@ -12,7 +12,7 @@ from evennia.utils import search
 
 from world import market_standards
 from world.callings import active_calling, record_participation
-from world.events import publish_world_event
+from world.events import get_event_ledger, publish_world_event
 
 MARKET = "Market Lane"
 SCALE = "a crooked market scale"
@@ -103,6 +103,12 @@ def perform(mask, action):
     )
     if not accepted:
         return None, error
+    if action == "attest" and not market_standards.verified_sources(
+            room.db.market_standards, day, get_event_ledger().get_event):
+        return None, (
+            "The Merchant and Smith source events cannot be verified "
+            "against the signed world ledger. No attestation was issued."
+        )
 
     def consequence(event):
         with transaction.atomic():
@@ -110,6 +116,9 @@ def perform(mask, action):
                 raise RuntimeError("The witness left the market scale.")
             if active_calling(mask) != role:
                 raise RuntimeError("The acting professional changed Calling.")
+            if action == "attest" and not market_standards.verified_sources(
+                    room.db.market_standards, day, get_event_ledger().get_event):
+                raise RuntimeError("The signed market source events changed.")
             changed, valid, problem = market_standards.apply(
                 room.db.market_standards, action,
                 account_id=account.id, mask_id=mask.id, mask=mask.key,
