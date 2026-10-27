@@ -6,7 +6,7 @@ from evennia.scripts.models import ScriptDB
 from evennia.utils import search
 from world import courier_state
 from world.callings import active_calling, record_participation
-from world.events import publish_world_event
+from world.events import get_event_ledger, publish_world_event
 
 MARKET = "Market Lane"
 RIVERSIDE = "Riverside Path"
@@ -50,6 +50,9 @@ def status(mask):
         "An active Wanderer can collect a physical parcel in Market Lane: |wcourier collect|n.",
         "Carry it east through the Tavern to Riverside Path, or give it to a neighbor.",
         "Any real carrier at Riverside Path may use |wcourier deliver|n.",
+        "A Merchant can consign one of the same finite parcels with |wcourier consign|n",
+        "in Market Lane. A different Wanderer uses |wcourier accept|n there.",
+        "Unaccepted freight remains physically available to another Wanderer.",
     ]
     if last:
         lines.append(
@@ -104,6 +107,150 @@ def collect(mask):
     return {"event_id": event["id"], "remaining": candidate["remaining"]}, None
 
 
+
+def _freight_sources(parcel, contract, *, accepted=False):
+    """Check signed physical custody against the one canonical event ledger."""
+    if contract is None:
+        return False
+    ledger = get_event_ledger()
+    source = ledger.get_event(contract["consignment_event_id"])
+    actor = (source or {}).get("actor") or {}
+    payload = (source or {}).get("payload") or {}
+    result = (source or {}).get("consequence") or {}
+    if (not source or source.get("status") != "complete"
+            or source.get("kind") != "village.freight_consigned"
+            or actor.get("account_id") != contract["merchant_account_id"]
+            or payload.get("professional_calling") != "merchant"
+            or payload.get("market_room_id") != parcel.db.ferry_parcel.get("origin_room_id")
+            or result.get("parcel_id") != parcel.id):
+        return False
+    if not accepted:
+        return True
+    handoff = ledger.get_event(contract["accept_event_id"])
+    actor = (handoff or {}).get("actor") or {}
+    payload = (handoff or {}).get("payload") or {}
+    result = (handoff or {}).get("consequence") or {}
+    return bool(
+        handoff and handoff.get("status") == "complete"
+        and handoff.get("kind") == "village.freight_accepted"
+        and actor.get("account_id") == contract["wanderer_account_id"]
+        and payload.get("professional_calling") == "wanderer"
+        and payload.get("source_event_id") == contract["consignment_event_id"]
+        and payload.get("parcel_id") == parcel.id
+        and result.get("parcel_id") == parcel.id
+    )
+
+
+def consign(mask):
+    """Merchant reserves one existing postbag slot as real physical freight."""
+    market = _room(MARKET)
+    if not _access(mask, market) or active_calling(mask) != "merchant":
+        return None, "An active Merchant must consign freight in Market Lane."
+    day, hour = _clock()
+    candidate, allowed = courier_state.issue(market.db.ferry_post_stock, day)
+    if not allowed:
+        return None, "The shared Market postbag is depleted for today."
+
+    def consequence(event):
+        with transaction.atomic():
+            if mask.location != market or active_calling(mask) != "merchant":
+                raise RuntimeError("The Merchant left the Market or changed Calling.")
+            if _clock() != (day, hour):
+                raise RuntimeError("Village time advanced before the consignment.")
+            latest, ok = courier_state.issue(market.db.ferry_post_stock, day)
+            if not ok:
+                raise RuntimeError("The finite Market postbag was already depleted.")
+            parcel = create_object(
+                "typeclasses.objects.Object", key=PARCEL,
+                location=market, aliases=["mail parcel", "ferry parcel", "freight parcel"],
+            )
+            parcel.db.ferry_parcel = {
+                "day": day, "origin_room_id": market.id,
+                "source_event_id": event["id"],
+                "collector_account_id": None,
+                "freight": {
+                    "merchant_account_id": mask.account.id,
+                    "consignment_event_id": event["id"],
+                },
+            }
+            parcel.db.desc = (
+                "A sealed freight parcel consigned by a Merchant. "
+                "An active Wanderer can use courier accept in Market Lane "
+                "to take signed custody for Riverside Path."
+            )
+            market.db.ferry_post_stock = latest
+            return {"parcel_id": parcel.id, "remaining": latest["remaining"]}
+
+    event = publish_world_event(
+        "village.freight_consigned", actor=mask,
+        payload={"day": day, "hour": hour, "market_room_id": market.id,
+                 "professional_calling": "merchant",
+                 "harbinger": False, "chronicle_eligible": False},
+        consequence=consequence,
+    )
+    record_participation(mask, "freight_consignments", calling="merchant")
+    return {"event_id": event["id"], "remaining": candidate["remaining"]}, None
+
+
+def accept_freight(mask):
+    """A different Wanderer physically takes custody of Merchant freight."""
+    market = _room(MARKET)
+    if not _access(mask, market) or active_calling(mask) != "wanderer":
+        return None, "An active Wanderer must accept freight in Market Lane."
+    if any(obj.db.ferry_parcel for obj in mask.contents):
+        return None, "You already carry a post parcel. Deliver or hand it over."
+    parcels = [
+        obj for obj in market.contents
+        if obj.key == PARCEL and hasattr(obj.db.ferry_parcel, "get")
+        and obj.db.ferry_parcel.get("freight") is not None
+    ]
+    if not parcels:
+        return None, "No physical Merchant freight parcel awaits acceptance here."
+    parcel = parcels[0]
+    source = dict(parcel.db.ferry_parcel)
+    contract = courier_state.freight_contract(source.get("freight"))
+    if (contract is None or contract["merchant_account_id"] == mask.account.id
+            or source.get("source_event_id") != contract["consignment_event_id"]
+            or not _freight_sources(parcel, contract)):
+        return None, "The Merchant's signed freight source cannot be verified."
+    day, hour = _clock()
+    if day < int(source.get("day") or 0):
+        return None, "This freight is dated in a future village day."
+
+    def consequence(event):
+        with transaction.atomic():
+            if (parcel.location != market or mask.location != market
+                    or active_calling(mask) != "wanderer"):
+                raise RuntimeError("The freight or Wanderer left the Market.")
+            if _clock() != (day, hour):
+                raise RuntimeError("Village time advanced before custody acceptance.")
+            if not _freight_sources(parcel, contract):
+                raise RuntimeError("The Merchant consignment lost its signed source.")
+            if not parcel.move_to(mask, quiet=True):
+                raise RuntimeError("The physical freight could not change hands.")
+            updated = dict(source)
+            updated["freight"] = {
+                **contract, "wanderer_account_id": mask.account.id,
+                "accept_event_id": event["id"],
+            }
+            updated["collector_account_id"] = mask.account.id
+            parcel.db.ferry_parcel = updated
+            return {"parcel_id": parcel.id,
+                    "consignment_event_id": contract["consignment_event_id"]}
+
+    event = publish_world_event(
+        "village.freight_accepted", actor=mask,
+        payload={"day": day, "hour": hour, "parcel_id": parcel.id,
+                 "source_event_id": contract["consignment_event_id"],
+                 "professional_calling": "wanderer",
+                 "harbinger": False, "chronicle_eligible": False},
+        consequence=consequence,
+    )
+    record_participation(mask, "freight_acceptances", calling="wanderer")
+    return {"event_id": event["id"],
+            "consignment_event_id": contract["consignment_event_id"]}, None
+
+
 def deliver(mask):
     riverside = _room(RIVERSIDE)
     if not _access(mask, riverside):
@@ -117,11 +264,19 @@ def deliver(mask):
     day, hour = _clock()
     if day < int(source.get("day") or 0):
         return None, "This parcel is dated in a future village day."
+    freight = None
+    if "freight" in source:
+        freight = courier_state.freight_contract(source["freight"], accepted=True)
+        if (freight is None or active_calling(mask) != "wanderer"
+                or freight["wanderer_account_id"] != mask.account.id
+                or freight["consignment_event_id"] != source.get("source_event_id")
+                or not _freight_sources(parcel, freight, accepted=True)):
+            return None, "Freight needs its original distinct Merchant and Wanderer receipts."
     _, allowed, reason = courier_state.receive(
         riverside.db.ferry_manifest, day=day,
         account_id=mask.account.id, mask=mask.key,
         parcel_id=parcel.id, source_event_id=source.get("source_event_id"),
-        delivery_event_id=1,
+        delivery_event_id=1, freight=freight,
     )
     if not allowed:
         return None, reason
@@ -130,12 +285,16 @@ def deliver(mask):
         with transaction.atomic():
             if parcel.location != mask or parcel.key != PARCEL:
                 raise RuntimeError("The actual parcel has left the courier.")
+            if freight is not None and (
+                    active_calling(mask) != "wanderer"
+                    or not _freight_sources(parcel, freight, accepted=True)):
+                raise RuntimeError("The signed freight custody chain is invalid.")
             latest, accepted, reason = courier_state.receive(
                 riverside.db.ferry_manifest, day=day,
                 account_id=mask.account.id, mask=mask.key,
                 parcel_id=parcel.id,
                 source_event_id=source.get("source_event_id"),
-                delivery_event_id=event["id"],
+                delivery_event_id=event["id"], freight=freight,
             )
             if not accepted:
                 raise RuntimeError(reason)
@@ -149,6 +308,8 @@ def deliver(mask):
         "village.ferry_post_delivered", actor=mask,
         payload={"day": day, "hour": hour, "parcel_id": int(parcel.id),
                  "source_event_id": source["source_event_id"],
+                 "freight_accept_event_id": (
+                     freight["accept_event_id"] if freight else None),
                  "harbinger": False, "chronicle_eligible": False},
         consequence=consequence,
     )
