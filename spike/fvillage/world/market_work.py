@@ -71,9 +71,19 @@ def witnessed_scale_today(mask, day):
     ), None)
     if not scale:
         return False
+    # Evennia persistence can contain malformed legacy inspection values.
+    # Reject those as missing evidence, not as a command-crashing exception.
     try:
-        recent = dict(mask.db.landmark_latest_view or {}).get("market_scale") or {}
-        return int(recent.get("day") or 0) == int(day)
+        views = mask.db.landmark_latest_view
+        if not hasattr(views, "get"):
+            return False
+        recent = views.get("market_scale")
+        if not hasattr(recent, "get"):
+            return False
+        inspected_day = recent.get("day")
+        if isinstance(inspected_day, bool):
+            return False
+        return int(inspected_day) == int(day)
     except (ValueError, TypeError, OverflowError):
         return False
 
