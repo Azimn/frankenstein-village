@@ -271,6 +271,7 @@ def field_action(mask, action):
     """
     if not getattr(mask, "account", None):
         return None, "Use an ordinary logged-in player mask."
+    account_id = mask.account.id
     role = active_calling(mask)
     if (role, action) not in {
         ("hound", "protect"), ("wanderer", "passability")
@@ -301,7 +302,7 @@ def field_action(mask, action):
     marked = bool(getattr(cord.db, "route_caution", None))
     current, allowed, why = route_surveys.field_decision(
         square.db.daily_route_survey, day, site, role, action,
-        marked, mask.account.id, mask.key, 1,
+        marked, account_id, mask.key, 1,
     )
     if not allowed:
         return None, why
@@ -315,16 +316,21 @@ def field_action(mask, action):
                 raise RuntimeError("Village time advanced before this route action.")
             # The role, firsthand inspection, and access may change between
             # the initial command checks and the signed consequence.
+            if (not getattr(mask, "account", None)
+                    or mask.account.id != account_id):
+                raise RuntimeError("The acting account changed before signing.")
             if active_calling(mask) != role:
                 raise RuntimeError("Your active Calling changed before the route action.")
-            if not _inspected_today(mask, site, day):
+            if (not _inspected_today(mask, site, day)
+                    or not any(e["id"] == site for e in known_landmarks(
+                        mask.db.landmark_discoveries))):
                 raise RuntimeError("Examine the physical red cord again before acting.")
             if not cord.access(mask, "view", default=True):
                 raise RuntimeError("The physical red cord is no longer available.")
             now_marked = bool(getattr(cord.db, "route_caution", None))
             updated, valid, reason = route_surveys.field_decision(
                 square.db.daily_route_survey, day, site, role, action,
-                now_marked, mask.account.id, mask.key, event["id"],
+                now_marked, account_id, mask.key, event["id"],
             )
             if not valid:
                 raise RuntimeError(reason)
@@ -332,7 +338,7 @@ def field_action(mask, action):
                 # Reposition the ORIGINAL cord as a truthful visual caution,
                 # no repair, consumed object, invented hazard or new material.
                 cord.db.route_caution = {
-                    "event_id": event["id"], "account_id": mask.account.id,
+                    "event_id": event["id"], "account_id": account_id,
                     "mask": mask.key, "day": day,
                 }
             square.db.daily_route_survey = updated
