@@ -729,6 +729,9 @@ def _fare(
     obj.db.desc = desc
     obj.tags.add("consumable")
     obj.tags.add(kind)
+    # Idempotently mark Bram's original house dishes. The routine ticker
+    # must never refill player-cooked food left in the Tavern.
+    obj.tags.add("house-sideboard-fare", category="origin")
     obj.db.consume = dict(consume)
 
     mechanics = {"worth": int(worth or 0)}
