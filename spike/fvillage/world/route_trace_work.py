@@ -40,7 +40,8 @@ def _observed(mask, day):
         return False
     try:
         latest = dict(mask.db.landmark_latest_view or {}).get("red_cord") or {}
-        return type(latest.get("day")) is int and latest["day"] == day
+        raw_day = latest.get("day")
+        return not isinstance(raw_day, bool) and int(raw_day or 0) == day
     except (TypeError, ValueError, KeyError):
         return False
 
