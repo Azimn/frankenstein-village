@@ -166,14 +166,22 @@ from world import soup_state
 _tavern_soup = one("The Blood of the Vine")
 _soup_log = soup_state.pantry(_tavern_soup.db.soup_pantry, 1)
 assert _soup_log["history"], "The shared soup pot lost all batches"
-_batch = _soup_log["history"][-1]
-assert _batch["maker_id"] == innkeep_tester.id
-assert _batch["base"] == "turnip" and _batch["seasoning"] == "thyme"
-assert _batch["prep_event_id"] < _batch["cook_event_id"]
-assert innkeep_record["participation"]["soup_preparations"] == 1
-assert innkeep_record["participation"]["soup_batches_cooked"] == 1
-assert len(list(innkeep_tester.db.soup_notebook or [])) == 1
-assert list(innkeep_tester.db.soup_notebook)[-1]["cook_event_id"] == _batch["cook_event_id"]
+# The first bowl was tasted; a second independently cooked bowl was
+# physically served at the Performer show. Preserve BOTH recipes and receipts.
+assert len(_soup_log["history"]) == 2
+_batch, _service_batch = _soup_log["history"]
+assert all(row["maker_id"] == innkeep_tester.id for row in (_batch, _service_batch))
+assert (_batch["base"], _batch["seasoning"]) == ("turnip", "thyme")
+assert (_service_batch["base"], _service_batch["seasoning"]) == ("barley", "salt")
+assert all(row["prep_event_id"] < row["cook_event_id"]
+           for row in (_batch, _service_batch))
+assert innkeep_record["participation"]["soup_preparations"] == 2
+assert innkeep_record["participation"]["soup_batches_cooked"] == 2
+_notebook = list(innkeep_tester.db.soup_notebook or [])
+assert len(_notebook) == 2
+assert [row["cook_event_id"] for row in _notebook] == [
+    _batch["cook_event_id"], _service_batch["cook_event_id"]
+]
 assert calling_record(merchant_tester, "merchant")["participation"]["kitchen_procurements"] == 1
 _soup_cooked = ScriptDB.objects.get(db_key="world_event_ledger").get_event(_batch["cook_event_id"])
 assert _soup_cooked["kind"] == "professional.innkeep_soup_cooked"
@@ -1307,6 +1315,36 @@ for _action, _entry in (
     assert _event["kind"] == "village.stage_" + _action
     assert _event["status"] == "complete"
 assert "PerformerTester" in _stage_lines(_stage, _stage["day"])
+# GDD-EDGE-06: the Innkeep's real cooked bowl, independent performer,
+# signed witness and exact public service survive an Evennia process restart.
+_service = _stage["service"]
+assert _service is not None, "The joined food service vanished on restart"
+assert _service["account_id"] != _stage["performance"]["account_id"]
+assert _service["performance_event_id"] == _stage["performance"]["event_id"]
+assert _service["witness_event_id"] == _stage["witnesses"][0]["event_id"]
+assert _service["witness_count"] == 1
+assert _service["cook_event_id"] == _service_batch["cook_event_id"]
+_cater_event = warning_ledger.get_event(_service["event_id"])
+assert _cater_event["status"] == "complete"
+assert _cater_event["kind"] == "village.stage_cater"
+assert _cater_event["actor"]["account_id"] == _service["account_id"]
+assert _cater_event["consequence"]["bowl_id"] == _service["bowl_id"]
+assert _cater_event["consequence"]["performance_event_id"] == _service["performance_event_id"]
+_cooked_event = warning_ledger.get_event(_service["cook_event_id"])
+assert _cooked_event["kind"] == "professional.innkeep_soup_cooked"
+assert _cooked_event["status"] == "complete"
+assert _cooked_event["consequence"]["bowl_id"] == _service["bowl_id"]
+_served_bowls = [
+    obj for obj in _stage_tavern.contents
+    if getattr(obj.db, "stage_service", None)
+    and obj.id == _service["bowl_id"]
+]
+assert len(_served_bowls) == 1, "The original edible bowl was lost or duplicated"
+assert _served_bowls[0].db.servings == 1
+assert _served_bowls[0].db.stage_service["event_id"] == _service["event_id"]
+assert calling_record(one("InnkeepTester"), "innkeep")["participation"]["stage_catering"] == 1
+assert "provided one real cooked soup bowl" in _stage_lines(_stage, _stage["day"])
+print("POST_RESTART_GDD_EDGE06_REAL_SIGNED_CATERING_GREEN")
 print("POST_RESTART_SIGNED_TAVERN_PERFORMANCE_GREEN")
 print("POST_RESTART_GDD_T06_LATE_NONWITNESS_GREEN")
 # Physical St. Lazarus clinic, signed Healer work and consumed linen persist.

@@ -7,7 +7,7 @@ from evennia.utils import search
 
 from world import stage_state
 from world.callings import active_calling, record_participation
-from world.events import publish_world_event
+from world.events import get_event_ledger, publish_world_event
 
 TAVERN = "The Blood of the Vine"
 
@@ -118,3 +118,119 @@ def act(mask, action, tune=None):
     if action != "witness":
         record_participation(mask, "stage_" + action, calling="performer")
     return {"event_id": event["id"], "action": action, "tune": tune}, None
+
+
+def cater(mask):
+    """Innkeep places one actual cooked bowl at a genuinely witnessed show.
+
+    The performance and witness are independent signed world events. The
+    original consumable moves into the public Tavern, not a fictional crowd
+    inventory. No food, attendance or extra stock is created by this action.
+    """
+    tavern, error = _guard(mask)
+    if error:
+        return None, error
+    if active_calling(mask) != "innkeep":
+        return None, "Only an active Innkeep can cater a performance."
+    day, hour = _clock()
+    bowls = sorted(
+        (obj for obj in mask.contents
+         if getattr(obj.db, "soup_serving", None)
+         and int(getattr(obj.db, "servings", None) or 0) > 0
+         and obj.tags.has("food")),
+        key=lambda obj: obj.id,
+    )
+    if not bowls:
+        return None, "Carry a real cooked soup bowl from soup simmer before catering."
+    bowl = bowls[0]
+    cooked = dict(bowl.db.soup_serving or {})
+    try:
+        cook_event_id = int(cooked["event_id"])
+    except (TypeError, ValueError, KeyError, OverflowError):
+        return None, "The bowl has no valid signed cooking source."
+
+    def source_valid():
+        ledger = get_event_ledger()
+        cook = ledger.get_event(cook_event_id)
+        if (not cook or cook.get("status") != "complete"
+                or cook.get("kind") != "professional.innkeep_soup_cooked"
+                or (cook.get("consequence") or {}).get("bowl_id") != bowl.id):
+            return False
+        state = stage_state.refresh(tavern.db.village_stage, day)
+        show = state["performance"]
+        if not show:
+            return False
+        performance = ledger.get_event(show["event_id"])
+        if (not performance or performance.get("status") != "complete"
+                or performance.get("kind") != "village.stage_perform"
+                or (performance.get("actor") or {}).get("account_id")
+                != show["account_id"]):
+            return False
+        if not state["witnesses"]:
+            return False
+        source = state["witnesses"][0]
+        witness = ledger.get_event(source["event_id"])
+        return bool(
+            witness and witness.get("status") == "complete"
+            and witness.get("kind") == "village.stage_witness"
+            and (witness.get("actor") or {}).get("account_id")
+            == source["account_id"]
+        )
+
+    if not source_valid():
+        return None, "The bowl, performance or firsthand audience source cannot be verified."
+    stage = stage_state.refresh(tavern.db.village_stage, day)
+    preview_id = max(stage["performance"]["event_id"], cook_event_id,
+                     *(w["event_id"] for w in stage["witnesses"])) + 1
+    _, allowed, reason = stage_state.cater(
+        tavern.db.village_stage, day=day, hour=hour,
+        account_id=mask.account.id, mask_id=mask.id, mask=mask.key,
+        event_id=preview_id, bowl_id=bowl.id, cook_event_id=cook_event_id,
+    )
+    if not allowed:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            if (_clock() != (day, hour) or mask.location != tavern
+                    or active_calling(mask) != "innkeep"
+                    or bowl.location != mask
+                    or not getattr(bowl.db, "soup_serving", None)
+                    or int(getattr(bowl.db, "servings", None) or 0) < 1):
+                raise RuntimeError("The Innkeep, clock or real soup bowl changed.")
+            if not source_valid():
+                raise RuntimeError("The signed show, witness or cooking source changed.")
+            state, accepted, why = stage_state.cater(
+                tavern.db.village_stage, day=day, hour=hour,
+                account_id=mask.account.id, mask_id=mask.id, mask=mask.key,
+                event_id=event["id"], bowl_id=bowl.id,
+                cook_event_id=cook_event_id,
+            )
+            if not accepted:
+                raise RuntimeError(why)
+            if not bowl.move_to(tavern, quiet=True):
+                raise RuntimeError("The physical soup bowl could not be served.")
+            bowl.db.stage_service = {
+                "event_id": event["id"],
+                "performance_event_id": state["service"]["performance_event_id"],
+                "innkeep_account_id": mask.account.id,
+            }
+            tavern.db.village_stage = state
+            record_participation(mask, "stage_catering", calling="innkeep")
+            return {
+                "day": day, "hour": hour, "tavern_room_id": tavern.id,
+                "bowl_id": bowl.id, "cook_event_id": cook_event_id,
+                "performance_event_id": state["service"]["performance_event_id"],
+                "witness_event_id": state["service"]["witness_event_id"],
+                "witness_count": state["service"]["witness_count"],
+            }
+
+    event = publish_world_event(
+        "village.stage_cater", actor=mask,
+        payload={"day": day, "hour": hour, "bowl_id": bowl.id,
+                 "cook_event_id": cook_event_id,
+                 "harbinger": False, "chronicle_eligible": False},
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "bowl_id": bowl.id,
+            "performance_event_id": event["consequence"]["performance_event_id"]}, None

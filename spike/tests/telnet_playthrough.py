@@ -1223,6 +1223,27 @@ def main() -> int:
         require(out, "actually witnessed")
         out = inn.command("stage witness")
         require(out, "already witnessed")
+        # GDD-EDGE-06: an actual Performer show and independent Innkeep
+        # produce a signed, physical meal service, not a fake crowd bonus.
+        out = performer.command("stage cater")
+        require(out, "only an active innkeep")
+        out = inn.command("stage cater")
+        require(out, "carry a real cooked soup bowl")
+        out = inn.command("soup prep barley salt")
+        require(out, "shared pantry stock decreases")
+        out = inn.command("soup simmer")
+        require(out, "real, shareable bowl")
+        out = inn.command("stage cater")
+        require_all(out, "one real cooked soup bowl", "physical bowl",
+                    "show event", "no audience was invented")
+        out = inn.command("stage cater")
+        require(out, "carry a real cooked soup bowl")
+        out = performer.command("stage")
+        require_all(out, "provided one real cooked soup bowl",
+                    "cooking event", "1 other player account")
+        out = performer.command("look")
+        require(out, "a bowl of barley and salt soup")
+        print("TELNET_GDD_EDGE06_PERFORMER_INNKEEP_REAL_CATERING_GREEN")
         # T-06: This character was in the village but not in the room when
         # the show actually occurred; arriving within the same hour must
         # never confer a fabricated firsthand audience record.

@@ -37,7 +37,7 @@ def _time(day, hour):
 
 def fresh(day=1):
     return {"day": day, "rehearsals": [], "performance": None,
-            "witnesses": [], "history": []}
+            "witnesses": [], "service": None, "history": []}
 
 
 def normalize(raw):
@@ -67,6 +67,36 @@ def normalize(raw):
                     and _ident(r.get("event_id"))):
                 result["witnesses"].append(dict(r))
     result["witnesses"] = result["witnesses"][-MAX_WITNESSES:]
+    # A catered service is credible only with an actual show, an independent
+    # Innkeep, a physical bowl receipt and a real signed audience witness.
+    service = raw.get("service")
+    show = result["performance"]
+    if (show and result["witnesses"] and hasattr(service, "get")
+            and all(_ident(service.get(key)) for key in (
+                "account_id", "mask_id", "event_id", "bowl_id",
+                "cook_event_id", "performance_event_id", "witness_event_id"))
+            and service.get("performance_event_id") == show["event_id"]
+            and _ident(service.get("account_id")) != show["account_id"]
+            and service.get("hour") == show["hour"]
+            and not isinstance(service.get("witness_count"), bool)
+            and _ident(service.get("witness_count"))
+            and int(service["witness_count"]) <= len(result["witnesses"])
+            and _ident(service.get("event_id")) > max(
+                show["event_id"], _ident(service.get("cook_event_id")),
+                _ident(service.get("witness_event_id")))
+            and any(w["event_id"] == service["witness_event_id"]
+                    for w in result["witnesses"])):
+        result["service"] = {
+            "account_id": int(service["account_id"]),
+            "mask_id": int(service["mask_id"]),
+            "mask": str(service.get("mask") or "")[:70],
+            "hour": show["hour"], "event_id": int(service["event_id"]),
+            "bowl_id": int(service["bowl_id"]),
+            "cook_event_id": int(service["cook_event_id"]),
+            "performance_event_id": show["event_id"],
+            "witness_event_id": int(service["witness_event_id"]),
+            "witness_count": int(service["witness_count"]),
+        }
     result["history"] = [
         copy.deepcopy(r) for r in list(raw.get("history") or [])
         if hasattr(r, "get") and _ident(r.get("day"))
@@ -84,9 +114,10 @@ def refresh(raw, day):
             "day": state["day"],
             "performance": copy.deepcopy(state["performance"]),
             "witnesses": copy.deepcopy(state["witnesses"]),
+            "service": copy.deepcopy(state["service"]),
         })
     return {"day": target, "rehearsals": [], "performance": None,
-            "witnesses": [], "history": state["history"][-MAX_HISTORY:]}
+            "witnesses": [], "service": None, "history": state["history"][-MAX_HISTORY:]}
 
 
 def rehearse(raw, *, day, hour, account_id, mask_id, mask, tune, event_id):
@@ -166,6 +197,44 @@ def witness(raw, *, day, hour, account_id, mask_id, mask, event_id):
     return state, True, None
 
 
+
+def cater(raw, *, day, hour, account_id, mask_id, mask, event_id,
+          bowl_id, cook_event_id):
+    """One finite Innkeep food service linked to a witnessed real show.
+
+    The Evennia adapter must separately verify the real bowl, its completed
+    cooking event, active Innkeep Calling and physical Tavern location.
+    """
+    state = refresh(raw, day)
+    if not _time(day, hour) or day < state["day"]:
+        return state, False, "The village clock cannot be rewound."
+    aid, mid, eid = _ident(account_id), _ident(mask_id), _ident(event_id)
+    bid, cid = _ident(bowl_id), _ident(cook_event_id)
+    if not all((aid, mid, eid, bid, cid)):
+        return state, False, "A signed Innkeep and physical cooked bowl are required."
+    show = state["performance"]
+    if not show:
+        return state, False, "No real Performer show has taken place today."
+    if show["hour"] != hour:
+        return state, False, "The audience has left this performance hour."
+    if show["account_id"] == aid:
+        return state, False, "An independent Innkeep must provide the food service."
+    if not state["witnesses"]:
+        return state, False, "No audience member signed attendance at this show."
+    if state["service"]:
+        return state, False, "This performance has already received its catered bowl."
+    witness = state["witnesses"][0]
+    if eid <= max(show["event_id"], cid, witness["event_id"]):
+        return state, False, "The service must follow the signed show, witness and cooking."
+    state["service"] = {
+        "account_id": aid, "mask_id": mid, "mask": str(mask)[:70],
+        "hour": hour, "event_id": eid, "bowl_id": bid,
+        "cook_event_id": cid, "performance_event_id": show["event_id"],
+        "witness_event_id": witness["event_id"],
+        "witness_count": len(state["witnesses"]),
+    }
+    return state, True, None
+
 def public_lines(raw, day):
     state = refresh(raw, day)
     lines = ["The Tavern stage", "Today: village day %d." % state["day"]]
@@ -175,6 +244,12 @@ def public_lines(raw, day):
                      % (p["mask"], p["tune"], p["hour"]))
         lines.append("%d other player account(s) witnessed it firsthand."
                      % len(state["witnesses"]))
+        if state["service"]:
+            meal = state["service"]
+            lines.append("%s provided one real cooked soup bowl for the witnessed show "
+                         "(service event %d, bowl %d, cooking event %d)."
+                         % (meal["mask"], meal["event_id"], meal["bowl_id"],
+                            meal["cook_event_id"]))
     else:
         lines.append("No public performance has occurred today.")
     if state["history"]:
@@ -183,4 +258,6 @@ def public_lines(raw, day):
                      % (last["performance"]["mask"], last["day"]))
     lines.append("Performers: stage rehearse ballad|reel, then stage perform ballad|reel.")
     lines.append("During the actual performance hour, other visitors may stage witness.")
+    lines.append("Innkeeps: after a real audience witness, carry a cooked soup bowl "
+                 "and use stage cater in the same hour to serve the show.")
     return "\n".join(lines)

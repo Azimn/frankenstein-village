@@ -11,7 +11,7 @@
     "C": 9
   },
   "important_pdf_correction": "V3 = Innkeep–Healer; V4 = Innkeep–Merchant. The preceding GDD draft used a wrong V4 example.",
-  "status_notice": "V means source-reported existing chain, not accepted completion. S/D/C are design states; C objective magical powers await keeper rulings B1–B4.",
+  "status_notice": "V means source-reported existing chain, not accepted completion. S/D/C are design states; C objective magical powers await keeper rulings B1–B4. Edge 06 is a proposed physical Innkeep/Performer service on an unmerged branch; code and test references are not completion or canon approval.",
   "edges": [
     {
       "id": "GDD-EDGE-01",
@@ -126,18 +126,18 @@
       "baseline_class": "S",
       "gdd_section": "10",
       "design_contract": "Source: real tavern schedule, stage record and food stock. Methods: Performer rehearses/books/performs; Innkeep chooses attendance-appropriate food and staffing. Result proposed: witnessed crowd demand, service response and future invitations. A functioning stage beside soup does not yet verify a joined causal outcome.",
-      "runtime_source_owner": null,
-      "ordinary_player_discovery_proof": null,
-      "distinct_role_action_proof": null,
-      "finite_resource_or_time_proof": null,
+      "runtime_source_owner": "candidate edge 06 PR: spike/fvillage/world/stage_state.py::cater and stage_work.py::cater; Tavern.db.village_stage.service plus the original physical soup bowl",
+      "ordinary_player_discovery_proof": "candidate: stage status, stage cater and calling opportunities for Innkeep and Performer; no uncoached study",
+      "distinct_role_action_proof": "candidate: Performer stage rehearse/perform, independent Innkeep soup prep/simmer and stage cater after a real signed witness",
+      "finite_resource_or_time_proof": "candidate: one real cooked soup bowl moved from Innkeep inventory to Tavern, one service per show and same-hour deadline",
       "solo_fallback_proof": null,
-      "authoritative_state_change_proof": null,
-      "negative_and_late_state_proof": null,
-      "two_account_test": null,
-      "post_restart_test": null,
+      "authoritative_state_change_proof": "candidate: signed village.stage_cater event, Tavern stage service state, original edible bowl stage_service marker and Innkeep participation",
+      "negative_and_late_state_proof": "candidate: ops/tests/test_stage_catering_edge06.py and spike/tests/telnet_playthrough.py role, no bowl, duplicate, late and no audience checks",
+      "two_account_test": "candidate: spike/tests/telnet_playthrough.py::TELNET_GDD_EDGE06_PERFORMER_INNKEEP_REAL_CATERING_GREEN",
+      "post_restart_test": "candidate: spike/tests/post_restart_assertions.py::POST_RESTART_GDD_EDGE06_REAL_SIGNED_CATERING_GREEN",
       "uncoached_gameplay_evidence": null,
       "verified_complete": false,
-      "review_state": "requires_live_code_and_gameplay_review"
+      "review_state": "candidate_edge06_branch_ci_and_independent_review_pending"
     },
     {
       "id": "GDD-EDGE-07",
