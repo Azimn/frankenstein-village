@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import copy
 
+from django.db import transaction
 from evennia import create_object
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
 
-from world import soup_state, hearth_state
+from world import soup_state, hearth_state, soup_supply_edge04
 from world.callings import active_calling, record_participation
-from world.events import publish_world_event
+from world.events import publish_world_event, get_event_ledger
 
 TAVERN = "The Blood of the Vine"
 MARKET = "Market Lane"
@@ -257,6 +258,8 @@ def procure(mask):
             "day": day, "market_id": market.id,
             "procurement_event_id": event["id"],
             "merchant_id": mask.id,
+            "merchant_account_id": mask.account.id,
+            "merchant": mask.key,
         }
         crate.db.desc = (
             "A real crate with two turnip portions for the Blood of the Vine. "
@@ -269,6 +272,7 @@ def procure(mask):
     event = publish_world_event(
         "professional.merchant_kitchen_procurement", actor=mask,
         payload={"day": day, "hour": hour, "market_room_id": market.id,
+                 "professional_calling": "merchant",
                  "chronicle_eligible": False, "harbinger": False},
         consequence=consequence)
     record_participation(mask, "kitchen_procurements", calling="merchant")
@@ -276,36 +280,104 @@ def procure(mask):
             "remaining": next_stock["remaining"]}, None
 
 
-def deliver(mask):
+def _verified_crate(mask, crate, *, day, distinct):
+    """Resolve the source from the canonical ledger, never from item claims."""
+    raw = crate.db.soup_delivery
+    try:
+        source_id = dict(raw or {}).get("procurement_event_id")
+    except (TypeError, ValueError):
+        return None, "The crate has no valid procurement receipt."
+    if type(source_id) is not int or source_id <= 0:
+        return None, "The crate has no signed procurement event."
+    market = _room(MARKET)
+    if market is None:
+        return None, "The original market authority is unavailable."
+    source = get_event_ledger().get_event(source_id)
+    account = getattr(mask, "account", None)
+    okay, reason = soup_supply_edge04.verify_procurement(
+        source, raw, crate_id=crate.id, market_id=market.id, day=day,
+        receiving_account_id=getattr(account, "id", None),
+        require_distinct=distinct,
+    )
+    return (source, None) if okay else (None, reason)
+
+
+def _complete_delivery(mask, *, professional):
     tavern, err = _access(mask, TAVERN)
     if err:
         return None, err
+    if professional and active_calling(mask) != "innkeep":
+        return None, "An active Innkeep must accept a Merchant's kitchen crate."
     crates = _held(mask, "soup_delivery")
     if not crates:
         return None, "Bring a physical kitchen root crate from Market Lane."
+    if len(crates) != 1:
+        return None, "Carry exactly one kitchen root crate for a receipt."
     crate = crates[0]
     day, hour = _clock()
-    result, okay = soup_state.deliver(tavern.db.soup_pantry, day)
+    source, reason = _verified_crate(
+        mask, crate, day=day, distinct=professional
+    )
+    if reason:
+        return None, reason
+    proposed, okay = soup_state.deliver(tavern.db.soup_pantry, day)
     if not okay:
         return None, "The pantry already has enough turnips for now."
-    source = dict(crate.db.soup_delivery or {})
-    if day < int(source.get("day") or 0):
-        return None, "The crate's procurement lies in the future."
 
     def consequence(event):
-        if crate.location != mask or not crate.db.soup_delivery:
-            raise RuntimeError("The delivery crate was moved or consumed.")
-        tavern.db.soup_pantry = result
-        crate.delete()
-        return {"turnip_stock": result["stock"]["turnip"],
-                "procurement_event_id": source.get("procurement_event_id")}
+        # Both stock and physical custody are checked again under the same
+        # database transaction. A stale preflight must never mint produce.
+        with transaction.atomic():
+            if crate.location != mask or not crate.db.soup_delivery:
+                raise RuntimeError("The kitchen crate was moved or consumed.")
+            if mask.location != tavern:
+                raise RuntimeError("The courier left the tavern.")
+            if professional and active_calling(mask) != "innkeep":
+                raise RuntimeError("The receiving Innkeep changed Calling.")
+            checked, problem = _verified_crate(
+                mask, crate, day=day, distinct=professional
+            )
+            if problem or checked["id"] != source["id"]:
+                raise RuntimeError(problem or "The source changed during receipt.")
+            current, valid = soup_state.deliver(tavern.db.soup_pantry, day)
+            if not valid:
+                raise RuntimeError("The pantry has no remaining capacity.")
+            tavern.db.soup_pantry = current
+            crate.delete()
+            return {
+                "turnip_stock": current["stock"]["turnip"],
+                "procurement_event_id": source["id"],
+                "merchant_account_id": source["actor"]["account_id"],
+                "receiving_account_id": mask.account.id,
+                "crate_id": crate.id, "pantry_room_id": tavern.id,
+            }
 
     event = publish_world_event(
-        "village.kitchen_delivery", actor=mask,
-        payload={"day": day, "hour": hour,
-                 "crate_id": crate.id,
-                 "procurement_event_id": source.get("procurement_event_id"),
-                 "chronicle_eligible": False, "harbinger": False},
-        consequence=consequence)
+        "professional.innkeep_kitchen_acceptance" if professional
+        else "village.kitchen_delivery",
+        actor=mask,
+        payload={
+            "day": day, "hour": hour, "crate_id": crate.id,
+            "procurement_event_id": source["id"],
+            "merchant_account_id": source["actor"]["account_id"],
+            "professional_calling": "innkeep" if professional else None,
+            "pantry_room_id": tavern.id,
+            "chronicle_eligible": False, "harbinger": False,
+        },
+        consequence=consequence,
+    )
+    if professional:
+        record_participation(mask, "kitchen_acceptances", calling="innkeep")
     return {"event_id": event["id"],
-            "turnips": result["stock"]["turnip"]}, None
+            "source_event_id": source["id"],
+            "turnips": event["consequence"]["turnip_stock"]}, None
+
+
+def accept(mask):
+    """Independent Innkeep receipt after a Merchant physically gives a crate."""
+    return _complete_delivery(mask, professional=True)
+
+
+def deliver(mask):
+    """Ordinary solo/courier fallback with the same signed-source safeguards."""
+    return _complete_delivery(mask, professional=False)
