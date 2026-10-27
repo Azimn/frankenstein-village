@@ -5,6 +5,7 @@ another source of truth. Tests include clock rollover and forged receipts.
 """
 import copy
 import sys
+from collections import UserDict, UserList
 import unittest
 from pathlib import Path
 
@@ -13,6 +14,59 @@ from world import route_surveys as route
 
 
 class RouteHistoryTests(unittest.TestCase):
+    def test_evennia_style_wrapped_archive_survives_report_and_rollover(self):
+        # Evennia _SaverList/_SaverDict implement collection ABCs but are not
+        # built-in list/dict. Reproduces a real persisted-archive loss defect.
+        archive = UserList([UserDict({
+            "day": 1,
+            "completed": False,
+            "reports": UserDict({
+                "river_gauge": UserDict({
+                    "account_id": 7, "event_id": 19, "mask": "RiverWitness"
+                })
+            }),
+            "field_decisions": UserDict({
+                "hound": UserDict({
+                    "account_id": 8, "event_id": 20, "mask": "Protector",
+                    "action": "protect", "site": "red_cord",
+                })
+            }),
+            "private_note": "not public",
+        })])
+        raw = UserDict({
+            "day": 2, "reports": UserDict(),
+            "field_decisions": UserDict(), "history": archive,
+        })
+        before = copy.deepcopy(raw)
+        rows = route.history_records(raw, 2)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["reports"]["river_gauge"]["event_id"], 19)
+        self.assertEqual(rows[0]["field_decisions"]["hound"]["event_id"], 20)
+        self.assertNotIn("private_note", rows[0])
+        self.assertEqual(raw, before, "Read-only projection cannot rewrite saves")
+        rows[0]["reports"]["river_gauge"]["mask"] = "Forged"
+        self.assertEqual(raw, before, "Projection must not mutate wrapped data")
+
+        state, accepted, error = route.report(
+            raw, 2, "grave_marker", 9, "NewWitness", 21
+        )
+        self.assertTrue(accepted, error)
+        self.assertEqual(len(state["history"]), 1)
+        self.assertEqual(
+            route.history_records(state, 2)[0]["reports"]["river_gauge"]["mask"],
+            "RiverWitness",
+        )
+        next_day = route.refresh(state, 3)
+        self.assertEqual(
+            [row["day"] for row in route.history_records(next_day, 3)],
+            [2, 1],
+        )
+        self.assertEqual(
+            route.history_records(next_day, 3, selected_day=1)[0]
+            ["field_decisions"]["hound"]["event_id"], 20,
+        )
+        self.assertEqual(raw, before, "Signing a new day must not mutate old data")
+
     def test_first_day_has_no_past_and_rollover_shows_signed_people(self):
         state, ok, error = route.report(
             None, 1, "red_cord", 13, "WandererTester", 101
