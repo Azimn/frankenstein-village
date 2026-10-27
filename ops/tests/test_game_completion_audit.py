@@ -196,8 +196,14 @@ class CompletionAuditTests(unittest.TestCase):
     def test_g01_owner_cards_resolve_real_repo_files_without_claiming_gameplay(self):
         evidence = build_register(ROOT)
         for card in evidence["families"]:
+            self.assertTrue((ROOT / card["candidate_source_or_manuscript"]).is_file())
+            self.assertEqual(card["candidate_source_scope"],
+                             "reference_only_no_family_quota_claim")
             if card["source_path"]:
                 self.assertTrue((ROOT / card["source_path"]).is_file())
+            else:
+                self.assertIsNone(card["declared_count"])
+                self.assertEqual(card["status"], "unmeasured")
         for calling in evidence["callings"]:
             self.assertTrue(calling["registered_command_candidates"])
             self.assertIsNone(calling["workplace_room"])
@@ -205,6 +211,16 @@ class CompletionAuditTests(unittest.TestCase):
                 self.assertTrue((ROOT / entry["command_source"]["path"]).is_file())
                 self.assertTrue((ROOT / entry["world_owner"]["path"]).is_file())
                 self.assertIn("not_playtested", entry["level"])
+        partial_roles = {r["calling"] for r in evidence["callings"]
+                         if r["partial_real_client_case_references"]}
+        self.assertEqual(partial_roles,
+                         {"innkeep", "healer", "merchant", "performer", "chronicler",
+                          "smith", "wanderer", "hound"})
+        self.assertFalse({"detective", "mystic"} & partial_roles)
+        for role in evidence["callings"]:
+            for example in role["partial_real_client_case_references"]:
+                self.assertIn("/runs/40455328096", example["ci_run"])
+                self.assertIn("not_independent_Calling_job_signoff", example["scope"])
         markdown = g01_markdown(evidence)
         self.assertIn("Twenty-one GDD content families", markdown)
         self.assertIn("Forty-five Calling collaboration contracts", markdown)
