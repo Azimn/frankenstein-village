@@ -99,6 +99,42 @@ class Edge10SourceVerification(unittest.TestCase):
             market.refresh(self.state, 2), 2, self.ledger.get,
         ))
 
+    def test_independent_accounts_required_for_public_attestation(self):
+        # Role switching does not turn one account into independent witnesses.
+        snapshot = copy.deepcopy(self.state)
+        for actor in (5, 9):
+            with self.subTest(attester_account=actor):
+                denied, ok, error = signed(self.state, "attest", actor, 14)
+                self.assertFalse(ok)
+                self.assertIn("Independent Merchant, Smith and Chronicler", error)
+                self.assertIsNone(denied["attestation"])
+        self.assertEqual(self.state, snapshot)
+        accepted, ok, error = signed(self.state, "attest", 11, 14)
+        self.assertTrue(ok, error)
+        self.assertIsNotNone(accepted["attestation"])
+
+    def test_same_account_merchant_and_smith_cannot_be_sources(self):
+        forged = copy.deepcopy(self.state)
+        forged["calibration"]["account_id"] = 5
+        altered_ledger = copy.deepcopy(self.ledger)
+        altered_ledger[12]["actor"]["account_id"] = 5
+        # Even matching docket and ledger signatures are insufficient if
+        # both professional acts came from the same authenticated account.
+        self.assertFalse(self.check(forged, altered_ledger))
+        denied, ok, error = signed(forged, "attest", 11, 14)
+        self.assertFalse(ok)
+        self.assertIn("Independent Merchant, Smith and Chronicler", error)
+        self.assertIsNone(denied["attestation"])
+
+    def test_persisted_same_account_attestation_is_not_published(self):
+        attested, ok, error = signed(self.state, "attest", 11, 14)
+        self.assertTrue(ok, error)
+        forged = copy.deepcopy(attested)
+        forged["attestation"]["account_id"] = 5
+        self.assertIsNone(market.normalize(forged)["attestation"])
+        self.assertNotIn("attested both source events",
+                         " ".join(market.public_lines(forged, 1)))
+
     def test_corrupt_persisted_attestation_cannot_appear_on_public_board(self):
         attested, ok, error = signed(self.state, "attest", 11, 14)
         self.assertTrue(ok, error)
