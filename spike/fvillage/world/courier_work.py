@@ -93,7 +93,6 @@ def collect(mask):
                 "typeclasses.objects.Object", key=PARCEL,
                 location=mask, aliases=["mail parcel", "ferry parcel"],
             )
-            parcel.locks.add("get:false()")  # Custody requires courier accept, not get.
             parcel.db.ferry_parcel = {
                 "day": day, "origin_room_id": market.id,
                 "source_event_id": event["id"],
@@ -191,6 +190,7 @@ def consign(mask):
                 "typeclasses.objects.Object", key=PARCEL,
                 location=market, aliases=["mail parcel", "ferry parcel", "freight parcel"],
             )
+            parcel.locks.add("get:false()")  # Require signed courier accept for custody.
             parcel.db.ferry_parcel = {
                 "day": day, "origin_room_id": market.id,
                 "source_event_id": event["id"],
