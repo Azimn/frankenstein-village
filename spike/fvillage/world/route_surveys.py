@@ -162,7 +162,7 @@ def field_decision(raw, day, site, role, action, caution_marked,
     slot = "hound_assessment" if (role, action) == ("hound", "assess") else role
     if slot in state["field_decisions"]:
         return state, False, "That professional field action is already signed today."
-    if role == "hound" and caution_marked:
+    if action == "protect" and caution_marked:
         return state, False, "The frayed cord is already tied as a visible caution marker."
     entry = {
         "site": site, "action": action,
