@@ -93,6 +93,7 @@ def collect(mask):
                 "typeclasses.objects.Object", key=PARCEL,
                 location=mask, aliases=["mail parcel", "ferry parcel"],
             )
+            parcel.locks.add("get:false()")  # Custody requires courier accept, not get.
             parcel.db.ferry_parcel = {
                 "day": day, "origin_room_id": market.id,
                 "source_event_id": event["id"],
@@ -147,6 +148,23 @@ def _freight_sources(parcel, contract, *, accepted=False):
         and payload.get("source_event_id") == contract["consignment_event_id"]
         and payload.get("parcel_id") == parcel.id
         and result.get("parcel_id") == parcel.id
+    )
+
+
+
+def _ordinary_source(parcel, source):
+    """Prevent an altered Merchant consignment from masquerading as solo mail."""
+    event_id = source.get("source_event_id")
+    if isinstance(event_id, bool) or not isinstance(event_id, int) or event_id < 1:
+        return False
+    event = get_event_ledger().get_event(event_id)
+    return bool(
+        event and event.get("status") == "complete"
+        and event.get("kind") == "village.ferry_post_collected"
+        and (event.get("actor") or {}).get("account_id") == source.get("collector_account_id")
+        and (event.get("payload") or {}).get("market_room_id") == source.get("origin_room_id")
+        and (event.get("payload") or {}).get("day") == source.get("day")
+        and (event.get("consequence") or {}).get("parcel_id") == parcel.id
     )
 
 
@@ -281,6 +299,8 @@ def deliver(mask):
                 or freight["consignment_event_id"] != source.get("source_event_id")
                 or not _freight_sources(parcel, freight, accepted=True)):
             return None, "Freight needs its original distinct Merchant and Wanderer receipts."
+    elif not _ordinary_source(parcel, source):
+        return None, "The ordinary parcel's signed collection source cannot be verified."
     _, allowed, reason = courier_state.receive(
         riverside.db.ferry_manifest, day=day,
         account_id=mask.account.id, mask=mask.key,
@@ -298,6 +318,8 @@ def deliver(mask):
                     active_calling(mask) != "wanderer"
                     or not _freight_sources(parcel, freight, accepted=True)):
                 raise RuntimeError("The signed freight custody chain is invalid.")
+            if freight is None and not _ordinary_source(parcel, source):
+                raise RuntimeError("The ordinary collection source is invalid.")
             latest, accepted, reason = courier_state.receive(
                 riverside.db.ferry_manifest, day=day,
                 account_id=mask.account.id, mask=mask.key,
