@@ -85,7 +85,8 @@ def normalize(raw):
                     or aid == show["account_id"]
                     or source_id != show["event_id"]
                     or not isinstance(signed_ids, (list, tuple))
-                    or sorted(signed_ids) != witness_ids
+                    or any(_ident(v) is None for v in signed_ids)
+                    or sorted(int(v) for v in signed_ids) != witness_ids
                     or any(r["account_id"] == aid for r in result["inquiries"])):
                 continue
             result["inquiries"].append({
@@ -229,7 +230,17 @@ def verify_sources(state, *, day, tavern_room_id, get_event):
             or (rehearsal.get("payload") or {}).get("tune") != show["tune"]):
         return None, "The signed rehearsal provenance is missing or mismatched."
     verified = []
+    seen_accounts = set()
+    seen_events = set()
+    if show.get("rehearsal_event_id", 0) >= show["event_id"]:
+        return None, "The signed rehearsal must precede the actual performance."
     for witness in state["witnesses"]:
+        if (witness["account_id"] in seen_accounts
+                or witness["event_id"] in seen_events
+                or witness["event_id"] <= show["event_id"]):
+            return None, "Duplicate or impossible signed audience evidence."
+        seen_accounts.add(witness["account_id"])
+        seen_events.add(witness["event_id"])
         event = get_event(witness["event_id"])
         if (not event or event.get("status") != "complete"
                 or event.get("kind") != "village.stage_witness"
@@ -285,8 +296,10 @@ def investigate(raw, *, day, hour, account_id, mask_id, mask, event_id,
     if not isinstance(witness_event_ids, (list, tuple)):
         return state, False, "Verified witness source events are required."
     actual = sorted(row["event_id"] for row in state["witnesses"])
-    supplied = sorted(witness_event_ids)
-    if supplied != actual or any(_ident(value) is None for value in supplied):
+    if any(_ident(value) is None for value in witness_event_ids):
+        return state, False, "Witness evidence contains an invalid signed event ID."
+    supplied = sorted(int(value) for value in witness_event_ids)
+    if supplied != actual:
         return state, False, "Witness evidence does not match the actual stage register."
     state["inquiries"].append({
         "account_id": aid, "mask_id": mid, "mask": str(mask)[:70],
