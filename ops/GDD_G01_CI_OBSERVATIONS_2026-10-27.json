@@ -1,0 +1,177 @@
+{
+  "schema": "fvillage.gdd_g01_ci_observations.v1",
+  "status": "recorded_exact_commit_integration_observations_not_full_edge_acceptance",
+  "source_commit": "f1ada1cb9b1e640d2ed839063a6b10ceba47f9a5",
+  "github_run_id": 40455328096,
+  "github_job_id": 122027586565,
+  "ci_result": "completed_success",
+  "ci_url": "https://github.com/Azimn/frankenstein-village/actions/runs/40455328096",
+  "observed_from": "CI job logs at exact source_commit; independently confirmed GREEN markers; original suite stops and restarts disposable Evennia server",
+  "runner_source": "spike/tests/run_all.py",
+  "telnet_test_source": "spike/tests/telnet_playthrough.py",
+  "restart_test_source": "spike/tests/post_restart_assertions.py",
+  "scope_limits": [
+    "The CI markers verify specific scripted client scenarios, not voluntary human enjoyment or broad gameplay quotas.",
+    "Some cases reuse the same market chain and may not be counted as distinct professional loops.",
+    "No individual relationship is certified complete because no uncoached UX / all failure pathways dossier is present.",
+    "These are historical pinned CI results, not proof that a later changed branch head has passed its own CI."
+  ],
+  "cases": [
+    {
+      "edge_number": 3,
+      "label": "Healer clinical assessment and Innkeep finite care meal",
+      "telnet_marker": "TELNET_HEALER_RENEWABLE_CLINIC_GREEN",
+      "restart_marker": "POST_RESTART_PHYSICAL_CLINIC_CARE_GREEN",
+      "telnet_line_range": [
+        1240,
+        1356
+      ],
+      "restart_line_range": [
+        148,
+        165
+      ],
+      "observed_room": "The Blood of the Vine (hospitality); St. Lazarus Church (separate clinic)",
+      "player_commands": [
+        "care",
+        "care serve Silas Crowe",
+        "clinic assess",
+        "clinic treat compress"
+      ],
+      "observed_transition": "Innkeep spent a serving for Silas after Healer assessment; clinic signed and consumed linen. Distinct care-vs-clinic case not certified independently.",
+      "remaining": "Link the care-specific event and consent predicates to exact restart receipt, confirm solo fallback and uncoached UX."
+    },
+    {
+      "edge_number": 4,
+      "label": "Merchant physical kitchen stock delivery to Innkeep",
+      "telnet_marker": "TELNET_MARKET_TO_TAVERN_SOUP_SUPPLY_GREEN",
+      "restart_marker": "POST_RESTART_SHARED_SOUP_WORKPLACE_GREEN",
+      "telnet_line_range": [
+        1850,
+        1947
+      ],
+      "restart_line_range": [
+        167,
+        189
+      ],
+      "observed_room": "Market Lane to The Blood of the Vine",
+      "player_commands": [
+        "soup procure",
+        "soup deliver",
+        "look soup pot"
+      ],
+      "observed_transition": "Merchant carried one physical kitchen crate into Tavern stock after Innkeep had cooked a recorded batch; provenance and material stock persisted.",
+      "remaining": "Verify separate recipient choice/renewal, shortage and no-partner routes, uncoached UX."
+    },
+    {
+      "edge_number": 6,
+      "label": "Performer show with Innkeep firsthand audience",
+      "telnet_marker": "TELNET_RENEWABLE_PERFORMER_AND_REAL_AUDIENCE_GREEN",
+      "restart_marker": "POST_RESTART_SIGNED_TAVERN_PERFORMANCE_GREEN",
+      "telnet_line_range": [
+        1190,
+        1238
+      ],
+      "restart_line_range": [
+        1284,
+        1311
+      ],
+      "observed_room": "The Blood of the Vine",
+      "player_commands": [
+        "stage rehearse ballad",
+        "stage perform ballad",
+        "stage witness"
+      ],
+      "observed_transition": "Performer rehearsal and signed show; Innkeep, present during show, signed genuine witness; late Healer witness denied. This is audience cooperation, not yet the full food-catering design contract.",
+      "remaining": "Tavern stage-specific meal/catering custody, demand choice, shortage recovery and uncoached voluntary attendance."
+    },
+    {
+      "edge_number": 10,
+      "label": "Chronicler attests physical Smith market calibration",
+      "telnet_marker": "TELNET_GDD_T16_MARKET_THREE_CALLING_AGENDA_GREEN",
+      "restart_marker": "POST_RESTART_MARKET_CALLINGS_ASSERTIONS_GREEN",
+      "telnet_line_range": [
+        1840,
+        1888
+      ],
+      "restart_line_range": [
+        1212,
+        1244
+      ],
+      "observed_room": "Market Lane",
+      "player_commands": [
+        "trade calibrate",
+        "trade attest",
+        "look market scale"
+      ],
+      "observed_transition": "Smith calibrates physical scale; Chronicler attests only after source linked Merchant hold and Smith event; three signed event kinds survive restart.",
+      "remaining": "Chronicler correction path, alternate branch and voluntary player UX."
+    },
+    {
+      "edge_number": 12,
+      "label": "Chronicler corroborates Merchant market hold",
+      "telnet_marker": "TELNET_GDD_T16_MARKET_THREE_CALLING_AGENDA_GREEN",
+      "restart_marker": "POST_RESTART_MARKET_CALLINGS_ASSERTIONS_GREEN",
+      "telnet_line_range": [
+        1840,
+        1888
+      ],
+      "restart_line_range": [
+        1212,
+        1244
+      ],
+      "observed_room": "Market Lane",
+      "player_commands": [
+        "trade hold",
+        "trade attest",
+        "look market scale"
+      ],
+      "observed_transition": "Merchant signs hold; Chronicler attests after verifying both hold and calibrated scale; signed provenance and attributable mask survive restart.",
+      "remaining": "Distinct Merchant release/honor and Chronicler qualified correction path; uncoached UX."
+    },
+    {
+      "edge_number": 19,
+      "label": "Smith-produced finite hinge physically installed by Merchant",
+      "telnet_marker": "TELNET_TWO_ACCOUNT_PHYSICAL_MARKET_WORKSHOP_GREEN",
+      "restart_marker": "POST_RESTART_TWO_ACCOUNT_MARKET_WORKSHOP_GREEN",
+      "telnet_line_range": [
+        1893,
+        1933
+      ],
+      "restart_line_range": [
+        1400,
+        1440
+      ],
+      "observed_room": "The Market Workshop to Market Lane",
+      "player_commands": [
+        "workshop forge",
+        "give forged market hinge = MerchantTester",
+        "workshop install",
+        "look market fittings board"
+      ],
+      "observed_transition": "One forge spends iron; distinct Merchant account receives exact object, installs it once; inventory item consumed, signed source ID and physical board survive restart.",
+      "remaining": "Replacement order renewal, cost/refund, absence, uncoached multi-account discovery."
+    },
+    {
+      "edge_number": 38,
+      "label": "Wanderer passability and Hound real cord protection",
+      "telnet_marker": "TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN",
+      "restart_marker": "POST_RESTART_GDD_T07_SHARED_CORD_AND_DISTINCT_ACTIONS_GREEN",
+      "telnet_line_range": [
+        2001,
+        2061
+      ],
+      "restart_line_range": [
+        1155,
+        1177
+      ],
+      "observed_room": "Northern Treeline",
+      "player_commands": [
+        "look cord",
+        "survey passability",
+        "survey protect"
+      ],
+      "observed_transition": "Wanderer observes unmarked cord; separate Hound account ties warning. Physical cord, two signed events and original historical observation remain distinct after restart.",
+      "remaining": "Prove wider patrol/rescue loop and NPC/solo continuation, uncoached UX."
+    }
+  ]
+}
