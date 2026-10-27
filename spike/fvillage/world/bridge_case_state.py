@@ -5,6 +5,7 @@ owns source identity. Neither a Detective nor a Chronicler can certify a
 culprit or a metaphysical explanation.
 """
 import copy
+from collections.abc import Mapping
 
 MAX_CASE_RECORDS = 30
 
@@ -26,14 +27,14 @@ def examine(state, *, day, hour, account_id, mask_id, mask, event_id, observatio
     result = copy.deepcopy(state or {})
     if not _time(day, hour) or not _actor(account_id, mask_id, mask, event_id):
         return result, False, "Invalid signed examination identity or village time."
-    if not isinstance(observation, dict) or observation.get("day") != day:
+    if not isinstance(observation, Mapping) or observation.get("day") != day:
         return result, False, "Inspect the actual bridge plaque today first."
     if not _id(observation.get("source_event_id")):
         return result, False, "The physical observation lacks a signed ledger source."
     if observation.get("pattern") not in {"daylight", "lamplight", "rainwater"}:
         return result, False, "The physical observation has no recognized pattern."
     if not any(
-        isinstance(w, dict) and w.get("account_id") == account_id
+        isinstance(w, Mapping) and w.get("account_id") == account_id
         and w.get("mask_id") == mask_id
         for w in (observation.get("witnesses") or [])
     ):
@@ -65,7 +66,7 @@ def publish(state, *, day, hour, account_id, mask_id, mask, event_id, source):
         return result, False, "A public case bulletin is already signed today."
     if account_id == exam.get("account_id"):
         return result, False, "An independent account must publish the Detective's findings."
-    if not isinstance(source, dict) or source.get("status") != "complete":
+    if not isinstance(source, Mapping) or source.get("status") != "complete":
         return result, False, "The Detective source event is not complete."
     if source.get("kind") != "village.bridge_plaque_examined" or source.get("id") != exam.get("event_id"):
         return result, False, "The Detective source event does not match this case."
