@@ -15,7 +15,9 @@ from game_completion_audit import TARGETS, CALLING_FIELDS, build_audit, to_markd
 from gdd_g01_evidence_register import (  # noqa: E402
     PROOF_FIELDS, build_register, to_markdown as g01_markdown,
 )
-from gdd_g01_ci_observations import load_ci_observations  # noqa: E402
+from gdd_g01_ci_observations import (  # noqa: E402
+    load_ci_observations, _call_nodes, _player_command, _printed_marker,
+)
 
 
 class CompletionAuditTests(unittest.TestCase):
@@ -190,7 +192,7 @@ class CompletionAuditTests(unittest.TestCase):
                 'print("STAGED_WORKSHOP_MARKER_NO_LONGER_MATCHES")',
             )
             telnet.write_text(changed, encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "CI marker"):
+            with self.assertRaisesRegex(ValueError, "CI source blob mismatch"):
                 load_ci_observations(sandbox)
 
     def test_g01_commented_out_calls_and_markers_never_count_as_evidence(self):
@@ -215,7 +217,7 @@ class CompletionAuditTests(unittest.TestCase):
             )
             self.assertNotEqual(original, muted_commands)
             telnet.write_text(muted_commands, encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "Missing executable player command"):
+            with self.assertRaisesRegex(ValueError, "CI source blob mismatch"):
                 load_ci_observations(sandbox)
             muted_marker = original.replace(
                 'print("TELNET_TWO_ACCOUNT_PHYSICAL_MARKET_WORKSHOP_GREEN")',
@@ -223,7 +225,7 @@ class CompletionAuditTests(unittest.TestCase):
             )
             self.assertNotEqual(original, muted_marker)
             telnet.write_text(muted_marker, encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "CI marker"):
+            with self.assertRaisesRegex(ValueError, "CI source blob mismatch"):
                 load_ci_observations(sandbox)
 
     def test_g01_constant_dead_branches_do_not_validate_ci_receipts(self):
@@ -250,7 +252,7 @@ class CompletionAuditTests(unittest.TestCase):
             )
             self.assertNotEqual(original, dead_commands)
             telnet.write_text(dead_commands, encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "Missing executable player command"):
+            with self.assertRaisesRegex(ValueError, "CI source blob mismatch"):
                 load_ci_observations(sandbox)
             # The AST contains print(...), but Python cannot evaluate it.
             dead_marker = original.replace(
@@ -259,8 +261,30 @@ class CompletionAuditTests(unittest.TestCase):
             )
             self.assertNotEqual(original, dead_marker)
             telnet.write_text(dead_marker, encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "CI marker"):
+            with self.assertRaisesRegex(ValueError, "CI source blob mismatch"):
                 load_ci_observations(sandbox)
+
+    def test_g01_ast_rejects_inert_calls_even_without_blob_pinning(self):
+        with tempfile.TemporaryDirectory(prefix="g01-ast-only-") as tmp:
+            source = Path(tmp) / "fake_commands.py"
+            source.write_text(
+                "def scenario():\n"
+                "    out = '' if True else smith.command('workshop forge')\n"
+                "    False and print('BAD_MARKER')\n"
+                "    if False:\n"
+                "        smith.command('another disabled command')\n"
+                "    True or smith.command('short circuited')\n"
+                "    smith.command('genuine command')\n"
+                "    print('GOOD_MARKER')\n",
+                encoding="utf-8",
+            )
+            calls = _call_nodes(source)
+            self.assertFalse(any(_player_command(node, "workshop forge") for node in calls))
+            self.assertFalse(any(_player_command(node, "another disabled command") for node in calls))
+            self.assertFalse(any(_player_command(node, "short circuited") for node in calls))
+            self.assertFalse(any(_printed_marker(node, "BAD_MARKER") for node in calls))
+            self.assertTrue(any(_player_command(node, "genuine command") for node in calls))
+            self.assertTrue(any(_printed_marker(node, "GOOD_MARKER") for node in calls))
 
     def test_g01_owner_cards_resolve_real_repo_files_without_claiming_gameplay(self):
         evidence = build_register(ROOT)
