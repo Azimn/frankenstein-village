@@ -51,7 +51,7 @@ class CmdStage(Command):
                        "without inventing spectators."
                        % (result["tune"], result["event_id"]))
         elif action == "serve":
-            message = ("You serve a real cooked soup bowl to %s after the witnessed "
+            message = ("You serve a real cooked soup bowl to %s after the actual "
                        "Tavern performance (world event %s). The bowl is now "
                        "in their inventory." % (result["recipient"], result["event_id"]))
         else:
