@@ -139,5 +139,37 @@ class ChroniclerWandererAdvisoryTests(unittest.TestCase):
         self.assertIsNone(r.normalize(forged)["advisory"])
 
 
+    def test_solo_wanderer_report_stays_public_without_editor(self):
+        # A lone Wanderer still changes the signed public field record.
+        # The missing Chronicler must not create a fictional map edition.
+        state = wanderer(marked=True)
+        self.assertIsNone(state["advisory"])
+        self.assertIn("Wanderer's passage observation", r.field_lines(state)[0])
+        board = "\\n".join(r.advisory_lines(state))
+        self.assertIn("Solo fallback:", board)
+        self.assertIn("signed event 101", board)
+        self.assertIn("not an edited map", board)
+        self.assertIsNone(r.normalize(json.loads(json.dumps(state)))["advisory"])
+        tomorrow = r.refresh(state, 5)
+        self.assertIsNone(tomorrow["advisory"])
+        self.assertEqual(tomorrow["history"][-1]["field_decisions"]["wanderer"]["event_id"], 101)
+        self.assertIsNone(tomorrow["history"][-1]["advisory"])
+
+    def test_ordinary_solo_landmark_inspection_does_not_require_either_calling(self):
+        # An unaccompanied player can contribute to the existing route board,
+        # but neither a Wanderer testimony nor an edited map is invented.
+        state, ok, error = r.report(None, 4, "market_scale", 31, "SoloResident", 104)
+        self.assertTrue(ok, error)
+        self.assertEqual(state["reports"]["market_scale"]["event_id"], 104)
+        self.assertFalse(r.complete(state))
+        self.assertNotIn("wanderer", state["field_decisions"])
+        self.assertIsNone(state["advisory"])
+        self.assertIn("any player may inspect", "\\n".join(r.advisory_lines(state)))
+        tomorrow = r.refresh(json.loads(json.dumps(state)), 5)
+        self.assertEqual(tomorrow["history"][-1]["reports"]["market_scale"]["event_id"], 104)
+        self.assertFalse(tomorrow["history"][-1]["completed"])
+        self.assertIsNone(tomorrow["history"][-1]["advisory"])
+
+
 if __name__ == "__main__":
     unittest.main()
