@@ -24,6 +24,14 @@ class CmdBrazier(Command):
     def func(self):
         from world import square_brazier
         caller = self.caller
+        loc = getattr(caller, "location", None)
+        if (not loc or loc.key != "Village Square"
+                or not loc.tags.has("ic", category="side")):
+            caller.msg(
+                "Go to the in-character Village Square and inspect its "
+                "public brazier. Fire cannot be tended from another room."
+            )
+            return
         raw = (self.args or "").strip().lower()
         if raw in ("", "status", "look"):
             caller.msg(square_brazier.status_lines(caller))
