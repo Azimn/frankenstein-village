@@ -21,12 +21,12 @@ def one(key):
 assert not any(account.is_connected for account in AccountDB.objects.all())
 clock = ScriptDB.objects.get(db_key="village_time")
 assert int(clock.db.day or 1) == 4
-# The preceding authenticated T-13 recovery ran at day-four hour 21.
-# Do not rewind the canonical clock to noon: the brazier's persistent
-# high-water checkpoint would correctly refuse to burn wood in the past.
-# The post-restart expiry proof also depends on a genuine 21:00 ignition.
-assert int(clock.db.hour) == 21, (
-    "T-13 must hand off the actual day-four 21:00 clock without rewinding",
+# T-13 begins at day-four hour 21, but the real Evennia clock keeps
+# ticking during authenticated play and multiple process restarts. Accept
+# the elapsed hours instead of rewinding the canonical clock. The brazier
+# expiry proof derives its deadline from the actual signed ignition hour.
+assert 21 <= int(clock.db.hour) <= 23, (
+    "Expected a forward-moving day-four clock after T-13",
     clock.db.hour,
 )
 square = one("Village Square")
