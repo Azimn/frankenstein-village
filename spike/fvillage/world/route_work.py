@@ -303,6 +303,14 @@ def field_action(mask, action):
             now_day, now_hour = _day_hour()
             if (now_day, now_hour) != (day, hour):
                 raise RuntimeError("Village time advanced before this route action.")
+            # The role, firsthand inspection, and access may change between
+            # the initial command checks and the signed consequence.
+            if active_calling(mask) != role:
+                raise RuntimeError("Your active Calling changed before the route action.")
+            if not _inspected_today(mask, site, day):
+                raise RuntimeError("Examine the physical red cord again before acting.")
+            if not cord.access(mask, "view", default=True):
+                raise RuntimeError("The physical red cord is no longer available.")
             now_marked = bool(getattr(cord.db, "route_caution", None))
             updated, valid, reason = route_surveys.field_decision(
                 square.db.daily_route_survey, day, site, role, action,
