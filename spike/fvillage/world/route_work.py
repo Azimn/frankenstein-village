@@ -66,7 +66,9 @@ def status_lines():
         "frayed red cord and use |wsurvey protect|n to tie a visible warning. "
         "An active Wanderer can independently use |wsurvey passability|n "
         "there to record whether the warning was present when inspected. "
-        "Neither action proves why the cord was damaged."
+        "Neither action proves why the cord was damaged. A Hound who "
+        "inspects the marked original cord can use survey dispatch to "
+        "carry a signed physical warning to an Innkeep at the Tavern."
     )
     if route_surveys.complete(state):
         lines.append(

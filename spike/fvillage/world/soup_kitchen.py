@@ -56,6 +56,7 @@ def pot_description():
     if not tavern:
         return "The kitchen is not yet available."
     day, hour = _clock()
+    from world.refuge_state import public_lines as refuge_lines
     state = soup_state.pantry(tavern.db.soup_pantry, day)
     fire = hearth_state.active(tavern.db.civic_hearth, day, hour)
     listed = ", ".join(f"{k} {v}" for k, v in state["stock"].items())
@@ -74,7 +75,10 @@ def pot_description():
         f"The main hearth is {'warm' if fire else 'low'}."
         + last +
         " Use soup prep <turnip|barley> <thyme|salt|pepper>, soup simmer, "
-        "soup notebook, or coordinate a Merchant delivery."
+        "soup notebook, or coordinate a Merchant delivery. "
+        "A Hound can bring a signed treeline dispatch; a separate Innkeep "
+        "can use soup refuge <hound mask> while that Hound is present. "
+        + refuge_lines(tavern.db.route_refuge)
     )
 
 

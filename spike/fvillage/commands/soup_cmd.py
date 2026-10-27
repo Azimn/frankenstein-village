@@ -12,6 +12,7 @@ class CmdSoup(Command):
         soup notebook
         soup procure             (Merchant, Market Lane)
         soup deliver             (any courier carrying the real crate)
+        soup refuge <hound mask>  (Innkeep, Hound present with signed dispatch)
 
     The kitchen has finite pantry supplies, a renewing daily baseline,
     a permanent work log and individual recipe notebooks. Prepared packets
@@ -33,6 +34,22 @@ class CmdSoup(Command):
         raw = (self.args or "").strip().lower()
         if raw in ("", "stock", "status"):
             caller.msg(soup_kitchen.status(caller))
+            return
+        if raw.startswith("refuge"):
+            from world import refuge_work
+            name = raw[len("refuge"):].strip()
+            result, error = refuge_work.serve(caller, name)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"You serve one real bowl of refuge soup to the Hound "
+                f"(signed event {result['event_id']}); the dispatch is consumed. "
+                f"{result['turnip']} turnip portions remain in the Tavern pantry."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} serves a witnessed traveler from the finite pantry.",
+                exclude=[caller])
             return
         if raw == "notebook":
             caller.msg(soup_kitchen.recipe_notes(caller))
@@ -103,5 +120,5 @@ class CmdSoup(Command):
             return
         caller.msg(
             "Use soup | soup prep <base> <seasoning> | soup simmer | "
-            "soup notebook | soup procure | soup deliver."
+            "soup notebook | soup procure | soup deliver | soup refuge <hound>."
         )

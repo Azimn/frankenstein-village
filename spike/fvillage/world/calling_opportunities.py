@@ -12,6 +12,9 @@ WORK = {
         "when a neighbor has tended the hearth.",
         "At the Blood of the Vine: inspect the hearth, then use hearth "
         "tend when the fire has settled and delivered stock is available.",
+        "A Hound carrying a signed physical treeline dispatch can arrive "
+        "at the Tavern. Use soup refuge <hound mask> while the Hound is "
+        "present to spend finite pantry food on a real traveler.",
         "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
         "only if that unresolved need remains in the village.",
     ),
@@ -84,6 +87,9 @@ WORK = {
         "survey protect to tie its loose end into a real caution marker. "
         "The physical change is one-time; it cannot be repeated after "
         "someone else has already protected the route.",
+        "After inspecting the original treeline cord and its signed "
+        "warning, use survey dispatch. Carry the real dispatch to the "
+        "Blood of the Vine; a separate Innkeep can serve refuge soup.",
         "Use survey and perform signed firsthand inspections in the "
         "churchyard, treeline, market and riverside districts.",
         "Talk to residents you physically encounter during their "
