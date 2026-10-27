@@ -1214,6 +1214,10 @@ from world.market_standards import (
 _market_live = _market_work_state(one("Market Lane").db.market_standards)
 assert _market_live["review"] and _market_live["review"]["choice"] == "hold"
 assert _market_live["calibration"] and _market_live["attestation"]
+assert _market_live["audit"] and _market_live["audit"]["review_event_id"] == _market_live["review"]["event_id"]
+assert _market_live["audit"]["review_choice"] == "hold"
+assert _market_live["audit"]["mask_id"] == smoke.id
+assert _market_live["audit"]["account_id"] != _market_live["review"]["account_id"]
 assert _market_live["review"]["mask_id"] == merchant_tester.id
 assert _market_live["calibration"]["mask_id"] == smith_tester.id
 assert _market_live["attestation"]["mask_id"] == smoke.id
@@ -1224,6 +1228,7 @@ for _record, _event_kind in (
     ("review", "village.market_hold"),
     ("calibration", "village.market_calibrate"),
     ("attestation", "village.market_attest"),
+    ("audit", "village.market_audit"),
 ):
     _event = warning_ledger.get_event(_market_live[_record]["event_id"])
     assert _event["kind"] == _event_kind
@@ -1232,6 +1237,15 @@ for _record, _event_kind in (
 assert calling_record(merchant_tester, "merchant")["participation"]["market_hold"] == 1
 assert calling_record(smith_tester, "smith")["participation"]["market_calibrate"] == 1
 assert calling_record(smoke, "chronicler")["participation"]["market_attest"] == 1
+assert calling_record(smoke, "chronicler")["participation"]["market_audit"] == 1
+from world.market_standards import verified_merchant_review as _verified_market_review
+assert _verified_market_review(
+    _market_live["review"], warning_ledger.get_event(_market_live["review"]["event_id"])
+)
+_market_audit_event = warning_ledger.get_event(_market_live["audit"]["event_id"])
+assert _market_audit_event["consequence"]["audit_source_event_id"] == _market_live["review"]["event_id"]
+assert _market_audit_event["actor"]["account_id"] != _market_live["review"]["account_id"]
+print("POST_RESTART_GDD_EDGE12_DISTINCT_SIGNED_MARKET_AUDIT_GREEN")
 from world.market_work import clock as _market_live_clock
 _market_now, _market_hour = _market_live_clock()
 _market_visible = one("Market Lane").get_display_desc(smoke).lower()
