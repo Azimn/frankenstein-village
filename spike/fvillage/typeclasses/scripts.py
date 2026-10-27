@@ -1433,6 +1433,13 @@ class VillageTime(SpikeScript):
         if hour == 0:
             self.db.day = (self.db.day or 1) + 1
 
+        # The public Square fire remembers canonical elapsed hours. It has
+        # NO independent ticker or fuel source; clock advancement records
+        # expiry even while the Square is empty. Clock rewinds then cannot
+        # revive already-burned wood.
+        from world.square_brazier import advance_clock as checkpoint_brazier
+        checkpoint_brazier(day=self.db.day or 1, hour=hour)
+
         # Seasonal chapters are slow modifiers over the existing world. They
         # share this clock and own no separate ticker.
         try:
