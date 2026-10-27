@@ -102,12 +102,25 @@ class MasterGDDProgramTests(unittest.TestCase):
                          ("Innkeep","Healer","V"))
         self.assertEqual((edges[3]["calling_a"],edges[3]["calling_b"],edges[3]["baseline_class"]),
                          ("Innkeep","Merchant","V"))
+        evidence_keys = (
+            "runtime_source_owner", "ordinary_player_discovery_proof",
+            "distinct_role_action_proof", "finite_resource_or_time_proof",
+            "solo_fallback_proof", "authoritative_state_change_proof",
+            "negative_and_late_state_proof", "two_account_test",
+            "post_restart_test", "uncoached_gameplay_evidence",
+        )
         for edge in edges:
             self.assertFalse(edge["verified_complete"])
-            self.assertIsNone(edge["ordinary_player_discovery_proof"])
-            self.assertIsNone(edge["two_account_test"])
-            self.assertIsNone(edge["post_restart_test"])
-            self.assertGreater(len(edge["design_contract"]),60)
+            self.assertGreater(len(edge["design_contract"]), 60)
+            for key in evidence_keys:
+                value = edge[key]
+                if value is not None:
+                    self.assertTrue(
+                        isinstance(value, str) and value.startswith("CANDIDATE:"),
+                        (edge["id"], key, "uncertified evidence must be explicitly candidate"),
+                    )
+            if edge["baseline_class"] == "C":
+                self.assertEqual(edge["review_state"], "canon_locked_for_power_dependent_outcomes")
 
     def test_does_not_claim_implementation_or_canon_approval(self):
         self.assertIn("REVIEW DRAFT",self.gdd)
