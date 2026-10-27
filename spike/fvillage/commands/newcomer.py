@@ -112,6 +112,7 @@ class CmdGuide(Command):
                 )
             else:
                 open_sites = None
+            from world.square_brazier import public_line as brazier_line
             caller.msg(render_square(
                 wood_remaining=(
                     source["remaining"] if source is not None else None
@@ -123,6 +124,14 @@ class CmdGuide(Command):
                 unreported_sites=open_sites,
                 lamp_status=lamp_lead(caller),
                 lamp_case_state=(lamp_case or {}).get("state"),
+            ) + (
+                "\n|wAnother shared village project|n: "
+                + brazier_line()
+                + " Examine the |wpublic brazier|n here and use |wbrazier|n "
+                "for its real needs. If you carry a free firewood bundle "
+                "from |whearth gather|n, you may |wbrazier light|n when "
+                "cold or |wbrazier feed|n when burning; either choice "
+                "benefits everyone physically in this Square."
             ))
         elif place == "The Lamp Shop":
             caller.msg(
