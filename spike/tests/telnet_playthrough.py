@@ -1265,7 +1265,10 @@ def main() -> int:
         require(out, "hospitality is still needed")
         require(out, "spends one actual serving of stew")
 
-        out = inn.command("care serve Silas Crowe")
+        # The signed care event can take longer than the default telnet
+        # quiet-read window under a busy clean-checkout server. Still require
+        # the real success text; never treat a silent timeout as a pass.
+        out = inn.command("care serve Silas Crowe", wait=6.0)
         require(out, "hot bowl from the tavern stock")
         require(out, "one stew serving is spent")
         require(out, "care case is complete")
