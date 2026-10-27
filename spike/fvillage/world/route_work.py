@@ -313,8 +313,13 @@ def publish_advisory(mask):
 
     if not valid_source():
         return None, "The Wanderer's canonical signed source could not be verified."
+    # This preflight does not allocate a ledger event. ID 1 is not a
+    # safe placeholder: the first legitimate Wanderer event may itself
+    # be event 1, and a publication must have a distinct event ID.
+    preview_event_id = source["event_id"] + 1
     _candidate, allowed, reason = route_surveys.publish_advisory(
-        state, day, mask.account.id, mask.key, 1, source["event_id"],
+        state, day, mask.account.id, mask.key,
+        preview_event_id, source["event_id"],
     )
     if not allowed:
         return None, reason
