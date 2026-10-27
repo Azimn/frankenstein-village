@@ -266,14 +266,52 @@ def public_lines(raw, day):
             f"{row['review_event_id']}, Smith source "
             f"{row['calibration_event_id']})."
         )
-    if state["history"]:
-        recent = state["history"][-1]
-        lines.append(
-            f"Prior recorded day {recent['day']}: "
-            + ("unresolved market hold at day's end"
-               if recent.get("unresolved_hold") else "record preserved")
-            + "."
-        )
+    # A returning visitor can read actual public decisions rather than a
+    # generic "record preserved" notice. Revalidate each archived signature
+    # before displaying it; stale or malformed rows are not eyewitness proof.
+    # Only the three latest valid days are shown, with the full bounded archive
+    # retained in the existing market docket.
+    shown = 0
+    for archived in reversed(state["history"]):
+        prior = normalize(archived)
+        if prior["day"] < 1 or prior["day"] >= int(day):
+            continue
+        parts = []
+        if prior["review"]:
+            decision = prior["review"]
+            parts.append(
+                f"Merchant {decision['mask']} chose {decision['choice']} "
+                f"(event {decision['event_id']})"
+            )
+        if prior["calibration"]:
+            calibration = prior["calibration"]
+            parts.append(
+                f"Smith {calibration['mask']} calibrated the scale "
+                f"(event {calibration['event_id']})"
+            )
+        if (prior["release"] and prior["review"]
+                and prior["review"]["choice"] == "hold"):
+            release = prior["release"]
+            parts.append(
+                f"Merchant {release['mask']} released the hold "
+                f"(event {release['event_id']})"
+            )
+        if prior["attestation"]:
+            attestation = prior["attestation"]
+            parts.append(
+                f"Chronicler {attestation['mask']} attested sources "
+                f"{attestation['review_event_id']} and "
+                f"{attestation['calibration_event_id']} "
+                f"(event {attestation['event_id']})"
+            )
+        if not parts:
+            continue
+        if suspended(prior, prior["day"]):
+            parts.append("hold unresolved at day's end")
+        lines.append(f"Prior day {prior['day']}: " + "; ".join(parts) + ".")
+        shown += 1
+        if shown == 3:
+            break
     lines.append(
         "At Market Lane, examine the physical market scale today. "
         "Merchants: |wtrade honor|n, |wtrade hold|n or |wtrade release|n. "
