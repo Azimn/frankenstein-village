@@ -21,10 +21,9 @@ tavern = one("The Blood of the Vine")
 bowl = one("a bowl of plain kitchen broth")
 clock = ScriptDB.objects.get(db_key="village_time")
 assert int(clock.db.day or 1) == 4
-# A disconnected mask may be returned to the OOC Inn on logout. Preserve
-# the physical bowl and its signed Tavern origin instead of assuming the
-# mask remains in the cooking room after an actual process restart.
-assert smith.location is not None
+# Evennia can leave an unpuppeted character without any room location.
+# Verify durable account ownership, carried bowl and signed Tavern origin,
+# rather than assuming a particular post-logout room or active puppet.
 smith_owner = AccountDB.objects.get(username="qa_smith_repair")
 # A stopped server has no live puppet binding. Durable account ownership
 # comes from the playable-character roster, not character.account.
