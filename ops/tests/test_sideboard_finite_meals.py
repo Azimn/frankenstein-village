@@ -100,6 +100,66 @@ class SideboardFiniteMealTests(TestCase):
             self.assertEqual(restock(), [])
         self.assertEqual(len(announcements), 1)
 
+    def test_legacy_house_fare_backfills_only_signed_recipe_shapes(self):
+        keeper = item("Bram")
+        bread = item("a loaf of bread", servings=0, maximum=6)
+        bread.db.consume["short"] = "bread"
+        bread.tags.add("consumable")
+        bread.tags.add("food")
+        wine = item("a cup of wine", servings=0, maximum=6)
+        wine.db.consume["short"] = "wine"
+        wine.tags.add("consumable")
+        wine.tags.add("drink")
+        # Same familiar key but a player ration must never become house stock.
+        broth = item("a bowl of stew", servings=0, maximum=8,
+                     ration={"cook_event_id": 41})
+        broth.db.consume["short"] = "stew"
+        broth.tags.add("consumable")
+        broth.tags.add("food")
+        announcements = []
+        room = SimpleNamespace(
+            contents=[keeper, bread, wine, broth],
+            msg_contents=announcements.append,
+        )
+        properties = ModuleType("world.object_properties")
+        properties.mechanical_value = lambda obj, key, default: obj.db.uses
+        restock = production_function("routines.py", "restock_sideboard", {
+            "_room": lambda key: room,
+        })
+        with patch.dict(sys.modules, {"world.object_properties": properties}):
+            self.assertEqual(restock(), ["bread", "wine"])
+            self.assertEqual(restock(), [])
+        self.assertEqual(bread.db.servings, 6)
+        self.assertEqual(wine.db.servings, 6)
+        self.assertTrue(bread.tags.has("house-sideboard-fare", category="origin"))
+        self.assertTrue(wine.tags.has("house-sideboard-fare", category="origin"))
+        self.assertEqual(broth.db.servings, 0)
+        self.assertFalse(broth.tags.has("house-sideboard-fare", category="origin"))
+        self.assertEqual(len(announcements), 1)
+
+    def test_ambiguous_legacy_house_key_does_not_backfill(self):
+        keeper = item("Bram")
+        original = item("a loaf of bread", servings=0, maximum=6)
+        duplicate = item("a loaf of bread", servings=0, maximum=6)
+        for bread in (original, duplicate):
+            bread.db.consume["short"] = "bread"
+            bread.tags.add("consumable")
+            bread.tags.add("food")
+        room = SimpleNamespace(
+            contents=[keeper, original, duplicate],
+            msg_contents=lambda msg: None,
+        )
+        properties = ModuleType("world.object_properties")
+        properties.mechanical_value = lambda obj, key, default: obj.db.uses
+        restock = production_function("routines.py", "restock_sideboard", {
+            "_room": lambda key: room,
+        })
+        with patch.dict(sys.modules, {"world.object_properties": properties}):
+            self.assertEqual(restock(), [])
+        for bread in (original, duplicate):
+            self.assertEqual(bread.db.servings, 0)
+            self.assertFalse(bread.tags.has("house-sideboard-fare", category="origin"))
+
     def test_no_keeper_means_no_house_restock(self):
         bread = item("a loaf of bread", house=True, servings=0, maximum=6)
         room = SimpleNamespace(contents=[bread], msg_contents=lambda msg: None)
