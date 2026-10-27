@@ -1232,6 +1232,8 @@ def main() -> int:
         require(out, "active innkeep")
         out = inn.command("stage serve PerformerTester")
         require_all(out, "serve a real cooked soup bowl", "performertester", "world event")
+        out = inn.command("stage")
+        require_all(out, "1 real soup serving", "1 other player account")
         out = inn.command("stage serve PerformerTester")
         require(out, "carry a real uneaten homemade soup bowl")
         out = performer.command("eat homemade soup")
