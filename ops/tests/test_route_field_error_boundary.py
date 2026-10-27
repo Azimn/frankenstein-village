@@ -5,6 +5,7 @@ Hound/Wanderer action after preflight. The canonical ledger marks the event
 failed; the caller must get recoverable feedback, not a server traceback.
 """
 import ast
+from collections.abc import Mapping
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
@@ -20,8 +21,12 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
             node for node in module.body
             if isinstance(node, ast.FunctionDef) and node.name == "field_action"
         )
+        inspection_guard = next(
+            node for node in module.body
+            if isinstance(node, ast.FunctionDef) and node.name == "_inspected_today"
+        )
         code = compile(ast.fix_missing_locations(ast.Module(
-            body=[function], type_ignores=[]
+            body=[inspection_guard, function], type_ignores=[]
         )), str(source), "exec")
         cord = SimpleNamespace(
             key="frayed red cord",
@@ -45,6 +50,7 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
             "Village time advanced before this route action."
         ))
         namespace = {
+            "Mapping": Mapping,
             "active_calling": lambda _mask: "hound",
             "LANDMARKS": {"red_cord": {
                 "room": "Northern Treeline", "key": "frayed red cord",
