@@ -123,7 +123,7 @@ def load_ci_observations(root: Path = ROOT) -> dict[int, dict]:
     for name in sorted(allowed_files):
         raw = (root / name).read_bytes()
         git_blob = hashlib.sha1(
-            b"blob " + str(len(raw)).encode("ascii") + b"\\0" + raw
+            b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw
         ).hexdigest()
         if git_blob != note["source_blob_sha1"][name]:
             raise ValueError("CI source blob mismatch: " + name)
