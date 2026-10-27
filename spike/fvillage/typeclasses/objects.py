@@ -81,6 +81,25 @@ class VillageWell(DefaultObject):
 
 
 
+class SquareBrazier(DefaultObject):
+    """The one public physical brazier, with persistent shared fire state."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.locks.add("get:false();give:false();drop:false()")
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.square_brazier import public_line
+        return (
+            "A broad iron basin stands on stone feet beside the Square "
+            "woodpile, safely away from the old well's carved stones. "
+            + public_line()
+            + " Use |wbrazier|n to read the real contribution history, "
+            "|whearth gather|n to take existing finite fuel and "
+            "|wbrazier light|n or |wbrazier feed|n to share warmth."
+        )
+
+
 class VillageWoodpile(DefaultObject):
     """Public communal wood: finite daily supply rendered from village time."""
 
