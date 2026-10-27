@@ -259,10 +259,14 @@ warning_mutations = dict(warning_case["objective_mutations"])
 warning_finding = dict(warning_mutations["healer_finding"])
 warning_record = dict(warning_mutations["chronicler_record"])
 assert warning_finding["mask_id"] == healer_tester.id
+assert type(warning_finding["account_id"]) is int
 assert warning_finding["mask"] == "HealerTester"
 assert warning_finding["property"] == "toxin"
 assert warning_finding["value"] == 25
 assert warning_record["mask_id"] == smoke.id
+assert type(warning_record["account_id"]) is int
+assert warning_record["account_id"] != warning_finding["account_id"]
+assert warning_record["source_healer_event_id"] == warning_finding["event_id"]
 assert warning_record["mask"] == "SmokeTester"
 
 warning_entry = next(
@@ -289,15 +293,25 @@ warning_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
 finding_event = warning_ledger.get_event(warning_finding["event_id"])
 warning_event = warning_ledger.get_event(warning_record["event_id"])
 assert finding_event["kind"] == "professional.healer_finding_submitted"
+assert finding_event["status"] == "complete"
+assert finding_event["actor"]["account_id"] == warning_finding["account_id"]
+assert finding_event["actor"]["mask_id"] == healer_tester.id
+assert finding_event["payload"]["day"] == warning_finding["day"]
+assert finding_event["payload"]["hour"] == warning_finding["hour"]
 assert finding_event["payload"]["mechanical_value"] == 25
 assert finding_event["payload"]["harbinger"] is False
 assert finding_event["payload"]["chronicle_eligible"] is False
 assert warning_event["kind"] == "professional.public_health_warning"
+assert warning_event["status"] == "complete"
+assert warning_event["actor"]["account_id"] == warning_record["account_id"]
+assert warning_event["payload"]["source_healer_account_id"] == warning_finding["account_id"]
+assert warning_event["payload"]["source_healer_event_id"] == finding_event["id"]
 assert warning_event["payload"]["source_healer_mask_id"] == healer_tester.id
 assert warning_event["publications"]["chronicle_entry_id"] == warning_entry["id"]
 assert warning_event["publications"]["harbinger_story_id"] == warning_story["id"]
 assert hidden_mechanical_properties(mushrooms) == {"toxin": 25}
 assert mechanical_properties(mushrooms) == {}
+print("POST_RESTART_GDD_EDGE11_SIGNED_DISTINCT_HEALTH_WARNING_GREEN")
 
 # Resident care interdependence survives restart as Resident Life state plus a
 # provenance record. The current stew stock may have been restocked by Bram,
