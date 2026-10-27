@@ -188,6 +188,54 @@ assert _soup_bowl.db.servings == 0, "Consumed bowl refilled across restart"
 assert one("a communal soup pot").location == _tavern_soup
 print("POST_RESTART_SHARED_SOUP_WORKPLACE_GREEN")
 
+# GDD-EDGE-02: after a real Evennia restart, the original physical pot
+# retains a distinct Innkeep restriction and Smith's signed repair, and
+# both Workshop stock and the carried fitting were actually consumed.
+from world import kitchen_repair_edge02, workshop_state
+_kitchen_pot = one("a communal soup pot")
+_kitchen_state = kitchen_repair_edge02.normalize(_kitchen_pot.db.kitchen_repair)
+assert _kitchen_state["condition"] == "working", _kitchen_state
+_kitchen_inn = _kitchen_state["restriction"]
+_kitchen_fix = _kitchen_state["repair"]
+_kitchen_smith = one("KitchenSmithTester")
+assert _kitchen_inn["mask_id"] == innkeep_tester.id
+assert _kitchen_fix["mask_id"] == _kitchen_smith.id
+assert _kitchen_inn["account_id"] != _kitchen_fix["account_id"]
+assert AccountDB.objects.filter(id=_kitchen_inn["account_id"]).exists()
+assert AccountDB.objects.filter(id=_kitchen_fix["account_id"]).exists()
+assert calling_record(innkeep_tester, "innkeep")["participation"]["kitchen_restrictions"] == 1
+assert calling_record(_kitchen_smith, "smith")["participation"]["kitchen_repairs"] == 1
+_kitchen_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+_kitchen_restrict_event = _kitchen_ledger.get_event(_kitchen_inn["event_id"])
+_kitchen_forge_event = _kitchen_ledger.get_event(_kitchen_fix["forge_event_id"])
+_kitchen_repair_event = _kitchen_ledger.get_event(_kitchen_fix["event_id"])
+assert _kitchen_restrict_event["status"] == "complete"
+assert _kitchen_restrict_event["kind"] == "professional.innkeep_kitchen_restriction"
+assert _kitchen_restrict_event["actor"]["account_id"] == _kitchen_inn["account_id"]
+assert _kitchen_restrict_event["consequence"]["condition"] == "restricted"
+assert _kitchen_forge_event["status"] == "complete"
+assert _kitchen_forge_event["kind"] == "village.market_hinge_forged"
+assert _kitchen_forge_event["consequence"]["item_id"] == _kitchen_fix["item_id"]
+assert _kitchen_repair_event["status"] == "complete"
+assert _kitchen_repair_event["kind"] == "professional.smith_kitchen_repair"
+assert _kitchen_repair_event["actor"]["account_id"] == _kitchen_fix["account_id"]
+assert _kitchen_repair_event["payload"]["restriction_event_id"] == _kitchen_inn["event_id"]
+assert _kitchen_repair_event["payload"]["forge_event_id"] == _kitchen_fix["forge_event_id"]
+assert _kitchen_repair_event["consequence"]["consumed_item_id"] == _kitchen_fix["item_id"]
+assert _kitchen_repair_event["consequence"]["condition"] == "working"
+assert not [obj for obj in search.search_object("a forged market hinge")
+            if obj.id == _kitchen_fix["item_id"]], "Consumed fitting survived restart"
+_kitchen_workshop = one("The Market Workshop")
+_kitchen_docket = workshop_state.normalize(_kitchen_workshop.db.repair_docket)
+_kitchen_crafts = list(_kitchen_docket["crafts"])
+for _old_day in _kitchen_docket["history"]:
+    _kitchen_crafts.extend(_old_day.get("crafts") or [])
+assert any(row["item_id"] == _kitchen_fix["item_id"]
+           for row in _kitchen_crafts), "The finite Workshop source vanished"
+if _kitchen_docket["day"] == _kitchen_fix["day"]:
+    assert _kitchen_docket["offcuts"] == 0, "The Workshop offcut was refunded"
+print("POST_RESTART_GDD_EDGE02_SIGNED_PHYSICAL_KITCHEN_REPAIR_GREEN")
+
 
 population = list(search.search_tag("resident", category="system"))
 from world.resident_data import RESIDENTS
@@ -1403,10 +1451,11 @@ from world import workshop_state as _workshop_rules
 _workroom = one("The Market Workshop")
 _public_market = one("Market Lane")
 _work_docket = _workshop_rules.normalize(_workroom.db.repair_docket)
-assert _work_docket["offcuts"] == 1, "Workshop forged stock was replenished on restart"
-assert len(_work_docket["crafts"]) == 1
+assert _work_docket["offcuts"] == 0, "Both finite Workshop offcuts must remain spent"
+assert len(_work_docket["crafts"]) == 2, "Market and kitchen both forged real hinges"
 assert _work_docket["installation"] is not None
-_repair_craft = _work_docket["crafts"][0]
+_repair_craft = next(row for row in _work_docket["crafts"]
+                     if row["mask"] == "SmithTester")
 _repair_install = _work_docket["installation"]
 assert _repair_craft["mask"] == "SmithTester"
 assert _repair_install["mask"] == "MerchantTester"
@@ -1431,7 +1480,7 @@ assert calling_record(one("MerchantTester"), "merchant")["participation"][
     "market_hinges_installed"
 ] == 1
 assert "MerchantTester" in one("a market fittings board").get_display_desc()
-assert "1 of 2 iron offcuts" in one("a public smithing bench").get_display_desc()
+assert "0 of 2 iron offcuts" in one("a public smithing bench").get_display_desc()
 assert _public_market in [e.destination for e in _workroom.exits]
 _next_repair = _workshop_rules.refresh(_work_docket, _work_docket["day"] + 1)
 assert _next_repair["offcuts"] == _workshop_rules.DAILY_OFFCUTS

@@ -113,6 +113,7 @@ def main() -> int:
     h = None
     inn = None
     smith = None
+    smith_kitchen = None
     merchant = None
     mystic = None
     performer = None
@@ -1932,6 +1933,63 @@ def main() -> int:
         assert agent_json(out)["commands"]["install_market_repair"] == "workshop install"
         print("TELNET_TWO_ACCOUNT_PHYSICAL_MARKET_WORKSHOP_GREEN")
 
+        # GDD-EDGE-02: the original soup pot needs a genuine Innkeep
+        # restriction and a separate Smith's consumed physical iron fitting.
+        # This uses the Workshop's remaining offcut, not free repair progress.
+        out = inn.command("look soup pot")
+        require(out, "lid hinge is loose")
+        out = inn.command("soup repair")
+        require(out, "active Smith Calling")
+        out = inn.command("soup restrict")
+        require_all(out, "restrict player simmering", "signed world event")
+        out = inn.command("soup restrict")
+        require(out, "already restricted, repaired, or invalid")
+        out = inn.command("soup simmer")
+        require(out, "restricted until the real kitchen pot is repaired")
+        smith_kitchen = Client(args.host, args.port)
+        require(smith_kitchen.sync_login_screen(), "frankenstein village")
+        out = smith_kitchen.command(
+            f"connect qa_smith_kitchen {repair_password}", wait=4.0)
+        require(out, "connected", "account qa_smith_kitchen")
+        smith_kitchen.command("charcreate KitchenSmithTester", wait=3.0)
+        out = smith_kitchen.command("ic KitchenSmithTester", wait=4.0)
+        require(out, "private room")
+        out = smith_kitchen.command("calling choose smith")
+        require(out, "smith is now your active calling")
+        for direction, expected in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"), ("east", "market workshop"),
+        ):
+            out = smith_kitchen.command(direction)
+            require(out, expected)
+        out = smith_kitchen.command("soup repair")
+        require(out, "physically at The Blood of the Vine")
+        out = smith_kitchen.command("workshop forge")
+        require_all(out, "real transferable iron market hinge",
+                    "0 iron offcuts remain")
+        for direction, expected in (
+            ("west", "market lane"), ("north", "lamp shop"),
+            ("north", "village square"), ("east", "blood of the vine"),
+        ):
+            out = smith_kitchen.command(direction)
+            require(out, expected)
+        out = smith_kitchen.command("soup repair")
+        require_all(out, "install and consume the physical forged hinge",
+                    "signed world event")
+        out = inn.command("look soup pot")
+        require_all(out, "physically repaired by kitchensmithtester",
+                    "signed event")
+        out = inn.command("soup simmer")
+        require(out, "carry one real prepared packet")
+        out = inn.command("soup restrict")
+        require(out, "already restricted, repaired, or invalid")
+        out = smith_kitchen.command("inventory")
+        assert "forged market hinge" not in out.lower(), out
+        out = smith_kitchen.command("soup repair")
+        require(out, "carry one real forged iron hinge")
+        print("TELNET_GDD_EDGE02_TWO_ACCOUNT_PHYSICAL_KITCHEN_REPAIR_GREEN")
+
         for actor in (merchant, smith):
             for direction, expected in (
                 ("north", "lamp shop"),
@@ -2206,6 +2264,8 @@ def main() -> int:
             print("\nHEALER TRANSCRIPT\n" + "\n".join(h.transcript))
         if inn is not None:
             print("\nINNKEEP TRANSCRIPT\n" + "\n".join(inn.transcript))
+        if smith_kitchen is not None:
+            print("\nKITCHEN SMITH TRANSCRIPT\n" + "\n".join(smith_kitchen.transcript))
         if smith is not None:
             print("\nSMITH TRANSCRIPT\n" + "\n".join(smith.transcript))
         if merchant is not None:
@@ -2230,6 +2290,8 @@ def main() -> int:
             mystic.close()
         if merchant is not None:
             merchant.close()
+        if smith_kitchen is not None:
+            smith_kitchen.close()
         if smith is not None:
             smith.close()
         if inn is not None:

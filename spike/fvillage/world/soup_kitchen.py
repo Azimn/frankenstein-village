@@ -66,13 +66,14 @@ def pot_description():
         f"quality {done['quality']} (world event {done['cook_event_id']})."
         if done else " No player-made batch has been recorded."
     )
+    from world import kitchen_repair_work
     return (
         "A large, shared iron soup pot sits beside the Blood of the Vine's "
         "working kitchen fire. Bram's ordinary pantry renews each village day "
         "whether or not players are present; it is not anyone's private business. "
         f"Pantry day {state['day']}: {listed}. "
         f"The main hearth is {'warm' if fire else 'low'}."
-        + last +
+        + last + " " + kitchen_repair_work.status() +
         " Use soup prep <turnip|barley> <thyme|salt|pepper>, soup simmer, "
         "soup notebook, or coordinate a Merchant delivery."
     )
@@ -157,6 +158,10 @@ def simmer(mask):
         return None, err
     if active_calling(mask) != "innkeep":
         return None, "An active Innkeep is needed to simmer a batch."
+    from world import kitchen_repair_edge02, kitchen_repair_work
+    pot = kitchen_repair_work._pot()
+    if pot is None or kitchen_repair_edge02.normalize(pot.db.kitchen_repair)["condition"] in ("restricted", "invalid"):
+        return None, "Player simmering is restricted until the real kitchen pot is repaired."
     packets = _held(mask, "soup_preparation")
     if not packets:
         return None, "Carry one real prepared packet; use soup prep first."
