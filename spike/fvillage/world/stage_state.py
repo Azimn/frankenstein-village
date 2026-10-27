@@ -12,6 +12,7 @@ TUNES = ("ballad", "reel")
 MAX_HISTORY = 32
 MAX_REHEARSALS = 12
 MAX_WITNESSES = 20
+MAX_INQUIRIES = 6
 
 
 def _ident(value):
@@ -37,7 +38,7 @@ def _time(day, hour):
 
 def fresh(day=1):
     return {"day": day, "rehearsals": [], "performance": None,
-            "witnesses": [], "history": []}
+            "witnesses": [], "inquiries": [], "history": []}
 
 
 def normalize(raw):
@@ -67,6 +68,37 @@ def normalize(raw):
                     and _ident(r.get("event_id"))):
                 result["witnesses"].append(dict(r))
     result["witnesses"] = result["witnesses"][-MAX_WITNESSES:]
+    if result["performance"]:
+        show = result["performance"]
+        witness_ids = sorted(r["event_id"] for r in result["witnesses"])
+        for row in list(raw.get("inquiries") or [])[-MAX_INQUIRIES * 2:]:
+            if not hasattr(row, "get"):
+                continue
+            aid, mid, eid = (_ident(row.get(k)) for k in
+                             ("account_id", "mask_id", "event_id"))
+            stage_id = _ident(row.get("stage_object_id"))
+            source_id = _ident(row.get("source_event_id"))
+            observed = _time(day, row.get("hour"))
+            signed_ids = row.get("witness_event_ids")
+            if (not all((aid, mid, eid, stage_id, source_id))
+                    or not observed or observed[1] < show["hour"]
+                    or aid == show["account_id"]
+                    or source_id != show["event_id"]
+                    or not isinstance(signed_ids, (list, tuple))
+                    or sorted(signed_ids) != witness_ids
+                    or any(r["account_id"] == aid for r in result["inquiries"])):
+                continue
+            result["inquiries"].append({
+                "account_id": aid, "mask_id": mid, "event_id": eid,
+                "mask": str(row.get("mask") or "")[:70],
+                "hour": observed[1], "source_event_id": source_id,
+                "stage_object_id": stage_id,
+                "witness_event_ids": list(witness_ids),
+                "firsthand_witness": any(
+                    r["account_id"] == aid for r in result["witnesses"]
+                ),
+            })
+    result["inquiries"] = result["inquiries"][-MAX_INQUIRIES:]
     result["history"] = [
         copy.deepcopy(r) for r in list(raw.get("history") or [])
         if hasattr(r, "get") and _ident(r.get("day"))
@@ -84,9 +116,11 @@ def refresh(raw, day):
             "day": state["day"],
             "performance": copy.deepcopy(state["performance"]),
             "witnesses": copy.deepcopy(state["witnesses"]),
+            "inquiries": copy.deepcopy(state["inquiries"]),
         })
     return {"day": target, "rehearsals": [], "performance": None,
-            "witnesses": [], "history": state["history"][-MAX_HISTORY:]}
+            "witnesses": [], "inquiries": [],
+            "history": state["history"][-MAX_HISTORY:]}
 
 
 def rehearse(raw, *, day, hour, account_id, mask_id, mask, tune, event_id):
@@ -166,6 +200,59 @@ def witness(raw, *, day, hour, account_id, mask_id, mask, event_id):
     return state, True, None
 
 
+
+def investigate(raw, *, day, hour, account_id, mask_id, mask, event_id,
+                source_event_id, source_account_id, source_mask_id,
+                source_hour, source_tune, witness_event_ids, stage_object_id):
+    """An independent Detective records a qualified, non-exonerating timeline.
+
+    This pure transition cannot authenticate a ledger event. The Evennia
+    adapter must verify every source event, actor and physical stage before
+    invoking it, including again inside the signed consequence.
+    """
+    state = refresh(raw, day)
+    if not _time(day, hour) or day < state["day"]:
+        return state, False, "The village clock cannot be rewound."
+    aid, mid, eid = _ident(account_id), _ident(mask_id), _ident(event_id)
+    source = _ident(source_event_id)
+    source_account = _ident(source_account_id)
+    source_mask = _ident(source_mask_id)
+    stage_id = _ident(stage_object_id)
+    if not all((aid, mid, eid, source, source_account, source_mask, stage_id)):
+        return state, False, "A real Detective, stage and signed source are required."
+    show = state["performance"]
+    if not show:
+        return state, False, "There is no actual performance to investigate today."
+    if (source != show["event_id"]
+            or source_account != show["account_id"]
+            or source_mask != show["mask_id"]
+            or source_hour != show["hour"]
+            or source_tune != show["tune"]):
+        return state, False, "The claimed performance does not match the signed stage record."
+    if hour < show["hour"]:
+        return state, False, "A Detective cannot inspect a performance from the future."
+    if aid == show["account_id"]:
+        return state, False, "The performing account cannot investigate its own show."
+    if any(row["account_id"] == aid for row in state["inquiries"]):
+        return state, False, "This Detective already investigated the performance."
+    if len(state["inquiries"]) >= MAX_INQUIRIES:
+        return state, False, "The stage inquiry docket is full today."
+    if not isinstance(witness_event_ids, (list, tuple)):
+        return state, False, "Verified witness source events are required."
+    actual = sorted(row["event_id"] for row in state["witnesses"])
+    supplied = sorted(witness_event_ids)
+    if supplied != actual or any(_ident(value) is None for value in supplied):
+        return state, False, "Witness evidence does not match the actual stage register."
+    state["inquiries"].append({
+        "account_id": aid, "mask_id": mid, "mask": str(mask)[:70],
+        "event_id": eid, "hour": hour, "source_event_id": source,
+        "stage_object_id": stage_id, "witness_event_ids": list(actual),
+        "firsthand_witness": any(
+            row["account_id"] == aid for row in state["witnesses"]
+        ),
+    })
+    return state, True, None
+
 def public_lines(raw, day):
     state = refresh(raw, day)
     lines = ["The Tavern stage", "Today: village day %d." % state["day"]]
@@ -177,10 +264,19 @@ def public_lines(raw, day):
                      % len(state["witnesses"]))
     else:
         lines.append("No public performance has occurred today.")
+    if state["inquiries"]:
+        lines.append("%d independent Detective stage inquiry record(s); "
+                     "a show is not proof of an alibi." % len(state["inquiries"]))
+        latest = state["inquiries"][-1]
+        lines.append("Latest inquiry: %s inspected the platform with %d "
+                     "signed firsthand witness(es)."
+                     % (latest["mask"], len(latest["witness_event_ids"])))
     if state["history"]:
         last = state["history"][-1]
         lines.append("Previous recorded show: %s, day %d."
                      % (last["performance"]["mask"], last["day"]))
     lines.append("Performers: stage rehearse ballad|reel, then stage perform ballad|reel.")
     lines.append("During the actual performance hour, other visitors may stage witness.")
+    lines.append("Detectives may inspect the platform and use stage investigate "
+                 "after a real show; an inquiry never certifies innocence.")
     return "\n".join(lines)
