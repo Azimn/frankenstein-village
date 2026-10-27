@@ -1292,7 +1292,11 @@ assert _stage["performance"] is not None, "The performance vanished after restar
 assert _stage["performance"]["mask_id"] == _stage_performer.id
 assert _stage["performance"]["tune"] == "ballad"
 assert len(_stage["witnesses"]) == 1
-assert len(_stage["performance"]["hospitality"]) == 1
+assert len(_stage["performance"]["hospitality"]) == 1, (
+    "Stage hospitality vanished from canonical Tavern state: "
+    f"raw={repr(_stage_tavern.db.village_stage)[:1400]}, "
+    f"normalized={repr(_stage['performance'])[:1400]}"
+)
 _stage_service = _stage["performance"]["hospitality"][0]
 assert _stage_service["recipient_mask_id"] == _stage_performer.id
 assert _stage_service["bowl_id"] == _stage_served_bowl.id
