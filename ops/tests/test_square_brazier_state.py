@@ -64,6 +64,34 @@ class SquareBrazierStateTests(unittest.TestCase):
         self.assertEqual(denied, fed)
         self.assertTrue(fire.active(fed, 2, 1))
 
+    def test_expired_fire_stays_cold_after_rewinding_one_hour(self):
+        # Previously: day 1 21:00 burns until day 2 03:00. If the
+        # canonical clock reached that expiry then rewound to 02:00,
+        # naive "now < warm_until" logic invented an extra warm hour.
+        lit, accepted, reason = self.change()
+        self.assertTrue(accepted, reason)
+        elapsed = fire.advance(lit, 2, 3)
+        self.assertEqual(elapsed["observed_at"], fire.hour_index(2, 3))
+        self.assertFalse(fire.active(elapsed, 2, 3))
+        self.assertFalse(fire.active(elapsed, 2, 2))
+        self.assertEqual(fire.remaining(elapsed, 2, 2), 0)
+        refused, allowed, reason = self.change(
+            elapsed, day=2, hour=2, event=11)
+        self.assertFalse(allowed)
+        self.assertIn("later village hour", reason)
+        self.assertEqual(refused, elapsed)
+
+    def test_clock_high_water_never_writes_fuel_or_event_history(self):
+        lit, ok, _ = self.change()
+        self.assertTrue(ok)
+        snapshot = fire.advance(lit, 2, 8)
+        self.assertEqual(snapshot["warm_until"], lit["warm_until"])
+        self.assertEqual(snapshot["history"], lit["history"])
+        self.assertEqual(snapshot["observed_at"], fire.hour_index(2, 8))
+        self.assertEqual(lit["observed_at"], fire.hour_index(1, 21))
+        again = fire.advance(snapshot, 1, 20)
+        self.assertEqual(again, snapshot)
+
     def test_same_signed_event_cannot_double_count(self):
         first, okay, _ = self.change()
         self.assertTrue(okay)
