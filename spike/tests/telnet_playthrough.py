@@ -118,6 +118,7 @@ def main() -> int:
     performer = None
     wanderer = None
     hound = None
+    detective = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -1854,6 +1855,42 @@ def main() -> int:
         require_all(out, "signed", "temporarily on hold")
         require_all(merchant.command("agenda"),
                     "your merchant market hold remains active", "trade release")
+
+        # GDD-EDGE-33: a different real account investigates the signed hold.
+        # The Merchant can respond, but neither action invents counterfeit
+        # goods, a guilty trader, or a second market inventory.
+        detective = Client(args.host, args.port)
+        require(detective.sync_login_screen(), "frankenstein village")
+        out = detective.command(
+            f"connect qa_detective_inquiry {repair_password}", wait=4.0)
+        require(out, "connected", "account qa_detective_inquiry")
+        detective.command("charcreate DetectiveTester", wait=3.0)
+        require(detective.command("ic DetectiveTester", wait=4.0), "private room")
+        require(detective.command("calling choose detective"),
+                "detective is now your active calling")
+        for direction, expected in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"),
+        ):
+            require(detective.command(direction), expected)
+        require(detective.command("trade investigate"), "First inspect")
+        require(merchant.command("trade investigate"), "active Detective Calling")
+        require(detective.command("trade hold"), "active Merchant Calling")
+        require(detective.command("look market scale"), "two prices")
+        out = detective.command("trade investigate")
+        require_all(out, "Market action signed", "independently examined",
+                    "not a finding of fraud")
+        require(detective.command("trade investigate"),
+                "already been investigated")
+        require(detective.command("trade rebut"), "active Merchant Calling")
+        out = merchant.command("trade rebut")
+        require_all(out, "Market action signed", "rebuttal event",
+                    "remains contested")
+        require(merchant.command("trade rebut"), "already recorded")
+        require_all(detective.command("trade"), "Detective event",
+                    "remains contested")
+        print("TELNET_GDD_EDGE33_TWO_ACCOUNT_SIGNED_MARKET_INQUIRY_GREEN")
         out = merchant.command("soup procure")
         require_all(out, "physical crate of kitchen roots", "market crates remain")
         out = merchant.command("soup procure")
@@ -2218,8 +2255,12 @@ def main() -> int:
             print("\nWANDERER TRANSCRIPT\n" + "\n".join(wanderer.transcript))
         if hound is not None:
             print("\nHOUND TRANSCRIPT\n" + "\n".join(hound.transcript))
+        if detective is not None:
+            print("\nDETECTIVE TRANSCRIPT\n" + "\n".join(detective.transcript))
         raise
     finally:
+        if detective is not None:
+            detective.close()
         if hound is not None:
             hound.close()
         if wanderer is not None:
