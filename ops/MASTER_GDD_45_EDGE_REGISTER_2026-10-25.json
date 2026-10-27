@@ -867,7 +867,7 @@
       "finite_resource_or_time_proof": "stage_state daily warning/decision and one public show per day; physical cord protection is one-time",
       "solo_fallback_proof": "ordinary stage rehearse/perform/witness remains available when no warning exists",
       "authoritative_state_change_proof": "stage_state safety_warning/safety_decision; cancellation blocks performance, indoor decision annotates actual show; canonical event ledger",
-      "negative_and_late_state_proof": "ops/tests/test_stage_safety_edge41.py (candidate pure tests; live source and clock tests pending)",
+      "negative_and_late_state_proof": "ops/tests/test_stage_safety_edge41.py; spike/tests/telnet_playthrough.py (late-warning denial); spike/tests/post_restart_assertions.py (rejection persisted); pending exact-head CI",
       "two_account_test": null,
       "post_restart_test": null,
       "uncoached_gameplay_evidence": null,
