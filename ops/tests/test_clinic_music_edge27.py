@@ -53,7 +53,8 @@ def signed_invitation(state):
 def music(state, event=None, **changes):
     props = dict(day=1, hour=21, account_id=12, mask_id=102,
                  mask="PerformerTester", event_id=32, room_id=70, cot_id=71,
-                 invitation_event=signed_invitation(state) if event is None else event)
+                 invitation_event=(signed_invitation(state) if event is None
+                                   and state.get("invitation") else event))
     props.update(changes)
     return rules.offer(state, **props)
 
