@@ -1511,15 +1511,19 @@ print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")
 from world.events import get_event_ledger as _edge15_ledger
 from world.bridge_case_state import case_lines as _edge15_case_lines
 _edge15_detective = one("DetectiveTester")
+# A character's session-bound .account may be None after logout/restart.
+# Check persisted account identities through AccountDB instead.
+_edge15_detective_account = AccountDB.objects.get(db_key="qa_detective_case")
+_edge15_chronicler_account = AccountDB.objects.get(db_key="qa_admin")
 _edge15_bridge = get_public_mystery(BRIDGE_PLAQUE_ID)
 _edge15_exams = list(_edge15_bridge.get("case_examinations") or [])
 _edge15_bulletins = list(_edge15_bridge.get("case_bulletins") or [])
 assert _edge15_exams and _edge15_bulletins, "Case actions did not persist"
 _edge15_exam = _edge15_exams[-1]
 _edge15_bulletin = _edge15_bulletins[-1]
-assert _edge15_exam["account_id"] == _edge15_detective.account.id
+assert _edge15_exam["account_id"] == _edge15_detective_account.id
 assert _edge15_exam["mask_id"] == _edge15_detective.id
-assert _edge15_bulletin["account_id"] == smoke.account.id
+assert _edge15_bulletin["account_id"] == _edge15_chronicler_account.id
 assert _edge15_bulletin["mask_id"] == smoke.id
 assert _edge15_exam["account_id"] != _edge15_bulletin["account_id"]
 assert _edge15_bulletin["source_event_id"] == _edge15_exam["event_id"]
@@ -1532,12 +1536,12 @@ _edge15_signed_observation = _edge15_ledger_obj.get_event(
 )
 assert _edge15_signed_exam["kind"] == "village.bridge_plaque_examined"
 assert _edge15_signed_exam["status"] == "complete"
-assert _edge15_signed_exam["actor"]["account_id"] == _edge15_detective.account.id
+assert _edge15_signed_exam["actor"]["account_id"] == _edge15_detective_account.id
 assert _edge15_signed_exam["payload"]["professional_calling"] == "detective"
 assert _edge15_signed_exam["consequence"]["finding"] == "physical_marks_only"
 assert _edge15_signed_bulletin["kind"] == "village.bridge_case_bulletin"
 assert _edge15_signed_bulletin["status"] == "complete"
-assert _edge15_signed_bulletin["actor"]["account_id"] == smoke.account.id
+assert _edge15_signed_bulletin["actor"]["account_id"] == _edge15_chronicler_account.id
 assert _edge15_signed_bulletin["payload"]["source_event_id"] == _edge15_exam["event_id"]
 assert _edge15_signed_bulletin["consequence"]["status"] == "attributed_evidence_only"
 assert _edge15_signed_observation["kind"] == "public_mystery.bridge_plaque.observed"
