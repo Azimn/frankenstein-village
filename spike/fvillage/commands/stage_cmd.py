@@ -12,6 +12,7 @@ class CmdStage(Command):
         stage perform ballad
         stage perform reel
         stage witness
+        stage archive
         stage review praise|critique
         stage contest <review event ID>
 
@@ -29,6 +30,9 @@ class CmdStage(Command):
         if not raw or raw in (["status"], ["help"]):
             self.caller.msg(stage_work.status(self.caller))
             return
+        if raw == ["archive"]:
+            self.caller.msg(stage_work.archive(self.caller))
+            return
         if raw == ["witness"]:
             result, error = stage_work.act(self.caller, "witness")
         elif len(raw) == 2 and raw[0] in ("rehearse", "perform", "review", "contest"):
@@ -36,7 +40,7 @@ class CmdStage(Command):
         elif raw == ["contest"]:
             result, error = stage_work.act(self.caller, "contest")
         else:
-            self.caller.msg("Use stage | stage rehearse ballad|reel | stage perform ballad|reel | stage witness | stage review praise|critique | stage contest <review event>")
+            self.caller.msg("Use stage | stage rehearse ballad|reel | stage perform ballad|reel | stage witness | stage archive | stage review praise|critique | stage contest <review event>")
             return
         if error:
             self.caller.msg(error)
