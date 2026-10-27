@@ -140,6 +140,40 @@ class MarketStandardsTests(unittest.TestCase):
         self.assertIn("decision to honor the disputed prices",
                       " ".join(market.personal_agenda(honored, 1, 105)))
 
+    def test_t16_return_agenda_rejects_corrupt_historical_receipts(self):
+        # A stale Evennia archive can retain a malformed nested decision.
+        # The returning-player command must not crash or invent past work.
+        import copy
+
+        held, ok, error = sign(None, "hold", actor=5, event=10)
+        self.assertTrue(ok, error)
+        day_two = market.refresh(held, 2)
+        archive = day_two["history"][0]
+        valid_receipt = copy.deepcopy(archive["review"])
+
+        for invalid in ("broken receipt", {"mask_id": 105}, [105], True):
+            with self.subTest(invalid=invalid):
+                archive["review"] = invalid
+                snapshot = copy.deepcopy(day_two)
+                self.assertEqual(market.personal_agenda(day_two, 2, 105), [])
+                self.assertEqual(day_two, snapshot, "Agenda mutated persisted history")
+
+        # An invalid receipt for another profession must also be ignored.
+        archive["review"] = None
+        archive["calibration"] = {"mask_id": 105, "day": 1}
+        self.assertEqual(market.personal_agenda(day_two, 2, 105), [])
+
+        # The original valid signature still provides a truthful return cue.
+        archive["calibration"] = None
+        archive["review"] = valid_receipt
+        snapshot = copy.deepcopy(day_two)
+        self.assertIn(
+            "previous day's standards work is archived",
+            " ".join(market.personal_agenda(day_two, 2, 105)),
+        )
+        self.assertEqual(market.personal_agenda(day_two, 2, 999), [])
+        self.assertEqual(day_two, snapshot)
+
     def test_bad_actor_does_not_create_public_event_record(self):
         state, ok, error = market.apply(
             None, "hold", day=1, hour=13, account_id=True,
