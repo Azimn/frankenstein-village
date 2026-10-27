@@ -363,15 +363,37 @@ def restock_sideboard():
     keeper = next((o for o in tavern.contents if o.key == "Bram"), None)
     if keeper is None:
         return []  # nobody's hands to set it out
+    # One-time, idempotent compatibility for worlds built before the house
+    # origin tag existed. Match the original finite fare's exact identity,
+    # category and recipe metadata, and refuse ambiguous duplicate keys.
+    # Never infer house origin from a generic consumable or a cooked bowl.
+    legacy_house = {
+        "a loaf of bread": ("food", "bread", 6),
+        "a wedge of cheese": ("food", "cheese", 5),
+        "a bowl of stew": ("food", "stew", 8),
+        "a tankard of ale": ("drink", "ale", 8),
+        "a cup of wine": ("drink", "wine", 6),
+    }
+    keys = [obj.key for obj in tavern.contents]
     refilled = []
     for obj in tavern.contents:
-        # Only the house dishes placed by build_spike._fare are Bram's to
-        # replenish. Player-cooked bowls are physical, finite inventory and
-        # must remain spent even if dropped beside the sideboard.
-        if not obj.tags.has("house-sideboard-fare", category="origin"):
-            continue
+        # Player-cooked bowls are finite even when dropped in the Tavern.
         if obj.db.kitchen_ration or obj.db.soup_serving:
             continue
+        if not obj.tags.has("house-sideboard-fare", category="origin"):
+            signature = legacy_house.get(obj.key)
+            if signature is None or keys.count(obj.key) != 1:
+                continue
+            category, short, expected_max = signature
+            data = obj.db.consume or {}
+            if (
+                not obj.tags.has("consumable")
+                or not obj.tags.has(category)
+                or data.get("short") != short
+                or data.get("servings_max") != expected_max
+            ):
+                continue
+            obj.tags.add("house-sideboard-fare", category="origin")
         data = obj.db.consume or {}
         max_s = mechanical_value(obj, "uses", None)
         if max_s is None:
