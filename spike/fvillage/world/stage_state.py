@@ -336,3 +336,32 @@ def public_lines(raw, day):
     lines.append("During the actual performance hour, other visitors may stage witness.")
     lines.append("A firsthand Chronicler may stage review praise|critique; the Performer may stage contest <review event>.")
     return "\n".join(lines)
+
+
+def archive_lines(raw, day):
+    """Public, attributed stage record. Reviews are opinions, not world truth."""
+    state = refresh(raw, day)
+    shows = list(state["history"][-10:])
+    if state["performance"]:
+        shows.append({
+            "day": state["day"], "performance": state["performance"],
+            "witnesses": state["witnesses"],
+        })
+    lines = ["The Tavern's signed performance and review archive"]
+    if not shows:
+        lines.append("No performances have been recorded.")
+    for item in shows:
+        show = item.get("performance") or {}
+        if not show:
+            continue
+        lines.append("Day %s: %s played %s (performance event %s; %s signed witnesses)."
+                     % (item["day"], show.get("mask"), show.get("tune"),
+                        show.get("event_id"), len(item.get("witnesses") or [])))
+        for record in show.get("reviews") or []:
+            lines.append("  %s: attributed %s review, event %s, witness event %s%s."
+                         % (record.get("mask"), record.get("verdict"),
+                            record.get("event_id"), record.get("witness_event_id"),
+                            "; Performer contested in event %s" % record["contest_event_id"]
+                            if record.get("contest_event_id") else ""))
+    lines.append("A review reports a Chronicler's opinion, not objective proof.")
+    return "\n".join(lines)
