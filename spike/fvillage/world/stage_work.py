@@ -189,9 +189,20 @@ def serve(mask, target_name):
             )
             if not accepted:
                 raise RuntimeError(reason)
+            # Persist the stage's own signed service before transferring the
+            # finite bowl. Read the public projection back now, so the
+            # player cannot receive a successful world-event receipt for a
+            # handoff that the venue immediately forgets.
+            tavern.db.village_stage = updated
+            persisted = stage_state.normalize(tavern.db.village_stage)
+            services = (persisted.get("performance") or {}).get("hospitality") or []
+            if not any(row.get("event_id") == event["id"] and
+                       row.get("bowl_id") == bowl.id for row in services):
+                raise RuntimeError(
+                    "The stage book could not retain this service; the bowl was not transferred."
+                )
             if not bowl.move_to(guest, quiet=True):
                 raise RuntimeError("The soup bowl could not be transferred.")
-            tavern.db.village_stage = updated
             return {
                 "tavern_room_id": tavern.id, "bowl_id": bowl.id,
                 "recipient_mask_id": guest.id,
