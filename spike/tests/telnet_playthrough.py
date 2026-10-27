@@ -2060,6 +2060,37 @@ def main() -> int:
                     "does not repair the cord")
         print("TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN")
 
+        # EDGE-05: a signed Wanderer actually returns from the treeline.
+        # A different Innkeep cooks one finite meal and hands over its
+        # physical bowl. A remote guest cannot be welcomed by assertion.
+        out = inn.command("soup prep barley salt")
+        require(out, "measure real barley and salt")
+        out = inn.command("soup simmer")
+        require(out, "real, shareable bowl")
+        out = inn.command("soup welcome WandererTester")
+        require(out, "physically present")
+        for move, destination in (
+            ("south", "churchyard"),
+            ("east", "st. lazarus church"),
+            ("east", "village square"),
+            ("east", "blood of the vine"),
+        ):
+            out = wanderer.command(move)
+            require(out, destination)
+        out = wanderer.command("soup welcome InnkeepTester")
+        require(out, "active innkeep")
+        out = inn.command("soup welcome WandererTester")
+        require_all(out, "welcome wanderertester", "signed world event",
+                    "route event", "guest can eat")
+        out = wanderer.command("inventory")
+        require(out, "a bowl of barley and salt soup")
+        out = inn.command("soup welcome WandererTester")
+        require(out, "cook and carry a real uneaten soup bowl")
+        out = inn.command("look soup pot")
+        require_all(out, "signed returning-traveler hospitality", "route event")
+        print("TELNET_GDD_EDGE05_SIGNED_TWO_ACCOUNT_ARRIVAL_HOSPITALITY_GREEN")
+
+
         print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
         out = c.command("guide")
         require_all(out, "civic material table", "bridgework collect preserve")
