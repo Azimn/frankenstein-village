@@ -68,6 +68,7 @@ def _source_valid(row, cooked, prepared):
         and _positive(cc.get("pantry_room_id"))
         and cc.get("pantry_room_id") == pp.get("room_id")
         and _positive(pp.get("room_id"))
+        and _positive(pp.get("day"))
         and pp.get("day") <= row["day"]
         and pp.get("base") == row["base"]
         and pp.get("seasoning") == row["seasoning"]
