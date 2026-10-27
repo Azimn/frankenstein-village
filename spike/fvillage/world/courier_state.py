@@ -70,7 +70,6 @@ def manifest(raw):
         day = _id(r.get("day"))
         if not (source and event and account and day) or source in seen:
             continue
-        seen.add(source)
         receipt = {
             "source_event_id": source, "delivery_event_id": event,
             "account_id": account, "mask": str(r.get("mask") or "")[:70],
@@ -82,6 +81,7 @@ def manifest(raw):
                     or contract["wanderer_account_id"] != account):
                 continue  # A corrupt freight receipt cannot become ordinary mail.
             receipt["freight"] = contract
+        seen.add(source)
         receipts.append(receipt)
     return {"receipts": receipts[-MAX_RECEIPTS:]}
 
