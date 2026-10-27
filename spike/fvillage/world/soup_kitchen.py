@@ -343,13 +343,14 @@ def _complete_delivery(mask, *, professional):
             if not valid:
                 raise RuntimeError("The pantry has no remaining capacity.")
             tavern.db.soup_pantry = current
+            consumed_crate_id = crate.id
             crate.delete()
             return {
                 "turnip_stock": current["stock"]["turnip"],
                 "procurement_event_id": source["id"],
                 "merchant_account_id": source["actor"]["account_id"],
                 "receiving_account_id": mask.account.id,
-                "crate_id": crate.id, "pantry_room_id": tavern.id,
+                "crate_id": consumed_crate_id, "pantry_room_id": tavern.id,
             }
 
     event = publish_world_event(
