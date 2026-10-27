@@ -43,6 +43,8 @@ def main():
         kitchen = smith.command("soup")
         require_all(kitchen, "pantry day 4", "barley 1", "salt 1",
                     "soup ration")
+        open_guide = smith.command("guide")
+        require_all(open_guide, "soup ration", "eat plain broth")
 
         result = smith.command("soup ration")
         require_all(result, "real bowl of plain kitchen broth",
@@ -51,6 +53,12 @@ def main():
 
         second = smith.command("soup ration")
         require(second, "no complete broth ingredients")
+        closed_guide = smith.command("guide")
+        require_all(closed_guide, "pantry cannot make plain broth",
+                    "next village day")
+        assert "Any visitor can use" not in closed_guide, (
+            "Guide promised a meal after finite pantry was depleted"
+        )
         empty = smith.command("score deep")
         assert "soup ration" not in empty.lower(), (
             "Body guidance advertised depleted relief as available"
