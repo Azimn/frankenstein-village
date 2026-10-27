@@ -84,3 +84,19 @@ from world.square_brazier import status_lines
 assert "Last supplied by MerchantTester" in status_lines(smith)
 assert "Split logs glow" in brazier.get_display_desc(looker=smith)
 print("POST_RESTART_SQUARE_BRAZIER_REAL_TWO_ACCOUNT_FIRE_AND_WARMTH_GREEN")
+
+# Advance the ACTUAL existing village-time Script, including its normal
+# project high-water checkpoint, past the signed fire's expiry. An ensuing
+# manual QA clock rewind must not bring back the expired shared warmth.
+clock.db.day = 5
+clock.db.hour = 6
+clock.at_repeat()  # day 5 hour 07; the ten-hour fire has finished
+assert int(clock.db.hour) == 7 and int(clock.db.day) == 5
+expired = fire.normalize(brazier.db.square_brazier)
+assert expired["observed_at"] == fire.hour_index(5, 7), expired
+assert not is_active()
+clock.db.hour = 6  # QA-only deliberate rewind AFTER fire expired
+assert not is_active(), "A clock rewind resurrected already-spent public fuel"
+assert not fire.active(brazier.db.square_brazier, 5, 6)
+assert len(fire.normalize(brazier.db.square_brazier)["history"]) == 2
+print("SQUARE_BRAZIER_ACTUAL_CLOCK_EXPIRY_AND_REWIND_REFUSED_GREEN")
