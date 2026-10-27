@@ -1512,9 +1512,17 @@ from world.events import get_event_ledger as _edge15_ledger
 from world.bridge_case_state import case_lines as _edge15_case_lines
 _edge15_detective = one("DetectiveTester")
 # A character's session-bound .account may be None after logout/restart.
-# Check persisted account identities through AccountDB instead.
-_edge15_detective_account = AccountDB.objects.get(db_key__iexact="qa_detective_case")
-_edge15_chronicler_account = AccountDB.objects.get(db_key__iexact="qa_admin")
+# Use the persisted account-to-character ownership relation, as the existing
+# bridge assertions do, rather than relying on normalized account names.
+_edge15_detective_account = next(
+    (account for account in AccountDB.objects.all()
+     if any(char.id == _edge15_detective.id
+            for char in account.characters.all())),
+    None,
+)
+_edge15_chronicler_account = _bridge_owner
+assert _edge15_detective_account is not None, "Detective owner not found after restart"
+assert _edge15_chronicler_account is not None, "Chronicler owner not found after restart"
 _edge15_bridge = get_public_mystery(BRIDGE_PLAQUE_ID)
 _edge15_exams = list(_edge15_bridge.get("case_examinations") or [])
 _edge15_bulletins = list(_edge15_bridge.get("case_bulletins") or [])
