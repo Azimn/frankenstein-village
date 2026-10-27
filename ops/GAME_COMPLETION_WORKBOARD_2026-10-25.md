@@ -64,6 +64,35 @@ reviewed. Unknown is not failure, nor success. G01 is in progress rather
 than certified until missing runtime evidence is linked to its real owner.
 The generated JSON is an *output*, not a new database or source of world truth.
 
+### Actual CI-backed examples, with explicit limits
+
+The source-indexed cards now also load `ops/GDD_G01_CI_OBSERVATIONS_2026-10-27.json` through
+`ops/gdd_g01_ci_observations.py`. These receipts were cross-checked against
+the successful [full clean-checkout run 40455328096](https://github.com/Azimn/frankenstein-village/actions/runs/40455328096)
+at exact commit `f1ada1cb9b1e640d2ed839063a6b10ceba47f9a5`; the real Evennia
+runner performed authenticated telnet interactions, stopped the server and
+checked the persisted state in a new process. The pinned job is
+`122027586565`, marked SUCCESS. Its log includes the listed client and
+restart markers.
+
+Seven pair contracts have **partial observed integration examples**:
+#03 Innkeep/Healer finite hospitality and clinic care; #04 Innkeep/Merchant
+real kitchen-stock delivery; #06 Innkeep/Performer witnessed show (not full
+catering); #10 Chronicler/Smith calibration and qualified attestation;
+#12 Chronicler/Merchant sourced hold and attestation; #19 Smith/Merchant
+forged hinge and physical installation; and #38 Wanderer/Hound separate
+logistical and protective actions on one cord. Evidence cards include
+ordinary commands, observed locations, source-line ranges, event/state
+effects, marker names and missing requirements.
+
+**These are not seven accepted GDD relationships.** Several reuse one market
+chain, the Performer/Innkeep case lacks its full catering decision, and
+uncoached UX or comprehensive failure/solo fallback proof is still absent.
+All 45 remain `verified_complete: false` in this register. The report
+distinguishes source-only examples, partial CI observations and actual
+end-to-end acceptance. The pinned run is historical evidence, not automatic
+CI coverage for subsequent code revisions.
+
 ## Dependencies and open integration
 
 - This draft's original baseline (`9b16f73f1acec60cd7803476caaa744a5be4a42f`) is historical, not current main. Main was observed at `d7e4ddc45305e35658f7c6bf48eef132b9dfa6be` in the FV-G00 audit on 2026-10-26. Recheck before merging.
