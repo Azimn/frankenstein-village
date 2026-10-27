@@ -36,6 +36,24 @@ def issue(raw, day):
     return state, True
 
 
+
+def freight_contract(raw, *, accepted=False):
+    """Validate source-bound Merchant freight without trusting an item label."""
+    if not hasattr(raw, "get"):
+        return None
+    merchant = _id(raw.get("merchant_account_id"))
+    source = _id(raw.get("consignment_event_id"))
+    if not (merchant and source):
+        return None
+    contract = {"merchant_account_id": merchant, "consignment_event_id": source}
+    if accepted:
+        wanderer = _id(raw.get("wanderer_account_id"))
+        handoff = _id(raw.get("accept_event_id"))
+        if not (wanderer and handoff) or wanderer == merchant or handoff == source:
+            return None
+        contract.update(wanderer_account_id=wanderer, accept_event_id=handoff)
+    return contract
+
 def manifest(raw):
     state = raw if hasattr(raw, "get") else {}
     receipts = []
@@ -50,31 +68,47 @@ def manifest(raw):
         if not (source and event and account and day) or source in seen:
             continue
         seen.add(source)
-        receipts.append({
+        receipt = {
             "source_event_id": source, "delivery_event_id": event,
             "account_id": account, "mask": str(r.get("mask") or "")[:70],
             "day": day, "parcel_id": _id(r.get("parcel_id")) or 0,
-        })
+        }
+        if "freight" in r:
+            contract = freight_contract(r.get("freight"), accepted=True)
+            if (contract is None or contract["consignment_event_id"] != source
+                    or contract["wanderer_account_id"] != account):
+                continue  # A corrupt freight receipt cannot become ordinary mail.
+            receipt["freight"] = contract
+        receipts.append(receipt)
     return {"receipts": receipts[-MAX_RECEIPTS:]}
 
 
 def receive(raw, *, day, account_id, mask, parcel_id,
-            source_event_id, delivery_event_id):
+            source_event_id, delivery_event_id, freight=None):
     state = manifest(raw)
     values = [_id(day), _id(account_id), _id(parcel_id),
               _id(source_event_id), _id(delivery_event_id)]
     if any(x is None for x in values):
         return state, False, "Valid physical parcel and signed accounts required."
     d, aid, pid, source, event = values
+    contract = freight_contract(freight, accepted=True) if freight is not None else None
+    if freight is not None and (contract is None
+            or contract["consignment_event_id"] != source
+            or contract["wanderer_account_id"] != aid
+            or contract["merchant_account_id"] == aid):
+        return state, False, "Freight requires distinct signed Merchant and Wanderer custody."
     if any(r["source_event_id"] == source or r["parcel_id"] == pid
            for r in state["receipts"]):
         return state, False, "That physical parcel was already delivered."
     if state["receipts"] and d < max(r["day"] for r in state["receipts"]):
         return state, False, "A delivery cannot travel backwards in village time."
-    state["receipts"].append({
+    receipt = {
         "day": d, "account_id": aid, "mask": str(mask)[:70],
         "parcel_id": pid, "source_event_id": source,
         "delivery_event_id": event,
-    })
+    }
+    if contract is not None:
+        receipt["freight"] = contract
+    state["receipts"].append(receipt)
     state["receipts"] = state["receipts"][-MAX_RECEIPTS:]
     return state, True, None
