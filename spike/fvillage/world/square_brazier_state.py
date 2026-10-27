@@ -23,15 +23,32 @@ def normalize(raw):
     return {
         "warm_until": max(0, int(raw.get("warm_until") or 0)),
         "last_action_at": max(0, int(raw.get("last_action_at") or 0)),
+        # Highest village hour the project has actually reached, including
+        # inactive/expired hours. Rewinding cannot resurrect consumed heat.
+        "observed_at": max(
+            0, int(raw.get("last_action_at") or 0),
+            int(raw.get("observed_at") or 0),
+        ),
         "history": list(raw.get("history") or [])[-MAX_HISTORY:],
     }
+
+
+def advance(raw, day, hour):
+    """Persist canonical village-clock high-water, including cold intervals.
+
+    Called by the EXISTING village clock, not a new timer or private clock.
+    The marker is descriptive history: it adds no fuel or player event.
+    """
+    state = normalize(raw)
+    state["observed_at"] = max(state["observed_at"], hour_index(day, hour))
+    return state
 
 
 def remaining(raw, day, hour):
     state = normalize(raw)
     now = hour_index(day, hour)
-    if now < state["last_action_at"]:
-        return 0  # rewinding a clock cannot make a future fire observable
+    if now < state["observed_at"]:
+        return 0  # an expired observed fire never revives after rewind
     return max(0, state["warm_until"] - now)
 
 
@@ -48,7 +65,7 @@ def contribute(raw, day, hour, *, mode, actor, bundle_id, gather_event_id,
     """
     state = normalize(raw)
     now = hour_index(day, hour)
-    if now < state["last_action_at"]:
+    if now < state["observed_at"]:
         return state, False, "The brazier ledger comes from a later village hour."
     if mode not in {"light", "feed"}:
         return state, False, "Use brazier light or brazier feed."
@@ -67,6 +84,7 @@ def contribute(raw, day, hour, *, mode, actor, bundle_id, gather_event_id,
         until = state["warm_until"] + FEED_HOURS
     state["warm_until"] = until
     state["last_action_at"] = now
+    state["observed_at"] = now
     state["history"].append({
         "event_id": int(event_id),
         "gather_event_id": int(gather_event_id),
