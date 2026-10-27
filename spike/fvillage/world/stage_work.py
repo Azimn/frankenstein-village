@@ -146,7 +146,7 @@ def act(mask, action, tune=None):
                 return "The original signed review cannot be verified."
         sources = {
             "performance": ledger.get_event(show["event_id"]),
-            "rehearsal": ledger.get_event(show["rehearsal_event_id"]),
+            "rehearsal": ledger.get_event(show.get("rehearsal_event_id")),
             "witness": ledger.get_event(witness["event_id"]),
         }
         if not stage_state.verify_review_sources(show, witness, sources, day=day):
