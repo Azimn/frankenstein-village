@@ -1337,6 +1337,9 @@ assert _stage_contest["actor"]["account_id"] == _stage_performer.account.id
 assert _stage_contest["payload"]["review_event_id"] == _stage_review["event_id"]
 assert _stage_contest["consequence"]["review_event_id"] == _stage_review["event_id"]
 assert "contested by the Performer" in _stage_lines(_stage, _stage["day"])
+from world.stage_state import archive_lines as _stage_archive
+assert "attributed praise review" in _stage_archive(_stage, _stage["day"])
+assert "Performer contested" in _stage_archive(_stage, _stage["day"])
 print("POST_RESTART_GDD_EDGE14_SIGNED_REVIEW_CONTEST_GREEN")
 
 # Physical St. Lazarus clinic, signed Healer work and consumed linen persist.
