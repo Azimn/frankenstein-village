@@ -100,6 +100,24 @@ class InnkeepPerformerCateringTests(unittest.TestCase):
         self.assertIn("already received", reason)
         self.assertEqual(duplicate, original)
 
+    def test_later_witness_does_not_rewrite_service_attendance(self):
+        state, ok, why = stage.rehearse(
+            None, tune="ballad", **args(7, 101))
+        self.assertTrue(ok, why)
+        state, ok, why = stage.perform(
+            state, tune="ballad", audience_account_ids=[8, 9],
+            **args(7, 102))
+        self.assertTrue(ok, why)
+        state, ok, why = stage.witness(state, **args(8, 103))
+        self.assertTrue(ok, why)
+        served, ok, why = cater(state)
+        self.assertTrue(ok, why)
+        after, ok, why = stage.witness(served, **args(9, 106))
+        self.assertTrue(ok, why)
+        self.assertEqual(len(after["witnesses"]), 2)
+        self.assertEqual(after["service"]["witness_count"], 1)
+        self.assertEqual(stage.normalize(after)["service"]["witness_count"], 1)
+
     def test_json_restart_and_rollover_preserve_signed_causality(self):
         state, ok, reason = cater(witnessed_show())
         self.assertTrue(ok, reason)
@@ -120,7 +138,8 @@ class InnkeepPerformerCateringTests(unittest.TestCase):
             ("account_id", 7), ("bowl_id", False),
             ("performance_event_id", 999),
             ("witness_event_id", 999), ("hour", 21),
-            ("event_id", 102),
+            ("event_id", 102), ("witness_count", False),
+            ("witness_count", 9),
         ):
             forged = copy.deepcopy(state)
             forged["service"][field] = value
