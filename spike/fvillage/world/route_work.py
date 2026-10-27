@@ -68,6 +68,14 @@ def status_lines():
         "there to record whether the warning was present when inspected. "
         "Neither action proves why the cord was damaged."
     )
+    lines.append(
+        "At Riverside Path, a Wanderer can examine the actual river gauge "
+        "and use |wsurvey gauge|n to sign firsthand flood-mark evidence. "
+        "A different Detective can examine that same gauge and use "
+        "|wsurvey compare|n for a qualified source-linked case note. "
+        "|wsurvey evidence|n reads the gauge record; it does not solve "
+        "the bridge mystery or predict a flood."
+    )
     if route_surveys.complete(state):
         lines.append(
             "The public route is complete for today. Tomorrow's observations "
