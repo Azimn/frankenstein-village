@@ -2100,7 +2100,7 @@ def main() -> int:
         out = c.command("survey notice")
         require(out, "already been published")
         out = c.command("survey")
-        require_all(out, "houndtester", "chroniclertester",
+        require_all(out, "houndtester", "smoketester",
                     "notice event", "No injury or monster is established")
         for move, destination in (
             ("south", "lamp shop"), ("south", "market lane"),
