@@ -77,7 +77,7 @@ class StageSafetyTests(unittest.TestCase):
     def test_same_account_role_switch_denied(self):
         state, ok, _ = warning()
         self.assertTrue(ok)
-        _, ok, why = decision(state, account=11, mask=333)
+        _, ok, why = decision(state, account_id=11, mask_id=333)
         self.assertFalse(ok)
         self.assertIn("Hound", why)
 
