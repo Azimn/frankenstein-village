@@ -16,10 +16,13 @@ A feature is finished only when:
 7. Actual uncoached player sessions show comprehension and worthwhile continuation; retain friction and balance defects.
 8. There are no known critical or major gameplay bugs; full clean-checkout CI passes on the exact integrated main SHA.
 
-The authoritative **quantitative** minimums are section 7 of
-files/frankenstein-village-quest-handoff-v0.3.md, not the optional smaller
-early-access thresholds in PR #85. Implemented registrations and prose don't
-count as playable jobs, cases or content. The inventory must distinguish:
+The approved quest-handoff section 7 remains an existing full-game quantitative
+source; the subsequently merged Master GDD review/program (PR #95, especially
+section 15 and FV-G00–FV-G13) is the current integrated **working plan**. Neither
+a review draft nor this audit overrides the World Bible v0.2 or the design
+doctrine. Escalate any true quota/canon discrepancy to the keeper rather than
+quietly adopting a smaller early-access target from PR #85. Implemented
+registrations and prose don't count as playable jobs, cases or content. The inventory must distinguish:
 MANUSCRIPT -> STATIC SOURCE -> BOOTSTRAP -> DISCOVERED -> ACTION/OUTCOME ->
 POST-RESTART -> UNCOACHED PLAY. Never promote a lower state by inference.
 
@@ -38,18 +41,14 @@ tier; the next coding batch must supply command-level execution evidence.
 
 ## Dependencies and open integration
 
-- Main SHA is the sole baseline until changes are reviewed and merged.
-- PR #89 is the proposed model-free game-first authority. Its Tavern newline
-  correction duplicates PR #90. Keep one when integrated; do not merge both
-  patches independently.
-- PR #92 is the better cumulative first-evening draft; its code includes the
-  unmerged #91 baseline. Never merge both independently without deduplication.
-- PR #85 is an **early-access** roadmap, subordinate to full section 7 goals.
-  It refers to #78 as open; #78 is closed/unmerged. #88 is merged and already
-  present on current main. Reconcile documentation, not game canon.
-- PR #47 (Pretorius laboratory) is explicitly deferred and outside this game.
-- This PR adds only an audit, unit tests and this workboard. It does not merge
-  or modify any of those other branches.
+- This draft's original baseline (`9b16f73f1acec60cd7803476caaa744a5be4a42f`) is historical, not current main. Main was observed at `d7e4ddc45305e35658f7c6bf48eef132b9dfa6be` in the FV-G00 audit on 2026-10-26. Recheck before merging.
+- PR #95 (Master GDD program) and stacked PRs #103–#109 are **already merged**. Their real code is the existing implementation baseline, not a pending stack.
+- PR #89 is still a proposed model-free release contract. The Tavern newline fix duplicates closed/unmerged PR #90, whose fix is already present on #89's branch; keep that one code path once reviewed and authorized.
+- PR #92 **is merged** and includes the usable first-evening path from closed/unmerged #91. Do not replay #91.
+- PR #85 remains an optional early-access roadmap; its FV-G00 integration branch now carries the working authority/conflict register `ops/FV_G00_INTEGRATION_REGISTER_2026-10-26.md`. #78 is closed/unmerged, #88 is merged.
+- PR #94 is a draft design synthesis, subordinate to the World Bible, doctrine and integrated GDD. Do not treat pair labels as accepted completed relationships.
+- PR #47 (Pretorius laboratory) is deferred and outside this game.
+- This PR's own code is a source audit plus this workboard. It asserts neither main integration nor new playable content; full GDD acceptance requires real client, restart and player evidence.
 
 ## Actual implementation sequence
 
