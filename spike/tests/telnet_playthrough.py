@@ -1261,6 +1261,9 @@ def main() -> int:
         out = performer.command("stage")
         require_all(out, "performertester", "2 other player account",
                     "attributed praise review", "contested by the performer")
+        out = inn.command("stage archive")
+        require_all(out, "signed performance and review archive",
+                    "attributed praise review", "performer contested", "not objective proof")
         print("TELNET_GDD_EDGE14_SIGNED_CHRONICLER_REVIEW_CONTEST_GREEN")
         out = c.command("west")
         require(out, "village square")
