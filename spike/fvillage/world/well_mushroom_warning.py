@@ -212,7 +212,7 @@ def publish_public_warning(mask):
               if type(source_id) is int and source_id > 0 else None)
     valid, reason = verify_healer_source(
         finding, source, chronicler_account_id=account_id,
-        day=day, hour=hour,
+        day=day, hour=hour, situation_id=WELL_MUSHROOM_WARNING_ID,
     )
     if not valid:
         return None, reason
