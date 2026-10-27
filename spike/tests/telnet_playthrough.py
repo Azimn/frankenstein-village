@@ -118,6 +118,7 @@ def main() -> int:
     performer = None
     wanderer = None
     hound = None
+    detective = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -1182,6 +1183,66 @@ def main() -> int:
         require(out, "all gone")
         print("TELNET_SHARED_SOUP_RECIPE_CRAFTING_GREEN")
 
+        # EDGE-07: the original physical Tavern register, a limited
+        # Innkeep disclosure and a separate authenticated Detective inquiry.
+        out = inn.command("lodging")
+        require_all(out, "guest register", "no signed redacted authorization")
+        out = inn.command("lodging disclose")
+        require(out, "look at the original guest register first")
+        out = inn.command("look register")
+        require_all(out, "rm 6", "lodging disclose", "lodging inquire")
+        out = inn.command("lodging inquire")
+        require(out, "active detective calling")
+        out = inn.command("lodging disclose")
+        require_all(out, "redacted room six", "signed world event")
+        out = inn.command("lodging disclose")
+        require(out, "already authorized")
+
+        detective = Client(args.host, args.port)
+        require(detective.sync_login_screen(), "frankenstein village")
+        detective_pw = os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = detective.command(
+            f"create qa_detective_lodging {detective_pw}", wait=4.0
+        )
+        if ("account qa_detective_lodging" not in out.lower()
+                and "connected" not in out.lower()):
+            out = detective.command(
+                f"connect qa_detective_lodging {detective_pw}", wait=4.0
+            )
+        out = detective.command("substrate ai")
+        if ("gate is open" not in out.lower()
+                and "substrate recorded" not in out.lower()):
+            detective.command(
+                f"connect qa_detective_lodging {detective_pw}", wait=4.0
+            )
+            out = detective.command("substrate ai")
+        require(out, "gate is open", "substrate recorded")
+        detective.command("charcreate DetectiveTester", wait=3.0)
+        out = detective.command("ic DetectiveTester", wait=4.0)
+        require(out, "private room")
+        out = detective.command("calling choose detective")
+        require_all(out, "detective is now your active calling", "apprentice rank")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("east", "blood of the vine"),
+        ):
+            out = detective.command(move)
+            require(out, destination)
+        out = detective.command("lodging inquire")
+        require(out, "look at the original guest register first")
+        out = detective.command("look register")
+        require_all(out, "rm 6", "lodging inquire")
+        out = detective.command("lodging disclose")
+        require(out, "active innkeep calling")
+        out = detective.command("lodging inquire")
+        require_all(out, "independent qualified register observation",
+                    "verified innkeep source", "does not prove who wrote")
+        out = detective.command("lodging inquire")
+        require(out, "no unused signed innkeep disclosure")
+        out = inn.command("lodging")
+        require_all(out, "independent qualified inquiry", "source")
+        print("TELNET_GDD_EDGE07_INDEPENDENT_SIGNED_REGISTER_INQUIRY_GREEN")
+
         # A distinct Performer account exercises the real Tavern stage.
         performer = Client(args.host, args.port)
         require(performer.sync_login_screen(), "frankenstein village")
@@ -2218,8 +2279,12 @@ def main() -> int:
             print("\nWANDERER TRANSCRIPT\n" + "\n".join(wanderer.transcript))
         if hound is not None:
             print("\nHOUND TRANSCRIPT\n" + "\n".join(hound.transcript))
+        if detective is not None:
+            print("\nDETECTIVE TRANSCRIPT\n" + "\n".join(detective.transcript))
         raise
     finally:
+        if detective is not None:
+            detective.close()
         if hound is not None:
             hound.close()
         if wanderer is not None:
