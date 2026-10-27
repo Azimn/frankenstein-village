@@ -22,6 +22,7 @@ class FakeItem:
         self.id = identifier
         self.location = owner
         self.db = SimpleNamespace()
+        self.tags = SimpleNamespace(add=lambda _tag: None)
         self.deleted = False
 
     def delete(self):
@@ -33,7 +34,7 @@ class SoupStockConservationTests(unittest.TestCase):
     def setUp(self):
         path = ROOT / "spike" / "fvillage" / "world" / "soup_kitchen.py"
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        names = {"prep", "procure", "deliver"}
+        names = {"prep", "simmer", "procure", "deliver"}
         functions = [
             node for node in tree.body
             if isinstance(node, ast.FunctionDef) and node.name in names
@@ -45,16 +46,19 @@ class SoupStockConservationTests(unittest.TestCase):
         exec(compile(module, str(path), "exec"), self.api)
 
         self.day = 1
+        self.hour = 21
+        self.warm = False
         self.tavern = SimpleNamespace(
             id=11, key="The Blood of the Vine",
-            db=SimpleNamespace(soup_pantry=soup_state.pantry(None, 1)))
+            db=SimpleNamespace(soup_pantry=soup_state.pantry(None, 1),
+                               civic_hearth=None))
         self.market = SimpleNamespace(
             id=12, key="Market Lane",
             db=SimpleNamespace(soup_market=soup_state.market_source(None, 1)))
         self.mask = SimpleNamespace(
             id=301, key="KitchenTester", role="innkeep",
             account=SimpleNamespace(id=400), location=self.tavern,
-            contents=[])
+            contents=[], db=SimpleNamespace(soup_notebook=None))
         self.created = []
         self.recorded = []
         self.events = []
@@ -90,7 +94,13 @@ class SoupStockConservationTests(unittest.TestCase):
                 item for item in actor.contents if item.location is actor
                 and getattr(item.db, attribute, None)
             ],
-            "_clock": lambda: (self.day, 21),
+            "_clock": lambda: (self.day, self.hour),
+            "_full_bowls": lambda actor: sum(
+                1 for item in actor.contents if item.location is actor
+                and (getattr(item.db, "soup_serving", None)
+                     or getattr(item.db, "kitchen_ration", None))
+                and getattr(item.db, "servings", 0) > 0),
+            "hearth_state": SimpleNamespace(active=lambda *_args: self.warm),
             "active_calling": lambda actor: actor.role,
             "record_participation": lambda actor, activity, calling: (
                 self.recorded.append((activity, calling))
@@ -278,6 +288,83 @@ class SoupStockConservationTests(unittest.TestCase):
         self.assertIn("day changed", error.lower())
         self.assertFalse(crate.deleted)
         self.assertEqual(self.tavern.db.soup_pantry["stock"]["turnip"], 3)
+
+
+    def test_simmer_consumes_one_packet_and_signs_one_real_bowl(self):
+        prepared, error = self.execute("prep", "turnip", "thyme")
+        self.assertIsNone(error)
+        packet = self.created[0]
+        self.warm = True
+        cooked, error = self.execute("simmer")
+        self.assertIsNone(error)
+        self.assertTrue(packet.deleted)
+        self.assertEqual(len(self.created), 2)
+        bowl = self.created[1]
+        self.assertIs(bowl.location, self.mask)
+        self.assertEqual(bowl.db.soup_serving["prep_event_id"],
+                         prepared["event_id"])
+        self.assertEqual(bowl.db.soup_serving["quality"], cooked["quality"])
+        self.assertTrue(cooked["warmed"])
+        self.assertEqual(
+            self.tavern.db.soup_pantry["history"][-1]["cook_event_id"],
+            cooked["event_id"])
+        self.assertEqual(self.mask.db.soup_notebook[-1]["cook_event_id"],
+                         cooked["event_id"])
+        self.assertEqual(self.recorded[-1],
+                         ("soup_batches_cooked", "innkeep"))
+
+    def test_simmer_interposed_packet_transfer_does_not_mint_bowl(self):
+        self.execute("prep", "turnip", "salt")
+        packet = self.created[0]
+        self.before_consequence = lambda: setattr(packet, "location", self.market)
+        cooked, error = self.execute("simmer")
+        self.assertIsNone(cooked)
+        self.assertIn("moved, changed or consumed", error)
+        self.assertEqual(len(self.created), 1)
+        self.assertFalse(packet.deleted)
+        self.assertEqual(len(self.events), 1)
+        self.assertFalse(self.tavern.db.soup_pantry["history"])
+        self.assertIsNone(self.mask.db.soup_notebook)
+
+    def test_simmer_rechecks_role_clock_packet_and_bowl_limit(self):
+        self.execute("prep", "barley", "salt")
+        packet = self.created[0]
+
+        self.before_consequence = lambda: setattr(self.mask, "role", "merchant")
+        cooked, error = self.execute("simmer")
+        self.assertIsNone(cooked)
+        self.assertIn("active Innkeep", error)
+        self.mask.role = "innkeep"
+
+        self.before_consequence = lambda: setattr(self, "hour", 22)
+        cooked, error = self.execute("simmer")
+        self.assertIsNone(cooked)
+        self.assertIn("clock changed", error)
+        self.hour = 21
+
+        self.before_consequence = lambda: packet.db.soup_preparation.update(
+            {"prep_event_id": 999})
+        cooked, error = self.execute("simmer")
+        self.assertIsNone(cooked)
+        self.assertIn("changed or consumed", error)
+        packet.db.soup_preparation["prep_event_id"] = 100
+
+        def other_bowls():
+            for index in range(3):
+                bowl = FakeItem(self.mask, 700 + index)
+                bowl.db.soup_serving = {"event_id": 500 + index}
+                bowl.db.servings = 1
+                self.mask.contents.append(bowl)
+
+        self.before_consequence = other_bowls
+        cooked, error = self.execute("simmer")
+        self.assertIsNone(cooked)
+        self.assertIn("three soup bowls", error)
+        self.assertFalse(packet.deleted)
+        self.assertEqual(len(self.created), 1)
+        self.assertEqual(len(self.events), 1)
+        self.assertFalse(self.tavern.db.soup_pantry["history"])
+        self.assertIsNone(self.mask.db.soup_notebook)
 
 
 if __name__ == "__main__":
