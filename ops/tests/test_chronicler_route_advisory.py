@@ -59,6 +59,7 @@ class ChroniclerWandererAdvisoryTests(unittest.TestCase):
         for account, event, source_id in (
             (22, 102, 999), (True, 102, 101), (22, False, 101),
             (22, 102, True), (0, 102, 101), (22, -1, 101),
+            (22, 101, 101),
         ):
             result, ok, reason = r.publish_advisory(
                 source, 4, account, "C", event, source_id,
@@ -123,6 +124,19 @@ class ChroniclerWandererAdvisoryTests(unittest.TestCase):
             "source_event_id": 101,
         }
         self.assertIsNone(r.normalize(state)["advisory"])
+        # Even plausible-looking stored data cannot point to another actor's
+        # source event or change the witnessed condition after publication.
+        valid = wanderer()
+        published, ok, reason = r.publish_advisory(
+            valid, 4, 22, "C", 102, 101,
+        )
+        self.assertTrue(ok, reason)
+        forged = copy.deepcopy(published)
+        forged["advisory"]["source_account_id"] = 999
+        self.assertIsNone(r.normalize(forged)["advisory"])
+        forged = copy.deepcopy(published)
+        forged["advisory"]["observation"] = "marked_caution"
+        self.assertIsNone(r.normalize(forged)["advisory"])
 
 
 if __name__ == "__main__":
