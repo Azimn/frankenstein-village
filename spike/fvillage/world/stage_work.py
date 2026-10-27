@@ -7,7 +7,7 @@ from evennia.utils import search
 
 from world import stage_state
 from world.callings import active_calling, record_participation
-from world.events import publish_world_event
+from world.events import publish_world_event, get_event_ledger
 
 TAVERN = "The Blood of the Vine"
 
@@ -47,13 +47,17 @@ def act(mask, action, tune=None):
     tavern, error = _guard(mask)
     if error:
         return None, error
-    if action not in {"rehearse", "perform", "witness"}:
+    if action not in {"rehearse", "perform", "witness", "review", "contest"}:
         return None, "Use stage, stage rehearse ballad|reel, stage perform ballad|reel, or stage witness."
-    if action in {"rehearse", "perform"} and active_calling(mask) != "performer":
+    if action in {"rehearse", "perform", "contest"} and active_calling(mask) != "performer":
         return None, "An active Performer must rehearse and perform."
+    if action == "review" and active_calling(mask) != "chronicler":
+        return None, "An active Chronicler must review a witnessed performance."
+    if action == "review" and tune not in stage_state.VERDICTS:
+        return None, "Choose praise or critique."
     if action == "witness" and tune is not None:
         return None, "Use stage witness without a tune."
-    if action != "witness" and tune not in stage_state.TUNES:
+    if action in {"rehearse", "perform"} and tune not in stage_state.TUNES:
         return None, "Choose ballad or reel."
     day, hour = _clock()
     kwargs = {
@@ -80,10 +84,74 @@ def act(mask, action, tune=None):
                     continue
                 audience.append(account.id)
             context["audience_account_ids"] = audience
+
+        if action == "review":
+            current = stage_state.refresh(tavern.db.village_stage, day)
+            show = current["performance"]
+            witness = next((
+                w for w in current["witnesses"]
+                if w["account_id"] == mask.account.id and w["mask_id"] == mask.id
+            ), None)
+            context = {
+                "verdict": tune,
+                "performance_event_id": show["event_id"] if show else None,
+                "witness_event_id": witness["event_id"] if witness else None,
+            }
+        elif action == "contest":
+            current = stage_state.refresh(tavern.db.village_stage, day)
+            show = current["performance"]
+            latest = (show.get("reviews") or [])[-1] if show and show.get("reviews") else None
+            context = {"review_event_id": tune or (latest["event_id"] if latest else None)}
         return context
 
+    def source_error(context):
+        if action not in {"review", "contest"}:
+            return None
+        current = stage_state.refresh(tavern.db.village_stage, day)
+        show = current["performance"]
+        if not show:
+            return None
+        ledger = get_event_ledger()
+        if action == "review":
+            witness = next((
+                w for w in current["witnesses"]
+                if w["account_id"] == mask.account.id and w["mask_id"] == mask.id
+                and w["event_id"] == context.get("witness_event_id")
+            ), None)
+            if witness is None:
+                return None
+        else:
+            review_row = next((
+                r for r in show.get("reviews") or []
+                if r["event_id"] == stage_state._ident(context.get("review_event_id"))
+            ), None)
+            if review_row is None:
+                return None
+            witness = next((
+                w for w in current["witnesses"]
+                if w["event_id"] == review_row["witness_event_id"]
+                and w["account_id"] == review_row["account_id"]
+            ), None)
+            if not witness or not stage_state.verify_review_event(
+                review_row, ledger.get_event(review_row["event_id"]), show
+            ):
+                return "The original signed review cannot be verified."
+        sources = {
+            "performance": ledger.get_event(show["event_id"]),
+            "rehearsal": ledger.get_event(show["rehearsal_event_id"]),
+            "witness": ledger.get_event(witness["event_id"]),
+        }
+        if not stage_state.verify_review_sources(show, witness, sources, day=day):
+            return "The performance and firsthand witness ledger sources cannot be verified."
+        return None
+
+    context = contextual_kwargs()
+    problem = source_error(context)
+    if problem:
+        return None, problem
+
     preview, ok, reason = transform(tavern.db.village_stage, event_id=1,
-                                    **kwargs, **contextual_kwargs())
+                                    **kwargs, **context)
     if not ok:
         return None, reason
 
@@ -93,9 +161,19 @@ def act(mask, action, tune=None):
             now_day, now_hour = _clock()
             if (now_day, now_hour) != (day, hour):
                 raise RuntimeError("Village clock changed before the stage event.")
+            if action in {"review", "contest"} and (
+                mask.location != tavern or active_calling(mask) != (
+                    "chronicler" if action == "review" else "performer"
+                )
+            ):
+                raise RuntimeError("The acting professional left or changed Calling.")
+            live_context = contextual_kwargs()
+            problem = source_error(live_context)
+            if problem:
+                raise RuntimeError(problem)
             current, accepted, reason = transform(
                 tavern.db.village_stage, event_id=event["id"],
-                **kwargs, **contextual_kwargs(),
+                **kwargs, **live_context,
             )
             if not accepted:
                 raise RuntimeError(reason)
@@ -107,14 +185,22 @@ def act(mask, action, tune=None):
                     current["performance"]["event_id"]
                     if current["performance"] else None
                 ),
+                "review_event_id": event["id"] if action == "review" else live_context.get("review_event_id"),
+                "witness_event_id": live_context.get("witness_event_id"),
+                "verdict": live_context.get("verdict"),
             }
 
     event = publish_world_event(
         "village.stage_" + action, actor=mask,
         payload={"day": day, "hour": hour, "tune": tune,
+                 "source_performance_event_id": context.get("performance_event_id"),
+                 "source_witness_event_id": context.get("witness_event_id"),
+                 "review_event_id": context.get("review_event_id"),
+                 "verdict": context.get("verdict"),
                  "harbinger": False, "chronicle_eligible": False},
         consequence=consequence,
     )
     if action != "witness":
-        record_participation(mask, "stage_" + action, calling="performer")
+        record_participation(mask, "stage_" + action,
+                             calling="chronicler" if action == "review" else "performer")
     return {"event_id": event["id"], "action": action, "tune": tune}, None
