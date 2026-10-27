@@ -403,6 +403,17 @@ def main() -> int:
                     ],
                     cwd=checkout, env=env, timeout=140,
                 )
+                # EDGE-18: day-two care through ordinary authenticated
+                # accounts, on the original independently certified cot.
+                run(
+                    [
+                        vpython,
+                        checkout / "spike" / "tests"
+                        / "telnet_edge18_day2_supported.py",
+                        "--host", "127.0.0.1", "--port", "4000",
+                    ],
+                    cwd=checkout, env=env, timeout=100,
+                )
             finally:
                 run([evennia, "stop"], cwd=game, env=env, timeout=60)
             t13_cancel = (
@@ -443,6 +454,14 @@ def main() -> int:
                 checkout / "spike" / "tests" / "gdd_t13_cancel_restart_assertions.py"
             ).read_text(encoding="utf-8")
             run([evennia, "shell"], cwd=game, env=env, input_text=t13_restart)
+            # EDGE-18: the second day's treatment, original fitting and
+            # confidentiality must survive a second real process restart.
+            edge18_restart = (
+                checkout / "spike" / "tests"
+                / "edge18_day2_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge18_restart)
 
             # T-13: independently exercise a live two-socket cancel/deliver
             # contest, then verify physical custody and signed outcome before
