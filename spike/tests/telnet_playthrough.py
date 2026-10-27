@@ -1277,6 +1277,8 @@ def main() -> int:
         out = performer.command("stage")
         require_all(out, "1 other player account", "1 independent detective")
         print("TELNET_GDD_EDGE40_INDEPENDENT_SIGNED_STAGE_INQUIRY_GREEN")
+        detective.close()
+        detective = None
 
         # The Healer's return generated an unsolicited room-arrival broadcast
         # for the Innkeep. Drain that queued notification before requesting
