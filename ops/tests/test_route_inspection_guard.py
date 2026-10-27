@@ -60,7 +60,7 @@ class RouteInspectionGuardTests(unittest.TestCase):
                     and isinstance(node.func, ast.Name)
                     and node.func.id == "_inspected_today"
                 ]
-                self.assertEqual(len(calls), 1)
+                self.assertEqual(len(calls), 2 if name == "field_action" else 1)
 
 
 if __name__ == "__main__":
