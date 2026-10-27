@@ -49,6 +49,7 @@ def main():
         require_all(body, "public square brazier is actually burning nearby",
                     "finite hours")
         agent = agent_json(smith.command("agent"))
+        assert agent["commands"]["shared_square_warmth"] == "brazier"
         assert any("public square brazier" in text.lower()
                    for text in agent["embodiment"]["possible_relief"]), (
             "Human first-person and agent body advice disagree"
@@ -70,7 +71,7 @@ def main():
         second = merchant.command("brazier feed")
         require(second, "carry a real bundle")
         require(merchant.command("east"), "blood of the vine")
-        require(merchant.command("brazier feed"), "travel to village square")
+        require(merchant.command("brazier feed"), "go to the in-character village square")
         require(merchant.command("west"), "village square")
         print("TELNET_SQUARE_BRAZIER_TWO_PLAYER_REAL_WOOD_AND_WARMTH_GREEN")
     finally:
