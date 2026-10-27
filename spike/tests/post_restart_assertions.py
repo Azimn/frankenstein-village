@@ -389,6 +389,21 @@ assert completion_event["kind"] == "professional.smith_lamp_repair_completed"
 assert procurement_event["payload"]["source_smith_event_id"] == diagnosis_event["id"]
 assert completion_event["payload"]["source_merchant_event_id"] == procurement_event["id"]
 assert completion_event["consequence"]["repair_state"] == "working"
+from world.repair_provenance import verify_diagnosis, verify_procurement
+assert verify_diagnosis(
+    lamp_diagnosis, diagnosis_event, lamp_id=north_square_lamp.id,
+    situation_id=LAMP_REPAIR_ID, part="brass mantle collar",
+), "The Smith diagnosis has no matching completed signed source"
+assert verify_procurement(
+    lamp_procurement, procurement_event, lamp_diagnosis, diagnosis_event,
+    stock_id=repair_stock.id, situation_id=LAMP_REPAIR_ID,
+    part="brass mantle collar",
+), "The Merchant procurement has no matching completed signed source"
+assert diagnosis_event["actor"]["account_id"] != procurement_event["actor"]["account_id"]
+assert completion_event["actor"]["account_id"] == diagnosis_event["actor"]["account_id"]
+assert completion_event["consequence"]["source_smith_diagnosis_event_id"] == diagnosis_event["id"]
+assert completion_event["consequence"]["source_merchant_event_id"] == procurement_event["id"]
+print("POST_RESTART_GDD_EDGE19_SIGNED_REPAIR_GREEN")
 # T-03: the authenticated Smith retried after an actual server restart.
 # A truthful "already complete" response must not conceal a second signed
 # completion, new part expenditure or replacement of the lamp's repair receipt.
