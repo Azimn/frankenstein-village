@@ -207,9 +207,12 @@ def serve(mask, hound_name):
             refuge["history"][-1]["bowl_id"] = bowl.id
             tavern.db.soup_pantry = food
             tavern.db.route_refuge = refuge
+            # Evennia clears the database ID on delete. Capture the physical
+            # custody identifier before consuming the object.
+            consumed_dispatch_id = item.id
             item.delete()
             return {
-                "bowl_id": bowl.id, "consumed_dispatch_id": item.id,
+                "bowl_id": bowl.id, "consumed_dispatch_id": consumed_dispatch_id,
                 "dispatch_event_id": token["dispatch_event_id"],
                 "source_protect_event_id": token["source_protect_event_id"],
                 "tavern_id": tavern.id,
