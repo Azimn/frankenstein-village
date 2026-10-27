@@ -44,8 +44,9 @@ WORK = {
     ),
     "merchant": (
         "At Market Lane use soup procure for a real crate of roots; "
-        "carry or transfer it to the Blood of the Vine, then soup deliver "
-        "to restock the working kitchen's finite pantry.",
+        "carry it to the Blood of the Vine for soup deliver, or give it "
+        "to a different Innkeep account for a signed soup accept receipt. "
+        "Both routes consume the physical crate and restock finite pantry.",
         "At Market Lane: look market scale, then trade honor to keep "
         "goods moving or trade hold to suspend disputed distributions. "
         "A Smith can calibrate, and a Merchant can trade release.",
