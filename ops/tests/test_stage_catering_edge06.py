@@ -138,7 +138,8 @@ class InnkeepPerformerCateringTests(unittest.TestCase):
             ("account_id", 7), ("bowl_id", False),
             ("performance_event_id", 999),
             ("witness_event_id", 999), ("hour", 21),
-            ("event_id", 102), ("witness_count", False),
+            ("event_id", 102), ("event_id", "invalid"),
+            ("cook_event_id", "invalid"), ("witness_count", False),
             ("witness_count", 9),
         ):
             forged = copy.deepcopy(state)
