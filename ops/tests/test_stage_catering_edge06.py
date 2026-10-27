@@ -135,7 +135,7 @@ class InnkeepPerformerCateringTests(unittest.TestCase):
         state, ok, reason = cater(witnessed_show())
         self.assertTrue(ok, reason)
         for field, value in (
-            ("account_id", 7), ("bowl_id", False),
+            ("account_id", 7), ("account_id", "7"), ("bowl_id", False),
             ("performance_event_id", 999),
             ("witness_event_id", 999), ("hour", 21),
             ("event_id", 102), ("event_id", "invalid"),
