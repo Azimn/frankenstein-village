@@ -19,6 +19,7 @@ from world import square_brazier_state as fire
 class FakeBundle:
     def __init__(self, owner, key=100):
         self.id = key
+        self.key = "a bundle of firewood"
         self.location = owner
         self.db = SimpleNamespace(
             civic_firewood=True, gather_event_id=200 + key, source_day=1
