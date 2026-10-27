@@ -33,7 +33,9 @@ class CmdTrade(Command):
         action = (self.args or "").strip().lower()
         if action in {"", "status"}:
             from world.market_inquiry_work import status as inquiry_status
-            caller.msg(market_work.state_lines() + "\n" + inquiry_status())
+            caller.msg(market_work.state_lines() + "\n" + inquiry_status() + "\n" +
+                       "Detectives: look market scale, then trade investigate " +
+                       "after a signed Merchant hold. Original Merchant: trade rebut.")
             return
         if action in {"investigate", "rebut"}:
             from world.market_inquiry_work import perform as inquiry_action
