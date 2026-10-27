@@ -17,6 +17,29 @@ from gdd_g01_ci_observations import load_ci_observations
 from phase_a_calling_source_audit import audit as audit_calling_sources
 
 ROOT = Path(__file__).resolve().parents[1]
+# Relevant source-entrypoints or manuscripts for otherwise uncounted GDD families.
+# These are navigation hints, NOT proof a content family has implementation,
+# a working location or anything close to its full authoring quota.
+FAMILY_REFERENCE_HINTS = {
+    "newcomer_scenarios": "spike/fvillage/world/first_evening.py",
+    "small_mysteries": "spike/fvillage/world/public_mysteries.py",
+    "major_mystery_chains": "spike/fvillage/world/private_mysteries.py",
+    "civic_quests": "spike/fvillage/world/civic_commissions.py",
+    "authored_quests_per_calling": "spike/fvillage/world/calling_opportunities.py",
+    "repeatable_jobs_per_calling": "spike/fvillage/world/calling_opportunities.py",
+    "faction_quests_per_faction": "files/quest-generation-packet-v0.1.md",
+    "cross_faction_conflicts": "files/quest-generation-packet-v0.1.md",
+    "expedition_locations": "spike/fvillage/world/build_spike.py",
+    "social_expeditions": "files/quest-generation-packet-v0.1.md",
+    "group_investigations": "spike/fvillage/world/public_mysteries.py",
+    "community_projects": "spike/fvillage/world/civic_commissions.py",
+    "hidden_discoveries": "spike/fvillage/world/discoveries.py",
+    "npc_arcs_per_major_npc": "spike/fvillage/world/resident_life.py",
+    "ambient_room_events": "files/ambient-events-v0.1.md",
+    "harbinger_templates": "spike/fvillage/world/harbinger_content.py",
+    "player_request_templates": "files/quest-generation-packet-v0.1.md",
+}
+
 PROOF_FIELDS = (
     "ordinary_player_command", "observed_room", "distinct_role_decisions",
     "signed_world_transition", "finite_resource_or_time",
@@ -50,12 +73,17 @@ def build_register(root: Path = ROOT, *, source_ref: str | None = None) -> dict:
             initialized_in_source = inventory["rumors"]["seed_function_called"]
         else:
             source_path, initialized_in_source = None, None
+        reference = FAMILY_REFERENCE_HINTS.get(row["key"], source_path)
+        if reference is None or not (root / reference).is_file():
+            raise ValueError("Missing source reference for GDD family " + row["key"])
         family_cards.append({
             "id": "GDD-FAMILY-" + row["key"],
             "content_family": row["label"],
             "minimum_target": row["minimum_target"],
             "declared_count": row["declared_count"],
             "source_path": source_path,
+            "candidate_source_or_manuscript": reference,
+            "candidate_source_scope": "reference_only_no_family_quota_claim",
             "bootstrap_reference_in_source": initialized_in_source,
             "status": "static_source_only" if source_path else "unmeasured",
             "evidence": empty_proof(),
@@ -113,6 +141,19 @@ def build_register(root: Path = ROOT, *, source_ref: str | None = None) -> dict:
         })
     if [edge["number"] for edge in edges] != list(range(1, 46)):
         raise ValueError("GDD 45-pair order invalid")
+    for card in calling_cards:
+        name = card["calling"]
+        card["partial_real_client_case_references"] = [
+            {
+                "edge": edge["id"],
+                "ci_run": edge["historical_ci_observation"]["ci_run_url"],
+                "reported_shared_location": edge["historical_ci_observation"]["observed_room"],
+                "scope": "shared_scenario_example_not_independent_Calling_job_signoff",
+            }
+            for edge in edges
+            if edge["historical_ci_observation"]
+            and name in [role.lower() for role in edge["callings"]]
+        ]
     return {
         "schema": "fvillage.gdd_g01_evidence_register.v1",
         "source_ref": source_ref,
@@ -156,7 +197,9 @@ def to_markdown(register: dict) -> str:
         "| --- | --- | ---: | --- |",
     ]
     for card in register["families"]:
-        out.append(f"| {card['content_family']} | {card['source_path'] or 'unmeasured'} | "
+        hint = card["candidate_source_or_manuscript"]
+        reference = card["source_path"] or (hint + " (candidate only)")
+        out.append(f"| {card['content_family']} | {reference} | "
                    f"{card['declared_count'] if card['declared_count'] is not None else '?'} | UNVERIFIED |")
     out.extend(["", "## Ten Calling source entrypoints", "",
                 "| Calling | Candidate verbs | Command/world owner sources | Room, restart and UX |",
@@ -165,7 +208,10 @@ def to_markdown(register: dict) -> str:
         entries = card["registered_command_candidates"]
         commands = ", ".join(e["verb"] for e in entries)
         owners = ", ".join(sorted({e["world_owner"]["path"] for e in entries}))
-        out.append(f"| {card['calling']} | {commands} | {owners} | UNVERIFIED |")
+        observed = len(card["partial_real_client_case_references"])
+        role_status = (f"{observed} partial shared CI examples; full UX UNVERIFIED"
+                       if observed else "UNVERIFIED")
+        out.append(f"| {card['calling']} | {commands} | {owners} | {role_status} |")
     out.extend(["", "## Forty-five Calling collaboration contracts", "",
                 "| Edge | Pair | Static pair-specific world owner | Actual pair evidence |",
                 "| --- | --- | --- | --- |"])
