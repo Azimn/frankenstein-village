@@ -12,6 +12,7 @@ class CmdTrade(Command):
         trade release     (Merchant: reopen distribution)
         trade calibrate   (Smith: correct the scale)
         trade attest      (Chronicler: attest both source records)
+        trade inspect     (Detective: qualified inquiry after Smith calibration)
 
     Examine the physical crooked market scale on the current village day.
     Only that Calling's active practitioner may sign an action.
