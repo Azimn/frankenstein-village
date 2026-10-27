@@ -232,6 +232,16 @@ class Register(DefaultObject):
         self.db.desc = REGISTER_DESC
         self.aliases.add(["guest book", "guestbook", "book"])
 
+    def get_display_desc(self, looker=None, **kwargs):
+        # Only expose the existence of the already-authored entry.
+        # The private guest record and Room Six mystery remain untouched.
+        return (self.db.desc or "") + (
+            "\n\nProfessional inquiry: an Innkeep may look here and use "
+            "'lodging disclose' for a redacted entry. A different Detective "
+            "may look here and use 'lodging inquire'. Neither action reveals "
+            "a guest identity or proves who wrote the entry."
+        )
+
     def at_desc(self, looker=None):
         desc = self.db.desc or ""
         if looker and looker.has_account:

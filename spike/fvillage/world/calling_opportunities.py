@@ -14,6 +14,9 @@ WORK = {
         "tend when the fire has settled and delivered stock is available.",
         "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
         "only if that unresolved need remains in the village.",
+        "At the Blood of the Vine, look at the original guest register. "
+        "Use lodging disclose to authorize only a redacted Room Six entry "
+        "for a separate Detective, never private guest identities.",
     ),
     "chronicler": (
         "At Market Lane: inspect the crooked market scale, use trade, and "
@@ -78,6 +81,9 @@ WORK = {
         "on Riverside Path, and consider a provisional theory bridge.",
         "Use mystery bridge or mystery manor to compare public evidence. "
         "Claims and suspicions do not become facts just by being published.",
+        "At the Blood of the Vine, look at the original guest register. "
+        "After a separate Innkeep signs lodging disclose, use lodging inquire "
+        "within 48 village hours to preserve a qualified observation.",
     ),
     "hound": (
         "At the Northern Treeline, examine the frayed red cord and use "
