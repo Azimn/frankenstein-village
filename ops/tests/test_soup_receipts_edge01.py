@@ -25,7 +25,8 @@ def fixture():
     prep = {
         "id": 30, "kind": "professional.innkeep_soup_prepared",
         "status": "complete", "actor": INN,
-        "payload": {"day": 1, "base": "turnip", "seasoning": "thyme"},
+        "payload": {"day": 1, "base": "turnip", "seasoning": "thyme",
+                    "room_id": 55},
         "consequence": {"packet_id": 901},
     }
     cooked = {
@@ -33,10 +34,11 @@ def fixture():
         "status": "complete", "actor": INN,
         "payload": {
             "day": 1, "base": "turnip", "seasoning": "thyme",
-            "prep_event_id": 30,
+            "prep_event_id": 30, "packet_id": 901,
         },
         "consequence": {
             "bowl_id": 902, "quality": recipe["quality"],
+            "pantry_room_id": 55,
             "source_event_id": 30,
         },
     }
@@ -138,6 +140,13 @@ class HouseReceiptTests(unittest.TestCase):
                           "seasoning": "thyme", "prep_event_id": 30}}, {}),
             ({}, {"status": "consequence_failed"}),
             ({}, {"consequence": {"packet_id": 0}}),
+            ({}, {"actor": {"account_id": None, "mask_id": 101,
+                            "mask": "InnkeepTester"}}),
+            ({"payload": {"day": 1, "base": "turnip",
+                          "seasoning": "thyme", "prep_event_id": 30,
+                          "packet_id": 999}}, {}),
+            ({}, {"payload": {"day": 1, "base": "turnip",
+                              "seasoning": "thyme", "room_id": 999}}),
         ]
         for cook_patch, prep_patch in variants:
             c = {**cooked, **cook_patch}
