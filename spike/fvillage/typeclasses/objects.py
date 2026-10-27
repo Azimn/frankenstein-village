@@ -236,7 +236,7 @@ class Register(DefaultObject):
         # Only expose the existence of the already-authored entry.
         # The private guest record and Room Six mystery remain untouched.
         return (self.db.desc or "") + (
-            "\\n\\nProfessional inquiry: an Innkeep may look here and use "
+            "\n\nProfessional inquiry: an Innkeep may look here and use "
             "'lodging disclose' for a redacted entry. A different Detective "
             "may look here and use 'lodging inquire'. Neither action reveals "
             "a guest identity or proves who wrote the entry."
