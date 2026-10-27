@@ -77,6 +77,9 @@ WORK = {
         "At the Old Stone Bridge: look plaque, inspect the river gauge "
         "on Riverside Path, and consider a provisional theory bridge.",
         "Use mystery bridge or mystery manor to compare public evidence. "
+        "After an actual Tavern show, inspect the physical platform and use "
+        "stage investigate to preserve a source-bound, qualified timeline. "
+        "It cannot establish an alibi or fabricate an audience.",
         "Claims and suspicions do not become facts just by being published.",
     ),
     "hound": (
