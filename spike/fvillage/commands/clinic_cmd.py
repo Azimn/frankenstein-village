@@ -13,6 +13,7 @@ class CmdClinic(Command):
         clinic treat compress
         clinic request records
         clinic records
+        clinic investigate     (independent Detective, after looking at cot)
 
     A fresh prepared dressing can be carried or handed to a different
     Healer. Only actual signed treatment changes the clinic's public record.
@@ -31,6 +32,19 @@ class CmdClinic(Command):
         if raw == ["records"]:
             self.caller.msg(clinic_work.confidential_records(self.caller))
             return
+        if raw == ["investigate"]:
+            from world.clinic_inquiry_work import investigate
+            result, error = investigate(self.caller)
+            if error:
+                self.caller.msg(error)
+            else:
+                self.caller.msg(
+                    f"You sign an independent procedural clinic inquiry "
+                    f"(world event {result['event_id']}, verified Healer source "
+                    f"{result['source_event_id']}). The original cot records "
+                    "the timeline without revealing private case notes."
+                )
+            return
         if raw == ["request", "records"]:
             result, error = clinic_work.act(self.caller, "request_records")
         elif raw in (["assess"], ["prepare"]):
@@ -40,7 +54,7 @@ class CmdClinic(Command):
         else:
             self.caller.msg(
                 "Use clinic | clinic assess | clinic prepare | "
-                "clinic treat rest|compress | clinic request records | clinic records."
+                "clinic treat rest|compress | clinic request records | clinic records | clinic investigate."
             )
             return
         if error:
