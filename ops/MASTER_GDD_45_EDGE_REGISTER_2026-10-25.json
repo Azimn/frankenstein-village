@@ -11,7 +11,7 @@
     "C": 9
   },
   "important_pdf_correction": "V3 = Innkeep–Healer; V4 = Innkeep–Merchant. The preceding GDD draft used a wrong V4 example.",
-  "status_notice": "V means source-reported existing chain, not accepted completion. S/D/C are design states; C objective magical powers await keeper rulings B1–B4.",
+  "status_notice": "V means source-reported existing chain, not accepted completion. S/D/C are design states; C objective magical powers await keeper rulings B1–B4. PR #114 adds an unverified edge 13 candidate with test anchors, not an accepted or main-branch completion.",
   "edges": [
     {
       "id": "GDD-EDGE-01",
@@ -273,18 +273,18 @@
       "baseline_class": "D",
       "gdd_section": "10",
       "design_contract": "Source: dated route log and actually observed changes. Methods: Wanderer signs firsthand survey; Chronicler edits sourced advisories and map distribution. Result: a reported map with version and limits, never an omniscient route detector.",
-      "runtime_source_owner": null,
-      "ordinary_player_discovery_proof": null,
-      "distinct_role_action_proof": null,
-      "finite_resource_or_time_proof": null,
+      "runtime_source_owner": "candidate PR #114: spike/fvillage/world/route_surveys.py::publish_advisory, spike/fvillage/world/route_work.py::publish_advisory; Square.db.daily_route_survey",
+      "ordinary_player_discovery_proof": "candidate: survey status names survey publish and its Wanderer prerequisite; spontaneous uncoached discovery not yet measured",
+      "distinct_role_action_proof": "candidate: Wanderer survey passability signs observed cord; independent Chronicler survey publish validates canonical source and edits public map",
+      "finite_resource_or_time_proof": "candidate: one sourced map edition per village day; next-day archive and stale-day denial in ops/tests/test_chronicler_route_advisory.py",
       "solo_fallback_proof": null,
-      "authoritative_state_change_proof": null,
-      "negative_and_late_state_proof": null,
-      "two_account_test": null,
-      "post_restart_test": null,
+      "authoritative_state_change_proof": "candidate: Square.db.daily_route_survey.advisory and canonical village.route_map_published event with signed source provenance",
+      "negative_and_late_state_proof": "candidate: ops/tests/test_chronicler_route_advisory.py; wrong role, wrong room, replay in spike/tests/telnet_playthrough.py",
+      "two_account_test": "candidate: spike/tests/telnet_playthrough.py::TELNET_GDD_EDGE13_WANDERER_CHRONICLER_MAP_GREEN",
+      "post_restart_test": "candidate: spike/tests/post_restart_assertions.py::POST_RESTART_GDD_EDGE13_SIGNED_INDEPENDENT_MAP_GREEN",
       "uncoached_gameplay_evidence": null,
       "verified_complete": false,
-      "review_state": "requires_live_code_and_gameplay_review"
+      "review_state": "candidate_pr_114_exact_head_ci_pending_uncoached_and_main_review_open"
     },
     {
       "id": "GDD-EDGE-14",
