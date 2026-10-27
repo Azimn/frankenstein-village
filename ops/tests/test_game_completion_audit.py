@@ -193,6 +193,39 @@ class CompletionAuditTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "CI marker"):
                 load_ci_observations(sandbox)
 
+    def test_g01_commented_out_calls_and_markers_never_count_as_evidence(self):
+        import shutil
+        with tempfile.TemporaryDirectory(prefix="g01-ast-receipt-") as tmp:
+            sandbox = Path(tmp)
+            for rel in (
+                "ops/GDD_G01_CI_OBSERVATIONS_2026-10-27.json",
+                "spike/tests/run_all.py",
+                "spike/tests/telnet_playthrough.py",
+                "spike/tests/post_restart_assertions.py",
+            ):
+                dest = sandbox / rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / rel, dest)
+            self.assertEqual(len(load_ci_observations(sandbox)), 7)
+            telnet = sandbox / "spike/tests/telnet_playthrough.py"
+            original = telnet.read_text(encoding="utf-8")
+            muted_commands = original.replace(
+                'out = smith.command("workshop forge")',
+                'out = ""  # smith.command("workshop forge")',
+            )
+            self.assertNotEqual(original, muted_commands)
+            telnet.write_text(muted_commands, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Missing executable player command"):
+                load_ci_observations(sandbox)
+            muted_marker = original.replace(
+                'print("TELNET_TWO_ACCOUNT_PHYSICAL_MARKET_WORKSHOP_GREEN")',
+                '# print("TELNET_TWO_ACCOUNT_PHYSICAL_MARKET_WORKSHOP_GREEN")',
+            )
+            self.assertNotEqual(original, muted_marker)
+            telnet.write_text(muted_marker, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "CI marker"):
+                load_ci_observations(sandbox)
+
     def test_g01_owner_cards_resolve_real_repo_files_without_claiming_gameplay(self):
         evidence = build_register(ROOT)
         for card in evidence["families"]:
