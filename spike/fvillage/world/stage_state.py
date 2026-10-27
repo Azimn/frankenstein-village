@@ -225,12 +225,11 @@ def verify_review_sources(show, witness, events, *, day):
         day=day, hour=show.get("hour"),
     ):
         return False
-    return (
-        (performance.get("consequence") or {}).get("performance_event_id")
-        == show.get("event_id")
-        and (witnessed.get("consequence") or {}).get("performance_event_id")
-        == show.get("event_id")
-    )
+    performance_result = performance.get("consequence") or {}
+    witness_result = witnessed.get("consequence") or {}
+    return (hasattr(performance_result, "get") and hasattr(witness_result, "get")
+            and performance_result.get("performance_event_id") == show.get("event_id")
+            and witness_result.get("performance_event_id") == show.get("event_id"))
 
 
 def verify_review_event(review, event, show):
