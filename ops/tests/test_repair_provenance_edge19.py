@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "spike/fvillage"))
 from world import repair_provenance as proof
 
 
-CASE = "the_broken_mantle"
+CASE = "CIV-REPAIR-0003-BROKEN-MANTLE"
 PART = "brass mantle collar"
 
 
