@@ -20,6 +20,11 @@ assert not any(account.is_connected for account in AccountDB.objects.all())
 clock = ScriptDB.objects.get(db_key="village_time")
 day = int(clock.db.day or 1)
 assert day == 4, day
+# The production village clock advances one hour on every server start.
+# Earlier T-13 restart gates can leave this disposable fixture near midnight.
+# Give the T-09 normal-client and restart checks a stable same-day window
+# without pausing or modifying the real clock implementation.
+clock.db.hour = 12
 tavern = one("The Blood of the Vine")
 smith = one("SmithTester")
 # After a real server stop, an unpuppeted character has no live .account.
