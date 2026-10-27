@@ -2027,6 +2027,8 @@ def main() -> int:
             require(out, destination)
         out = wanderer.command("courier consign")
         require(out, "active merchant")
+        out = wanderer.command("get freight parcel")
+        require(out, "you can't get that")
         out = wanderer.command("courier accept")
         require_all(out, "merchant's physical freight", "consignment")
         out = wanderer.command("courier accept")
