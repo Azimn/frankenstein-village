@@ -28,8 +28,18 @@ square = one("Village Square")
 brazier = one("a public warming brazier")
 smith = one("SmithTester")
 merchant = one("MerchantTester")
-assert brazier.location == square and smith.location == square
-assert merchant.location == square
+assert brazier.location == square, "The physical Square brazier moved after restart"
+# This shell runs after the real two-account telnet clients disconnect.
+# Offline masks may have been returned to an OOC room by account/session
+# handling. Restore only their QA position for the body-warmth observation;
+# the fire, physical fuel custody, signed events and clock are never staged.
+# Character location persistence is not certified by this fixture.
+for mask in (smith, merchant):
+    if mask.location != square:
+        assert mask.move_to(square, quiet=True), (
+            "Could not stage offline QA mask at Square", mask.key
+        )
+    assert mask.location == square, ("QA mask not at Square", mask.key)
 assert brazier.typeclass_path == "typeclasses.objects.SquareBrazier"
 assert brazier.access(smith, "get", default=True) is False
 
