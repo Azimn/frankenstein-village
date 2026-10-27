@@ -420,6 +420,15 @@ def main() -> int:
                 checkout / "spike" / "tests" / "gdd_t13_cancel_world_assertions.py"
             ).read_text(encoding="utf-8")
             run([evennia, "shell"], cwd=game, env=env, input_text=t13_cancel)
+            # EDGE-18: read-only gate calls against deliberately forged
+            # attributes and a rewound QA clock. Restore all original
+            # state before proceeding with the other real-world tests.
+            edge18_guards = (
+                checkout / "spike" / "tests"
+                / "edge18_guard_negative_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge18_guards)
 
             # GDD T-12: the same disposable QA database, now after a genuine
             # server restart and with no connected players, must resolve a
