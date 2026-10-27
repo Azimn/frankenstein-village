@@ -326,7 +326,30 @@
       "post_restart_test": null,
       "uncoached_gameplay_evidence": null,
       "verified_complete": false,
-      "review_state": "requires_live_code_and_gameplay_review"
+      "review_state": "requires_live_code_and_gameplay_review",
+      "candidate_evidence": {
+        "status": "implemented_candidate_unreviewed_ci_pending",
+        "implementation_paths": [
+          "spike/fvillage/world/bridge_case_state.py",
+          "spike/fvillage/world/public_mysteries.py",
+          "spike/fvillage/commands/village_cmds.py",
+          "spike/fvillage/world/calling_opportunities.py"
+        ],
+        "player_sequence": "Detective at Old Stone Bridge physically inspects plaque and signs mystery bridge examine; independent Chronicler at Village Square signs mystery bridge publish.",
+        "authoritative_state": "Existing public_mystery_registry bridge record stores signed examinations and bulletins; canonical world_event_ledger retains the physical observation, Detective and Chronicler events.",
+        "behavior_tests": [
+          "ops/tests/test_bridge_case_edge15.py",
+          "spike/tests/telnet_playthrough.py",
+          "spike/tests/post_restart_assertions.py"
+        ],
+        "negative_cases": "missing firsthand observation, wrong role or location, forged/failed source, wrong profession, same account, replay, wrong day, backdating, invalid IDs",
+        "solo_fallback": "Any ordinary player may inspect the plaque and submit provisional theory bridge without either Calling; no bulletin is fabricated.",
+        "independent_review": false,
+        "uncoached_gameplay": false,
+        "authorized_main_integration": false,
+        "exact_main_verification": false,
+        "note": "Candidate only. Exact-head CI and independent acceptance pending; no verified_complete flags changed and no Mystic B1-B4 rulings."
+      }
     },
     {
       "id": "GDD-EDGE-16",
