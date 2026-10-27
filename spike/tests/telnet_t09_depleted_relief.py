@@ -8,7 +8,7 @@ agent-only privilege or offline mutation of the game's outcome.
 """
 import argparse
 import os
-from telnet_playthrough import require, require_all
+from telnet_playthrough import agent_json, require, require_all
 from telnet_t13_cancel import connect
 
 
@@ -35,6 +35,11 @@ def main():
         guidance = smith.command("score deep")
         require_all(guidance, "soup ration", "eat plain broth",
                     "ingredients", "finite")
+        agent_view = agent_json(smith.command("agent"))
+        assert any("soup ration" in text.lower()
+                   for text in agent_view["embodiment"]["possible_relief"]), (
+            "AI-view body guidance disagrees with ordinary score deep"
+        )
         kitchen = smith.command("soup")
         require_all(kitchen, "pantry day 4", "barley 1", "salt 1",
                     "soup ration")
@@ -49,6 +54,11 @@ def main():
         empty = smith.command("score deep")
         assert "soup ration" not in empty.lower(), (
             "Body guidance advertised depleted relief as available"
+        )
+        agent_view = agent_json(smith.command("agent"))
+        assert not any("soup ration" in text.lower()
+                       for text in agent_view["embodiment"]["possible_relief"]), (
+            "AI-view advertised exhausted stock as a real available meal"
         )
 
         eaten = smith.command("eat plain broth")
