@@ -58,6 +58,9 @@ WORK = {
         "survey passability to record whether a real caution marker was "
         "present when you visited. This is a dated route judgment, not "
         "a guarantee of safety.",
+        "At Riverside Path, look river gauge and use survey gauge to sign a "
+        "firsthand flood-mark reading. A different Detective can inspect the "
+        "same object and use survey compare; neither action predicts a flood.",
         "Use survey to see the four current district checkpoints. "
         "Travel there, look at each actual clue, and use survey report.",
         "Examine the Riverside Path, churchyard, treeline, and market "
