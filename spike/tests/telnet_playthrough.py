@@ -1998,6 +1998,56 @@ def main() -> int:
         assert agent_json(out)["commands"]["ferry_post_delivery"] == "courier deliver"
         print("TELNET_WANDERER_REAL_FERRY_POST_GREEN")
 
+        # GDD-EDGE-31: Merchant spends the remaining finite postbag slot
+        # on an actual parcel, another ordinary account accepts custody,
+        # physically travels the route and signs the source-linked receipt.
+        out = merchant.command("courier consign")
+        require(out, "merchant must consign freight in market lane")
+        for move, destination in (
+            ("west", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"),
+        ):
+            out = merchant.command(move)
+            require(out, destination)
+        out = merchant.command("courier accept")
+        require(out, "active wanderer")
+        out = merchant.command("courier consign")
+        require_all(out, "actual merchant freight", "world event", "1")
+        # The first solo mail delivery used one slot. Freight consumes
+        # the second, never creates a second inventory or phantom stock.
+        out = merchant.command("courier consign")
+        require(out, "shared market postbag is depleted")
+        out = wanderer.command("courier accept")
+        require(out, "active wanderer must accept freight in market lane")
+        for move, destination in (
+            ("west", "blood of the vine"), ("west", "village square"),
+            ("south", "lamp shop"), ("south", "market lane"),
+        ):
+            out = wanderer.command(move)
+            require(out, destination)
+        out = wanderer.command("courier consign")
+        require(out, "active merchant")
+        out = wanderer.command("courier accept")
+        require_all(out, "merchant's physical freight", "consignment")
+        out = wanderer.command("courier accept")
+        require(out, "already carry a post parcel")
+        out = wanderer.command("inventory")
+        require(out, "sealed village mail parcel")
+        for move, destination in (
+            ("north", "lamp shop"), ("north", "village square"),
+            ("east", "blood of the vine"), ("east", "riverside path"),
+        ):
+            out = wanderer.command(move)
+            require(out, destination)
+        out = wanderer.command("courier deliver")
+        require_all(out, "actual parcel enters", "signed")
+        out = wanderer.command("courier")
+        require_all(out, "2 signed recent deliveries", "freight consignment",
+                    "wanderer acceptance")
+        out = wanderer.command("courier deliver")
+        require(out, "must carry an actual sealed parcel")
+        print("TELNET_GDD_EDGE31_MERCHANT_WANDERER_FREIGHT_GREEN")
+
         # GDD T-07: two independent ordinary accounts, same physical cord.
         # Travel, inspect, and act from their real locations. The Wanderer
         # records logistical caution before a Hound physically marks it;
