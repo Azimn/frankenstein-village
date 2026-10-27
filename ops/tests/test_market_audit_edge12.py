@@ -138,6 +138,15 @@ class Edge12MarketAuditTests(unittest.TestCase):
         bad = copy.deepcopy(audited)
         bad["audit"]["review_choice"] = "invent"
         self.assertIsNone(market.normalize(bad)["audit"])
+        bad = copy.deepcopy(audited)
+        bad["audit"]["review_event_id"] = 999
+        self.assertIsNone(market.normalize(bad)["audit"])
+        bad = copy.deepcopy(audited)
+        bad["audit"]["account_id"] = held["review"]["account_id"]
+        self.assertIsNone(market.normalize(bad)["audit"])
+        bad = copy.deepcopy(audited)
+        bad["audit"]["hour"] = held["review"]["hour"] - 1
+        self.assertIsNone(market.normalize(bad)["audit"])
 
 
 if __name__ == "__main__":
