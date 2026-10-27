@@ -180,6 +180,7 @@ def report(mask):
     if clue is None:
         return None, "The landmark is not available for a physical inspection."
     day, hour = _day_hour()
+    account_id = mask.account.id
     witnessed = any(
         row["id"] == site
         for row in known_landmarks(mask.db.landmark_discoveries)
@@ -209,9 +210,18 @@ def report(mask):
             now_day, now_hour = _day_hour()
             if (now_day, now_hour) != (day, hour):
                 raise RuntimeError("Village time advanced before this route report.")
+            if not getattr(mask, "account", None) or mask.account.id != account_id:
+                raise RuntimeError("The reporting account changed before signing.")
+            # The first-hand inspection and permission must still exist when
+            # the canonical event commits, not only when the command starts.
+            if (not clue.access(mask, "view", default=True)
+                    or not _inspected_today(mask, site, day)
+                    or not any(row["id"] == site for row in known_landmarks(
+                        mask.db.landmark_discoveries))):
+                raise RuntimeError("Examine the physical landmark here again before reporting.")
             changed, accepted, error = route_surveys.report(
                 square.db.daily_route_survey, day, site,
-                mask.account.id, mask.key, event["id"],
+                account_id, mask.key, event["id"],
             )
             if not accepted:
                 raise RuntimeError(error)
