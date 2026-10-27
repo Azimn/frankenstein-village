@@ -7,6 +7,7 @@ accounts may explicitly witness it during that village hour.
 from __future__ import annotations
 
 import copy
+from collections.abc import Sequence
 
 TUNES = ("ballad", "reel")
 MAX_HISTORY = 32
@@ -71,7 +72,12 @@ def normalize(raw):
     if result["performance"] is not None:
         show = result["performance"]
         raw_meals = show.get("hospitality") or []
-        if not isinstance(raw_meals, (list, tuple)):
+        # Evennia deserializes Attribute-backed lists as _SaverList, a
+        # MutableSequence rather than a built-in list. Preserve signed
+        # hospitality rows when reading the actual persisted room state.
+        if not isinstance(raw_meals, Sequence) or isinstance(
+            raw_meals, (str, bytes, bytearray)
+        ):
             raw_meals = []
         accepted = []
         seen = set()
