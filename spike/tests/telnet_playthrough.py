@@ -1202,20 +1202,10 @@ def main() -> int:
         require(detective.sync_login_screen(), "frankenstein village")
         detective_pw = os.environ["FV_QA_REPAIR_PASSWORD"]
         out = detective.command(
-            f"create qa_detective_lodging {detective_pw}", wait=4.0
+            f"connect qa_detective_lodging {detective_pw}", wait=4.0
         )
-        if ("account qa_detective_lodging" not in out.lower()
-                and "connected" not in out.lower()):
-            out = detective.command(
-                f"connect qa_detective_lodging {detective_pw}", wait=4.0
-            )
+        require(out, "connected", "account qa_detective_lodging")
         out = detective.command("substrate ai")
-        if ("gate is open" not in out.lower()
-                and "substrate recorded" not in out.lower()):
-            detective.command(
-                f"connect qa_detective_lodging {detective_pw}", wait=4.0
-            )
-            out = detective.command("substrate ai")
         require(out, "gate is open", "substrate recorded")
         detective.command("charcreate DetectiveTester", wait=3.0)
         out = detective.command("ic DetectiveTester", wait=4.0)
