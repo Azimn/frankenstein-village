@@ -225,14 +225,34 @@ def to_markdown(register: dict) -> str:
                   else "UNVERIFIED")
         out.append(f"| {edge['number']:02} | {' + '.join(edge['callings'])} | "
                    f"{sources} | {status} |")
+    # Render observations from validated, pinned receipts rather than a
+    # hard-coded run/count that can become stale as the ledger evolves.
+    partial = [edge for edge in register["edges"]
+               if edge["historical_ci_observation"]]
+    out.extend(["", "## Pinned normal-client and restart observations", "",
+                "These are historical scripted observations, not full Calling signoffs.",
+                "| Edge | Commands actually scripted | Observed room | Signed transition / limitations | Run |",
+                "| --- | --- | --- | --- | --- |"])
+    for edge in partial:
+        receipt = edge["historical_ci_observation"]
+        commands = ", ".join("`" + cmd.replace("|", "/") + "`"
+                             for cmd in receipt["client_commands"])
+        room = receipt["observed_room"].replace("|", "/")
+        transition = receipt["observed_transition"].replace("|", "/")
+        out.append(
+            f"| {edge['number']:02} | {commands} | {room} | {transition} | "
+            f"[CI]({receipt['ci_run_url']}) |"
+        )
+        out.append(
+            f"| | Remaining: | | {receipt['remaining_gaps'].replace('|', '/')} | "
+            f"[Restart source]({receipt['ci_run_url']}) |"
+        )
     out.extend([
         "", "## Real-client evidence, bounded",
-        f"Seven source-checked CI case observations: {register['partial_ci_edge_count']} "
-        "of 45 design edges. No edge is fully accepted.",
-        "Run: https://github.com/Azimn/frankenstein-village/actions/runs/40455328096",
-        "Individual cards include exact historic commit, commands, rooms,",
-        "test-line ranges and post-restart markers. Evidence is partial and",
-        "cannot be silently carried forward as a new head's passing CI.",
+        f"Source-checked historical CI cases: {len(partial)} of 45. "
+        "No edge is fully accepted; uncoached UX is UNVERIFIED.",
+        "Actual receipt IDs and source-commit hashes are in the JSON cards.",
+        "Historical CI is not a passing result for the latest checkout.",
         "",
         "## Required to advance evidence", "",
         "Obtain normal account commands and real observed rooms, distinct role",
