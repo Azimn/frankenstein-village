@@ -134,7 +134,7 @@ class ArrivalHospitalityTests(unittest.TestCase):
         next_state = soup_state.archive(
             first, 1, maker_id=21, maker="InnkeepTester",
             source_event_id=100, cook_event_id=101,
-            recipe=soup_state.produce("turnip", "salt", warmed=False),
+            recipe=soup_state.produce("barley", "salt", warmed=False),
         )
         second = copy.deepcopy(kw)
         second["event_id"] = 102
