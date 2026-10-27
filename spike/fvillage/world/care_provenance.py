@@ -6,6 +6,8 @@ This module deliberately has no Evennia imports so forged-record cases can
 be exercised without a running server.
 """
 
+from collections.abc import Mapping
+
 
 def _positive_id(value):
     if isinstance(value, bool):
@@ -35,7 +37,7 @@ def validate_healer_source(assessment, event, *, innkeep_account_id,
                            case_event_ids, situation_id, resident_id):
     """Return (verified source, error); never infer an event from a row."""
     error = "The Healer assessment has no valid signed source; no meal was spent."
-    if not isinstance(assessment, dict) or not isinstance(event, dict):
+    if not isinstance(assessment, Mapping) or not isinstance(event, Mapping):
         return None, error
     source_id = _positive_id(assessment.get("event_id"))
     healer_account = _positive_id(assessment.get("account_id"))
@@ -56,7 +58,7 @@ def validate_healer_source(assessment, event, *, innkeep_account_id,
         return None, error
     actor = event.get("actor")
     payload = event.get("payload")
-    if not isinstance(actor, dict) or not isinstance(payload, dict):
+    if not isinstance(actor, Mapping) or not isinstance(payload, Mapping):
         return None, error
     if (event.get("status") != "complete"
             or event.get("kind") != "professional.healer_cold_assessment"
@@ -68,7 +70,7 @@ def validate_healer_source(assessment, event, *, innkeep_account_id,
             or assessment.get("resident_id") != resident_id
             or payload.get("professional_calling") != "healer"
             or payload.get("situation_id") != situation_id
-            or payload.get("resident_ids") != [resident_id]
+            or list(payload.get("resident_ids") or []) != [resident_id]
             or payload.get("finding") != "cold exposure"
             or _clock_part(payload.get("day"), 1, 1000000) != day
             or _clock_part(payload.get("hour"), 0, 23) != hour):
