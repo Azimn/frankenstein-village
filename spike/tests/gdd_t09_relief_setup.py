@@ -22,7 +22,10 @@ day = int(clock.db.day or 1)
 assert day == 4, day
 tavern = one("The Blood of the Vine")
 smith = one("SmithTester")
-assert smith.account and smith.account.username == "qa_smith_repair"
+# After a real server stop, an unpuppeted character has no live .account.
+# Verify durable ownership through the account's playable-character roster.
+smith_owner = AccountDB.objects.get(username="qa_smith_repair")
+assert smith in smith_owner.characters.all()
 assert smith.move_to(tavern, quiet=True)
 # The baseline NPC refill needs the keeper physically on duty. Make this a
 # genuinely unattended-Tavern shortage in the disposable QA world, rather
