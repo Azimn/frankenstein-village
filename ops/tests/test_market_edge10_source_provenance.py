@@ -111,6 +111,45 @@ class Edge10SourceVerification(unittest.TestCase):
         forged["attestation"]["event_id"] = 10
         self.assertIsNone(market.normalize(forged)["attestation"])
 
+    def test_returning_players_see_signed_archived_market_decisions(self):
+        attested, ok, error = signed(self.state, "attest", 11, 14)
+        self.assertTrue(ok, error)
+        day_two = market.refresh(json.loads(json.dumps(attested)), 2)
+        day_two, ok, error = signed(day_two, "calibrate", 21, 22, day=2)
+        self.assertTrue(ok, error)
+        day_three = market.refresh(json.loads(json.dumps(day_two)), 3)
+        snapshot = copy.deepcopy(day_three)
+        board = " ".join(market.public_lines(day_three, 3))
+        self.assertIn("Prior day 2: Smith Player21 calibrated the scale (event 22)", board)
+        self.assertIn("Prior day 1: Merchant Player5 chose hold (event 10)", board)
+        self.assertIn("Smith Player9 calibrated the scale (event 12)", board)
+        self.assertIn("Chronicler Player11 attested sources 10 and 12 (event 14)", board)
+        self.assertNotIn("record preserved", board)
+        self.assertEqual(day_three, snapshot, "Public history must not mutate the archive")
+
+        # A corrupted prior-day source cannot be laundered into a public
+        # attestation merely because an archive row exists.
+        corrupted = copy.deepcopy(day_three)
+        corrupted["history"][0]["attestation"]["review_event_id"] = 999
+        board = " ".join(market.public_lines(corrupted, 3))
+        self.assertNotIn("Chronicler Player11 attested", board)
+        self.assertIn("Smith Player9 calibrated", board)
+
+    def test_public_history_is_bounded_to_three_actual_prior_days(self):
+        state = self.state
+        for day in range(2, 6):
+            state, ok, error = signed(
+                state, "honor", 30 + day, 50 + day, day=day,
+            )
+            self.assertTrue(ok, error)
+        state = market.refresh(json.loads(json.dumps(state)), 6)
+        board = " ".join(market.public_lines(state, 6))
+        self.assertIn("Prior day 5:", board)
+        self.assertIn("Prior day 4:", board)
+        self.assertIn("Prior day 3:", board)
+        self.assertNotIn("Prior day 2:", board)
+        self.assertNotIn("Prior day 1:", board)
+
     def test_smith_can_work_without_merchant_or_chronicler(self):
         solo, ok, error = signed(None, "calibrate", 9, 12)
         self.assertTrue(ok, error)
