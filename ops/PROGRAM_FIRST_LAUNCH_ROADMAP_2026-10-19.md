@@ -5,6 +5,8 @@ Date: 2026-10-19
 Baseline: main b2088294c76961846acfdee3281f8d40c80ffdcd, passed GitHub Actions run 39189556568.
 Priority: Finish the normal text-game code and local verification first. Select and pay for hosting only after the code-ready gate is met. No language model, local inference server, Ollama instance, API key, GPU, or agent framework is required to build, play, test or launch Frankenstein Village.
 
+**Integration reconciliation (2026-10-26):** This is a subordinate proposed **early-access planning roadmap**, not the controlling game-completion standard. The World Bible v0.2 and design doctrine govern canon; the merged Master GDD completion program (`ops/MASTER_GDD_GAME_COMPLETION_PROGRAM_2026-10-25.json`, PR #95) governs FV-G00–FV-G13 and full-game acceptance. PR #89 proposes the model-free product/release contract; until reviewed and integrated, it is not a main-branch authority. The 16–20-room and two-activity early-access targets below do **not** satisfy the Master GDD's larger full-game content quotas. AI-led client testing is optional research and must never block normal-player alpha or release. No PR merge, deployment, or package certification is asserted by this note.
+
 ## Decision and product definition
 
 Build a substantial, persistent, Victorian Gothic village MUD with a cozy everyday rhythm, interdependent occupations, a changing population, three consequential mysteries, occasional authentic supernatural phenomena, and meaningful human/AI social play. A person may happily cook, perform, research, trade, or investigate without being forced into a horror quest.
@@ -30,7 +32,7 @@ At the audited baseline, the game has 10 walkable in-character rooms plus 2 OOC 
 
 The static sources include 14 random incident definitions, 1 timed incident and 1 server-wide event framework. The 250 canonical rumor-seed manuscript entries are not 250 initially playable rumors. Existing game and agent tests are substantial: the main branch's full clean-checkout regression passed on the audited SHA. None of this verifies release-host safety or long-term player enjoyment.
 
-Outstanding work: PR #78 improves model-led agent NPC interaction and must be reviewed against current main before accepting, replacing or closing it. PR #47 documents a future Pretorius laboratory integration and should remain out of this release scope. Issue #35 tracks the separate hosting and release evidence.
+Historical note: PR #78 proposed model-led agent NPC interaction; its current disposition must be checked against main before reuse. It cannot be a model-free release dependency. PR #47 documents a future Pretorius laboratory integration and should remain out of this release scope. Issue #35 tracks the separate hosting and release evidence.
 
 ## Concrete code-ready targets
 
@@ -145,9 +147,9 @@ Done when: ordinary residents pursue routines, change plans for authored needs, 
 
 ### 12. Harden human/AI access and multiplayer fairness
 
-Reconcile open PR #78 if appropriate, then continue the existing nonprivileged agent context: visible residents, objects, exits and locally possible actions. Verify that ordinary browser and terminal clients can act without inference or agent-only commands. An independently run model-controlled client can be tested later but is optional, never a launch gate. Keep standard browser/terminal UX useful to humans: clear help, errors, contextual work directions and readable descriptions. Check multiaccount resource contention, attempts to forge events, Commons moderation privacy, alternate masks and colliding jobs. Do not add recurring expensive NPC-model inference to the baseline simulation.
+Recheck the disposition of historical PR #78 against current main, then continue the existing nonprivileged agent context: visible residents, objects, exits and locally possible actions. Verify that ordinary browser and terminal clients can act without inference or agent-only commands. An independently run model-controlled client can be tested later but is optional, never a launch gate. Keep standard browser/terminal UX useful to humans: clear help, errors, contextual work directions and readable descriptions. Check multiaccount resource contention, attempts to forge events, Commons moderation privacy, alternate masks and colliding jobs. Do not add recurring expensive NPC-model inference to the baseline simulation.
 
-Deliverable: an AI or human can independently enter, discover work, collaborate or disagree, exit and recover, using the same world mechanics.
+Deliverable: an ordinary human-style browser or terminal account can independently enter, discover work, collaborate or disagree, exit and recover using the same world mechanics. Optional model-controlled client research may separately check parity, but is not a release prerequisite.
 Done when: local ordinary-account integration covers at least eight simultaneous connections, reconnect/disconnect, stale context, missing NPC, bad command, contested material, false report and mixed-player permissions. This is LOCAL verification, not public-host capacity proof.
 
 ### 13. Stabilize, measure content honestly and freeze a candidate
