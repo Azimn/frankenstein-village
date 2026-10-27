@@ -93,6 +93,7 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
         )), str(source), "exec")
         roles = ["hound"]
         can_view = [True]
+        discovered = [True]
         mode = ["none"]
         cord = SimpleNamespace(
             id=23, key="frayed red cord",
@@ -120,6 +121,10 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
         def publish(_kind, **kwargs):
             if mode[0] == "role":
                 roles[0] = "innkeep"
+            elif mode[0] == "account":
+                mask.account = SimpleNamespace(id=8)
+            elif mode[0] == "discovery":
+                discovered[0] = False
             elif mode[0] == "inspection":
                 mask.db.landmark_latest_view.clear()
             elif mode[0] == "access":
@@ -133,7 +138,9 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
             "LANDMARKS": {"red_cord": {
                 "room": "Northern Treeline", "key": "frayed red cord",
             }},
-            "known_landmarks": lambda _raw: [{"id": "red_cord"}],
+            "known_landmarks": lambda _raw: (
+                [{"id": "red_cord"}] if discovered[0] else []
+            ),
             "_square": lambda: square,
             "_day_hour": lambda: (3, 12),
             "route_surveys": SimpleNamespace(
@@ -144,10 +151,12 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
             "record_participation": participation,
         }
         exec(code, namespace)
-        for scenario in ("role", "inspection", "access"):
+        for scenario in ("role", "account", "discovery", "inspection", "access"):
             with self.subTest(scenario=scenario):
                 roles[0] = "hound"
                 can_view[0] = True
+                discovered[0] = True
+                mask.account = SimpleNamespace(id=7)
                 mask.db.landmark_latest_view = {"red_cord": {"day": 3}}
                 square.db.daily_route_survey = None
                 cord.db.route_caution = None
@@ -163,12 +172,15 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
         # The same real command body still commits a valid action.
         roles[0] = "hound"
         can_view[0] = True
+        discovered[0] = True
+        mask.account = SimpleNamespace(id=7)
         mask.db.landmark_latest_view = {"red_cord": {"day": 3}}
         mode[0] = "none"
         result, error = namespace["field_action"](mask, "protect")
         self.assertIsNone(error)
         self.assertEqual(result["event_id"], 44)
         self.assertEqual(cord.db.route_caution["event_id"], 44)
+        self.assertEqual(cord.db.route_caution["account_id"], 7)
         participation.assert_called_once()
 
 
