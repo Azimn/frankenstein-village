@@ -9,6 +9,8 @@ class CmdSurvey(Command):
         survey
         survey report
         survey protect       (Hound, Northern Treeline)
+        survey assess        (Hound, Northern Treeline)
+        survey notice        (Chronicler, Village Square)
         survey passability   (Wanderer, Northern Treeline)
 
     Read the board, go to an outstanding district, examine the actual
@@ -51,7 +53,22 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
-        if verb in {"protect", "passability"}:
+        if verb == "notice":
+            result, error = route_work.publish_safety_notice(caller)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"Qualified public route safety notice signed (event {result['event_id']}, "
+                f"source Hound event {result['source_event_id']}). "
+                "The notice does not certify an unseen danger."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} posts a sourced safety notice on the public route board.",
+                exclude=[caller],
+            )
+            return
+        if verb in {"protect", "assess", "passability"}:
             result, error = route_work.field_action(caller, verb)
             if error:
                 caller.msg(error)
@@ -60,6 +77,12 @@ class CmdSurvey(Command):
                 caller.msg(
                     f"You tie the original frayed cord as a visible warning, "
                     f"without repairing it (signed event {result['event_id']})."
+                )
+            elif verb == "assess":
+                caller.msg(
+                    f"You sign a firsthand Hound assessment of the actual red cord "
+                    f"(signed event {result['event_id']}). "
+                    "A Chronicler can independently report the observation."
                 )
             else:
                 caller.msg(
@@ -71,4 +94,4 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
-        caller.msg("Use: survey | survey report | survey protect | survey passability")
+        caller.msg("Use: survey | survey report | survey protect | survey assess | survey passability | survey notice")
