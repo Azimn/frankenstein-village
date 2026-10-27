@@ -1352,7 +1352,13 @@ class WarmthWatch(SpikeScript):
         if w is None:
             w = 1.0
         if room_key == "Village Square":
-            if weather == "rain":
+            from world.square_brazier import is_active as brazier_burning
+            if brazier_burning():
+                # Fuel consumed by players changes the *same* existing
+                # body warmth state for every character physically here.
+                # Rain diminishes but does not erase real nearby heat.
+                w += 0.04 if weather == "rain" else 0.08
+            elif weather == "rain":
                 w -= 0.08
             elif weather == "fog":
                 w -= 0.03
