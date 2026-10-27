@@ -2059,6 +2059,38 @@ def main() -> int:
         require_all(out, "houndtester", "wanderertester", "unmarked cord",
                     "does not repair the cord")
         print("TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN")
+        # EDGE-08: the Hound is the actual traveler, not an invented NPC.
+        # A distinct Innkeep spends the original Tavern's finite pantry.
+        out = hound.command("survey dispatch")
+        require_all(out, "physical signed treeline refuge dispatch", "event")
+        out = hound.command("survey dispatch")
+        require(out, "already left this cord today")
+        out = hound.command("inventory")
+        require(out, "signed treeline refuge dispatch")
+        out = inn.command("soup refuge HoundTester")
+        require(out, "named logged-in hound is not here")
+        for move, destination in (
+            ("south", "churchyard"), ("east", "st. lazarus church"),
+            ("east", "village square"), ("east", "blood of the vine"),
+        ):
+            out = hound.command(move)
+            require(out, destination)
+        hound.read_quiet()
+        inn.read_quiet()
+        out = hound.command("soup refuge HoundTester")
+        require(out, "only an active innkeep")
+        out = inn.command("soup refuge HoundTester")
+        require_all(out, "one real bowl of refuge soup", "dispatch is consumed",
+                    "turnip portions remain")
+        out = hound.command("inventory")
+        require(out, "bowl of hound refuge soup")
+        assert "signed treeline refuge dispatch" not in out.lower()
+        out = inn.command("soup refuge HoundTester")
+        require(out, "exactly one physical refuge dispatch")
+        out = inn.command("look soup pot")
+        require_all(out, "1 signed hound arrival meal", "pantry day")
+        print("TELNET_GDD_EDGE08_TWO_ACCOUNT_FINITE_HOUND_REFUGE_GREEN")
+
 
         print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
         out = c.command("guide")
