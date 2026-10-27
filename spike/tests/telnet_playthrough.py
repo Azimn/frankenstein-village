@@ -1217,7 +1217,7 @@ def main() -> int:
         out = c.command("east")
         require(out, "blood of the vine")
         out = c.command("stage review praise")
-        require(out, "sign firsthand stage witness")
+        require(out, "real performance must exist today")
         out = performer.command("stage perform ballad")
         require_all(out, "actually perform the ballad", "world event")
         out = performer.command("look")
@@ -1239,6 +1239,8 @@ def main() -> int:
         # review the signed show; the Performer retains a public contest right.
         out = inn.command("stage review critique")
         require(out, "active chronicler")
+        out = c.command("stage review praise")
+        require(out, "sign firsthand stage witness")
         out = c.command("stage witness")
         require(out, "actually witnessed")
         out = c.command("stage review praise")
