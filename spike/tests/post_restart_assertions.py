@@ -1323,6 +1323,7 @@ assert _service["account_id"] != _stage["performance"]["account_id"]
 assert _service["performance_event_id"] == _stage["performance"]["event_id"]
 assert _service["witness_event_id"] == _stage["witnesses"][0]["event_id"]
 assert _service["witness_count"] == 1
+assert _service["cook_event_id"] == _service_batch["cook_event_id"]
 _cater_event = warning_ledger.get_event(_service["event_id"])
 assert _cater_event["status"] == "complete"
 assert _cater_event["kind"] == "village.stage_cater"
