@@ -69,6 +69,16 @@ class Edge38Tests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("original Wanderer", error)
 
+    def test_same_account_cannot_supply_both_professional_sources(self):
+        state, _ = prepared()
+        state["field_decisions"]["hound"]["account_id"] = 31
+        after, ok, reason = r.corroborate(
+            state, 4, "red_cord", 102, 31, "Wanderer", 103
+        )
+        self.assertFalse(ok)
+        self.assertIn("separate Wanderer account", reason)
+        self.assertNotIn("corroboration", after["field_decisions"]["wanderer"])
+
     def test_missing_hound_or_wanderer_or_wrong_marker_fails_closed(self):
         for role in ("hound", "wanderer"):
             state, marker = prepared()
