@@ -150,26 +150,10 @@ def _verified_route_source(*, account_id, mask_id, source_event_id,
             or marker.get("day") != day):
         return False
     event = get_event_ledger().get_event(source_event_id)
-    if not event or event.get("status") != "complete" or event.get("kind") != "village.route_protected":
-        return False
-    actor, payload, effect = (event.get("actor") or {}), (event.get("payload") or {}), (event.get("consequence") or {})
-    return (
-        actor.get("account_id") == account_id
-        and actor.get("mask_id") == mask_id
-        and payload.get("site") == "red_cord"
-        and payload.get("role") == "hound"
-        and payload.get("action") == "protect"
-        and payload.get("location") == spec["room"]
-        and payload.get("day") == day
-        and isinstance(payload.get("hour"), int)
-        and not isinstance(payload["hour"], bool)
-        and 0 <= payload["hour"] <= hour
-        and effect.get("cord_object_id") == cord_id
-        and effect.get("square_room_id") == square.id
-        and effect.get("role") == "hound"
-        and effect.get("action") == "protect"
-        and effect.get("day") == day
-        and effect.get("caution_marked") is True
+    return stage_state.verified_hound_source(
+        state, event, marker, account_id=account_id, mask_id=mask_id,
+        source_event_id=source_event_id, cord_id=cord_id,
+        square_id=square.id, day=day, hour=hour, room_name=spec["room"],
     )
 
 
