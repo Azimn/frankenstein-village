@@ -75,7 +75,8 @@ def pot_description():
         f"The main hearth is {'warm' if fire else 'low'}."
         + last +
         " Use soup prep <turnip|barley> <thyme|salt|pepper>, soup simmer, "
-        "soup notebook, or coordinate a Merchant delivery."
+        "soup notebook, soup accept after a Merchant handoff, or coordinate "
+        "a signed solo soup deliver."
     )
 
 
