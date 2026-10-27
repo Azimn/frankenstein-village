@@ -108,8 +108,12 @@ class MasterGDDProgramTests(unittest.TestCase):
             self.assertTrue(discovery is None or
                             (isinstance(discovery, str) and len(discovery) > 15))
             self.assertIsNone(edge["uncoached_gameplay_evidence"])
-            self.assertIsNone(edge["two_account_test"])
-            self.assertIsNone(edge["post_restart_test"])
+            for candidate_field in ("two_account_test", "post_restart_test"):
+                candidate = edge[candidate_field]
+                self.assertTrue(candidate is None or
+                                (isinstance(candidate, str) and len(candidate) > 15))
+            # Candidate paths are not acceptance, and cannot certify an edge.
+            self.assertFalse(edge["verified_complete"])
             self.assertGreater(len(edge["design_contract"]),60)
 
     def test_does_not_claim_implementation_or_canon_approval(self):
