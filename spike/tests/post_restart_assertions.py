@@ -1367,6 +1367,35 @@ assert len([o for o in _church.contents if o.key == "a clinic treatment cot"]) =
 print("POST_RESTART_PHYSICAL_CLINIC_CARE_GREEN")
 print("POST_RESTART_GDD_T08_PRIVATE_CLINIC_PERMISSION_GREEN")
 
+# EDGE-28: original cot, independently authenticated Detective and source
+# Healer assessment retain the same verified timeline after a real restart.
+from world import clinic_inquiry_state as _clinic_inquiry
+_cot = one("a clinic treatment cot")
+_detective_clinic = one("DetectiveClinicTester")
+assert active_calling(_detective_clinic) == "detective"
+_inquiry_records = _clinic_inquiry.normalize(_cot.db.clinic_inquiry)["records"]
+assert len(_inquiry_records) == 1, _inquiry_records
+_inquiry = _inquiry_records[0]
+assert _inquiry["mask_id"] == _detective_clinic.id
+assert _inquiry["source_mask_id"] == healer_tester.id
+assert _inquiry["account_id"] != _inquiry["source_account_id"]
+assert _inquiry["cot_id"] == _cot.id and _inquiry["room_id"] == _church.id
+assert _inquiry["source_event_id"] == _clinic["assessment"]["event_id"]
+_source = warning_ledger.get_event(_inquiry["source_event_id"])
+assert _clinic_inquiry.source_valid(_source, _clinic["assessment"], _church.id)
+_inquiry_event = warning_ledger.get_event(_inquiry["event_id"])
+assert _inquiry_event["kind"] == "village.clinic_inquiry"
+assert _inquiry_event["status"] == "complete"
+assert _inquiry_event["actor"]["mask_id"] == _detective_clinic.id
+assert _inquiry_event["actor"]["account_id"] == _inquiry["account_id"]
+assert _inquiry_event["payload"]["source_healer_event_id"] == _source["id"]
+assert _inquiry_event["consequence"]["cot_id"] == _cot.id
+assert calling_record(_detective_clinic, "detective")["participation"]["clinic_inquiry"] == 1
+_public_inquiry = _clinic_inquiry.public_lines(_cot.db.clinic_inquiry, _clinic["day"]).lower()
+assert "procedural clinic inquiry" in _public_inquiry
+assert "cold" not in _public_inquiry and "healertester" not in _public_inquiry
+print("POST_RESTART_GDD_EDGE28_INDEPENDENT_SIGNED_CLINIC_INQUIRY_GREEN")
+
 
 # Physical courier parcel is consumed only by real Riverside delivery.
 from world.courier_state import manifest as _ferry_manifest
