@@ -9,6 +9,7 @@ class CmdSoup(Command):
         soup
         soup prep <turnip|barley> <thyme|salt|pepper>
         soup simmer
+        soup ration               (any player, limited shared pantry)
         soup notebook
         soup procure             (Merchant, Market Lane)
         soup deliver             (any courier carrying the real crate)
@@ -33,6 +34,23 @@ class CmdSoup(Command):
         raw = (self.args or "").strip().lower()
         if raw in ("", "stock", "status"):
             caller.msg(soup_kitchen.status(caller))
+            return
+        if raw == "ration":
+            result, error = soup_kitchen.ration(caller)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                "You make one real bowl of plain kitchen broth from "
+                f"{result['base']} and {result['seasoning']} in the shared "
+                f"pantry (world event {result['event_id']}). "
+                "The ingredients are spent. Eat plain broth, or give "
+                "the physical bowl to another player."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} cooks plain broth using the shared pantry.",
+                exclude=[caller],
+            )
             return
         if raw == "notebook":
             caller.msg(soup_kitchen.recipe_notes(caller))
@@ -102,6 +120,6 @@ class CmdSoup(Command):
                 exclude=[caller])
             return
         caller.msg(
-            "Use soup | soup prep <base> <seasoning> | soup simmer | "
-            "soup notebook | soup procure | soup deliver."
+            "Use soup | soup ration | soup prep <base> <seasoning> | "
+            "soup simmer | soup notebook | soup procure | soup deliver."
         )
