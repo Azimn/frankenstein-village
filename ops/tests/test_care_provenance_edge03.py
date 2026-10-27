@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "spike/fvillage"))
 from world.care_provenance import validate_healer_source
 
 
-CASE = "cold_hunter_at_supper"
+CASE = "CIV-CARE-0002-COLD-HUNTER"
 
 
 def sample():
