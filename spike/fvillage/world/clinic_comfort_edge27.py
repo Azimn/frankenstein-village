@@ -63,7 +63,11 @@ def normalize(raw):
             and stamp(day, music["hour"]) >= stamp(day, invitation["hour"])):
         state["music"] = music
     history = raw.get("history") or []
-    if isinstance(history, (list, tuple)):
+    if not isinstance(history, (str, bytes)):
+        try:
+            history = list(history)
+        except TypeError:
+            history = []
         state["history"] = [
             copy.deepcopy(dict(row)) for row in history[-MAX_HISTORY * 2:]
             if isinstance(row, Mapping)
