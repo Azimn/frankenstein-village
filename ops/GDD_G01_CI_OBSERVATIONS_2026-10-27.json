@@ -27,8 +27,8 @@
         1356
       ],
       "restart_line_range": [
-        148,
-        165
+        1350,
+        1368
       ],
       "observed_room": "The Blood of the Vine (hospitality); St. Lazarus Church (separate clinic)",
       "player_commands": [
@@ -95,7 +95,7 @@
       ],
       "restart_line_range": [
         1212,
-        1244
+        1444
       ],
       "observed_room": "Market Lane",
       "player_commands": [
@@ -117,7 +117,7 @@
       ],
       "restart_line_range": [
         1212,
-        1244
+        1444
       ],
       "observed_room": "Market Lane",
       "player_commands": [
