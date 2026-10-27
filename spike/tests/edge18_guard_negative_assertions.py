@@ -83,6 +83,30 @@ try:
     assert not ready and "lacks a signed healer event" in reason.lower(), reason
     church.db.village_clinic = deepcopy(original_clinic)
 
+    # The signed assessment hour, not the mutable clinic Attribute, governs
+    # certification. A backdated row must fail even when the Healer account,
+    # mask, patient and source event ID are otherwise genuine.
+    signed_assessment = original_clinic["assessment"]
+    forged = deepcopy(original_clinic)
+    forged_hour = signed_assessment["hour"] - 1 if signed_assessment["hour"] > 0 else 1
+    forged["assessment"]["hour"] = forged_hour
+    church.db.village_clinic = forged
+    examiner = SimpleNamespace(
+        id=signed_assessment["mask_id"],
+        account=SimpleNamespace(id=signed_assessment["account_id"]),
+    )
+    assessment, reason = clinic_cot_work._assessment(
+        cot, examiner, original_clock[0], original_clock[1])
+    assert assessment is None and "lacks an authentic healer event" in reason.lower(), reason
+    # When possible, rewind to the forged hour: the receipt is still later.
+    if signed_assessment["hour"] > 0:
+        clock.db.hour = forged_hour
+        assessment, reason = clinic_cot_work._assessment(
+            cot, examiner, original_clock[0], forged_hour)
+        assert assessment is None and "lacks an authentic healer event" in reason.lower(), reason
+    clock.db.day, clock.db.hour = original_clock
+    church.db.village_clinic = deepcopy(original_clinic)
+
     # Moving the certification timestamp into the future must not grant
     # access, regardless of the original signed event's existence.
     forged_equipment = deepcopy(original_equipment)
