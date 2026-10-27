@@ -70,6 +70,14 @@ def normalize(raw):
                     or isinstance(row.get("review_event_id"), bool)
                     or isinstance(row.get("calibration_event_id"), bool)):
                 continue
+            # A corrupted persisted publication cannot claim unrelated source
+            # events, even if its row looks signed. Ledger checks at creation
+            # additionally prove that these events really occurred.
+            if (not result["review"] or not result["calibration"]
+                    or review_id != result["review"]["event_id"]
+                    or calibration_id != result["calibration"]["event_id"]
+                    or len({review_id, calibration_id, signed["event_id"]}) != 3):
+                continue
             signed["review_event_id"] = review_id
             signed["calibration_event_id"] = calibration_id
         result[name] = signed
