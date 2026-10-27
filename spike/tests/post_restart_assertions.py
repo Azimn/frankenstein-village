@@ -1144,6 +1144,50 @@ assert calling_record(smith_tester, "smith")["participation"][
     "community_route_contributions"
 ] == 1, "Smith civic work participation was lost"
 print("POST_RESTART_DAILY_ROUTE_SURVEY_GREEN")
+
+# GDD-EDGE-37: the ORIGINAL Riverside gauge owns both signatures after a
+# genuine server process restart. Neither source proves a bridge culprit.
+from world import river_evidence as _river_evidence
+_river_gauge = one("a river gauge")
+_river_state = _river_evidence.normalize(_river_gauge.db.river_evidence)
+_river_witness = _river_state["witness"]
+_river_review = _river_state["review"]
+assert _river_witness and _river_review, "Two-role river evidence did not persist"
+assert _river_witness["mask"] == "WandererTester"
+assert _river_review["mask"] == "DetectiveTester"
+assert _river_witness["object_id"] == _river_gauge.id
+assert _river_review["object_id"] == _river_gauge.id
+assert _river_witness["account_id"] != _river_review["account_id"]
+assert _river_witness["mask_id"] != _river_review["mask_id"]
+assert _river_review["source_event_id"] == _river_witness["event_id"]
+assert active_calling(one("WandererTester")) == "wanderer"
+assert active_calling(one("DetectiveTester")) == "detective"
+for _row, _kind, _role in (
+    (_river_witness, "village.river_gauge_witnessed", "wanderer"),
+    (_river_review, "village.river_evidence_compared", "detective"),
+):
+    _event = warning_ledger.get_event(_row["event_id"])
+    assert _event and _event["status"] == "complete"
+    assert _event["kind"] == _kind
+    assert _event["actor"]["account_id"] == _row["account_id"]
+    assert _event["actor"]["mask_id"] == _row["mask_id"]
+    assert _event["payload"]["calling"] == _role
+    assert _event["payload"]["object_id"] == _river_gauge.id
+    assert _event["consequence"]["gauge_object_id"] == _river_gauge.id
+assert warning_ledger.get_event(_river_review["event_id"])["payload"][
+    "source_event_id"
+] == _river_witness["event_id"]
+_river_next, _ok, _error = _river_evidence.refresh(
+    _river_state, _river_state["day"] + 1
+)
+assert _ok, _error
+assert _river_next["history"][-1]["review"]["event_id"] == _river_review["event_id"]
+assert _river_next["witness"] is None
+assert "does not establish" in " ".join(
+    _river_evidence.public_lines(_river_state, _river_state["day"])
+)
+print("POST_RESTART_GDD_EDGE37_SIGNED_INDEPENDENT_RIVER_EVIDENCE_GREEN")
+
 # GDD T-07: two ordinary accounts share the same real physical red cord,
 # but only Hound changed its protection marker; Wanderer's earlier signed
 # interpretation remains an accurate, time-scoped observation.
