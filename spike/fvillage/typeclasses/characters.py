@@ -246,7 +246,7 @@ class SpikeCharacter(Character):
         The same projection is available in score deep and agent context.
         """
         from world.embodied_perception import perception
-        return perception(
+        snapshot = perception(
             hunger=50 if self.db.hunger is None else self.db.hunger,
             warmth=1.0 if self.db.warmth is None else self.db.warmth,
             drunkenness=0 if self.db.drunkenness is None else self.db.drunkenness,
@@ -254,6 +254,18 @@ class SpikeCharacter(Character):
             seated=bool(self.db.posture),
             place=self.location.key if self.location else None,
         )
+        # The same visible physical fire warms human and external-agent
+        # characters. Read it only for masks actually standing in the Square.
+        if (self.location and self.location.key == "Village Square"
+                and snapshot["bands"]["warmth"] != "warm"):
+            from world.square_brazier import is_active
+            if is_active():
+                snapshot["possible_relief"].append(
+                    "The public Square brazier is actually burning nearby. "
+                    "Remain here to warm up using your existing body warmth; "
+                    "the fire has finite hours left."
+                )
+        return snapshot
 
     def hunger_band(self):
         h = self._hunger()
