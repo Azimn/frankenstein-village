@@ -74,6 +74,9 @@ WORK = {
         "gathering through commons rather than claiming one occurred.",
     ),
     "detective": (
+        "At Market Lane: examine the actual crooked market scale, then use "
+        "trade inspect after an independent Smith calibration to record "
+        "limited physical evidence without naming a culprit.",
         "At the Old Stone Bridge: look plaque, inspect the river gauge "
         "on Riverside Path, and consider a provisional theory bridge.",
         "Use mystery bridge or mystery manor to compare public evidence. "
