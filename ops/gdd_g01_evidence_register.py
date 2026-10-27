@@ -13,6 +13,7 @@ from pathlib import Path
 
 from content_inventory import REGISTRIES, build_inventory
 from game_completion_audit import build_audit
+from gdd_g01_ci_observations import load_ci_observations
 from phase_a_calling_source_audit import audit as audit_calling_sources
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -83,6 +84,7 @@ def build_register(root: Path = ROOT, *, source_ref: str | None = None) -> dict:
         })
 
     calling_index = {c["calling"]: c for c in calling_cards}
+    ci_observations = load_ci_observations(root)
     edges = []
     for design_edge, source_edge in zip(pairs, owner_audit["edges"]):
         if (design_edge["id"], design_edge["calling_a"], design_edge["calling_b"]) != (
@@ -105,6 +107,7 @@ def build_register(root: Path = ROOT, *, source_ref: str | None = None) -> dict:
             },
             "verified_pair_command": None,
             "verified_pair_room": None,
+            "historical_ci_observation": ci_observations.get(design_edge["number"]),
             "evidence": empty_proof(),
             "verified_complete": False,
         })
@@ -130,6 +133,7 @@ def build_register(root: Path = ROOT, *, source_ref: str | None = None) -> dict:
         "verified_family_count": 0,
         "verified_calling_count": 0,
         "verified_edge_count": 0,
+        "partial_ci_edge_count": len(ci_observations),
         "package_complete": False,
         "next_evidence": [
             "Record ordinary-client commands, actual rooms and attributable signed state transitions.",
@@ -170,10 +174,21 @@ def to_markdown(register: dict) -> str:
             f"{x['path']}:{x['line']} ({x['name']})"
             for x in edge["static_pair_world_owner_examples"]
         ) or "unverified"
+        status = ("Partial scripted real-client and restart evidence; full "
+                  "acceptance UNVERIFIED" if edge["historical_ci_observation"]
+                  else "UNVERIFIED")
         out.append(f"| {edge['number']:02} | {' + '.join(edge['callings'])} | "
-                   f"{sources} | UNVERIFIED |")
+                   f"{sources} | {status} |")
     out.extend([
-        "", "## Required to advance evidence", "",
+        "", "## Real-client evidence, bounded",
+        f"Seven source-checked CI case observations: {register['partial_ci_edge_count']} "
+        "of 45 design edges. No edge is fully accepted.",
+        "Run: https://github.com/Azimn/frankenstein-village/actions/runs/40455328096",
+        "Individual cards include exact historic commit, commands, rooms,",
+        "test-line ranges and post-restart markers. Evidence is partial and",
+        "cannot be silently carried forward as a new head's passing CI.",
+        "",
+        "## Required to advance evidence", "",
         "Obtain normal account commands and real observed rooms, distinct role",
         "decisions, signed world transitions, finite resources, second-account",
         "visibility, negative/late states, genuine restart, and uncoached UX",
