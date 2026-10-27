@@ -2068,13 +2068,16 @@ def main() -> int:
         require(out, "already signed today")
         out = wanderer.command("survey assess")
         require(out, "only a hound")
+        # The Chronicler previously inspected the cord during the ordinary
+        # daily survey. Publication still requires the Square and a signed
+        # independent Hound source; remembered travel alone is not enough.
+        out = c.command("survey notice")
+        require(out, "at village square")
         for move, destination in (
             ("north", "lamp shop"), ("north", "village square"),
         ):
             out = c.command(move)
             require(out, destination)
-        out = c.command("survey notice")
-        require(out, "first examine the physical red cord")
         for move, destination in (
             ("west", "st. lazarus church"), ("west", "churchyard"),
             ("north", "northern treeline"),
