@@ -67,6 +67,12 @@ def normalize(raw):
                 continue
             if row.get("review_choice") not in CHOICES:
                 continue
+            review = result["review"]
+            if (not review or source_id != review["event_id"]
+                    or row["review_choice"] != review["choice"]
+                    or signed["account_id"] == review["account_id"]
+                    or signed["hour"] < review["hour"]):
+                continue
             signed["review_event_id"] = source_id
             signed["review_choice"] = row["review_choice"]
         if name == "attestation":
