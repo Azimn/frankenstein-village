@@ -43,7 +43,7 @@
 | #116 | `9ed82a65aa049f9fb756c972b65907f56b294e15` | Draft, mergeable | Merchant/Chronicler calibration; independent gameplay acceptance. |
 | #117 | `e42db4e09765ea51f1d45d1f0318e9dbb67d97ae` | Draft, mergeable | Merchant/Wanderer freight; independent gameplay acceptance. |
 
-**Overlap determination:** GitHub changed-path audits give #85 exactly its roadmap file, #89 a model-free contract and runtime/tests, #93 three audit artifacts, #94 two design artifacts. These four changed-file sets are pairwise disjoint. This is a path-level no-overlap result, NOT proof that their semantics or their eventual merges are safe. The #85 early-access language was specifically reconciled with #89's optional-client policy; exact-main regression is still mandatory.
+**Overlap determination (before and after FV-G00 integration):** Initial GitHub path audits showed #85 changing only its roadmap, #89 a model-free contract/runtime/tests, #93 three audit artifacts, and #94 two design artifacts. PR #85 subsequently expanded to four scoped G00 files (listed in the acceptance signoff), still disjoint from #89/#93/#94. A path-level no-overlap result is not proof of semantic or merge safety. #85's early-access targets were reconciled with #89's optional-model proposal; exact-main integration regression **passed** on the certified G00 main commit.
 
 ## FV-G00 pre-integration gate checklist (historical findings, superseded by signoff below)
 
