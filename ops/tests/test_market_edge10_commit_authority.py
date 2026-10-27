@@ -116,5 +116,61 @@ class MarketCommitAuthorityTests(unittest.TestCase):
                 self.assertEqual(participation, [])
 
 
+def witnessed_scale(record, *, can_view=True, in_market=True):
+    """Run the actual inspection guard against persisted Evennia-style data."""
+    room = SimpleNamespace(contents=[])
+    scale = SimpleNamespace(
+        key="a crooked market scale",
+        db=SimpleNamespace(landmark_id="market_scale"),
+        access=lambda *_args, **_kwargs: can_view,
+    )
+    room.contents.append(scale)
+    mask = SimpleNamespace(
+        location=room if in_market else None,
+        db=SimpleNamespace(landmark_latest_view=record),
+    )
+    tree = ast.parse(SOURCE.read_text(encoding="utf-8"), filename=str(SOURCE))
+    guard = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "witnessed_scale_today"
+    )
+    namespace = {
+        "market_room": lambda: room,
+        "SCALE": "a crooked market scale",
+    }
+    exec(
+        compile(ast.fix_missing_locations(
+            ast.Module(body=[guard], type_ignores=[])
+        ), str(SOURCE), "exec"),
+        namespace,
+    )
+    return namespace["witnessed_scale_today"](mask, 1)
+
+
+class MarketScaleInspectionTests(unittest.TestCase):
+    def test_valid_today_inspection_remains_usable(self):
+        self.assertTrue(witnessed_scale({"market_scale": {"day": 1}}))
+        self.assertTrue(witnessed_scale({"market_scale": {"day": "1"}}))
+        self.assertFalse(witnessed_scale({"market_scale": {"day": 2}}))
+
+    def test_corrupted_persisted_inspection_fails_closed_without_crash(self):
+        for record in (
+            None, "not a mapping", [("market_scale", {"day": 1})],
+            {"market_scale": "not a signed inspection"},
+            {"market_scale": [1]},
+            {"market_scale": {"day": True}},
+            {"market_scale": {"day": "invalid"}},
+            {"market_scale": {"day": None}},
+        ):
+            with self.subTest(record=record):
+                self.assertFalse(witnessed_scale(record))
+
+    def test_restricted_or_absent_physical_scale_cannot_be_bypassed(self):
+        record = {"market_scale": {"day": 1}}
+        self.assertFalse(witnessed_scale(record, can_view=False))
+        self.assertFalse(witnessed_scale(record, in_market=False))
+
+
 if __name__ == "__main__":
     unittest.main()
