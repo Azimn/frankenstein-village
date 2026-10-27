@@ -1287,8 +1287,8 @@ assert active_calling(_stage_performer) == "performer"
 assert _stage["performance"] is not None, "The performance vanished after restart"
 assert _stage["performance"]["mask_id"] == _stage_performer.id
 assert _stage["performance"]["tune"] == "ballad"
-assert len(_stage["witnesses"]) == 1
-assert _stage["witnesses"][0]["mask"] == "InnkeepTester"
+assert len(_stage["witnesses"]) == 2
+assert {w["mask"] for w in _stage["witnesses"]} == {"InnkeepTester", "SmokeTester"}
 # GDD T-06: HealerTester left the room before the show, arrived afterward,
 # and was refused a firsthand witness record by the ordinary stage command.
 # That refusal must not be lost on a real game-server process restart.
@@ -1309,6 +1309,36 @@ for _action, _entry in (
 assert "PerformerTester" in _stage_lines(_stage, _stage["day"])
 print("POST_RESTART_SIGNED_TAVERN_PERFORMANCE_GREEN")
 print("POST_RESTART_GDD_T06_LATE_NONWITNESS_GREEN")
+
+# GDD-EDGE-14: real stop/start must preserve the separate Chronicler review,
+# its signed source acts, and the Performer's attributable contest.
+_stage_review = _stage["performance"]["reviews"][0]
+_stage_chronicler = one("SmokeTester")
+assert active_calling(_stage_chronicler) == "chronicler"
+assert _stage_review["mask_id"] == _stage_chronicler.id
+assert _stage_review["verdict"] == "praise"
+assert _stage_review["contest_event_id"] is not None
+_stage_witness = next(w for w in _stage["witnesses"] if w["mask"] == "SmokeTester")
+from world.stage_state import verify_review_sources as _verify_review_sources, verify_review_event as _verify_review_event
+assert _verify_review_sources(
+    _stage["performance"], _stage_witness, {
+        "performance": warning_ledger.get_event(_stage["performance"]["event_id"]),
+        "rehearsal": warning_ledger.get_event(_stage["performance"]["rehearsal_event_id"]),
+        "witness": warning_ledger.get_event(_stage_witness["event_id"]),
+    }, day=_stage["day"],
+), "The Chronicler review lacks authentic performance and witness sources"
+assert _verify_review_event(
+    _stage_review, warning_ledger.get_event(_stage_review["event_id"]), _stage["performance"]
+), "The review ledger event does not bind its sources"
+_stage_contest = warning_ledger.get_event(_stage_review["contest_event_id"])
+assert _stage_contest["kind"] == "village.stage_contest"
+assert _stage_contest["status"] == "complete"
+assert _stage_contest["actor"]["account_id"] == _stage_performer.account.id
+assert _stage_contest["payload"]["review_event_id"] == _stage_review["event_id"]
+assert _stage_contest["consequence"]["review_event_id"] == _stage_review["event_id"]
+assert "contested by the Performer" in _stage_lines(_stage, _stage["day"])
+print("POST_RESTART_GDD_EDGE14_SIGNED_REVIEW_CONTEST_GREEN")
+
 # Physical St. Lazarus clinic, signed Healer work and consumed linen persist.
 from world.clinic_state import normalize as _clinic_norm, public_lines as _clinic_lines
 _church = one("St. Lazarus Church")
