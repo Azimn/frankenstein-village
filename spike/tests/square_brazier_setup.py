@@ -21,9 +21,14 @@ def one(key):
 assert not any(account.is_connected for account in AccountDB.objects.all())
 clock = ScriptDB.objects.get(db_key="village_time")
 assert int(clock.db.day or 1) == 4
-# This disposable QA fixture has several real process restarts ahead.
-# Avoid a midnight rollover caused by the production clock ticking at boot.
-clock.db.hour = 12
+# The preceding authenticated T-13 recovery ran at day-four hour 21.
+# Do not rewind the canonical clock to noon: the brazier's persistent
+# high-water checkpoint would correctly refuse to burn wood in the past.
+# The post-restart expiry proof also depends on a genuine 21:00 ignition.
+assert int(clock.db.hour) == 21, (
+    "T-13 must hand off the actual day-four 21:00 clock without rewinding",
+    clock.db.hour,
+)
 square = one("Village Square")
 tavern = one("The Blood of the Vine")
 brazier = one("a public warming brazier")
