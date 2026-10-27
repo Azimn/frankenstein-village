@@ -115,6 +115,20 @@ well = one("well")
 assert well.typeclass_path == "typeclasses.objects.VillageWell"
 assert "straight" in (well.db.desc or "").lower(), "well rumor has no inspectable evidence"
 
+# A universal community project is an actual nonportable Square object.
+# A second build must not duplicate it, create fuel or silently relight it.
+brazier = one("a public warming brazier")
+assert brazier.location == one("Village Square")
+assert brazier.typeclass_path == "typeclasses.objects.SquareBrazier"
+assert not brazier.access(None, "get", default=True)
+from world.square_brazier import public_line as _public_brazier_line
+from world.square_brazier_state import normalize as _brazier_normalize
+_brazier_state = _brazier_normalize(brazier.db.square_brazier)
+assert _brazier_state["warm_until"] == 0
+assert _brazier_state["history"] == []
+assert "cold" in _public_brazier_line().lower()
+print("SQUARE_PUBLIC_BRAZIER_IDEMPOTENT_BUILD_GREEN")
+
 confessional = one("a confessional box")
 assert "lavender" in (confessional.db.desc or "").lower(), (
     "confessional rumor has no inspectable evidence"
