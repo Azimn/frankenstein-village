@@ -225,6 +225,34 @@ def certify(mask):
     record_participation(mask, "clinic_cot_certifications", calling="healer")
     return {"event_id": event["id"], "brace_event_id": brace_row["event_id"]}, None
 
+def _verified_current_patient(cot, day, hour):
+    """Authenticate the current visitor's assessment against the world ledger.
+
+    The treating Healer may differ from the examiner, but an Attribute alone
+    cannot invent an assessment. A prior day's patient cannot be reused.
+    """
+    clinic = clinic_state.refresh(cot.location.db.village_clinic, day)
+    row = clinic["assessment"]
+    if (clinic["day"] != day or not row or row["day"] != day
+            or (row["day"], row["hour"]) > (day, hour)):
+        return None, "A Healer must examine the actual patient first."
+    event = get_event_ledger().get_event(row["event_id"])
+    if (not event or event.get("status") != "complete"
+            or event.get("kind") != "village.clinic_assess"
+            or not hasattr(event.get("actor"), "get")
+            or not hasattr(event.get("payload"), "get")
+            or not hasattr(event.get("consequence"), "get")
+            or event["actor"].get("account_id") != row["account_id"]
+            or event["actor"].get("mask_id") != row["mask_id"]
+            or event["payload"].get("day") != row["day"]
+            or event["payload"].get("hour") != row["hour"]
+            or event["payload"].get("professional_calling") != "healer"
+            or event["consequence"].get("room_id") != cot.location.id
+            or event["consequence"].get("patient_condition") != clinic["condition"]):
+        return None, "The current patient's assessment lacks a signed Healer event."
+    return row, None
+
+
 def supported_rest_ready(mask):
     cot, error = _guard(mask, "healer")
     if error:
@@ -236,6 +264,13 @@ def supported_rest_ready(mask):
     if error:
         return False, error
     c = state["certification"]
+    day, hour = clinic_work._clock()
+    if (day, hour) < (brace_row["day"], brace_row["hour"]) or (
+            day, hour) < (c["day"], c["hour"]):
+        return False, "The cot's signed installation and approval are still in the future."
+    assessment, error = _verified_current_patient(cot, day, hour)
+    if error:
+        return False, error
     event = get_event_ledger().get_event(c["event_id"])
     if (not event or event.get("kind") != "professional.clinic_cot_certified"
             or event.get("status") != "complete"
