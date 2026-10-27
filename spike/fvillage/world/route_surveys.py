@@ -14,7 +14,7 @@ MAX_HISTORY = 30
 
 
 def fresh(day=0):
-    return {"day": int(day), "reports": {}, "field_decisions": {}, "history": []}
+    return {"day": int(day), "reports": {}, "field_decisions": {}, "advisory": None, "history": []}
 
 
 def normalize(raw):
@@ -60,10 +60,40 @@ def normalize(raw):
                            "event_id": event, "action": action, "site": "red_cord"}
         if role == "wanderer":
             decisions[role]["observation"] = observation
+    # A map is an attributed editorial snapshot, never a live hazard oracle.
+    advisory = None
+    item = value.get("advisory")
+    if hasattr(item, "get"):
+        try:
+            publisher = int(item["account_id"])
+            event_id = int(item["event_id"])
+            source_account = int(item["source_account_id"])
+            source_event = int(item["source_event_id"])
+            source_day = int(item["source_day"])
+            version = int(item["version"])
+        except (TypeError, ValueError, KeyError, OverflowError):
+            pass
+        else:
+            if (all(not isinstance(item.get(k), bool) for k in (
+                    "account_id", "event_id", "source_account_id",
+                    "source_event_id", "source_day", "version"))
+                    and min(publisher, event_id, source_account, source_event) > 0
+                    and publisher != source_account and source_day == day
+                    and version == 1
+                    and item.get("observation") in {"unmarked", "marked_caution"}):
+                advisory = {
+                    "account_id": publisher, "mask": str(item.get("mask") or "")[:70],
+                    "event_id": event_id, "version": version, "site": "red_cord",
+                    "source_account_id": source_account,
+                    "source_event_id": source_event, "source_day": source_day,
+                    "source_mask": str(item.get("source_mask") or "")[:70],
+                    "observation": item["observation"],
+                }
     return {
         "day": day,
         "reports": reports,
         "field_decisions": decisions,
+        "advisory": advisory,
         "history": list(value.get("history") or [])[-MAX_HISTORY:],
     }
 
@@ -81,12 +111,14 @@ def refresh(raw, day):
             "completed": len(state["reports"]) == len(SITES),
             "reports": copy.deepcopy(state["reports"]),
             "field_decisions": copy.deepcopy(state["field_decisions"]),
+            "advisory": copy.deepcopy(state["advisory"]),
         }
         state["history"].append(previous)
         state["history"] = state["history"][-MAX_HISTORY:]
     state["day"] = day
     state["reports"] = {}
     state["field_decisions"] = {}
+    state["advisory"] = None
     return state
 
 
@@ -176,3 +208,58 @@ def field_lines(raw):
             "It describes the observed route at that time, not guaranteed safety."
         )
     return lines
+
+
+def publish_advisory(raw, day, account_id, mask, event_id, source_event_id):
+    """One Chronicler edition from another account's signed Wanderer fieldwork.
+
+    The source is the existing firsthand, daily passability record. A later
+    Hound warning cannot retroactively alter what the Wanderer saw. The
+    edition is finite to one per village day and archived at rollover.
+    """
+    state = refresh(raw, day)
+    if day < state["day"]:
+        return state, False, "A later village day is already recorded."
+    source = state["field_decisions"].get("wanderer")
+    if source is None:
+        return state, False, "A Wanderer's signed firsthand route observation is required."
+    if state["advisory"] is not None:
+        return state, False, "Today's sourced map advisory is already published."
+    try:
+        values = (account_id, event_id, source_event_id)
+        if any(isinstance(value, bool) for value in values):
+            raise ValueError("Boolean identifiers are not accounts or events")
+        account_id, event_id, source_event_id = (int(value) for value in values)
+    except (TypeError, ValueError, OverflowError):
+        return state, False, "Signed account and event identifiers are required."
+    if min(account_id, event_id, source_event_id) < 1:
+        return state, False, "Signed account and event identifiers are required."
+    if source["account_id"] == account_id:
+        return state, False, "An independent Chronicler account must edit this field report."
+    if source_event_id != source["event_id"]:
+        return state, False, "The cited Wanderer source event does not match the actual survey."
+    state["advisory"] = {
+        "version": 1, "site": "red_cord", "account_id": account_id,
+        "mask": str(mask)[:70], "event_id": event_id,
+        "source_account_id": source["account_id"],
+        "source_mask": source["mask"], "source_event_id": source_event_id,
+        "source_day": state["day"], "observation": source["observation"],
+    }
+    return state, True, None
+
+
+def advisory_lines(raw):
+    state = normalize(raw)
+    item = state["advisory"]
+    if item is None:
+        return ["No Chronicler route map edition has been published today. "
+                "A Chronicler can use survey publish in the Village Square "
+                "after an independent Wanderer signs survey passability."]
+    label = "marked caution" if item["observation"] == "marked_caution" else "unmarked cord"
+    return [
+        f"Public route map v{item['version']} for day {item['source_day']}: "
+        f"{item['mask']} (signed event {item['event_id']}) edited "
+        f"{item['source_mask']}'s firsthand {label} report "
+        f"(source event {item['source_event_id']}). "
+        "This dated account is not a current safety guarantee or proof of a hazard."
+    ]
