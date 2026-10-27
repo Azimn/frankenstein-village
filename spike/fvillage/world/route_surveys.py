@@ -79,8 +79,12 @@ def normalize(raw):
                     "source_event_id", "source_day", "version"))
                     and min(publisher, event_id, source_account, source_event) > 0
                     and publisher != source_account and source_day == day
-                    and version == 1
-                    and item.get("observation") in {"unmarked", "marked_caution"}):
+                    and event_id != source_event and version == 1
+                    and item.get("observation") in {"unmarked", "marked_caution"}
+                    and decisions.get("wanderer") is not None
+                    and decisions["wanderer"]["account_id"] == source_account
+                    and decisions["wanderer"]["event_id"] == source_event
+                    and decisions["wanderer"]["observation"] == item["observation"]):
                 advisory = {
                     "account_id": publisher, "mask": str(item.get("mask") or "")[:70],
                     "event_id": event_id, "version": version, "site": "red_cord",
@@ -232,7 +236,7 @@ def publish_advisory(raw, day, account_id, mask, event_id, source_event_id):
         account_id, event_id, source_event_id = (int(value) for value in values)
     except (TypeError, ValueError, OverflowError):
         return state, False, "Signed account and event identifiers are required."
-    if min(account_id, event_id, source_event_id) < 1:
+    if min(account_id, event_id, source_event_id) < 1 or event_id == source_event_id:
         return state, False, "Signed account and event identifiers are required."
     if source["account_id"] == account_id:
         return state, False, "An independent Chronicler account must edit this field report."
@@ -258,7 +262,7 @@ def advisory_lines(raw):
     label = "marked caution" if item["observation"] == "marked_caution" else "unmarked cord"
     return [
         f"Public route map v{item['version']} for day {item['source_day']}: "
-        f"{item['mask']} (signed event {item['event_id']}) edited "
+        f"Chronicler {item['mask']} (signed event {item['event_id']}) edited "
         f"{item['source_mask']}'s firsthand {label} report "
         f"(source event {item['source_event_id']}). "
         "This dated account is not a current safety guarantee or proof of a hazard."
