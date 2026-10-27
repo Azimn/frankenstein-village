@@ -55,6 +55,28 @@ class Client:
         self.sock.sendall(line.encode("utf-8") + b"\n")
         return self.read_quiet(max_wait=wait)
 
+    def command_expect(self, line: str, expected: str, *, wait: float = 20.0) -> str:
+        """Send ONCE and await a real response, including late server output.
+
+        A slow signed world mutation may outlast read_quiet's inactivity
+        window. Retrying a side-effecting command would conceal duplicate
+        action bugs, so collect further bytes from the same socket instead.
+        Silence or a response without the expected receipt still fails at
+        the caller's normal assertion.
+        """
+        print(f"\\n> {line}")
+        self.sock.sendall(line.encode("utf-8") + b"\\n")
+        deadline = time.monotonic() + wait
+        received = []
+        while time.monotonic() < deadline:
+            remaining = deadline - time.monotonic()
+            response = self.read_quiet(max_wait=min(3.0, remaining))
+            if response:
+                received.append(response)
+                if expected.lower() in "\\n".join(received).lower():
+                    break
+        return "\\n".join(received)
+
     def sync_login_screen(self) -> str:
         """Wait for Evennia's connection screen before sending credentials."""
         deadline = time.monotonic() + 6.0
@@ -1265,10 +1287,12 @@ def main() -> int:
         require(out, "hospitality is still needed")
         require(out, "spends one actual serving of stew")
 
-        # The signed care event can take longer than the default telnet
-        # quiet-read window under a busy clean-checkout server. Still require
-        # the real success text; never treat a silent timeout as a pass.
-        out = inn.command("care serve Silas Crowe", wait=6.0)
+        # Signed care may complete after the usual telnet quiet-read timeout.
+        # Never resend this side-effecting action. Wait for the actual receipt;
+        # an empty or incorrect response still fails the gameplay assertion.
+        out = inn.command_expect(
+            "care serve Silas Crowe", "hot bowl from the tavern stock", wait=20.0
+        )
         require(out, "hot bowl from the tavern stock")
         require(out, "one stew serving is spent")
         require(out, "care case is complete")
