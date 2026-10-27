@@ -38,12 +38,14 @@
       ],
       "deliver": "21-family section 15 inventory and all 10 Calling / 45 edge evidence cards, with source file + command + room + owner + canonical transition + restart/UX proof.",
       "proof": "Live discoverability not inferred from manuscript counts; all unknown states explicitly unverified.",
-      "status": "planned",
+      "status": "in_progress",
       "verified_evidence": [],
       "source_sections": [
         "19",
         "21"
-      ]
+      ],
+      "audit_register": "ops/gdd_g01_evidence_register.py",
+      "next_dependency": "Collect ordinary-client, room, per-role world-transition, second-account, restart and uncoached-UX proof for every candidate; audit source evidence against current head, then independently review and integrate."
     },
     {
       "id": "FV-G02",
