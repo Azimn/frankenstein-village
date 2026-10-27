@@ -63,6 +63,10 @@ class StageReviewTests(unittest.TestCase):
         self.assertEqual(state["performance"]["reviews"][0]["contest_event_id"], 104)
         tomorrow = s.refresh(state, 2)
         self.assertEqual(tomorrow["history"][-1]["performance"]["reviews"][0]["contest_event_id"], 104)
+        archive = s.archive_lines(json.loads(json.dumps(tomorrow)), 2)
+        self.assertIn("attributed praise review", archive)
+        self.assertIn("Performer contested in event 104", archive)
+        self.assertIn("not objective proof", archive)
 
     def test_forged_or_failed_sources_never_certify_review(self):
         state, sources = setup()
