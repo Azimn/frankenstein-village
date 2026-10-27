@@ -28,6 +28,9 @@ WORK = {
         "one-time and may already have been finished by a neighbor.",
     ),
     "healer": (
+        "At St. Lazarus Church, clinic receive inspects and accepts a "
+        "real Merchant-sourced linen parcel, adding two finite dressings "
+        "to the shared cabinet. A separate Merchant must supply it.",
         "At St. Lazarus Church a patient comes to the staffed clinic every "
         "village day. Use clinic assess to record a firsthand finding; "
         "clinic prepare makes real transferable linen dressings, and "
@@ -41,6 +44,10 @@ WORK = {
         "can change through actual help or through delay.",
     ),
     "merchant": (
+        "At Market Lane, clinic procure withdraws one finite sealed linen "
+        "parcel per village day. Carry it to St. Lazarus Church for a "
+        "different Healer to use clinic receive; the shared cabinet gains "
+        "stock only after clinical acceptance.",
         "At Market Lane use soup procure for a real crate of roots; "
         "carry or transfer it to the Blood of the Vine, then soup deliver "
         "to restock the working kitchen's finite pantry.",
