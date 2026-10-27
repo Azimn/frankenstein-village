@@ -1159,7 +1159,7 @@ assert _cord.db.route_caution["mask"] == "HoundTester"
 assert _cord.db.route_caution["event_id"] > 0
 assert "clear caution marker" in _cord.get_display_desc(looker=_wanderer_field)
 _actions = route_board["field_decisions"]
-assert set(_actions) == {"hound", "wanderer"}
+assert set(_actions) == {"hound", "wanderer", "hound_assessment"}
 assert _actions["hound"]["mask"] == "HoundTester"
 assert _actions["wanderer"]["mask"] == "WandererTester"
 assert _actions["wanderer"]["observation"] == "unmarked", (
@@ -1171,9 +1171,30 @@ for _role, _kind in (("hound", "village.route_protected"),
     _signed = warning_ledger.get_event(_actions[_role]["event_id"])
     assert _signed["kind"] == _kind
     assert _signed["status"] == "complete"
-assert calling_record(_hound_protect, "hound")["participation"]["field_surveys"] == 1
+assert calling_record(_hound_protect, "hound")["participation"]["field_surveys"] == 2
 assert calling_record(_wanderer_field, "wanderer")["participation"]["field_surveys"] == 1
-assert set(_next_survey_day["history"][-1]["field_decisions"]) == {"hound", "wanderer"}
+assert set(_next_survey_day["history"][-1]["field_decisions"]) == {
+    "hound", "wanderer", "hound_assessment"
+}
+assert _actions["hound_assessment"]["mask"] == "HoundTester"
+_hound_source = warning_ledger.get_event(_actions["hound_assessment"]["event_id"])
+assert _daily_survey.verified_hound_assessment(
+    _actions["hound_assessment"], _hound_source, route_board["day"]
+)
+_notice = route_board["safety_notice"]
+assert _notice is not None and _notice["mask"] == "SmokeTester"
+assert _notice["source_event_id"] == _hound_source["id"]
+assert _notice["source_account_id"] != _notice["account_id"]
+assert _notice["observation"] == "marked_caution"
+_notice_event = warning_ledger.get_event(_notice["event_id"])
+assert _notice_event["kind"] == "village.route_safety_notice"
+assert _notice_event["status"] == "complete"
+assert _notice_event["actor"]["account_id"] == _notice["account_id"]
+assert _notice_event["consequence"]["source_event_id"] == _hound_source["id"]
+assert _next_survey_day["history"][-1]["safety_notice"]["event_id"] == _notice["event_id"]
+assert _next_survey_day["safety_notice"] is None
+assert "notice event" in " ".join(_daily_survey.field_lines(route_board))
+print("POST_RESTART_GDD_EDGE16_SIGNED_NOTICE_GREEN")
 print("POST_RESTART_GDD_T07_SHARED_CORD_AND_DISTINCT_ACTIONS_GREEN")
 
 from world.residents import (
