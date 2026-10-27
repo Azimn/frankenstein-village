@@ -5,6 +5,8 @@ private lodging records, new ledger, or claim of objective patron behavior.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from world import soup_state
 
 
@@ -14,7 +16,7 @@ def _positive(value):
 
 def _signed(actor):
     return (
-        isinstance(actor, dict)
+        isinstance(actor, Mapping)
         and _positive(actor.get("account_id"))
         and _positive(actor.get("mask_id"))
         and isinstance(actor.get("mask"), str)
@@ -24,13 +26,13 @@ def _signed(actor):
 
 def _event(event, kind, event_id):
     return (
-        isinstance(event, dict)
+        isinstance(event, Mapping)
         and event.get("id") == event_id
         and event.get("kind") == kind
         and event.get("status") == "complete"
-        and isinstance(event.get("actor"), dict)
-        and isinstance(event.get("payload"), dict)
-        and isinstance(event.get("consequence"), dict)
+        and isinstance(event.get("actor"), Mapping)
+        and isinstance(event.get("payload"), Mapping)
+        and isinstance(event.get("consequence"), Mapping)
     )
 
 
