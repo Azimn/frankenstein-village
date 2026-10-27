@@ -4,6 +4,7 @@ These pure tests cover state and negative cases. The live ledger and physical
 source adapter require separate authenticated Evennia integration testing.
 """
 import json
+import copy
 import sys
 import unittest
 from pathlib import Path
@@ -135,6 +136,52 @@ class StageSafetyTests(unittest.TestCase):
         self.assertIsNone(stage.normalize(state)["safety_decision"])
         state["safety_warning"]["source_event_id"] = False
         self.assertIsNone(stage.normalize(state)["safety_warning"])
+
+    def test_verified_hound_source_requires_completed_ledger_and_original_cord(self):
+        route = {"day": 1, "field_decisions": {
+            "hound": {"account_id": 11, "event_id": 90}}}
+        marker = {"account_id": 11, "event_id": 90, "day": 1}
+        event = {
+            "id": 90, "kind": "village.route_protected", "status": "complete",
+            "actor": {"account_id": 11, "mask_id": 111},
+            "payload": {"site": "red_cord", "role": "hound",
+                        "action": "protect", "location": "Northern Treeline",
+                        "day": 1, "hour": 19},
+            "consequence": {"cord_object_id": 777, "square_room_id": 88,
+                            "role": "hound", "action": "protect",
+                            "day": 1, "caution_marked": True},
+        }
+        kwargs = dict(account_id=11, mask_id=111, source_event_id=90,
+                      cord_id=777, square_id=88, day=1, hour=20,
+                      room_name="Northern Treeline")
+        check = stage.verified_hound_source
+        self.assertTrue(check(route, event, marker, **kwargs))
+        for path, invalid in (
+            (("status",), "consequence_failed"),
+            (("kind",), "village.route_passability_observed"),
+            (("id",), 999),
+            (("actor", "account_id"), 22),
+            (("actor", "mask_id"), 333),
+            (("payload", "site"), "market_scale"),
+            (("payload", "role"), "wanderer"),
+            (("payload", "day"), 2),
+            (("payload", "hour"), 21),
+            (("payload", "hour"), True),
+            (("consequence", "cord_object_id"), 999),
+            (("consequence", "square_room_id"), 999),
+            (("consequence", "caution_marked"), False),
+        ):
+            with self.subTest(path=path):
+                forged = copy.deepcopy(event)
+                node = forged
+                for key in path[:-1]:
+                    node = node[key]
+                node[path[-1]] = invalid
+                self.assertFalse(check(route, forged, marker, **kwargs))
+        self.assertFalse(check(route, None, marker, **kwargs))
+        self.assertFalse(check(route, event, {**marker, "event_id": 999}, **kwargs))
+        self.assertFalse(check({**route, "day": 2}, event, marker, **kwargs))
+        self.assertFalse(check(route, event, marker, **{**kwargs, "hour": 18}))
 
     def test_public_status_does_not_invent_crowd(self):
         state, ok, _ = warning()
