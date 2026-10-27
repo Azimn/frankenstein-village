@@ -506,6 +506,39 @@ def main() -> int:
             day4_restart_env["FV_T13_DAY4_RESTART"] = "1"
             run([evennia, "shell"], cwd=game, env=day4_restart_env,
                 input_text=day4_assertions)
+
+            # GDD FV-G09 community-project delivery: a still-physical
+            # canceled-commission bundle can fund real public Square warmth.
+            # A second independent authenticated player may maintain it.
+            # All world mutations except QA seed are issued via telnet.
+            brazier_setup = (
+                checkout / "spike" / "tests" / "square_brazier_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=brazier_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_square_brazier.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=140,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            # Verify an actual full Evennia process restart, not just a
+            # serialized in-memory object. The public fire, source records,
+            # and reduced inventory must all persist.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            persisted_brazier = (
+                checkout / "spike" / "tests"
+                / "square_brazier_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=persisted_brazier)
         except Exception:
             dump_logs(game)
             raise
