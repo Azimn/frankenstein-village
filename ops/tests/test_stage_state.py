@@ -1,6 +1,7 @@
 """Stage performance rules require real musicians and actual witnesses."""
 import sys
 import unittest
+from collections import UserList
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "spike/fvillage"))
@@ -117,6 +118,49 @@ class PerformanceTests(unittest.TestCase):
         tomorrow = stage.refresh(guest, 2)
         self.assertEqual(len(tomorrow["history"][-1]["performance"]["hospitality"]), 2)
         self.assertEqual(len(stage.normalize(guest)["performance"]["hospitality"]), 2)
+
+    def test_persisted_mutable_sequence_keeps_signed_hospitality(self):
+        """Evennia Attribute lists are MutableSequence, not builtin list."""
+        state, ok, reason = stage.rehearse(None, tune="ballad", **args())
+        self.assertTrue(ok, reason)
+        state, ok, reason = stage.perform(
+            state, tune="ballad", **args(event=101),
+        )
+        self.assertTrue(ok, reason)
+        served, ok, reason = stage.serve(
+            state, day=1, hour=20, account_id=9, mask_id=90,
+            mask="Innkeep", event_id=103, recipient_account_id=7,
+            recipient_mask_id=70, bowl_id=501, cook_event_id=55,
+        )
+        self.assertTrue(ok, reason)
+        # UserList mirrors the collection interface of Evennia's _SaverList.
+        # The real server uses _SaverList when reading room.db.village_stage.
+        persisted = {
+            **served,
+            "performance": {
+                **served["performance"],
+                "hospitality": UserList(served["performance"]["hospitality"]),
+            },
+        }
+        normalized = stage.normalize(persisted)
+        self.assertEqual(len(normalized["performance"]["hospitality"]), 1)
+        self.assertEqual(
+            normalized["performance"]["hospitality"][0]["event_id"], 103,
+        )
+        self.assertIn("1 real soup serving", stage.public_lines(persisted, 1))
+        tomorrow = stage.refresh(persisted, 2)
+        self.assertEqual(
+            tomorrow["history"][-1]["performance"]["hospitality"][0]["bowl_id"],
+            501,
+        )
+        # A text string is not a valid list of signed service records.
+        malformed = {
+            **served,
+            "performance": {**served["performance"], "hospitality": "fake"},
+        }
+        self.assertEqual(
+            stage.normalize(malformed)["performance"]["hospitality"], [],
+        )
 
     def test_catering_rejects_late_guests_self_service_and_fake_stock(self):
         state, ok, _ = stage.rehearse(None, tune="reel", **args())
