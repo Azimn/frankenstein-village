@@ -54,6 +54,52 @@ def _carried(mask):
     ]
 
 
+def _verified_gather(bundle):
+    """Check physical fuel against the already completed canonical source.
+
+    A bundle can be given to another player, so the original gatherer's
+    account need not match the current carrier. The object ID, material,
+    source day and completed gathering event must still agree.
+    """
+    if (getattr(bundle, "key", None) != FIREWOOD_KEY
+            or getattr(bundle.db, "civic_firewood", None) is not True):
+        return False
+    source_id = getattr(bundle.db, "gather_event_id", None)
+    source_day = getattr(bundle.db, "source_day", None)
+    if (type(source_id) is not int or source_id <= 0
+            or type(source_day) is not int or source_day < 1
+            or type(getattr(bundle, "id", None)) is not int
+            or bundle.id <= 0):
+        return False
+    try:
+        source = ScriptDB.objects.get(
+            db_key="world_event_ledger"
+        ).get_event(source_id)
+    except ScriptDB.DoesNotExist:
+        return False
+    if not isinstance(source, dict):
+        return False
+    actor = dict(source.get("actor") or {})
+    payload = dict(source.get("payload") or {})
+    consequence = dict(source.get("consequence") or {})
+    return (
+        source.get("id") == source_id
+        and source.get("kind") == "civic.hearth_firewood_gathered"
+        and source.get("status") == "complete"
+        and type(actor.get("mask_id")) is int
+        and actor["mask_id"] > 0
+        and type(actor.get("account_id")) is int
+        and actor["account_id"] > 0
+        and payload.get("resource") == FIREWOOD_KEY
+        and payload.get("day") == source_day
+        and type(payload.get("hour")) is int
+        and 0 <= payload["hour"] <= 23
+        and consequence.get("bundle_id") == bundle.id
+        and type(consequence.get("woodpile_object_id")) is int
+        and consequence["woodpile_object_id"] > 0
+    )
+
+
 def _pledged_bundle_id(day):
     tavern = _room(TAVERN_KEY)
     if tavern is None:
@@ -203,6 +249,11 @@ def act(mask, mode):
     )
     if not allowed:
         return None, reason
+    if not _verified_gather(bundle):
+        return None, (
+            "That firewood lacks a completed matching Square gathering "
+            "receipt. No fuel has been spent."
+        )
     source_event_id = int(bundle.db.gather_event_id)
     bundle_id = int(bundle.id)  # Django may clear pk after object.delete()
 
@@ -226,6 +277,10 @@ def act(mask, mode):
             if int(bundle.id) == _pledged_bundle_id(day):
                 raise RuntimeError(
                     "This bundle has since been pledged to a civic commission."
+                )
+            if not _verified_gather(bundle):
+                raise RuntimeError(
+                    "The firewood gathering receipt changed before tending."
                 )
             changed, accepted, why = square_brazier_state.contribute(
                 brazier.db.square_brazier, day, hour, mode=mode,
