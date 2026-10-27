@@ -64,8 +64,8 @@ class Client:
         Silence or a response without the expected receipt still fails at
         the caller's normal assertion.
         """
-        print(f"\\n> {line}")
-        self.sock.sendall(line.encode("utf-8") + b"\\n")
+        print(f"\n> {line}")
+        self.sock.sendall(line.encode("utf-8") + b"\n")
         deadline = time.monotonic() + wait
         received = []
         while time.monotonic() < deadline:
@@ -73,9 +73,9 @@ class Client:
             response = self.read_quiet(max_wait=min(3.0, remaining))
             if response:
                 received.append(response)
-                if expected.lower() in "\\n".join(received).lower():
+                if expected.lower() in "\n".join(received).lower():
                     break
-        return "\\n".join(received)
+        return "\n".join(received)
 
     def sync_login_screen(self) -> str:
         """Wait for Evennia's connection screen before sending credentials."""
