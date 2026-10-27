@@ -328,7 +328,6 @@ def procure_merchant_repair_part(mask):
         "mask": getattr(mask, "key", None),
         "event_id": event["id"],
         "source_smith_event_id": diagnosis.get("event_id"),
-        "required_part": REQUIRED_PART,
         "resource_object_id": stock.id,
         "resource_object_key": stock.key,
         "required_part": REQUIRED_PART,
