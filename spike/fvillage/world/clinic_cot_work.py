@@ -164,7 +164,7 @@ def _verified_brace(cot):
 def _assessment(cot, mask, day, hour):
     clinic = clinic_state.refresh(cot.location.db.village_clinic, day)
     row = clinic["assessment"]
-    if (clinic["day"] != day or not row
+    if (clinic["day"] != day or not row or row["day"] != day
             or row["account_id"] != mask.account.id
             or row["mask_id"] != mask.id
             or (row["day"], row["hour"]) > (day, hour)):
@@ -177,7 +177,8 @@ def _assessment(cot, mask, day, hour):
             or not hasattr(event.get("consequence"), "get")
             or event["actor"].get("account_id") != mask.account.id
             or event["actor"].get("mask_id") != mask.id
-            or event["payload"].get("day") != day
+            or event["payload"].get("day") != row["day"]
+            or event["payload"].get("hour") != row["hour"]
             or event["payload"].get("professional_calling") != "healer"
             or event["consequence"].get("room_id") != cot.location.id
             or event["consequence"].get("patient_condition") != clinic["condition"]):
