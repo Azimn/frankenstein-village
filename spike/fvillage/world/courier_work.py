@@ -262,6 +262,13 @@ def accept_freight(mask):
             }
             updated["collector_account_id"] = mask.account.id
             parcel.db.ferry_parcel = updated
+            # After signed acceptance the real carrier may recover a dropped
+            # parcel. Delivery still verifies the original account and chain.
+            parcel.locks.add("get:true()")
+            parcel.db.desc = (
+                f"Merchant freight in signed custody of {mask.key}. "
+                "Carry this actual parcel to Riverside Path and use courier deliver."
+            )
             return {"parcel_id": parcel.id,
                     "consignment_event_id": contract["consignment_event_id"]}
 
