@@ -188,6 +188,51 @@ assert _soup_bowl.db.servings == 0, "Consumed bowl refilled across restart"
 assert one("a communal soup pot").location == _tavern_soup
 print("POST_RESTART_SHARED_SOUP_WORKPLACE_GREEN")
 
+# GDD-EDGE-02: after a real Evennia restart, the original physical pot
+# retains a distinct Innkeep restriction and Smith's signed repair, and
+# both Workshop stock and the carried fitting were actually consumed.
+from world import kitchen_repair_edge02, workshop_state
+_kitchen_pot = one("a communal soup pot")
+_kitchen_state = kitchen_repair_edge02.normalize(_kitchen_pot.db.kitchen_repair)
+assert _kitchen_state["condition"] == "working", _kitchen_state
+_kitchen_inn = _kitchen_state["restriction"]
+_kitchen_fix = _kitchen_state["repair"]
+_kitchen_smith = one("KitchenSmithTester")
+assert _kitchen_inn["mask_id"] == innkeep_tester.id
+assert _kitchen_fix["mask_id"] == _kitchen_smith.id
+assert _kitchen_inn["account_id"] != _kitchen_fix["account_id"]
+assert AccountDB.objects.filter(id=_kitchen_inn["account_id"]).exists()
+assert AccountDB.objects.filter(id=_kitchen_fix["account_id"]).exists()
+assert calling_record(innkeep_tester, "innkeep")["participation"]["kitchen_restrictions"] == 1
+assert calling_record(_kitchen_smith, "smith")["participation"]["kitchen_repairs"] == 1
+_kitchen_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+_kitchen_restrict_event = _kitchen_ledger.get_event(_kitchen_inn["event_id"])
+_kitchen_forge_event = _kitchen_ledger.get_event(_kitchen_fix["forge_event_id"])
+_kitchen_repair_event = _kitchen_ledger.get_event(_kitchen_fix["event_id"])
+assert _kitchen_restrict_event["status"] == "complete"
+assert _kitchen_restrict_event["kind"] == "professional.innkeep_kitchen_restriction"
+assert _kitchen_restrict_event["actor"]["account_id"] == _kitchen_inn["account_id"]
+assert _kitchen_restrict_event["consequence"]["condition"] == "restricted"
+assert _kitchen_forge_event["status"] == "complete"
+assert _kitchen_forge_event["kind"] == "village.market_hinge_forged"
+assert _kitchen_forge_event["consequence"]["item_id"] == _kitchen_fix["item_id"]
+assert _kitchen_repair_event["status"] == "complete"
+assert _kitchen_repair_event["kind"] == "professional.smith_kitchen_repair"
+assert _kitchen_repair_event["actor"]["account_id"] == _kitchen_fix["account_id"]
+assert _kitchen_repair_event["payload"]["restriction_event_id"] == _kitchen_inn["event_id"]
+assert _kitchen_repair_event["payload"]["forge_event_id"] == _kitchen_fix["forge_event_id"]
+assert _kitchen_repair_event["consequence"]["consumed_item_id"] == _kitchen_fix["item_id"]
+assert _kitchen_repair_event["consequence"]["condition"] == "working"
+assert not [obj for obj in search.search_object("a forged market hinge")
+            if obj.id == _kitchen_fix["item_id"]], "Consumed fitting survived restart"
+_kitchen_workshop = one("The Market Workshop")
+_kitchen_docket = workshop_state.refresh(_kitchen_workshop.db.repair_docket,
+                                          _kitchen_fix["day"])
+assert _kitchen_docket["offcuts"] == 0
+assert any(row["item_id"] == _kitchen_fix["item_id"]
+           for row in _kitchen_docket["crafts"])
+print("POST_RESTART_GDD_EDGE02_SIGNED_PHYSICAL_KITCHEN_REPAIR_GREEN")
+
 
 population = list(search.search_tag("resident", category="system"))
 from world.resident_data import RESIDENTS
