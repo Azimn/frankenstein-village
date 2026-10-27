@@ -166,14 +166,22 @@ from world import soup_state
 _tavern_soup = one("The Blood of the Vine")
 _soup_log = soup_state.pantry(_tavern_soup.db.soup_pantry, 1)
 assert _soup_log["history"], "The shared soup pot lost all batches"
-_batch = _soup_log["history"][-1]
-assert _batch["maker_id"] == innkeep_tester.id
-assert _batch["base"] == "turnip" and _batch["seasoning"] == "thyme"
-assert _batch["prep_event_id"] < _batch["cook_event_id"]
-assert innkeep_record["participation"]["soup_preparations"] == 1
-assert innkeep_record["participation"]["soup_batches_cooked"] == 1
-assert len(list(innkeep_tester.db.soup_notebook or [])) == 1
-assert list(innkeep_tester.db.soup_notebook)[-1]["cook_event_id"] == _batch["cook_event_id"]
+# The first bowl was tasted; a second independently cooked bowl was
+# physically served at the Performer show. Preserve BOTH recipes and receipts.
+assert len(_soup_log["history"]) == 2
+_batch, _service_batch = _soup_log["history"]
+assert all(row["maker_id"] == innkeep_tester.id for row in (_batch, _service_batch))
+assert (_batch["base"], _batch["seasoning"]) == ("turnip", "thyme")
+assert (_service_batch["base"], _service_batch["seasoning"]) == ("barley", "salt")
+assert all(row["prep_event_id"] < row["cook_event_id"]
+           for row in (_batch, _service_batch))
+assert innkeep_record["participation"]["soup_preparations"] == 2
+assert innkeep_record["participation"]["soup_batches_cooked"] == 2
+_notebook = list(innkeep_tester.db.soup_notebook or [])
+assert len(_notebook) == 2
+assert [row["cook_event_id"] for row in _notebook] == [
+    _batch["cook_event_id"], _service_batch["cook_event_id"]
+]
 assert calling_record(merchant_tester, "merchant")["participation"]["kitchen_procurements"] == 1
 _soup_cooked = ScriptDB.objects.get(db_key="world_event_ledger").get_event(_batch["cook_event_id"])
 assert _soup_cooked["kind"] == "professional.innkeep_soup_cooked"
