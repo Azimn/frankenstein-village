@@ -15,7 +15,6 @@ def one(key):
 clock = ScriptDB.objects.get(db_key="village_time")
 day = int(clock.db.day or 1)
 assert day >= 4, "EDGE-41 fixture must follow all previous day-four tests"
-clock.db.hour = 20
 square = one("Village Square")
 tavern = one("The Blood of the Vine")
 cord = one("a frayed red cord")
