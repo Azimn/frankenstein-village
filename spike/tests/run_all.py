@@ -539,6 +539,19 @@ def main() -> int:
             ).read_text(encoding="utf-8")
             run([evennia, "shell"], cwd=game, env=env,
                 input_text=persisted_brazier)
+            # The preceding readback exercised the ACTUAL VillageTime
+            # hourly transition at expiry and intentionally rewound the
+            # disposable QA hour. A second restart must not resurrect
+            # spent firewood or imaginary outdoor body warmth.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            expiry_proof = (
+                checkout / "spike" / "tests"
+                / "square_brazier_expiry_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=expiry_proof)
         except Exception:
             dump_logs(game)
             raise
