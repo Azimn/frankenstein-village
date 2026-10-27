@@ -399,11 +399,16 @@ def personal_agenda(raw, day, mask_id):
 
     # Only yesterday's personal work belongs in a returning player's agenda.
     # Prior-day decisions are history, never an actionable current-day hold.
-    for old in reversed(state["history"]):
-        if old.get("day") != day - 1:
+    for archived in reversed(state["history"]):
+        # Persisted historical rows may contain malformed nested receipts.
+        # Revalidate each signature before attributing yesterday's work to
+        # this character; a corrupt receipt must neither crash the agenda nor
+        # claim the player completed an action they did not sign.
+        prior = normalize(archived)
+        if prior["day"] != day - 1:
             continue
         if any(
-            old.get(name) and old[name].get("mask_id") == mask_id
+            prior[name] and prior[name]["mask_id"] == mask_id
             for name in ("review", "calibration", "release", "attestation")
         ):
             return [
