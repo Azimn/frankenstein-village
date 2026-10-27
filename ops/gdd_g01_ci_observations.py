@@ -7,6 +7,7 @@ against the test source and never treats partial CI as a completed GDD edge.
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 from pathlib import Path
 
@@ -108,6 +109,24 @@ def load_ci_observations(root: Path = ROOT) -> dict[int, dict]:
             or note["github_job_id"] <= 0
             or not note["ci_url"].endswith("/actions/runs/" + str(note["github_run_id"]))):
         raise ValueError("Receipt lacks a pinned successful run")
+    # Source-immutability is the authoritative drift check. A previous CI
+    # run cannot prove that newer, syntactically similar test code executed.
+    # Git blob SHA-1 hashes the exact bytes and length, independent of the
+    # availability of Git in a disposable CI or offline client environment.
+    allowed_files = {
+        note["runner_source"],
+        note["telnet_test_source"],
+        note["restart_test_source"],
+    }
+    if set(note.get("source_blob_sha1", {})) != allowed_files:
+        raise ValueError("CI receipt must pin all and only the three source blobs")
+    for name in sorted(allowed_files):
+        raw = (root / name).read_bytes()
+        git_blob = hashlib.sha1(
+            b"blob " + str(len(raw)).encode("ascii") + b"\\0" + raw
+        ).hexdigest()
+        if git_blob != note["source_blob_sha1"][name]:
+            raise ValueError("CI source blob mismatch: " + name)
     runner = (root / note["runner_source"]).read_text(encoding="utf-8")
     if not all(marker in runner for marker in (
             "telnet_playthrough.py", "post_restart_assertions.py",
