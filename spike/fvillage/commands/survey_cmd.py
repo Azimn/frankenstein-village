@@ -8,6 +8,8 @@ class CmdSurvey(Command):
     Usage:
         survey
         survey report
+        survey protect       (Hound, Northern Treeline)
+        survey passability   (Wanderer, Northern Treeline)
 
     Read the board, go to an outstanding district, examine the actual
     landmark and sign a firsthand report. Anyone can contribute. Wanderers,
@@ -49,4 +51,24 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
-        caller.msg("Use: survey | survey report")
+        if verb in {"protect", "passability"}:
+            result, error = route_work.field_action(caller, verb)
+            if error:
+                caller.msg(error)
+                return
+            if verb == "protect":
+                caller.msg(
+                    f"You tie the original frayed cord as a visible warning, "
+                    f"without repairing it (signed event {result['event_id']})."
+                )
+            else:
+                caller.msg(
+                    f"You record firsthand passability evidence from the "
+                    f"actual red cord (signed event {result['event_id']})."
+                )
+            caller.location.msg_contents(
+                f"{caller.key} completes a firsthand professional treeline action.",
+                exclude=[caller],
+            )
+            return
+        caller.msg("Use: survey | survey report | survey protect | survey passability")

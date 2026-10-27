@@ -117,7 +117,6 @@ def _beat_cross(regulars, bram, say):
 
 def _beat_consume(regulars, bram, say):
     """A regular eats or drinks — through the real pipeline."""
-    from evennia.utils import search as _s  # noqa: F401 (import side effects)
     tavern = _tavern()
     if not tavern or not regulars:
         return "consume-skipped"
@@ -128,10 +127,17 @@ def _beat_consume(regulars, bram, say):
     ale = next(
         (o for o in tavern.contents if o.key == "a tankard of ale"), None
     )
-    pick = random.choice([p for p in (stew, ale) if p is not None])
-    if pick is None:
+    candidates = [p for p in (stew, ale) if p is not None]
+    if not candidates:
         return "consume-skipped"
-    from commands.village_cmds import _consume
+    # Ambient residents share the same finite-stock and village-day refill
+    # rules as players. _consume itself applies effects before reducing
+    # servings, so bypassing this guard would create ghost meals.
+    from commands.village_cmds import _consume, _fare_depleted
+    available = [p for p in candidates if not _fare_depleted(who, p)]
+    if not available:
+        return "consume-skipped"
+    pick = random.choice(available)
     kind = "food" if pick.tags.has("food") else "drink"
     _consume(who, pick, kind, "eat" if kind == "food" else "drink",
              "eats" if kind == "food" else "drinks")

@@ -221,3 +221,82 @@ def public_lines(raw, day):
         "after both sources exist. Use |wtrade|n to review the evidence."
     )
     return lines
+
+def personal_agenda(raw, day, mask_id):
+    """Resume only this character's signed Market Lane standards decisions.
+
+    Read the established public board and bounded history. This is a
+    read-only view, not a new quest flag, stock store, or permission grant.
+    """
+    if type(day) is not int or day < 1 or type(mask_id) is not int or mask_id < 1:
+        return []
+    state = refresh(raw, day)
+    if state["day"] != day:
+        return []
+
+    own = {
+        name: bool(state[name] and state[name]["mask_id"] == mask_id)
+        for name in ("review", "calibration", "release", "attestation")
+    }
+    lines = []
+    if own["review"]:
+        if state["review"]["choice"] == "hold":
+            if suspended(state, day):
+                lines.append(
+                    "Market Lane: your Merchant market hold remains active. "
+                    "Return to the physical scale and use |wtrade release|n "
+                    "to reopen civic material distribution, or ask a Smith "
+                    "to calibrate the scale."
+                )
+            elif state["calibration"]:
+                lines.append(
+                    "Market Lane: your Merchant market hold was resolved "
+                    "when a Smith calibrated the scale. Distribution resumed."
+                )
+            else:
+                lines.append(
+                    "Market Lane: your Merchant market hold was released. "
+                    "Distribution resumed; no second release is needed."
+                )
+        else:
+            lines.append(
+                "Market Lane: your Merchant decision to honor the disputed "
+                "prices is recorded today; distribution remains available."
+            )
+    if own["calibration"]:
+        lines.append(
+            "Market Lane: your Smith calibration corrected the physical "
+            "scale today. " + (
+                "A Chronicler can attest both source events."
+                if state["review"] and not state["attestation"]
+                else "No repeat calibration is needed."
+            )
+        )
+    if own["release"]:
+        lines.append(
+            "Market Lane: your Merchant release of the hold is recorded; "
+            "the public material table is open again."
+        )
+    if own["attestation"]:
+        lines.append(
+            "Market Lane: your Chronicler attestation of both source events "
+            "is recorded; no repeat attestation is needed."
+        )
+    if lines:
+        return lines
+
+    # Only yesterday's personal work belongs in a returning player's agenda.
+    # Prior-day decisions are history, never an actionable current-day hold.
+    for old in reversed(state["history"]):
+        if old.get("day") != day - 1:
+            continue
+        if any(
+            old.get(name) and old[name].get("mask_id") == mask_id
+            for name in ("review", "calibration", "release", "attestation")
+        ):
+            return [
+                "Market Lane: your previous day's standards work is archived. "
+                "Today's scale decisions are separate; use |wtrade|n at "
+                "Market Lane to inspect the current record."
+            ]
+    return []

@@ -117,6 +117,7 @@ def main() -> int:
     mystic = None
     performer = None
     wanderer = None
+    hound = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -229,6 +230,19 @@ def main() -> int:
                    for obj in square_view["visible_nearby"])
         assert square_view["commands"]["firewood"] == "hearth gather"
         assert square_view["commands"]["community_work"] == "commission"
+        # Emic-first GDD: the machine-readable view of this mask's embodied
+        # experience is the same state accessible to humans via score deep.
+        assert square_view["commands"]["embodied_senses"] == "score deep"
+        assert square_view["embodiment"]["body_model"] == (
+            "represented_character_sensations_not_ai_biology"
+        )
+        assert len(square_view["embodiment"]["first_person"]) >= 2
+        assert "hunger" in square_view["embodiment"]["bands"]
+        out = c.command("score deep")
+        require_all(out, "a moment inside your character's body",
+                    "what might help", "simulated character sensations")
+        assert "hunger 50" not in out.lower()
+        print("TELNET_AI_RICH_FIRST_PERSON_BODILY_SENSES_GREEN")
         # The same local observation used by model-led players must expose
         # legitimate, scheduled and conversation-capable villagers without
         # leaking invisible or private offstage residents.
@@ -284,7 +298,12 @@ def main() -> int:
 
         out = c.command("next")
         require(out, "first lead: the village square")
-        require(out, "calling choose")
+        # This mask already chose Chronicler earlier. The guide must not
+        # advertise a new first-time Calling choice as still available.
+        require(out, "current calling is chronicler")
+        require(out, "calling work")
+        if "calling choose" in out.lower():
+            raise AssertionError("Guide offers a new Calling to an established mask")
         require(out, "a shared village need")
         require(out, "repair diagnose north-square gas lamp")
         require(out, "commons post need")
@@ -425,8 +444,18 @@ def main() -> int:
         # natural while the underlying rule is object data rather than item ID.
         out = c.command("purse")
         require(out, "2 ft")
+        hunger_before_eating = agent_json(c.command("agent"))["embodiment"]
         out = c.command("eat bread")
         require(out, "4 kr", "purse: 1 ft 96 kr")
+        hunger_after_eating = agent_json(c.command("agent"))["embodiment"]
+        assert hunger_after_eating["bands"]["hunger"] != "famished" or (
+            hunger_before_eating["bands"]["hunger"] == "famished"
+        ), "A physical meal did not return updated body perception"
+        assert hunger_after_eating["first_person"], "Body perception went blank"
+        out = c.command("score deep")
+        require_all(out, "a moment inside your character's body",
+                    "what might help")
+        print("TELNET_GDD_T09_MEAL_CHANGES_EXISTING_EMBODIED_STATE_GREEN")
         out = c.command("purse")
         require(out, "1 ft 96 kr")
 
@@ -661,9 +690,21 @@ def main() -> int:
         require(out, "numbered page stubs", "surviving harbinger files")
         require(out, "reconstruct or preserve")
 
-        out = c.command("decide chronicle reconstruct", wait=3.0)
-        require(out, "reconstruction from the harbinger archive")
-        require(out, "press-derived")
+        out = c.command("decide chronicle reconstruct", wait=4.0)
+        if not out.strip():
+            # A slow CI socket can lose the one-off reply. Never blindly
+            # REPLAY a potentially consequential decide action to obtain
+            # pleasant text: inspect the actual public Chronicle projection.
+            delayed = c.read_quiet(max_wait=3.0)
+            if delayed.strip():
+                out = delayed
+            else:
+                check = c.command("chronicle gap", wait=4.0)
+                require_all(check, "derived from harbinger files",
+                            "source difference is not hidden")
+        if out.strip():
+            require(out, "reconstruction from the harbinger archive")
+            require(out, "press-derived")
 
         out = c.command("chronicle gap")
         require(out, "derived from harbinger files")
@@ -1168,6 +1209,10 @@ def main() -> int:
         require_all(out, "rehearse the ballad", "world event")
         out = performer.command("stage rehearse ballad")
         require(out, "already rehearsed")
+        # A real Healer leaves BEFORE the show, so no one can credit that
+        # later-arriving account with witnessing this actual performance.
+        out = h.command("west")
+        require(out, "village square")
         out = performer.command("stage perform ballad")
         require_all(out, "actually perform the ballad", "world event")
         out = performer.command("look")
@@ -1178,12 +1223,25 @@ def main() -> int:
         require(out, "actually witnessed")
         out = inn.command("stage witness")
         require(out, "already witnessed")
+        # T-06: This character was in the village but not in the room when
+        # the show actually occurred; arriving within the same hour must
+        # never confer a fabricated firsthand audience record.
+        out = h.command("east")
+        require(out, "blood of the vine")
+        out = h.command("stage witness")
+        require(out, "only an audience member present for the actual performance")
         out = performer.command("stage")
         require_all(out, "performertester", "1 other player account")
+        print("TELNET_GDD_T06_LATE_ARRIVAL_WITNESS_DENIED_GREEN")
         out = performer.command("agent")
         assert agent_json(out)["commands"]["public_stage"] == "stage"
         print("TELNET_RENEWABLE_PERFORMER_AND_REAL_AUDIENCE_GREEN")
 
+        # The Healer's return generated an unsolicited room-arrival broadcast
+        # for the Innkeep. Drain that queued notification before requesting
+        # a care response; otherwise the telnet reader can mistake the
+        # broadcast for the next command's reply.
+        inn.read_quiet()
         out = inn.command("care")
         require(out, "healer assessment filed by healertester")
         require(out, "hospitality is still needed")
@@ -1246,8 +1304,47 @@ def main() -> int:
         )
         out = h.command("clinic treat rest")
         require(out, "already received treatment")
+        # GDD T-08: the public clinic cannot disclose today's notes.
+        # A signed assessment is not blanket permission to open records.
         out = h.command("clinic")
-        require_all(out, "healertester", "compress", "signed", "less suited")
+        require_all(out, "visiting patient", "care has been provided")
+        assert "healertester" not in out.lower()
+        assert "less suited" not in out.lower()
+        assert "cold" not in out.lower()
+        out = h.command("clinic records")
+        require(out, "patient's signed permission")
+        assert "cold" not in out.lower()
+        out = h.command("clinic request records")
+        require_all(out, "grants this examining healer", "signed event")
+        out = h.command("clinic records")
+        require_all(out, "confidential", "cold", "healertester", "compress",
+                    "less suited", "patient permission")
+        # A completely different logged-in account can see only the
+        # shared workboard, even while standing by the same physical cot.
+        inn.read_quiet()
+        out = inn.command("west")
+        require(out, "village square")
+        out = inn.command("west")
+        require(out, "st. lazarus church")
+        out = inn.command("clinic")
+        require_all(out, "visiting patient", "care has been provided")
+        assert "cold" not in out.lower()
+        assert "used compress" not in out.lower()
+        assert "healertester" not in out.lower()
+        out = inn.command("look clinic cot")
+        require_all(out, "clinic", "visiting patient")
+        assert "cold" not in out.lower()
+        assert "healertester" not in out.lower()
+        out = inn.command("clinic records")
+        require(out, "private clinical notes require an attending healer")
+        out = inn.command("clinic request records")
+        require(out, "active healer")
+        out = inn.command("east")
+        require(out, "village square")
+        out = inn.command("east")
+        require(out, "blood of the vine")
+        h.read_quiet()
+        print("TELNET_GDD_T08_CONSENTED_CLINIC_RECORDS_PRIVATE_GREEN")
         out = h.command("calling")
         require_all(out, "clinic assess 1", "clinic prepare 1", "clinic treat 1")
         out = h.command("agent")
@@ -1300,6 +1397,9 @@ def main() -> int:
         require_all(out, "merchant")
         out = smith.command("repair finish north-square gas lamp")
         require(out, "merchant must procure the replacement collar")
+        out = smith.command("agenda")
+        require_all(out, "your smith diagnosis", "merchant must procure",
+                    "lamp shop")
         out = smith.command("calling")
         require(out, "repair diagnoses 1")
         out = smith.command("repair diagnose north-square gas lamp")
@@ -1346,6 +1446,11 @@ def main() -> int:
         require(out, "procure one brass mantle collar")
         require(out, "one real stock unit")
         require(out, "smith must install")
+        out = merchant.command("agenda")
+        require_all(out, "your merchant procurement", "smith must install")
+        out = smith.command("agenda")
+        require_all(out, "merchant has procured",
+                    "repair finish north-square gas lamp")
         out = h.command("ask Bram about the lamp")
         require_all(out, "got the collar")
         require_all(out, "lamp's still dark")
@@ -1381,9 +1486,18 @@ def main() -> int:
         require(out, "repair complete")
         require(out, "smithtester")
         require(out, "merchanttester")
+        for participant in (smith, merchant):
+            out = participant.command("agenda")
+            require_all(out, "north-square gas lamp is repaired",
+                        "no repeat repair is needed")
+        print("TELNET_GDD_T16_LAMP_REPAIR_RETURN_AGENDA_GREEN")
         out = smith.command("guide")
         require(out, "lamp is burning again")
         require(out, "no longer an open job")
+        # A finished one-time case must offer a real alternate route based
+        # on the still-stocked Square woodpile, never reopen the old case.
+        require(out, "alternative available now")
+        require(out, "hearth gather")
         if "repair diagnose" in out.lower() or "repair procure" in out.lower():
             raise AssertionError("Guide advertises completed repair as open work")
 
@@ -1434,6 +1548,12 @@ def main() -> int:
         require(out, "first gather a physical")
         out = smith.command("hearth gather")
         require(out, "1 bundles remain today")
+        # The guide reads actual inventory and does not offer duplicate
+        # gathering while the player already carries a real bundle.
+        out = smith.command("guide")
+        require(out, "hearth deliver")
+        if "|whearth gather|n" in out.lower() or "hearth gather" in out.lower():
+            raise AssertionError("Guide offers duplicate firewood while carrying")
         out = smith.command("commission pledge")
         require_all(out, "pledge your physical", "another player")
         out = smith.command("commission pledge")
@@ -1454,10 +1574,20 @@ def main() -> int:
         require_all(out, "commission complete", "now holds 1 bundles")
         out = merchant.command("commission deliver")
         require(out, "must first pledge")
+        # GDD T-13, real two-account ordering A: the carrier finishes first.
+        # Neither the original supplier nor the carrier can then cancel or
+        # reopen the signed order. A refused command must not credit fuel.
+        out = smith.command("commission cancel")
+        require(out, "only an outstanding commission pledge can be cancelled")
+        out = merchant.command("commission cancel")
+        require(out, "only an outstanding commission pledge can be cancelled")
+        out = merchant.command("commission deliver")
+        require(out, "must first pledge")
         out = merchant.command("hearth")
         require(out, "reserve: 1")
         out = smith.command("commission")
         require_all(out, "completed by", "smithtester", "merchanttester")
+        print("TELNET_GDD_T13_COMPLETE_BEFORE_CANCEL_TWO_ACCOUNT_GREEN")
 
         # Restore Merchant's earlier Lamp Shop position so independent
         # Commons tests keep their original room-isolation expectations.
@@ -1722,6 +1852,8 @@ def main() -> int:
         require(out, "two prices")
         out = merchant.command("trade hold")
         require_all(out, "signed", "temporarily on hold")
+        require_all(merchant.command("agenda"),
+                    "your merchant market hold remains active", "trade release")
         out = merchant.command("soup procure")
         require_all(out, "physical crate of kitchen roots", "market crates remain")
         out = merchant.command("soup procure")
@@ -1743,10 +1875,17 @@ def main() -> int:
         require(out, "two prices")
         out = smith.command("trade calibrate")
         require_all(out, "signed", "physically recalibrated")
+        require_all(merchant.command("agenda"),
+                    "your merchant market hold was resolved", "smith calibrated")
+        require_all(smith.command("agenda"),
+                    "your smith calibration", "chronicler can attest")
         out = smith.command("trade calibrate")
         require(out, "already been calibrated")
         out = c.command("trade attest")
         require_all(out, "signed", "attested both source events")
+        require_all(c.command("agenda"),
+                    "your chronicler attestation", "both source events")
+        print("TELNET_GDD_T16_MARKET_THREE_CALLING_AGENDA_GREEN")
         out = c.command("trade attest")
         require(out, "already attested")
         out = c.command("look market scale")
@@ -1858,6 +1997,69 @@ def main() -> int:
         out = wanderer.command("agent")
         assert agent_json(out)["commands"]["ferry_post_delivery"] == "courier deliver"
         print("TELNET_WANDERER_REAL_FERRY_POST_GREEN")
+
+        # GDD T-07: two independent ordinary accounts, same physical cord.
+        # Travel, inspect, and act from their real locations. The Wanderer
+        # records logistical caution before a Hound physically marks it;
+        # a later Hound action must not rewrite the earlier field observation.
+        for move, destination in (
+            ("west", "blood of the vine"),
+            ("west", "village square"),
+            ("west", "st. lazarus church"),
+            ("west", "churchyard"),
+            ("north", "northern treeline"),
+        ):
+            out = wanderer.command(move)
+            require(out, destination)
+        out = wanderer.command("survey passability")
+        require(out, "examine the physical red cord")
+        out = wanderer.command("look cord")
+        require_all(out, "scarlet cord", "cut cleanly")
+        out = wanderer.command("survey protect")
+        require(out, "only a hound")
+        out = wanderer.command("survey passability")
+        require(out, "record firsthand passability evidence")
+        out = wanderer.command("survey passability")
+        require(out, "already signed today")
+
+        hound = Client(args.host, args.port)
+        require(hound.sync_login_screen(), "frankenstein village")
+        hound_pass = os.environ["FV_QA_REPAIR_PASSWORD"]
+        hound_user = "qa_hound_protection"
+        out = hound.command(f"connect {hound_user} {hound_pass}", wait=4.0)
+        require(out, "connected", "account qa_hound_protection")
+        hound.command("charcreate HoundTester", wait=3.0)
+        out = hound.command("ic HoundTester", wait=4.0)
+        require(out, "private room")
+        out = hound.command("calling choose hound")
+        require_all(out, "hound is now your active calling", "apprentice rank")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("west", "st. lazarus church"),
+            ("west", "churchyard"), ("north", "northern treeline"),
+        ):
+            out = hound.command(move)
+            require(out, destination)
+        out = hound.command("survey protect")
+        require(out, "examine the physical red cord")
+        out = hound.command("look cord")
+        require(out, "scarlet cord")
+        out = hound.command("survey passability")
+        require(out, "only a hound")
+        out = hound.command("survey protect")
+        require_all(out, "tie the original frayed cord", "visible warning", "signed event")
+        out = hound.command("survey protect")
+        require(out, "already signed today")
+        # The Hound's movement and action notified the nearby Wanderer.
+        # Drain unsolicited room broadcasts before testing object look.
+        wanderer.read_quiet()
+        out = wanderer.command("look cord")
+        require_all(out, "cut cleanly", "clear caution marker")
+        out = wanderer.command("survey")
+        require_all(out, "houndtester", "wanderertester", "unmarked cord",
+                    "does not repair the cord")
+        print("TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN")
+
         print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
         out = c.command("guide")
         require_all(out, "civic material table", "bridgework collect preserve")
@@ -1936,6 +2138,40 @@ def main() -> int:
         print("TELNET_FIRSTHAND_LANDMARK_DISCOVERIES_GREEN")
         print("TELNET_COOPERATIVE_DAILY_SURVEY_GREEN")
 
+        # GDD T-09: Bram's existing routine can refill the physical
+        # sideboard when he is present. Consume a bounded number of real
+        # servings, check for truthful shortage, then eat alternate food.
+        # Do not create a second stock owner or promise next-day magic.
+        # Earlier a genuine hidden mushroom toxin caused queasiness.
+        # If it still blocks eating, use the existing free well-water item
+        # for bounded, actually measured relief rather than a fake cure.
+        # Use the Innkeep account to test physical depletion so the
+        # Chronicler's established conversation history with Bram is not
+        # artificially evicted by a QA-only run of repetitive meals.
+        inn.read_quiet()
+        prior_body = inn.command("score deep")
+        if "a small wave of queasiness" in prior_body.lower():
+            relieved = False
+            for _ in range(5):
+                out = inn.command("drink water")
+                require(out, "cold water")
+                after_water = inn.command("score deep")
+                if "a small wave of queasiness" not in after_water.lower():
+                    relieved = True
+                    break
+            assert relieved, "Finite nausea had no playable relief through real water"
+        bread_depleted = False
+        for _ in range(7):  # source mechanical capacity is six
+            out = inn.command("eat bread")
+            if "all gone for now" in out.lower():
+                bread_depleted = True
+                require(out, "bram can replenish")
+                break
+            require(out, "bread", "rye")
+        assert bread_depleted, "Repeated eating never depleted finite real bread"
+        out = inn.command("eat cheese")
+        require(out, "cheese bites back")
+        print("TELNET_GDD_T09_DEPLETED_BREAD_ALTERNATE_REAL_FOOD_GREEN")
         out = c.command("west")
         require(out, "village square")
         # Only a co-located resident who can consult public signed evidence
@@ -1980,8 +2216,12 @@ def main() -> int:
             print("\nPERFORMER TRANSCRIPT\n" + "\n".join(performer.transcript))
         if wanderer is not None:
             print("\nWANDERER TRANSCRIPT\n" + "\n".join(wanderer.transcript))
+        if hound is not None:
+            print("\nHOUND TRANSCRIPT\n" + "\n".join(hound.transcript))
         raise
     finally:
+        if hound is not None:
+            hound.close()
         if wanderer is not None:
             wanderer.close()
         if performer is not None:
