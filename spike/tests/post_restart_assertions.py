@@ -1367,6 +1367,43 @@ assert len([o for o in _church.contents if o.key == "a clinic treatment cot"]) =
 print("POST_RESTART_PHYSICAL_CLINIC_CARE_GREEN")
 print("POST_RESTART_GDD_T08_PRIVATE_CLINIC_PERMISSION_GREEN")
 
+# EDGE-27: the original cot persists independent Healer invitation and
+# Performer music, with source-verified ledger events after an actual restart.
+from world import clinic_comfort_edge27 as _clinic_music
+_music_cot = one("a clinic treatment cot")
+_music_state = _clinic_music.normalize(_music_cot.db.clinic_comfort)
+_music_invitation = _music_state["invitation"]
+_music_offer = _music_state["music"]
+assert _music_invitation is not None and _music_offer is not None
+assert _music_invitation["cot_id"] == _music_cot.id
+assert _music_invitation["room_id"] == _church.id
+assert _music_invitation["source_event_id"] == _clinic["treatment"]["event_id"]
+assert _music_invitation["account_id"] == _clinic["treatment"]["account_id"]
+assert _music_invitation["mask_id"] == healer_tester.id
+assert _music_offer["source_event_id"] == _music_invitation["event_id"]
+assert _music_offer["account_id"] != _music_invitation["account_id"]
+assert _music_offer["mask_id"] == one("PerformerTester").id
+assert _music_offer["cot_id"] == _music_cot.id
+assert _clinic_music.treatment_valid(
+    _clinic["treatment"],
+    warning_ledger.get_event(_clinic["treatment"]["event_id"]),
+    _church.id,
+)
+assert _clinic_music.invitation_valid(
+    _music_invitation,
+    warning_ledger.get_event(_music_invitation["event_id"]),
+)
+_music_event = warning_ledger.get_event(_music_offer["event_id"])
+assert _music_event["kind"] == "village.clinic_music_offered"
+assert _music_event["status"] == "complete"
+assert _music_event["actor"]["account_id"] == _music_offer["account_id"]
+assert _music_event["consequence"]["source_event_id"] == _music_invitation["event_id"]
+assert _music_event["consequence"]["cot_id"] == _music_cot.id
+assert "cold" not in _clinic_music.public_lines(_music_state, _music_state["day"]).lower()
+assert _clinic_music.refresh(_music_state, _music_state["day"] + 1)["music"] is None
+print("POST_RESTART_GDD_EDGE27_SIGNED_CONSENTED_CLINIC_MUSIC_GREEN")
+
+
 
 # Physical courier parcel is consumed only by real Riverside delivery.
 from world.courier_state import manifest as _ferry_manifest
