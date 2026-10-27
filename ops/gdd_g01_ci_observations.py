@@ -47,8 +47,9 @@ def load_ci_observations(root: Path = ROOT) -> dict[int, dict]:
         start, end = case["telnet_line_range"]
         commands = "\n".join(telnet_lines[start-1:end])
         for command in case["player_commands"]:
-            if not command or command not in commands:
-                raise ValueError("Missing player command %r for edge %d" % (command, number))
+            if not command or '.command("' + command + '")' not in commands:
+                raise ValueError("Missing executed player command %r for edge %d" %
+                                 (command, number))
         if not case["remaining"]:
             raise ValueError("CI edge missing unverified acceptance gaps")
         result[number] = {
