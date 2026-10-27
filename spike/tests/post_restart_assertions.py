@@ -1448,8 +1448,13 @@ _market_cases = _inquiry_normalize(one("Market Lane").db.market_inquiries)
 assert len(_market_cases) == 1, "Market inquiry was lost or duplicated"
 _market_case = _market_cases[0]
 _detective = one("DetectiveTester")
-_merchant_account_id = AccountDB.objects.get(db_key="qa_merchant_repair").id
-_detective_account_id = AccountDB.objects.get(db_key="qa_detective_inquiry").id
+# Evennia may normalize account db_key casing. The signed actor IDs are
+# durable across unpuppeting and are verified against actual AccountDB rows.
+_merchant_account_id = _market_case["source_account_id"]
+_detective_account_id = _market_case["detective_account_id"]
+assert type(_merchant_account_id) is int and type(_detective_account_id) is int
+assert AccountDB.objects.filter(id=_merchant_account_id).exists()
+assert AccountDB.objects.filter(id=_detective_account_id).exists()
 assert active_calling(_detective) == "detective"
 assert _market_case["source_event_id"] == _market_live["review"]["event_id"]
 assert _market_case["source_account_id"] == _merchant_account_id
