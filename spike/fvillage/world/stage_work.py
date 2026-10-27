@@ -166,12 +166,15 @@ def cater(mask):
                 or (performance.get("actor") or {}).get("account_id")
                 != show["account_id"]):
             return False
-        return any(
-            (witness := ledger.get_event(w["event_id"]))
-            and witness.get("status") == "complete"
+        if not state["witnesses"]:
+            return False
+        source = state["witnesses"][0]
+        witness = ledger.get_event(source["event_id"])
+        return bool(
+            witness and witness.get("status") == "complete"
             and witness.get("kind") == "village.stage_witness"
-            and (witness.get("actor") or {}).get("account_id") == w["account_id"]
-            for w in state["witnesses"]
+            and (witness.get("actor") or {}).get("account_id")
+            == source["account_id"]
         )
 
     if not source_valid():
