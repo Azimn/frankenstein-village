@@ -87,6 +87,24 @@ def _guard(mask):
     return square, None
 
 
+def advance_clock(day, hour):
+    """Observe the existing canonical village clock, even if no player is here.
+
+    Record the high-water hour on the one physical Square brazier so an
+    expired fire stays expired after an accidental clock rewind. No new
+    scheduler, automatic fuel creation, or per-player data is involved.
+    """
+    obj = _brazier()
+    if obj is None:
+        return False
+    current = square_brazier_state.normalize(obj.db.square_brazier)
+    changed = square_brazier_state.advance(current, day, hour)
+    if changed["observed_at"] != current["observed_at"]:
+        obj.db.square_brazier = changed
+        return True
+    return False
+
+
 def is_active():
     """Read the ONE persistent brazier object, without granting resources."""
     obj = _brazier()
