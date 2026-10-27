@@ -2074,7 +2074,8 @@ def main() -> int:
             out = c.command(direction)
             require(out, destination)
         out = c.command("survey")
-        require(out, "no chronicler route map edition")
+        require_all(out, "no chronicler route map edition", "solo fallback",
+                    "wanderertester", "not an edited map")
         out = c.command("survey publish")
         require_all(out, "route map v1", "independent wanderer report",
                     "source event", "not a safety guarantee")
