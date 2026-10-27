@@ -309,7 +309,8 @@ def _corroborate(mask, room, cord, square, day, hour):
     hound = state["field_decisions"]["hound"]
     proposed, ok, reason = route_surveys.corroborate(
         state, day, "red_cord", hound["event_id"],
-        mask.account.id, mask.key, 1,
+        mask.account.id, mask.key,
+        max(hound["event_id"], state["field_decisions"]["wanderer"]["event_id"]) + 1,
     )
     if not ok:
         return None, reason
