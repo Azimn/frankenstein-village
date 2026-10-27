@@ -12,6 +12,9 @@ WORK = {
         "when a neighbor has tended the hearth.",
         "At the Blood of the Vine: inspect the hearth, then use hearth "
         "tend when the fire has settled and delivered stock is available.",
+        "After a real Performer show and signed audience witness at the Tavern, "
+        "cook a real soup bowl and use stage cater during the same village hour "
+        "to place it in public service. No show or audience means no demand claim.",
         "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
         "only if that unresolved need remains in the village.",
     ),
@@ -68,6 +71,9 @@ WORK = {
         "then stage perform the rehearsed piece. Other real visitors can "
         "stage witness during that hour; the signed performance remains in "
         "the public Tavern history.",
+        "After a witnessed show, an Innkeep can bring a real cooked soup bowl "
+        "and use stage cater during the same hour; the stage preserves the "
+        "signed food and attendance receipts.",
         "Also play, practice or perform a duet with a willing partner using "
         "the normal leisure commands.",
         "Read the public calendar, then invite neighbors to an in-world "
