@@ -76,7 +76,10 @@ def normalize(raw):
             if (not result["review"] or not result["calibration"]
                     or review_id != result["review"]["event_id"]
                     or calibration_id != result["calibration"]["event_id"]
-                    or len({review_id, calibration_id, signed["event_id"]}) != 3):
+                    or len({review_id, calibration_id, signed["event_id"]}) != 3
+                    or len({result["review"]["account_id"],
+                            result["calibration"]["account_id"],
+                            signed["account_id"]}) != 3):
                 continue
             signed["review_event_id"] = review_id
             signed["calibration_event_id"] = calibration_id
@@ -153,6 +156,12 @@ def apply(raw, action, *, day, hour, account_id, mask_id, mask, event_id):
                 "A documented Merchant decision and Smith calibration "
                 "are both needed for an attestation."
             )
+        if len({state["review"]["account_id"],
+                state["calibration"]["account_id"], signed["account_id"]}) != 3:
+            return state, False, (
+                "Independent Merchant, Smith and Chronicler accounts are "
+                "required to attest the market record."
+            )
         if state["attestation"]:
             return state, False, "The Chronicler has already attested today's record."
         signed["review_event_id"] = state["review"]["event_id"]
@@ -171,6 +180,8 @@ def verified_sources(raw, day, event_lookup):
     """
     state = refresh(raw, day)
     if state["day"] != day or not state["review"] or not state["calibration"]:
+        return False
+    if state["review"]["account_id"] == state["calibration"]["account_id"]:
         return False
     sources = (
         ("review", "merchant", frozenset({"hold", "honor"})),
