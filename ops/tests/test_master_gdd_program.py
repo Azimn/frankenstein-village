@@ -48,8 +48,30 @@ class MasterGDDProgramTests(unittest.TestCase):
         ids=[x["id"] for x in work]
         self.assertEqual(len(ids),len(set(ids)))
         statuses={x["status"] for x in work}
-        self.assertEqual(statuses,{"planned"})
+        self.assertTrue(statuses <= {"planned", "in_progress", "verified"})
+        self.assertEqual(len(work),14)
         parents={x["id"]:x["depends"] for x in work}
+        indexed={x["id"]:x for x in work}
+        for package in work:
+            status=package["status"]
+            evidence=package["verified_evidence"]
+            self.assertIsInstance(evidence,list)
+            if status=="planned":
+                self.assertEqual(evidence,[],package["id"])
+            if status=="verified":
+                self.assertTrue(evidence,"Verified package needs recorded proof")
+                self.assertTrue(
+                    all(indexed[parent]["status"]=="verified"
+                        for parent in package["depends"]),
+                    "Verified package requires verified dependencies",
+                )
+                if package["id"]=="FV-G00":
+                    for prefix in ("main_sha:", "main_ci:", "review:"):
+                        self.assertTrue(
+                            any(isinstance(item,str) and item.startswith(prefix)
+                                for item in evidence),
+                            "FV-G00 lacks "+prefix+" acceptance proof",
+                        )
         for k,prereqs in parents.items():
             self.assertNotIn(k,prereqs)
             self.assertTrue(all(x in parents for x in prereqs))
@@ -92,7 +114,8 @@ class MasterGDDProgramTests(unittest.TestCase):
         self.assertIn("Do not describe this file as a lossless PDF",self.gdd)
         self.assertIn("Mystic B1",self.plan)
         self.assertTrue(any("Mystic keeper B1" in x for x in self.data["warnings"]))
-        self.assertTrue(all(x["verified_evidence"]==[] for x in self.data["work_packages"]))
+        self.assertTrue(all(x["verified_evidence"]==[] for x in self.data["work_packages"]
+                            if x["status"]=="planned"))
         self.assertIn("separate",self.plan.lower())
         self.assertIn("No new repository",self.plan)
 
