@@ -5320,11 +5320,19 @@ def _fare_depleted(caller, item):
         return False
     if left > 0:
         return False
-    caller.msg(
-        f"The {_fare_short(item)}'s all gone for now. Bram can replenish "
-        "the same finite sideboard when his actual Tavern routine brings "
-        "him here. Try another real food serving in the meantime."
-    )
+    if item.location is caller:
+        caller.msg(
+            f"The {_fare_short(item)} has no serving left. You cannot eat "
+            "the same physical portion twice. Seek another real meal; "
+            "at the Tavern, soup ration may be available from its finite "
+            "communal pantry."
+        )
+    else:
+        caller.msg(
+            f"The {_fare_short(item)}'s all gone for now. Bram can replenish "
+            "the same finite sideboard when his actual Tavern routine brings "
+            "him here. Try another real food serving in the meantime."
+        )
     return True
 
 
