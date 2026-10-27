@@ -169,6 +169,54 @@ def perform(raw, *, day, hour, account_id, mask_id, mask, tune, event_id,
     return state, True, None
 
 
+
+def verified_hound_source(route, event, marker, *, account_id, mask_id,
+                          source_event_id, cord_id, square_id, day, hour,
+                          room_name):
+    """Pure fail-closed provenance check for the physical treeline warning.
+
+    The adapter separately checks that these values come from the original
+    Square, cord and canonical ledger, not player-provided arguments.
+    """
+    if not all(_ident(v) for v in (
+            account_id, mask_id, source_event_id, cord_id, square_id, day)):
+        return False
+    if not _time(day, hour):
+        return False
+    if not all(hasattr(v, "get") for v in (route, event, marker)):
+        return False
+    source = (route.get("field_decisions") or {}).get("hound") or {}
+    actor, payload, effect = (
+        event.get("actor") or {}, event.get("payload") or {},
+        event.get("consequence") or {})
+    h = payload.get("hour")
+    return (
+        route.get("day") == day
+        and source.get("account_id") == account_id
+        and source.get("event_id") == source_event_id
+        and marker.get("account_id") == account_id
+        and marker.get("event_id") == source_event_id
+        and marker.get("day") == day
+        and event.get("id") == source_event_id
+        and event.get("kind") == "village.route_protected"
+        and event.get("status") == "complete"
+        and actor.get("account_id") == account_id
+        and actor.get("mask_id") == mask_id
+        and payload.get("site") == "red_cord"
+        and payload.get("role") == "hound"
+        and payload.get("action") == "protect"
+        and payload.get("location") == room_name
+        and payload.get("day") == day
+        and isinstance(h, int) and not isinstance(h, bool)
+        and 0 <= h <= hour
+        and effect.get("cord_object_id") == cord_id
+        and effect.get("square_room_id") == square_id
+        and effect.get("role") == "hound"
+        and effect.get("action") == "protect"
+        and effect.get("day") == day
+        and effect.get("caution_marked") is True
+    )
+
 def warn(raw, *, day, hour, account_id, mask_id, mask, event_id,
          source_event_id, cord_id):
     """Hound brings a firsthand, signed physical route caution to the Tavern."""
