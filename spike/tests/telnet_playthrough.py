@@ -1045,6 +1045,10 @@ def main() -> int:
         require(out, "assessments 1")
         require(out, "public health findings 1")
 
+        # A Healer cannot publish their own source by changing the story.
+        out = h.command("chronicle health publish")
+        require(out, "active chronicler")
+
         out = c.command("chronicle health")
         require(out, "healertester")
         require(out, "can be toxic")
@@ -1060,6 +1064,7 @@ def main() -> int:
             )
         warning_chronicle_id = warning_c.group(1)
         warning_story_id = warning_h.group(1)
+        print("TELNET_GDD_EDGE11_DISTINCT_SIGNED_HEALTH_WARNING_GREEN")
 
         out = c.command(f"chronicle C{warning_chronicle_id}")
         require(out, "health warning issued for well mushrooms")
