@@ -76,7 +76,7 @@ def normalize(raw):
                 "account_id", "mask_id", "event_id", "bowl_id",
                 "cook_event_id", "performance_event_id", "witness_event_id"))
             and service.get("performance_event_id") == show["event_id"]
-            and service.get("account_id") != show["account_id"]
+            and _ident(service.get("account_id")) != show["account_id"]
             and service.get("hour") == show["hour"]
             and not isinstance(service.get("witness_count"), bool)
             and _ident(service.get("witness_count"))
