@@ -172,6 +172,38 @@ class CompletionAuditTests(unittest.TestCase):
             self.assertFalse(edge["verified_complete"])
             self.assertTrue(all(value is None for value in edge["evidence"].values()))
 
+    def test_g01_markdown_cites_pinned_cases_and_never_hardcodes_run_count(self):
+        import copy
+
+        evidence = build_register(ROOT)
+        report = g01_markdown(evidence)
+        self.assertIn("Pinned normal-client and restart observations", report)
+        self.assertIn("Source-checked historical CI cases: 7 of 45", report)
+        self.assertIn("`care serve Silas Crowe`", report)
+        self.assertIn("`survey passability`", report)
+        self.assertIn("Northern Treeline", report)
+        self.assertIn("No edge is fully accepted; uncoached UX is UNVERIFIED", report)
+        self.assertEqual(report.count(
+            "[CI](https://github.com/Azimn/frankenstein-village/actions/runs/40455328096)"
+        ), 7)
+
+        # The human-readable report must come from the validated card values,
+        # not a fixed historic CI URL or fixed number of documented cases.
+        alternate = copy.deepcopy(evidence)
+        alternate["edges"][2]["historical_ci_observation"]["observed_room"] = "Test-only distinct room"
+        alternate["edges"][2]["historical_ci_observation"]["ci_run_url"] = (
+            "https://github.com/Azimn/frankenstein-village/actions/runs/999"
+        )
+        changed = g01_markdown(alternate)
+        self.assertIn("Test-only distinct room", changed)
+        self.assertIn("[CI](https://github.com/Azimn/frankenstein-village/actions/runs/999)", changed)
+        empty = copy.deepcopy(evidence)
+        for edge in empty["edges"]:
+            edge["historical_ci_observation"] = None
+        empty_report = g01_markdown(empty)
+        self.assertIn("Source-checked historical CI cases: 0 of 45", empty_report)
+        self.assertNotIn("/runs/40455328096", empty_report)
+
     def test_g01_ci_marker_source_drift_fails_closed(self):
         import shutil
         with tempfile.TemporaryDirectory(prefix="g01-source-drift-") as tmp:
