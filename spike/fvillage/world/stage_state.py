@@ -78,8 +78,12 @@ def normalize(raw):
             and service.get("performance_event_id") == show["event_id"]
             and service.get("account_id") != show["account_id"]
             and service.get("hour") == show["hour"]
-            and service.get("event_id") not in (
-                show["event_id"], service["cook_event_id"])
+            and not isinstance(service.get("witness_count"), bool)
+            and _ident(service.get("witness_count"))
+            and int(service["witness_count"]) <= len(result["witnesses"])
+            and service["event_id"] > max(
+                show["event_id"], service["cook_event_id"],
+                service["witness_event_id"])
             and any(w["event_id"] == service["witness_event_id"]
                     for w in result["witnesses"])):
         result["service"] = {
@@ -91,7 +95,7 @@ def normalize(raw):
             "cook_event_id": int(service["cook_event_id"]),
             "performance_event_id": show["event_id"],
             "witness_event_id": int(service["witness_event_id"]),
-            "witness_count": len(result["witnesses"]),
+            "witness_count": int(service["witness_count"]),
         }
     result["history"] = [
         copy.deepcopy(r) for r in list(raw.get("history") or [])
@@ -219,9 +223,9 @@ def cater(raw, *, day, hour, account_id, mask_id, mask, event_id,
         return state, False, "No audience member signed attendance at this show."
     if state["service"]:
         return state, False, "This performance has already received its catered bowl."
-    if eid in (show["event_id"], cid):
-        return state, False, "The service needs its own signed event."
     witness = state["witnesses"][0]
+    if eid <= max(show["event_id"], cid, witness["event_id"]):
+        return state, False, "The service must follow the signed show, witness and cooking."
     state["service"] = {
         "account_id": aid, "mask_id": mid, "mask": str(mask)[:70],
         "hour": hour, "event_id": eid, "bowl_id": bid,
