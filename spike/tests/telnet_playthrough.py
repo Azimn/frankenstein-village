@@ -2012,7 +2012,7 @@ def main() -> int:
         out = merchant.command("courier accept")
         require(out, "active wanderer")
         out = merchant.command("courier consign")
-        require_all(out, "actual merchant freight", "world event", "1")
+        require_all(out, "actual merchant freight", "world event", "0 parcels remain")
         # The first solo mail delivery used one slot. Freight consumes
         # the second, never creates a second inventory or phantom stock.
         out = merchant.command("courier consign")
