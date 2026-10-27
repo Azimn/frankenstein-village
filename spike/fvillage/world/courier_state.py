@@ -45,6 +45,9 @@ def freight_contract(raw, *, accepted=False):
     source = _id(raw.get("consignment_event_id"))
     if not (merchant and source):
         return None
+    if not accepted and (raw.get("accept_event_id") is not None
+                         or raw.get("wanderer_account_id") is not None):
+        return None  # Already accepted freight cannot be re-consigned.
     contract = {"merchant_account_id": merchant, "consignment_event_id": source}
     if accepted:
         wanderer = _id(raw.get("wanderer_account_id"))
