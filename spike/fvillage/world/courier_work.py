@@ -58,6 +58,15 @@ def status(mask):
         lines.append(
             f"Latest delivery by {last['mask']} on day {last['day']} "
             f"(world event {last['delivery_event_id']}).")
+        freight = last.get("freight")
+        if freight:
+            lines.append(
+                f"Freight consignment {freight['consignment_event_id']} "
+                f"(Merchant account {freight['merchant_account_id']}), "
+                f"Wanderer acceptance {freight['accept_event_id']} "
+                f"(account {freight['wanderer_account_id']}). "
+                "These are signed custody claims, not proof of parcel contents."
+            )
     return "\n".join(lines)
 
 
