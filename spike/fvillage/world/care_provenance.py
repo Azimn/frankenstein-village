@@ -60,21 +60,25 @@ def validate_healer_source(assessment, event, *, innkeep_account_id,
     payload = event.get("payload")
     if not isinstance(actor, Mapping) or not isinstance(payload, Mapping):
         return None, error
-    if (event.get("status") != "complete"
-            or event.get("kind") != "professional.healer_cold_assessment"
-            or _positive_id(event.get("id")) != source_id
-            or _positive_id(actor.get("account_id")) != healer_account
-            or _positive_id(actor.get("mask_id")) != healer_mask
-            or actor.get("mask") != assessment.get("mask")
-            or assessment.get("calling") != "healer"
-            or assessment.get("resident_id") != resident_id
-            or payload.get("professional_calling") != "healer"
-            or payload.get("situation_id") != situation_id
-            or list(payload.get("resident_ids") or []) != [resident_id]
-            or payload.get("finding") != "cold exposure"
-            or _clock_part(payload.get("day"), 1, 1000000) != day
-            or _clock_part(payload.get("hour"), 0, 23) != hour):
-        return None, error
+    checks = (
+        ("event completion", event.get("status") == "complete"),
+        ("event kind", event.get("kind") == "professional.healer_cold_assessment"),
+        ("source event ID", _positive_id(event.get("id")) == source_id),
+        ("source account", _positive_id(actor.get("account_id")) == healer_account),
+        ("source mask ID", _positive_id(actor.get("mask_id")) == healer_mask),
+        ("source mask name", actor.get("mask") == assessment.get("mask")),
+        ("assessment role", assessment.get("calling") == "healer"),
+        ("assessment patient", assessment.get("resident_id") == resident_id),
+        ("event role", payload.get("professional_calling") == "healer"),
+        ("event case", payload.get("situation_id") == situation_id),
+        ("event patient", list(payload.get("resident_ids") or []) == [resident_id]),
+        ("event finding", payload.get("finding") == "cold exposure"),
+        ("event day", _clock_part(payload.get("day"), 1, 1000000) == day),
+        ("event hour", _clock_part(payload.get("hour"), 0, 23) == hour),
+    )
+    for label, valid in checks:
+        if not valid:
+            return None, error + " Source mismatch: " + label + "."
     return {
         "event_id": source_id,
         "account_id": healer_account,
