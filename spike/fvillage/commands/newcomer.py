@@ -56,6 +56,22 @@ class CmdGuide(Command):
 
         place = room.key
         if room.tags.has("tavern", category="place"):
+            # Offer a practical meal only when the communal stock can support it.
+            from world.soup_kitchen import can_make_ration
+
+            if can_make_ration():
+                meal_lead = (
+                    "Any visitor can use |wsoup ration|n to prepare one "
+                    "real plain broth from the finite communal pantry, "
+                    "then |weat plain broth|n or share the physical bowl. "
+                    "You need room to carry another serving. "
+                )
+            else:
+                meal_lead = (
+                    "The shared pantry cannot make plain broth right now. "
+                    "Use |wsoup|n to inspect its stock; try after a real "
+                    "delivery or the next village day. "
+                )
             caller.msg(
                 "|wA first lead: the Blood of the Vine|n\n"
                 "Use |wrumors|n to hear what is circulating here. Pick a "
@@ -66,12 +82,13 @@ class CmdGuide(Command):
                 "or |wask Bram about news|n. A notice can outlast "
                 "your visit: |wcommons follow <number>|n keeps it "
                 "on this mask's list for next time.\n"
-                "An Innkeep can make real, edible meals at the shared pot: "
+                + meal_lead
+                + "An Innkeep can make real, edible meals at the shared pot: "
                 "try |wsoup|n, |wsoup prep turnip thyme|n, then "
                 "|wsoup simmer|n. Musicians may use |wstage|n to rehearse "
                 "and perform actual public sets, which other visitors "
                 "can witness. These are renewable jobs, even when the "
-                "lamp or care cases have ended.\\n"
+                "lamp or care cases have ended.\n"
                 "Speak with someone nearby, or use "
                 "|wretell <person> R<number>|n to pass the story on. "
                 "|wjournal|n records situations your mask actually "
