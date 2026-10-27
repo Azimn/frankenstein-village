@@ -294,18 +294,18 @@
       "baseline_class": "D",
       "gdd_section": "10",
       "design_contract": "Source: signed attended performance. Methods: Performer presents work and can contest characterization; Chronicler reviews/preserves public account. Result: accessible archive with attributed criticism, correction and relevant local opinion only among readers.",
-      "runtime_source_owner": null,
+      "runtime_source_owner": "candidate: existing Tavern stage, world.stage_state and world.stage_work, world event ledger",
       "ordinary_player_discovery_proof": null,
-      "distinct_role_action_proof": null,
+      "distinct_role_action_proof": "candidate: Chronicler stage review praise|critique requires firsthand signed witness; original Performer stage contest <review event>",
       "finite_resource_or_time_proof": null,
       "solo_fallback_proof": null,
-      "authoritative_state_change_proof": null,
-      "negative_and_late_state_proof": null,
+      "authoritative_state_change_proof": "candidate: bounded review and contest are signed ledger consequences on the authoritative Tavern stage, retained in historical performance records",
+      "negative_and_late_state_proof": "candidate: ops/tests/test_stage_review_edge14.py, authenticated telnet and actual restart assertions; CI and independent acceptance pending",
       "two_account_test": null,
       "post_restart_test": null,
       "uncoached_gameplay_evidence": null,
       "verified_complete": false,
-      "review_state": "requires_live_code_and_gameplay_review"
+      "review_state": "candidate_requires_exact_head_ci_independent_review_uncoached_gameplay_approved_main_integration"
     },
     {
       "id": "GDD-EDGE-15",
