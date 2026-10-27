@@ -22,6 +22,13 @@ class MerchantWandererFreight(unittest.TestCase):
         )
 
     def test_distinct_role_handoff_persists_with_exact_sources(self):
+        self.assertEqual(c.freight_contract(
+            {"merchant_account_id": 12, "consignment_event_id": 91}
+        ), {"merchant_account_id": 12, "consignment_event_id": 91})
+        self.assertIsNone(c.freight_contract(self.freight), (
+            "Already accepted freight must not be accepted a second time"
+        ))
+        self.assertEqual(c.freight_contract(self.freight, accepted=True), self.freight)
         state, ok, error = c.receive(None, **self.args)
         self.assertTrue(ok, error)
         receipt = state["receipts"][0]
