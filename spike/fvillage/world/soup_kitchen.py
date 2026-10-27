@@ -321,70 +321,100 @@ def simmer(mask):
         return None, "The kitchen clock has moved behind this preparation."
     if day > int(record["day"]) + 2:
         return None, "These old ingredients have spoiled. Discard the packet."
-    warm = hearth_state.active(tavern.db.civic_hearth, day, hour)
-    recipe = soup_state.produce(
-        record["base"], record["seasoning"], warmed=warm)
-    if not recipe:
+    if not soup_state.produce(record["base"], record["seasoning"], warmed=False):
         return None, "The packet has an invalid recipe."
-    if len([o for o in mask.contents if getattr(o.db, "soup_serving", None)]) >= 3:
+    if _full_bowls(mask) >= 3:
         return None, "You already carry three soup bowls; serve or eat them first."
 
     def consequence(event):
-        if packet.location != mask or not packet.db.soup_preparation:
-            raise RuntimeError("The reserved ingredients were moved or consumed.")
-        bowl = create_object(
-            "typeclasses.objects.Object",
-            key=f"a bowl of {record['base']} and {record['seasoning']} soup",
-            location=mask,
-            aliases=["homemade soup", "soup bowl", "soup"],
-        )
-        bowl.tags.add("consumable")
-        bowl.tags.add("food")
-        bowl.db.consume = {
-            "nourish": recipe["nourish"], "servings_max": 1,
-            "short": "homemade soup",
-            "flavor": (
-                f"You taste {recipe['flavor']}. "
-                "It is a recipe someone here really cooked."
-            ),
-            "room": f"{mask.key} tastes freshly cooked soup.",
-        }
-        bowl.db.servings = 1
-        bowl.db.soup_serving = {
-            **recipe, "event_id": event["id"],
-            "prep_event_id": record["prep_event_id"],
-            "maker_id": mask.id, "maker": mask.key,
-        }
-        bowl.db.desc = (
-            f"Fresh {record['base']} soup with {record['seasoning']}. "
-            f"Cooking quality {recipe['quality']}; "
-            f"prepared on village day {record['day']}. "
-            "A single real serving, transferable to another player."
-        )
-        tavern.db.soup_pantry = soup_state.archive(
-            tavern.db.soup_pantry, day, maker_id=mask.id,
-            maker=mask.key, source_event_id=record["prep_event_id"],
-            cook_event_id=event["id"], recipe=recipe)
-        packet.delete()
-        return {"bowl_id": bowl.id, "pantry_room_id": tavern.id,
-                "quality": recipe["quality"],
-                "source_event_id": record["prep_event_id"]}
+        # Recheck the real packet, room, clock, Calling and carry limit at
+        # commit time. A stale preview must not mint a second bowl.
+        with transaction.atomic():
+            room_now, reason = _access(mask, TAVERN)
+            if reason:
+                raise RuntimeError(reason)
+            if room_now != tavern:
+                raise RuntimeError("The kitchen changed before simmering.")
+            if active_calling(mask) != "innkeep":
+                raise RuntimeError("An active Innkeep is needed to simmer a batch.")
+            if _clock() != (day, hour):
+                raise RuntimeError("The village clock changed before simmering.")
+            held = _held(mask, "soup_preparation")
+            if (len(held) != 1 or held[0] != packet
+                    or dict(packet.db.soup_preparation or {}) != record):
+                raise RuntimeError(
+                    "The reserved ingredients were moved, changed or consumed."
+                )
+            if _full_bowls(mask) >= 3:
+                raise RuntimeError(
+                    "You already carry three soup bowls; serve or eat them first."
+                )
+            if day < int(record["day"]) or day > int(record["day"]) + 2:
+                raise RuntimeError("The prepared ingredients are not fresh today.")
+            warm_now = hearth_state.active(tavern.db.civic_hearth, day, hour)
+            cooked = soup_state.produce(
+                record["base"], record["seasoning"], warmed=warm_now)
+            if not cooked:
+                raise RuntimeError("The packet has an invalid recipe.")
+            bowl = create_object(
+                "typeclasses.objects.Object",
+                key=f"a bowl of {record['base']} and {record['seasoning']} soup",
+                location=mask,
+                aliases=["homemade soup", "soup bowl", "soup"],
+            )
+            bowl.tags.add("consumable")
+            bowl.tags.add("food")
+            bowl.db.consume = {
+                "nourish": cooked["nourish"], "servings_max": 1,
+                "short": "homemade soup",
+                "flavor": (
+                    f"You taste {cooked['flavor']}. "
+                    "It is a recipe someone here really cooked."
+                ),
+                "room": f"{mask.key} tastes freshly cooked soup.",
+            }
+            bowl.db.servings = 1
+            bowl.db.soup_serving = {
+                **cooked, "event_id": event["id"],
+                "prep_event_id": record["prep_event_id"],
+                "maker_id": mask.id, "maker": mask.key,
+            }
+            bowl.db.desc = (
+                f"Fresh {record['base']} soup with {record['seasoning']}. "
+                f"Cooking quality {cooked['quality']}; "
+                f"prepared on village day {record['day']}. "
+                "A single real serving, transferable to another player."
+            )
+            tavern.db.soup_pantry = soup_state.archive(
+                tavern.db.soup_pantry, day, maker_id=mask.id,
+                maker=mask.key, source_event_id=record["prep_event_id"],
+                cook_event_id=event["id"], recipe=cooked)
+            packet.delete()
+            return {"bowl_id": bowl.id, "pantry_room_id": tavern.id,
+                    "quality": cooked["quality"],
+                    "source_event_id": record["prep_event_id"],
+                    "recipe": cooked}
 
-    event = publish_world_event(
-        "professional.innkeep_soup_cooked", actor=mask,
-        payload={"day": day, "hour": hour,
-                 "base": record["base"], "seasoning": record["seasoning"],
-                 "packet_id": packet.id, "prep_event_id": record["prep_event_id"],
-                 "chronicle_eligible": False, "harbinger": False},
-        consequence=consequence)
+    try:
+        event = publish_world_event(
+            "professional.innkeep_soup_cooked", actor=mask,
+            payload={"day": day, "hour": hour,
+                     "base": record["base"], "seasoning": record["seasoning"],
+                     "packet_id": packet.id, "prep_event_id": record["prep_event_id"],
+                     "chronicle_eligible": False, "harbinger": False},
+            consequence=consequence)
+    except RuntimeError as error:
+        return None, str(error)
+    committed = event["consequence"]["recipe"]
     row = {
-        "day": day, "base": record["base"], "seasoning": record["seasoning"],
-        "quality": recipe["quality"], "warmed": warm,
+        "day": day, "base": committed["base"],
+        "seasoning": committed["seasoning"],
+        "quality": committed["quality"], "warmed": committed["warmed"],
         "cook_event_id": event["id"],
     }
     mask.db.soup_notebook = soup_state.notebook(mask.db.soup_notebook, row)
     record_participation(mask, "soup_batches_cooked", calling="innkeep")
-    return {"event_id": event["id"], **recipe}, None
+    return {"event_id": event["id"], **committed}, None
 
 
 def procure(mask):
