@@ -70,6 +70,8 @@ class Client:
         received = []
         while time.monotonic() < deadline:
             remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
             response = self.read_quiet(max_wait=min(3.0, remaining))
             if response:
                 received.append(response)
