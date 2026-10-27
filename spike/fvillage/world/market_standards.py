@@ -57,9 +57,12 @@ def normalize(raw):
         if not signed or signed["day"] != d:
             continue
         if name == "review":
-            if row.get("choice") not in CHOICES:
+            choice = row.get("choice")
+            # A corrupt persisted list/dict is not a valid Merchant decision.
+            # Test the type before set membership to keep trade playable.
+            if not isinstance(choice, str) or choice not in CHOICES:
                 continue
-            signed["choice"] = row["choice"]
+            signed["choice"] = choice
         if name == "attestation":
             try:
                 review_id = int(row.get("review_event_id"))
@@ -206,7 +209,7 @@ def verified_sources(raw, day, event_lookup):
         if not all(hasattr(part, "get") for part in (actor, payload, consequence)):
             return False
         action = payload.get("action")
-        if (action not in actions
+        if (not isinstance(action, str) or action not in actions
                 or event.get("id") != event_id
                 or event.get("kind") != "village.market_" + action
                 or event.get("status") != "complete"
