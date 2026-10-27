@@ -1262,8 +1262,10 @@ _forensic_row = _forensic_history[0]
 assert _forensic_row["scale_id"] == _scale.id
 assert _forensic_row["market_id"] == one("Market Lane").id
 assert _forensic_row["mask_id"] == _detective.id
-_detective_account = AccountDB.objects.get(db_key="qa_detective_forensic")
-_smith_account = AccountDB.objects.get(db_key="qa_smith_repair")
+_detective_account = AccountDB.objects.get(id=_forensic_row["account_id"])
+_smith_account = AccountDB.objects.get(id=_forensic_row["smith_account_id"])
+assert _detective_account.key.casefold() == "qa_detective_forensic"
+assert _smith_account.key.casefold() == "qa_smith_repair"
 assert _forensic_row["account_id"] == _detective_account.id
 assert _forensic_row["smith_account_id"] == _smith_account.id
 assert _forensic_row["account_id"] != _forensic_row["smith_account_id"]
