@@ -5328,11 +5328,22 @@ def _fare_depleted(caller, item):
             "communal pantry."
         )
     else:
-        caller.msg(
+        guidance = (
             f"The {_fare_short(item)}'s all gone for now. Bram can replenish "
             "the same finite sideboard when his actual Tavern routine brings "
             "him here. Try another real food serving in the meantime."
         )
+        if (getattr(caller, "account", None)
+                and getattr(caller, "location", None)
+                and caller.location.key == "The Blood of the Vine"
+                and item.tags.has("food")):
+            from world.soup_kitchen import can_make_ration
+            if can_make_ration():
+                guidance += (
+                    " The communal pantry still has ingredients: use "
+                    "soup ration, then eat plain broth."
+                )
+        caller.msg(guidance)
     return True
 
 
