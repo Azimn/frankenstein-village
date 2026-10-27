@@ -365,6 +365,13 @@ def restock_sideboard():
         return []  # nobody's hands to set it out
     refilled = []
     for obj in tavern.contents:
+        # Only the house dishes placed by build_spike._fare are Bram's to
+        # replenish. Player-cooked bowls are physical, finite inventory and
+        # must remain spent even if dropped beside the sideboard.
+        if not obj.tags.has("house-sideboard-fare", category="origin"):
+            continue
+        if obj.db.kitchen_ration or obj.db.soup_serving:
+            continue
         data = obj.db.consume or {}
         max_s = mechanical_value(obj, "uses", None)
         if max_s is None:
