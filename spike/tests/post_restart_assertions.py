@@ -1318,7 +1318,7 @@ assert _clinic["treatment"] is not None, "Clinical treatment lost on restart"
 assert _clinic["assessment"]["mask"] == "HealerTester"
 assert _clinic["treatment"]["mask"] == "HealerTester"
 assert _clinic["treatment"]["method"] == "compress"
-assert _clinic["linen"] == 1
+assert _clinic["linen"] == 3
 assert _clinic["treatment"]["assessment_event_id"] == _clinic["assessment"]["event_id"]
 assert calling_record(healer_tester, "healer")["participation"]["clinic_assess"] == 1
 assert calling_record(healer_tester, "healer")["participation"]["clinic_prepare"] == 1
@@ -1364,6 +1364,37 @@ from world.clinic_state import refresh as _clinic_refresh
 _assert_tomorrow_clinic = _clinic_refresh(_clinic, _clinic["day"] + 1)
 assert _assert_tomorrow_clinic["records_permission"] is None
 assert len([o for o in _church.contents if o.key == "a clinic treatment cot"]) == 1
+# EDGE-25: independently check both signed actors, consumed parcel and
+# authoritative cabinet stock after the real Evennia process boundary.
+from world import clinic_supply as _clinic_supply
+_supply = _clinic["supply"]
+assert _supply and _supply["day"] == _clinic["day"]
+assert _supply["merchant_account_id"] != _supply["healer_account_id"]
+assert _supply["healer_account_id"] == _clinic["assessment"]["account_id"]
+assert _supply["merchant_account_id"] == warning_ledger.get_event(
+    _supply["source_event_id"])["actor"]["account_id"]
+_merchant_event = warning_ledger.get_event(_supply["source_event_id"])
+_healer_event = warning_ledger.get_event(_supply["event_id"])
+assert _merchant_event["status"] == _healer_event["status"] == "complete"
+assert _merchant_event["kind"] == "professional.merchant_clinic_supply"
+assert _healer_event["kind"] == "village.clinic_supply_received"
+assert _merchant_event["actor"]["mask_id"] == merchant_tester.id
+assert _healer_event["actor"]["mask_id"] == healer_tester.id
+assert _healer_event["actor"]["account_id"] != _merchant_event["actor"]["account_id"]
+assert _healer_event["payload"]["source_merchant_event_id"] == _merchant_event["id"]
+assert _healer_event["consequence"]["source_merchant_event_id"] == _merchant_event["id"]
+assert _healer_event["consequence"]["consumed_parcel_id"] == _supply["parcel_id"]
+assert _merchant_event["consequence"]["parcel_id"] == _supply["parcel_id"]
+assert _healer_event["consequence"]["linen_after"] == 3
+_market = one("Market Lane")
+assert _clinic_supply.stock(_market.db.clinic_linen_stock, _clinic["day"])["remaining"] == 0
+assert not [o for o in list(_church.contents) + list(merchant_tester.contents)
+            + list(healer_tester.contents) if o.key == "a sealed clinic linen parcel"]
+assert calling_record(merchant_tester, "merchant")["participation"]["clinic_supplies_procured"] == 1
+assert calling_record(healer_tester, "healer")["participation"]["clinic_supplies_received"] == 1
+assert _assert_tomorrow_clinic["supply"] is None
+assert _assert_tomorrow_clinic["linen"] == 2
+print("POST_RESTART_GDD_EDGE25_SIGNED_DISTINCT_CLINIC_SUPPLY_GREEN")
 print("POST_RESTART_PHYSICAL_CLINIC_CARE_GREEN")
 print("POST_RESTART_GDD_T08_PRIVATE_CLINIC_PERMISSION_GREEN")
 
