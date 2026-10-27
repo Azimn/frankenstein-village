@@ -1307,6 +1307,35 @@ for _action, _entry in (
     assert _event["kind"] == "village.stage_" + _action
     assert _event["status"] == "complete"
 assert "PerformerTester" in _stage_lines(_stage, _stage["day"])
+# GDD-EDGE-06: the Innkeep's real cooked bowl, independent performer,
+# signed witness and exact public service survive an Evennia process restart.
+_service = _stage["service"]
+assert _service is not None, "The joined food service vanished on restart"
+assert _service["account_id"] != _stage["performance"]["account_id"]
+assert _service["performance_event_id"] == _stage["performance"]["event_id"]
+assert _service["witness_event_id"] == _stage["witnesses"][0]["event_id"]
+assert _service["witness_count"] == 1
+_cater_event = warning_ledger.get_event(_service["event_id"])
+assert _cater_event["status"] == "complete"
+assert _cater_event["kind"] == "village.stage_cater"
+assert _cater_event["actor"]["account_id"] == _service["account_id"]
+assert _cater_event["consequence"]["bowl_id"] == _service["bowl_id"]
+assert _cater_event["consequence"]["performance_event_id"] == _service["performance_event_id"]
+_cooked_event = warning_ledger.get_event(_service["cook_event_id"])
+assert _cooked_event["kind"] == "professional.innkeep_soup_cooked"
+assert _cooked_event["status"] == "complete"
+assert _cooked_event["consequence"]["bowl_id"] == _service["bowl_id"]
+_served_bowls = [
+    obj for obj in _stage_tavern.contents
+    if getattr(obj.db, "stage_service", None)
+    and obj.id == _service["bowl_id"]
+]
+assert len(_served_bowls) == 1, "The original edible bowl was lost or duplicated"
+assert _served_bowls[0].db.servings == 1
+assert _served_bowls[0].db.stage_service["event_id"] == _service["event_id"]
+assert calling_record(one("InnkeepTester"), "innkeep")["participation"]["stage_catering"] == 1
+assert "provided one real cooked soup bowl" in _stage_lines(_stage, _stage["day"])
+print("POST_RESTART_GDD_EDGE06_REAL_SIGNED_CATERING_GREEN")
 print("POST_RESTART_SIGNED_TAVERN_PERFORMANCE_GREEN")
 print("POST_RESTART_GDD_T06_LATE_NONWITNESS_GREEN")
 # Physical St. Lazarus clinic, signed Healer work and consumed linen persist.
