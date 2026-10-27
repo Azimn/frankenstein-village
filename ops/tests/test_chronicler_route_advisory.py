@@ -39,6 +39,74 @@ class ChroniclerWandererAdvisoryTests(unittest.TestCase):
         self.assertIn("not a current safety guarantee", r.advisory_lines(published)[0])
         self.assertIsNone(state["advisory"], "Input must not be mutated")
 
+    def test_first_ledger_event_can_be_published_by_real_adapter(self):
+        # Execute the actual production adapter with a source whose event
+        # ID is 1. A hard-coded preflight event 1 previously rejected it.
+        import ast
+        from contextlib import nullcontext
+        from types import SimpleNamespace
+
+        path = (Path(__file__).resolve().parents[2]
+                / "spike/fvillage/world/route_work.py")
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        functions = [
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "publish_advisory"
+        ]
+        self.assertEqual(len(functions), 1)
+        namespace = {}
+        exec(compile(ast.fix_missing_locations(
+            ast.Module(body=functions, type_ignores=[])), str(path), "exec"),
+            namespace)
+
+        square = SimpleNamespace(
+            id=42,
+            db=SimpleNamespace(daily_route_survey=wanderer(event=1)),
+            tags=SimpleNamespace(has=lambda name, category=None: name == "ic"),
+        )
+        chronicler = SimpleNamespace(
+            id=9, key="ChroniclerTester",
+            account=SimpleNamespace(id=22), location=square,
+        )
+        source_event = {
+            "id": 1, "status": "complete",
+            "kind": "village.route_passability_observed",
+            "payload": {"site": "red_cord", "day": 4},
+            "actor": {"account_id": 21},
+        }
+        signed = []
+
+        def publish(kind, *, actor, payload, consequence):
+            self.assertEqual(kind, "village.route_map_published")
+            self.assertIs(actor, chronicler)
+            self.assertEqual(payload["source_event_id"], 1)
+            event = {"id": 2, "kind": kind}
+            event["consequence"] = consequence(event)
+            signed.append(event)
+            return event
+
+        namespace.update({
+            "active_calling": lambda mask: "chronicler",
+            "_square": lambda: square,
+            "_day_hour": lambda: (4, 21),
+            "route_surveys": r,
+            "get_event_ledger": lambda: SimpleNamespace(
+                get_event=lambda ident: source_event if ident == 1 else None),
+            "transaction": SimpleNamespace(atomic=nullcontext),
+            "record_participation": lambda *args, **kwargs: None,
+            "publish_world_event": publish,
+        })
+        result, error = namespace["publish_advisory"](chronicler)
+        self.assertIsNone(error)
+        self.assertEqual(result["event_id"], 2)
+        self.assertEqual(result["source_event_id"], 1)
+        self.assertEqual(len(signed), 1)
+        advisory = square.db.daily_route_survey["advisory"]
+        self.assertEqual(advisory["source_event_id"], 1)
+        self.assertEqual(advisory["event_id"], 2)
+        self.assertEqual(advisory["account_id"], 22)
+
     def test_no_wanderer_source_no_publication(self):
         result, ok, reason = r.publish_advisory(None, 4, 22, "C", 102, 101)
         self.assertFalse(ok)
