@@ -106,8 +106,8 @@ def welcome(raw, *, day, hour, innkeep_account_id, innkeep_mask_id,
     ]
     if len(matching) != 1:
         return state, False, "The actual cooked batch is missing from the Tavern pantry."
-    if any(_map(row).get("arrival_welcome", {}).get("route_event_id") == route_id
-           or _map(row).get("arrival_welcome", {}).get("bowl_id") == bowl_id
+    if any(_map(_map(row).get("arrival_welcome")).get("route_event_id") == route_id
+           or _map(_map(row).get("arrival_welcome")).get("bowl_id") == bowl_id
            for row in state["history"]):
         return state, False, "This arrival or physical bowl has already been welcomed."
     batch = matching[0]
