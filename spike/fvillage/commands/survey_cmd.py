@@ -9,7 +9,10 @@ class CmdSurvey(Command):
         survey
         survey report
         survey protect       (Hound, Northern Treeline)
-        survey passability   (Wanderer, Northern Treeline)\n        survey gauge         (Wanderer, Riverside Path)\n        survey compare       (Detective, Riverside Path)\n        survey evidence      (public river-gauge case record)
+        survey passability   (Wanderer, Northern Treeline)
+        survey gauge         (Wanderer, Riverside Path)
+        survey compare       (Detective, Riverside Path)
+        survey evidence      (public river-gauge case record)
 
     Read the board, go to an outstanding district, examine the actual
     landmark and sign a firsthand report. Anyone can contribute. Wanderers,
