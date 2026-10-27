@@ -56,6 +56,10 @@ def act(mask, action, tune=None):
     if action != "witness" and tune not in stage_state.TUNES:
         return None, "Choose ballad or reel."
     day, hour = _clock()
+    if (action == "perform"
+            and stage_state.refresh(tavern.db.village_stage, day).get("safety_decision")
+            and not _verified_decision(tavern.db.village_stage, day, hour)):
+        return None, "The signed Performer safety decision cannot be verified."
     kwargs = {
         "day": day, "hour": hour,
         "account_id": mask.account.id, "mask_id": mask.id,
@@ -93,6 +97,10 @@ def act(mask, action, tune=None):
             now_day, now_hour = _clock()
             if (now_day, now_hour) != (day, hour):
                 raise RuntimeError("Village clock changed before the stage event.")
+            if (action == "perform"
+                    and stage_state.refresh(tavern.db.village_stage, day).get("safety_decision")
+                    and not _verified_decision(tavern.db.village_stage, day, hour)):
+                raise RuntimeError("The signed Performer safety decision changed.")
             current, accepted, reason = transform(
                 tavern.db.village_stage, event_id=event["id"],
                 **kwargs, **contextual_kwargs(),
@@ -181,6 +189,32 @@ def _verified_warning(stage, day, hour):
         account_id=warning["account_id"], mask_id=warning["mask_id"],
         source_event_id=warning["source_event_id"],
         cord_id=warning["cord_id"], day=day, hour=hour,
+    )
+
+
+
+def _verified_decision(stage, day, hour):
+    state = stage_state.refresh(stage, day)
+    warning, decision = state.get("safety_warning"), state.get("safety_decision")
+    if not warning or not decision or not _verified_warning(stage, day, hour):
+        return False
+    signed = get_event_ledger().get_event(decision["event_id"])
+    if not signed or signed.get("status") != "complete" or signed.get("kind") != "village.stage_adapted":
+        return False
+    actor, payload, effect = (
+        signed.get("actor") or {}, signed.get("payload") or {},
+        signed.get("consequence") or {})
+    return (
+        decision["account_id"] != warning["account_id"]
+        and actor.get("account_id") == decision["account_id"]
+        and actor.get("mask_id") == decision["mask_id"]
+        and payload.get("day") == day
+        and payload.get("choice") == decision["choice"]
+        and effect.get("tavern_room_id") == _tavern().id
+        and effect.get("warning_event_id") == warning["event_id"]
+        and effect.get("choice") == decision["choice"]
+        and isinstance(decision["hour"], int)
+        and decision["hour"] <= hour
     )
 
 
