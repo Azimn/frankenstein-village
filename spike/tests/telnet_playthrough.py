@@ -723,6 +723,7 @@ def main() -> int:
         require(out, "first lead: the blood of the vine")
         require(out, "rumors R<number>")
         require_all(out, "ask Bram about work")
+        require_all(out, "soup ration", "eat plain broth")
         require(out, "care")
 
         out = c.command("rumors")
@@ -1179,7 +1180,7 @@ def main() -> int:
         out = inn.command("eat homemade soup")
         require_all(out, "taste", "earthy turnip")
         out = inn.command("eat homemade soup")
-        require(out, "all gone")
+        require_all(out, "has no serving left", "cannot eat", "soup ration")
         print("TELNET_SHARED_SOUP_RECIPE_CRAFTING_GREEN")
         out = inn.command("soup prep barley salt")
         require(out, "measure real barley and salt")
