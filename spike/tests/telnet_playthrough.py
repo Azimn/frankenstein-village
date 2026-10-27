@@ -1905,7 +1905,7 @@ def main() -> int:
         require(smith.command("trade inspect"), "Detective Calling")
         require(detective.command("trade inspect"),
                 "First inspect the actual crooked market scale")
-        require(detective.command("look market scale"), "two prices")
+        require(detective.command("look market scale"), "two disputed prices")
         out = detective.command("trade inspect")
         require_all(out, "signed", "DetectiveTester",
                     "Smith source", "does not establish")
