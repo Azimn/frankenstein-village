@@ -31,14 +31,16 @@ def _hour(value):
 
 
 def normalize(raw):
-    if not isinstance(raw, (list, tuple)):
+    try:
+        candidates = list(raw or [])
+    except (TypeError, ValueError):
         return []
     rows, sources = [], set()
     fields = (
         "day", "source_event_id", "source_account_id", "source_mask_id",
         "detective_account_id", "detective_mask_id", "scale_id", "case_event_id",
     )
-    for item in raw[-MAX_CASES * 2:]:
+    for item in candidates[-MAX_CASES * 2:]:
         if not hasattr(item, "get"):
             continue
         values = {key: _id(item.get(key)) for key in fields}
@@ -76,6 +78,8 @@ def open_case(raw, *, day, hour, source_day, source_hour, source_event_id,
     h, sh = _hour(hour), _hour(source_hour)
     if any(v is None for v in values) or h is None or sh is None:
         return rows, False, "Signed identities, object, event and village time are required."
+    (day, source_day, source_event_id, source_account_id, source_mask_id,
+     detective_account_id, detective_mask_id, scale_id, case_event_id) = values
     if day != source_day or h < sh:
         return rows, False, "The held market decision must precede today's inquiry."
     if source_account_id == detective_account_id:
@@ -107,6 +111,7 @@ def rebut_case(raw, *, day, hour, source_event_id, merchant_account_id,
     h = _hour(hour)
     if any(v is None for v in vals) or h is None:
         return rows, False, "A signed Merchant response and village time are required."
+    day, source_event_id, merchant_account_id, merchant_mask_id, event_id = vals
     found = next((r for r in rows if r["source_event_id"] == source_event_id), None)
     if found is None:
         return rows, False, "No independent Detective inquiry exists for this decision."
