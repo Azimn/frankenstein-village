@@ -148,9 +148,16 @@ def _verified_brace(cot):
     forge = get_event_ledger().get_event(b["forge_event_id"])
     if (not forge or forge.get("status") != "complete"
             or forge.get("kind") != "village.market_hinge_forged"
+            or not hasattr(forge.get("payload"), "get")
             or not hasattr(forge.get("consequence"), "get")
             or forge["consequence"].get("item_id") != b["item_id"]
-            or forge["consequence"].get("source_room_id") != b["workshop_id"]):
+            or forge["consequence"].get("source_room_id") != b["workshop_id"]
+            or forge["payload"].get("room_id") != b["workshop_id"]
+            or type(forge["payload"].get("day")) is not int
+            or type(forge["payload"].get("hour")) is not int
+            or not 0 <= forge["payload"]["hour"] <= 23
+            or (forge["payload"]["day"], forge["payload"]["hour"])
+            > (b["day"], b["hour"])):
         return None, "The consumed hinge has no authentic forging source."
     return b, None
 
