@@ -82,10 +82,21 @@ class MasterGDDProgramTests(unittest.TestCase):
                          ("Innkeep","Merchant","V"))
         for edge in edges:
             self.assertFalse(edge["verified_complete"])
-            self.assertIsNone(edge["ordinary_player_discovery_proof"])
-            self.assertIsNone(edge["two_account_test"])
-            self.assertIsNone(edge["post_restart_test"])
             self.assertGreater(len(edge["design_contract"]),60)
+            if edge["two_account_test"] is not None:
+                self.assertIn("spike/tests/", edge["two_account_test"])
+            if edge["post_restart_test"] is not None:
+                self.assertIn("spike/tests/", edge["post_restart_test"])
+            if edge["ordinary_player_discovery_proof"] is not None:
+                self.assertIsNotNone(edge["runtime_source_owner"])
+            if edge["uncoached_gameplay_evidence"] is None:
+                self.assertFalse(edge["verified_complete"])
+        candidate = edges[5]
+        self.assertIn("stage_work.py", candidate["runtime_source_owner"])
+        self.assertIn("TELNET_GDD_EDGE06", candidate["two_account_test"])
+        self.assertIn("POST_RESTART_GDD_EDGE06", candidate["post_restart_test"])
+        self.assertIsNone(candidate["solo_fallback_proof"])
+        self.assertIsNone(candidate["uncoached_gameplay_evidence"])
 
     def test_does_not_claim_implementation_or_canon_approval(self):
         self.assertIn("REVIEW DRAFT",self.gdd)
