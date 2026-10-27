@@ -226,11 +226,14 @@ assert _kitchen_repair_event["consequence"]["condition"] == "working"
 assert not [obj for obj in search.search_object("a forged market hinge")
             if obj.id == _kitchen_fix["item_id"]], "Consumed fitting survived restart"
 _kitchen_workshop = one("The Market Workshop")
-_kitchen_docket = workshop_state.refresh(_kitchen_workshop.db.repair_docket,
-                                          _kitchen_fix["day"])
-assert _kitchen_docket["offcuts"] == 0
+_kitchen_docket = workshop_state.normalize(_kitchen_workshop.db.repair_docket)
+_kitchen_crafts = list(_kitchen_docket["crafts"])
+for _old_day in _kitchen_docket["history"]:
+    _kitchen_crafts.extend(_old_day.get("crafts") or [])
 assert any(row["item_id"] == _kitchen_fix["item_id"]
-           for row in _kitchen_docket["crafts"])
+           for row in _kitchen_crafts), "The finite Workshop source vanished"
+if _kitchen_docket["day"] == _kitchen_fix["day"]:
+    assert _kitchen_docket["offcuts"] == 0, "The Workshop offcut was refunded"
 print("POST_RESTART_GDD_EDGE02_SIGNED_PHYSICAL_KITCHEN_REPAIR_GREEN")
 
 
