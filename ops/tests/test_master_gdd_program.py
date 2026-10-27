@@ -104,9 +104,21 @@ class MasterGDDProgramTests(unittest.TestCase):
                          ("Innkeep","Merchant","V"))
         for edge in edges:
             self.assertFalse(edge["verified_complete"])
-            self.assertIsNone(edge["ordinary_player_discovery_proof"])
-            self.assertIsNone(edge["two_account_test"])
-            self.assertIsNone(edge["post_restart_test"])
+            # Candidate evidence may be recorded while independent review,
+            # uncoached play, main integration and exact-main CI remain open.
+            # Never convert a draft test path into a verified completion.
+            for field in ("ordinary_player_discovery_proof",
+                          "two_account_test", "post_restart_test"):
+                evidence = edge[field]
+                self.assertTrue(
+                    evidence is None or
+                    (isinstance(evidence, str) and evidence.startswith("candidate:")),
+                    (edge["id"], field, evidence),
+                )
+            if any(edge[field] is not None for field in
+                   ("ordinary_player_discovery_proof",
+                    "two_account_test", "post_restart_test")):
+                self.assertNotEqual(edge["review_state"], "verified_complete")
             self.assertGreater(len(edge["design_contract"]),60)
 
     def test_does_not_claim_implementation_or_canon_approval(self):
