@@ -1,6 +1,7 @@
 """EDGE-08 pure provenance, scarcity, negative and restart-survival tests."""
 import copy
 import json
+from collections import UserDict, UserList
 import sys
 import unittest
 from pathlib import Path
@@ -137,6 +138,14 @@ class RefugeRules(unittest.TestCase):
         self.assertFalse(serve(raw=history, pantry_raw=food, event_id=44)[2])
         self.assertIn("1 signed Hound arrival", r.public_lines(history))
         self.assertIn("No witnessed", r.public_lines(None))
+
+    def test_evennia_style_mutable_sequence_and_mapping_survive(self):
+        history, food, ok, _ = serve()
+        self.assertTrue(ok)
+        saved = UserDict({"history": UserList([UserDict(history["history"][0])])})
+        self.assertEqual(len(r.history(saved)), 1)
+        self.assertIn("1 signed Hound arrival", r.public_lines(saved))
+        self.assertFalse(serve(raw=saved, pantry_raw=food, event_id=44)[2])
 
     def test_corrupt_persisted_history_fails_closed(self):
         self.assertFalse(serve(raw={"history": [{"event_id": True}]})[2])
