@@ -122,47 +122,10 @@ def act(mask, action, tune=None):
 
 
 def _verified_performance(tavern, state, ledger, day):
-    """Fail closed unless every source belongs to this physical Tavern show."""
-    show = state["performance"]
-    if not show:
-        return None, "There is no actual performance to investigate today."
-    source = ledger.get_event(show["event_id"])
-    if not source or source.get("status") != "complete" or source.get("kind") != "village.stage_perform":
-        return None, "The performance has no completed canonical source event."
-    actor = source.get("actor") or {}
-    payload = source.get("payload") or {}
-    result = source.get("consequence") or {}
-    if (actor.get("account_id") != show["account_id"]
-            or actor.get("mask_id") != show["mask_id"]
-            or payload.get("day") != day
-            or payload.get("hour") != show["hour"]
-            or payload.get("tune") != show["tune"]
-            or result.get("tavern_room_id") != tavern.id
-            or result.get("performance_event_id") != show["event_id"]):
-        return None, "The signed performance does not match the physical stage record."
-    rehearsal = ledger.get_event(show.get("rehearsal_event_id"))
-    if (not rehearsal or rehearsal.get("status") != "complete"
-            or rehearsal.get("kind") != "village.stage_rehearse"
-            or (rehearsal.get("actor") or {}).get("account_id") != show["account_id"]
-            or (rehearsal.get("actor") or {}).get("mask_id") != show["mask_id"]
-            or (rehearsal.get("payload") or {}).get("day") != day
-            or (rehearsal.get("payload") or {}).get("tune") != show["tune"]):
-        return None, "The signed rehearsal provenance is missing or mismatched."
-    verified = []
-    for witness in state["witnesses"]:
-        event = ledger.get_event(witness["event_id"])
-        if (not event or event.get("status") != "complete"
-                or event.get("kind") != "village.stage_witness"
-                or (event.get("actor") or {}).get("account_id") != witness["account_id"]
-                or (event.get("actor") or {}).get("mask_id") != witness["mask_id"]
-                or (event.get("payload") or {}).get("day") != day
-                or (event.get("payload") or {}).get("hour") != show["hour"]
-                or (event.get("consequence") or {}).get("tavern_room_id") != tavern.id
-                or (event.get("consequence") or {}).get("performance_event_id") != show["event_id"]
-                or witness["account_id"] not in show.get("eligible_audience_ids", [])):
-            return None, "A claimed audience witness lacks matching signed firsthand evidence."
-        verified.append(witness["event_id"])
-    return sorted(verified), None
+    return stage_state.verify_sources(
+        state, day=day, tavern_room_id=tavern.id,
+        get_event=ledger.get_event,
+    )
 
 
 def investigate(mask):
