@@ -43,6 +43,14 @@ def status(mask):
     return stage_state.public_lines(tavern.db.village_stage, day)
 
 
+def archive(mask):
+    tavern, error = _guard(mask)
+    if error:
+        return error
+    day, _ = _clock()
+    return stage_state.archive_lines(tavern.db.village_stage, day)
+
+
 def act(mask, action, tune=None):
     tavern, error = _guard(mask)
     if error:
