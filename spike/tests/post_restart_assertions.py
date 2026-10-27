@@ -1308,6 +1308,41 @@ for _action, _entry in (
     assert _event["status"] == "complete"
 assert "PerformerTester" in _stage_lines(_stage, _stage["day"])
 print("POST_RESTART_SIGNED_TAVERN_PERFORMANCE_GREEN")
+
+# EDGE-07: two authenticated Callings used the ORIGINAL Tavern register.
+# The source event, physical register, account separation and qualified
+# consequence must survive a real Evennia server restart.
+from world.lodging_state import normalize as _lodging_norm, source_is_valid as _lodging_source
+_lodging_register = one("register")
+_lodging_detective = one("DetectiveTester")
+assert _lodging_register.location == _stage_tavern
+assert _lodging_register.typeclass_path == "typeclasses.objects.Register"
+assert active_calling(innkeep_tester) == "innkeep"
+assert active_calling(_lodging_detective) == "detective"
+_lodging_rows = _lodging_norm(_lodging_register.db.lodging_inquiry)["records"]
+assert len(_lodging_rows) == 1, "The signed register authorization was lost or duplicated"
+_lodging_source_row = _lodging_rows[0]
+_lodging_inquiry = _lodging_source_row["inquiry"]
+assert _lodging_inquiry, "The independent Detective observation was not persisted"
+assert _lodging_source_row["mask_id"] == innkeep_tester.id
+assert _lodging_inquiry["mask_id"] == _lodging_detective.id
+assert _lodging_source_row["account_id"] != _lodging_inquiry["account_id"]
+assert _lodging_source_row["register_id"] == _lodging_register.id
+assert _lodging_source_row["room_id"] == _stage_tavern.id
+assert _lodging_inquiry["source_event_id"] == _lodging_source_row["event_id"]
+_lodging_original = warning_ledger.get_event(_lodging_source_row["event_id"])
+assert _lodging_source(_lodging_original, _lodging_source_row)
+_lodging_second = warning_ledger.get_event(_lodging_inquiry["event_id"])
+assert _lodging_second["kind"] == "village.lodging_inquiry"
+assert _lodging_second["status"] == "complete"
+assert _lodging_second["actor"]["account_id"] == _lodging_inquiry["account_id"]
+assert _lodging_second["actor"]["mask_id"] == _lodging_detective.id
+assert _lodging_second["payload"]["source_event_id"] == _lodging_source_row["event_id"]
+assert _lodging_second["consequence"]["source_event_id"] == _lodging_source_row["event_id"]
+assert _lodging_second["consequence"]["finding"] == "qualified_register_observation"
+assert calling_record(innkeep_tester, "innkeep")["participation"]["lodging_disclose"] == 1
+assert calling_record(_lodging_detective, "detective")["participation"]["lodging_inquire"] == 1
+print("POST_RESTART_GDD_EDGE07_SIGNED_INDEPENDENT_REGISTER_INQUIRY_GREEN")
 print("POST_RESTART_GDD_T06_LATE_NONWITNESS_GREEN")
 # Physical St. Lazarus clinic, signed Healer work and consumed linen persist.
 from world.clinic_state import normalize as _clinic_norm, public_lines as _clinic_lines
