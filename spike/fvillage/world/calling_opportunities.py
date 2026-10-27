@@ -9,7 +9,9 @@ WORK = {
         "Work at the shared Tavern soup pot: soup prep turnip thyme "
         "reserves real pantry stock, soup simmer cooks a transferable edible "
         "bowl, soup notebook preserves experiments. Soup quality changes "
-        "when a neighbor has tended the hearth.",
+        "when a neighbor has tended the hearth. A Merchant can give you a "
+        "physical kitchen roots crate; soup accept verifies its signed source "
+        "and receives it into the pantry. soup deliver remains a solo fallback.",
         "At the Blood of the Vine: inspect the hearth, then use hearth "
         "tend when the fire has settled and delivered stock is available.",
         "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
