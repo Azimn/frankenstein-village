@@ -22,7 +22,10 @@ bowl = one("a bowl of plain kitchen broth")
 clock = ScriptDB.objects.get(db_key="village_time")
 assert int(clock.db.day or 1) == 4
 assert smith.location == tavern
-assert smith.account and smith.account.username == "qa_smith_repair"
+smith_owner = AccountDB.objects.get(username="qa_smith_repair")
+# A stopped server has no live puppet binding. Durable account ownership
+# comes from the playable-character roster, not character.account.
+assert smith in smith_owner.characters.all()
 assert 72 <= int(smith.db.hunger) < 80, smith.db.hunger  # 96 minus 24; allow login movement
 assert bowl.location == smith
 assert int(bowl.db.servings or 0) == 0, "Ration refilled across restart"
@@ -37,7 +40,7 @@ event = ledger.get_event(source["cook_event_id"])
 assert event is not None and event["status"] == "complete", event
 assert event["kind"] == "village.kitchen_plain_ration"
 assert event["actor"]["mask_id"] == smith.id
-assert event["actor"]["account_id"] == smith.account.id
+assert event["actor"]["account_id"] == smith_owner.id
 assert event["consequence"]["bowl_id"] == bowl.id
 assert event["consequence"]["nourish"] == 24
 matching = [
