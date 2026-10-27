@@ -331,9 +331,9 @@ def public_lines(raw, day):
         last = state["history"][-1]
         lines.append("Previous recorded show: %s, day %d."
                      % (last["performance"]["mask"], last["day"]))
-    lines.append("Performers: stage rehearse ballad|reel, then stage perform ballad|reel.")
+    lines.append("Performers: stage rehearse ballad (or reel), then stage perform ballad (or reel).")
     lines.append("During the actual performance hour, other visitors may stage witness.")
-    lines.append("A firsthand Chronicler may stage review praise|critique; the Performer may stage contest <review event>.")
+    lines.append("A firsthand Chronicler may stage review praise (or critique); the Performer may stage contest <review event>.")
     return "\n".join(lines)
 
 
