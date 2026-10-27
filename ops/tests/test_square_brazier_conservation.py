@@ -21,7 +21,7 @@ class FakeBundle:
         self.id = key
         self.location = owner
         self.db = SimpleNamespace(
-            civic_firewood=True, gather_event_id=200 + key
+            civic_firewood=True, gather_event_id=200 + key, source_day=1
         )
         self.deleted = False
 
@@ -34,12 +34,15 @@ class SquareBrazierRuntimeTests(unittest.TestCase):
     def setUp(self):
         path = ROOT / "spike/fvillage/world/square_brazier.py"
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        function = next(
+        functions = [
             node for node in tree.body
-            if isinstance(node, ast.FunctionDef) and node.name == "act"
-        )
+            if isinstance(node, ast.FunctionDef)
+            and node.name in {"_verified_gather", "act"}
+        ]
+        self.assertEqual({node.name for node in functions},
+                         {"_verified_gather", "act"})
         module = ast.fix_missing_locations(
-            ast.Module(body=[function], type_ignores=[])
+            ast.Module(body=functions, type_ignores=[])
         )
         self.ns = {}
         exec(compile(module, str(path), "exec"), self.ns)
@@ -57,6 +60,30 @@ class SquareBrazierRuntimeTests(unittest.TestCase):
         self.pledged = None
         self.before_consequence = lambda: None
         self.events = []
+        self.source = {
+            "id": self.bundle.db.gather_event_id,
+            "kind": "civic.hearth_firewood_gathered", "status": "complete",
+            "actor": {"mask_id": self.mask.id, "account_id": self.mask.account.id},
+            "payload": {"resource": "a bundle of firewood",
+                        "day": 1, "hour": 20},
+            "consequence": {"bundle_id": self.bundle.id,
+                            "woodpile_object_id": 19},
+        }
+
+        class MissingSource(Exception):
+            pass
+
+        class LedgerObjects:
+            def get(_self, *, db_key):
+                assert db_key == "world_event_ledger"
+                return SimpleNamespace(get_event=lambda event_id: (
+                    self.source if self.source
+                    and self.source["id"] == event_id else None
+                ))
+
+        self.scriptdb = SimpleNamespace(
+            DoesNotExist=MissingSource, objects=LedgerObjects()
+        )
 
         def publish(kind, *, actor, payload, consequence):
             self.assertTrue(kind.startswith("civic.square_brazier_"))
@@ -88,6 +115,8 @@ class SquareBrazierRuntimeTests(unittest.TestCase):
             "square_brazier_state": fire,
             "transaction": SimpleNamespace(atomic=nullcontext),
             "publish_world_event": publish,
+            "ScriptDB": self.scriptdb,
+            "FIREWOOD_KEY": "a bundle of firewood",
         })
 
     def act(self, mode):
@@ -149,6 +178,68 @@ class SquareBrazierRuntimeTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertIn("clock changed", error)
         self.assertFalse(self.bundle.deleted)
+
+    def test_missing_or_forged_gathering_never_creates_public_warmth(self):
+        cases = (
+            ("missing event", None),
+            ("failed source", {"status": "consequence_failed"}),
+            ("wrong kind", {"kind": "civic.hearth_tended"}),
+            ("wrong bundle", {"consequence": {
+                "bundle_id": 500, "woodpile_object_id": 19,
+            }}),
+            ("wrong source day", {"payload": {
+                "resource": "a bundle of firewood", "day": 2, "hour": 20,
+            }}),
+            ("wrong material", {"payload": {
+                "resource": "a kitchen crate", "day": 1, "hour": 20,
+            }}),
+            ("anonymous source", {"actor": {
+                "mask_id": None, "account_id": 22,
+            }}),
+        )
+        baseline = dict(self.source)
+        for label, mutation in cases:
+            with self.subTest(label=label):
+                self.source = None if mutation is None else {
+                    **baseline, **mutation
+                }
+                result, error = self.act("light")
+                self.assertIsNone(result)
+                self.assertIn("completed matching Square gathering", error)
+                self.assertFalse(self.bundle.deleted)
+                self.assertIsNone(self.brazier.db.square_brazier)
+                self.assertFalse(self.events)
+        self.source = baseline
+
+    def test_misdated_bundle_and_malformed_source_id_do_not_burn(self):
+        self.bundle.db.source_day = 2
+        result, error = self.act("light")
+        self.assertIsNone(result)
+        self.assertIn("gathering", error)
+        self.bundle.db.source_day = 1
+        self.bundle.db.gather_event_id = True
+        result, error = self.act("light")
+        self.assertIsNone(result)
+        self.assertIn("gathering", error)
+        self.assertFalse(self.bundle.deleted)
+
+    def test_source_revoked_between_preview_and_commit_preserves_bundle(self):
+        self.before_consequence = lambda: self.source.update(
+            status="consequence_failed"
+        )
+        result, error = self.act("light")
+        self.assertIsNone(result)
+        self.assertIn("receipt changed", error)
+        self.assertFalse(self.bundle.deleted)
+        self.assertIsNone(self.brazier.db.square_brazier)
+
+    def test_bundle_transfer_keeps_original_source_authority(self):
+        # A legitimately gathered bundle may pass to a different player.
+        self.source["actor"] = {"mask_id": 777, "account_id": 888}
+        result, error = self.act("light")
+        self.assertIsNone(error)
+        self.assertTrue(self.bundle.deleted)
+        self.assertEqual(result["remaining"], fire.LIGHT_HOURS)
 
     def test_feed_of_cold_fire_and_second_light_are_refused(self):
         result, error = self.act("feed")
