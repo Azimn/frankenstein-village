@@ -2264,7 +2264,10 @@ def main() -> int:
             print("\nPERFORMER TRANSCRIPT\n" + "\n".join(performer.transcript))
         if wanderer is not None:
             print("\nWANDERER TRANSCRIPT\n" + "\n".join(wanderer.transcript))
-        if hound is not None:\n            print("\nHOUND TRANSCRIPT\n" + "\n".join(hound.transcript))\n        if detective is not None:\n            print("\nDETECTIVE TRANSCRIPT\n" + "\n".join(detective.transcript))
+        if hound is not None:
+            print("\nHOUND TRANSCRIPT\n" + "\n".join(hound.transcript))
+        if detective is not None:
+            print("\nDETECTIVE TRANSCRIPT\n" + "\n".join(detective.transcript))
         raise
     finally:
         if detective is not None:
