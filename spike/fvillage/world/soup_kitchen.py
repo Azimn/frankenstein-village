@@ -261,6 +261,11 @@ def welcome(mask, guest_name):
     guest = guests[0]
     if guest.account.id == mask.account.id:
         return None, "Hospitality requires a different player's account."
+    try:
+        if not guest.account.sessions.all():
+            return None, "The returning Wanderer must be connected in the Tavern."
+    except (AttributeError, TypeError):
+        return None, "The returning Wanderer must be connected in the Tavern."
     if active_calling(guest) != "wanderer":
         return None, "This arrival service requires an active Wanderer."
     bowls = [
@@ -331,7 +336,8 @@ def welcome(mask, guest_name):
             if fresh_route["day"] != day:
                 raise RuntimeError("The route record changed before the welcome.")
             current_entry = dict(fresh_route["field_decisions"].get("wanderer") or {})
-            current_route = ledger.get_event(current_entry.get("event_id"))
+            current_id = current_entry.get("event_id")
+            current_route = ledger.get_event(current_id) if type(current_id) is int else None
             current_bowl = ledger.get_event(serving.get("event_id"))
             changed, accepted, why = arrival_hospitality.welcome(
                 tavern.db.soup_pantry, event_id=event["id"],
