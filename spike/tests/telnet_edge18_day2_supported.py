@@ -50,6 +50,7 @@ def main():
                 "already received treatment")
         require(healer.command("clinic assess"), "already assessed")
 
+        smith.read_quiet()
         public = smith.command("clinic")
         require_all(public, "care has been provided", "clinically approved")
         assert "sprain" not in public.lower(), "Public care leaked patient finding"
