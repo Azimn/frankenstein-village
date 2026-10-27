@@ -194,5 +194,31 @@ class Edge10SourceVerification(unittest.TestCase):
         self.assertIn("physically recalibrated", " ".join(market.public_lines(solo, 1)))
 
 
+    def test_corrupt_saved_merchant_choice_keeps_trade_board_playable(self):
+        # Old or damaged Attribute data must not crash trade for every player.
+        for bad in (["hold"], {"value": "hold"}):
+            with self.subTest(saved_choice=bad):
+                corrupted = copy.deepcopy(self.state)
+                corrupted["review"]["choice"] = bad
+                snapshot = copy.deepcopy(corrupted)
+                self.assertIsNone(market.normalize(corrupted)["review"])
+                board = " ".join(market.public_lines(corrupted, 1))
+                self.assertNotIn("Merchant Player5 chose", board)
+                self.assertFalse(self.check(corrupted))
+                # A legitimate new decision can still be recorded today.
+                recovered, ok, error = signed(corrupted, "honor", 21, 41)
+                self.assertTrue(ok, error)
+                self.assertEqual(recovered["review"]["choice"], "honor")
+                self.assertEqual(corrupted, snapshot)
+
+    def test_corrupt_ledger_action_does_not_crash_source_verification(self):
+        for bad in (["hold"], {"action": "hold"}):
+            with self.subTest(ledger_action=bad):
+                forged = copy.deepcopy(self.ledger)
+                forged[10]["payload"]["action"] = bad
+                self.assertFalse(self.check(ledger=forged))
+                self.assertTrue(self.check())
+
+
 if __name__ == "__main__":
     unittest.main()
