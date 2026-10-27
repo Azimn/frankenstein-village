@@ -280,6 +280,9 @@ def supported_rest_ready(mask):
             or event["actor"].get("account_id") != c["account_id"]
             or event["actor"].get("mask_id") != c["mask_id"]
             or event["payload"].get("cot_id") != cot.id
+            or event["payload"].get("day") != c["day"]
+            or event["payload"].get("hour") != c["hour"]
+            or event["payload"].get("professional_calling") != "healer"
             or event["payload"].get("brace_event_id") != brace_row["event_id"]
             or event["payload"].get("assessment_event_id") != c["assessment_event_id"]
             or event["consequence"].get("cot_id") != cot.id
