@@ -183,6 +183,22 @@ class StageSafetyTests(unittest.TestCase):
         self.assertFalse(check({**route, "day": 2}, event, marker, **kwargs))
         self.assertFalse(check(route, event, marker, **{**kwargs, "hour": 18}))
 
+    def test_warning_and_decision_chronology_cannot_be_reversed(self):
+        state, ok, _ = warning(hour=20)
+        self.assertTrue(ok)
+        _, ok, why = decision(state, hour=19)
+        self.assertFalse(ok)
+        self.assertIn("not happened yet", why)
+        state, ok, _ = decision(state, hour=21)
+        self.assertTrue(ok)
+        state, ok, _ = stage.rehearse(state, tune="ballad", **who(
+            account=22, mask=222, event=102, hour=21))
+        self.assertTrue(ok)
+        _, ok, why = stage.perform(state, tune="ballad", **who(
+            account=22, mask=222, event=103, hour=20))
+        self.assertFalse(ok)
+        self.assertIn("after this performance", why)
+
     def test_public_status_does_not_invent_crowd(self):
         state, ok, _ = warning()
         self.assertTrue(ok)
