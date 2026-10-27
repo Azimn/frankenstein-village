@@ -10,6 +10,9 @@ WORK = {
         "reserves real pantry stock, soup simmer cooks a transferable edible "
         "bowl, soup notebook preserves experiments. Soup quality changes "
         "when a neighbor has tended the hearth.",
+        "After a Wanderer signs survey passability at the Northern Treeline and returns, "
+        "cook a real soup bowl and use soup welcome <Wanderer> at the Tavern "
+        "to hand over finite food with a signed arrival receipt.",
         "At the Blood of the Vine: inspect the hearth, then use hearth "
         "tend when the fire has settled and delivered stock is available.",
         "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
@@ -54,6 +57,9 @@ WORK = {
         "Collect actual sealed ferry-post parcels in Market Lane with courier collect. "
         "Carry or give them to another person for courier deliver at Riverside Path. "
         "The limited daily supply and signed ferry manifest persist.",
+        "After signing survey passability, physically return to the Blood of the Vine. "
+        "An independent Innkeep with a cooked bowl can use soup welcome <your mask> "
+        "to offer genuine food, which you may then eat normally.",
         "At the Northern Treeline, examine the frayed red cord and use "
         "survey passability to record whether a real caution marker was "
         "present when you visited. This is a dated route judgment, not "
