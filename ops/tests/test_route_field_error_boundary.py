@@ -172,5 +172,118 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
         participation.assert_called_once()
 
 
+
+    def test_civic_report_rechecks_firsthand_authority_at_commit(self):
+        """A revoked observation cannot create a public signed report."""
+        from contextlib import nullcontext
+
+        source = (Path(__file__).resolve().parents[2]
+                  / "spike/fvillage/world/route_work.py")
+        tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+        functions = {
+            node.name: node for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+        }
+        code = compile(ast.fix_missing_locations(ast.Module(
+            body=[functions["_inspected_today"], functions["report"]],
+            type_ignores=[],
+        )), str(source), "exec")
+        mode = ["valid"]
+        can_view = [True]
+        discovered = [True]
+        clue = SimpleNamespace(
+            key="frayed red cord",
+            db=SimpleNamespace(landmark_id="red_cord"),
+            access=lambda *_args, **_kwargs: can_view[0],
+        )
+        room = SimpleNamespace(
+            key="Northern Treeline",
+            tags=SimpleNamespace(has=lambda *_args, **_kwargs: True),
+            contents=[clue],
+        )
+        clue.location = room
+        mask = SimpleNamespace(
+            account=SimpleNamespace(id=7), key="Witness", location=room,
+            db=SimpleNamespace(
+                landmark_discoveries=[],
+                landmark_latest_view={"red_cord": {"day": 3}},
+            ),
+        )
+        square = SimpleNamespace(db=SimpleNamespace(daily_route_survey=None))
+        signed = Mock()
+
+        def refresh(raw, day):
+            return raw if isinstance(raw, dict) else {"day": day, "reports": {}}
+
+        def record(raw, day, site, account_id, name, event_id):
+            signed()
+            state = {"day": day, "reports": {
+                site: {"account_id": account_id, "mask": name,
+                       "event_id": event_id}
+            }}
+            return state, True, None
+
+        def publish(_kind, **kwargs):
+            if mode[0] == "account":
+                mask.account = SimpleNamespace(id=8)
+            elif mode[0] == "inspection":
+                mask.db.landmark_latest_view.clear()
+            elif mode[0] == "discovery":
+                discovered[0] = False
+            elif mode[0] == "view":
+                can_view[0] = False
+            kwargs["consequence"]({"id": 44})
+            return {"id": 44}
+
+        namespace = {
+            "Mapping": Mapping,
+            "LANDMARKS": {"red_cord": {
+                "room": "Northern Treeline", "key": "frayed red cord",
+            }},
+            "known_landmarks": lambda _raw: (
+                [{"id": "red_cord"}] if discovered[0] else []
+            ),
+            "_square": lambda: square,
+            "_day_hour": lambda: (3, 12),
+            "route_surveys": SimpleNamespace(
+                SITES=("red_cord",), refresh=refresh, report=record,
+                complete=lambda _state: True,
+            ),
+            "publish_world_event": publish,
+            "transaction": SimpleNamespace(atomic=nullcontext),
+            "active_calling": lambda _mask: None,
+            "record_participation": Mock(),
+            "SCOUT_ROLES": frozenset(),
+        }
+        exec(code, namespace)
+        for scenario in ("account", "inspection", "discovery", "view"):
+            with self.subTest(scenario=scenario):
+                mask.account = SimpleNamespace(id=7)
+                mask.db.landmark_latest_view = {"red_cord": {"day": 3}}
+                discovered[0] = True
+                can_view[0] = True
+                square.db.daily_route_survey = None
+                signed.reset_mock()
+                mode[0] = scenario
+                result, error = namespace["report"](mask)
+                self.assertIsNone(result)
+                self.assertTrue(error)
+                self.assertIsNone(square.db.daily_route_survey)
+                signed.assert_not_called()
+
+        mask.account = SimpleNamespace(id=7)
+        mask.db.landmark_latest_view = {"red_cord": {"day": 3}}
+        discovered[0] = True
+        can_view[0] = True
+        mode[0] = "valid"
+        result, error = namespace["report"](mask)
+        self.assertIsNone(error)
+        self.assertEqual(result["event_id"], 44)
+        self.assertEqual(
+            square.db.daily_route_survey["reports"]["red_cord"]["account_id"], 7
+        )
+        signed.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
