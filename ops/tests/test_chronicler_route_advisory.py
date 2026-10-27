@@ -138,14 +138,13 @@ class ChroniclerWandererAdvisoryTests(unittest.TestCase):
         forged["advisory"]["observation"] = "marked_caution"
         self.assertIsNone(r.normalize(forged)["advisory"])
 
-
     def test_solo_wanderer_report_stays_public_without_editor(self):
         # A lone Wanderer still changes the signed public field record.
         # The missing Chronicler must not create a fictional map edition.
         state = wanderer(marked=True)
         self.assertIsNone(state["advisory"])
         self.assertIn("Wanderer's passage observation", r.field_lines(state)[0])
-        board = "\\n".join(r.advisory_lines(state))
+        board = "\n".join(r.advisory_lines(state))
         self.assertIn("Solo fallback:", board)
         self.assertIn("signed event 101", board)
         self.assertIn("not an edited map", board)
@@ -164,7 +163,7 @@ class ChroniclerWandererAdvisoryTests(unittest.TestCase):
         self.assertFalse(r.complete(state))
         self.assertNotIn("wanderer", state["field_decisions"])
         self.assertIsNone(state["advisory"])
-        self.assertIn("any player may inspect", "\\n".join(r.advisory_lines(state)))
+        self.assertIn("any player may inspect", "\n".join(r.advisory_lines(state)))
         tomorrow = r.refresh(json.loads(json.dumps(state)), 5)
         self.assertEqual(tomorrow["history"][-1]["reports"]["market_scale"]["event_id"], 104)
         self.assertFalse(tomorrow["history"][-1]["completed"])
