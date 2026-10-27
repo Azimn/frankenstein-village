@@ -74,6 +74,9 @@ WORK = {
         "gathering through commons rather than claiming one occurred.",
     ),
     "detective": (
+        "At Market Lane: inspect the real crooked market scale. After a Merchant " 
+        "has signed trade hold, use trade investigate to open an independent " 
+        "source-linked inquiry. A Merchant may answer with trade rebut.",
         "At the Old Stone Bridge: look plaque, inspect the river gauge "
         "on Riverside Path, and consider a provisional theory bridge.",
         "Use mystery bridge or mystery manor to compare public evidence. "
