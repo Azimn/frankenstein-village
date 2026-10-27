@@ -65,6 +65,9 @@ class Edge38Tests(unittest.TestCase):
         after, ok, error = r.corroborate(state, 4, "red_cord", 102, 32, "H", 103)
         self.assertFalse(ok)
         self.assertIn("separate", error)
+        after, ok, error = r.corroborate(state, 4, "red_cord", 102, 31, "Imposter", 103)
+        self.assertFalse(ok)
+        self.assertIn("original Wanderer", error)
 
     def test_missing_hound_or_wanderer_or_wrong_marker_fails_closed(self):
         for role in ("hound", "wanderer"):
