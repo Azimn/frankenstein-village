@@ -60,6 +60,14 @@ try:
     cot.db.clinic_equipment = forged_equipment
     ready, reason = clinic_cot_work.supported_rest_ready(healer)
     assert not ready and "still in the future" in reason.lower(), reason
+
+    # A forged *earlier* certification timestamp also fails. Comparing
+    # only the current clock to the mutable Attribute would be insufficient.
+    forged_equipment = deepcopy(original_equipment)
+    forged_equipment["certification"]["hour"] = 22
+    cot.db.clinic_equipment = forged_equipment
+    ready, reason = clinic_cot_work.supported_rest_ready(healer)
+    assert not ready and "lacks a completed signed event" in reason.lower(), reason
 finally:
     clock.db.day, clock.db.hour = original_clock
     church.db.village_clinic = original_clinic
