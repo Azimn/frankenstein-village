@@ -2059,6 +2059,22 @@ def main() -> int:
         require_all(out, "houndtester", "wanderertester", "unmarked cord",
                     "does not repair the cord")
         print("TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN")
+        # EDGE-41 late-arrival negative: this real show already happened.
+        # A verified Hound cannot rewrite the historical performance.
+        out = hound.command("stage warn")
+        require(out, "visit the real stage")
+        for move, destination in (
+            ("south", "churchyard"), ("east", "st. lazarus church"),
+            ("east", "village square"), ("east", "blood of the vine"),
+        ):
+            out = hound.command(move)
+            require(out, destination)
+        out = hound.command("stage warn")
+        require(out, "cannot retroactively change")
+        out = performer.command("stage adapt indoor")
+        require(out, "no verified current physical source")
+        print("TELNET_GDD_EDGE41_LATE_WARNING_AND_FALSE_ADAPTATION_DENIED_GREEN")
+
 
         print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
         out = c.command("guide")
