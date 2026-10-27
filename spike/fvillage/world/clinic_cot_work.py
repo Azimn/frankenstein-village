@@ -54,13 +54,15 @@ def _forge(item):
             or event["actor"].get("account_id") != source.get("smith_account_id")
             or event["payload"].get("room_id") != workshop.id
             or event["payload"].get("day") != source.get("issued_day")
+            or type(event["payload"].get("hour")) is not int
+            or not 0 <= event["payload"]["hour"] <= 23
             or event["consequence"].get("item_id") != item.id
             or event["consequence"].get("source_room_id") != workshop.id
             or source.get("source_room_id") != workshop.id):
         return None, "The hinge has no matching completed Workshop forge receipt."
-    day, _hour = clinic_work._clock()
+    day, hour = clinic_work._clock()
     if (type(source.get("issued_day")) is not int
-            or source["issued_day"] > day):
+            or (source["issued_day"], event["payload"]["hour"]) > (day, hour)):
         return None, "The hinge has an invalid or future workshop date."
     return {"forge_event_id": forge_id, "workshop_id": workshop.id}, None
 
