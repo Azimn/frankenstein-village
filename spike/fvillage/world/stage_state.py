@@ -146,6 +146,8 @@ def perform(raw, *, day, hour, account_id, mask_id, mask, tune, event_id,
         return state, False, "A Hound warning requires a Performer decision before the show."
     if state["safety_decision"] and state["safety_decision"]["choice"] == "cancel":
         return state, False, "Today's performance was cancelled after a signed warning."
+    if state["safety_decision"] and state["safety_decision"]["hour"] > hour:
+        return state, False, "The stage decision cannot occur after this performance."
     rehearsal = next((r for r in state["rehearsals"]
                       if r["account_id"] == aid and r["tune"] == tune), None)
     if not rehearsal:
@@ -253,6 +255,8 @@ def adapt(raw, *, day, hour, account_id, mask_id, mask, event_id, choice):
         return state, False, "A verified Hound warning is required first."
     if int(account_id) == warning["account_id"]:
         return state, False, "The Hound cannot also sign the Performer decision."
+    if warning["hour"] > hour:
+        return state, False, "The Hound warning has not happened yet."
     if state["performance"]:
         return state, False, "The actual show cannot be changed retroactively."
     if state["safety_decision"]:
