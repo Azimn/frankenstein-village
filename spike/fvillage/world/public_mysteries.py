@@ -505,6 +505,131 @@ def hide_theory(moderator, theory_id, reason, stable_id=MANOR_LIGHTS_ID):
     return copy.deepcopy(entry), None
 
 
+def examine_bridge_case(player):
+    """Detective signs firsthand marks, never an invented culprit."""
+    from world.callings import active_calling
+    from world.events import get_event_ledger, publish_world_event
+    from world.bridge_case_state import examine
+
+    if not getattr(player, "has_account", False) or active_calling(player) != "detective":
+        return None, "Only an active Detective may sign a case examination."
+    if getattr(getattr(player, "location", None), "key", None) != "The Old Stone Bridge":
+        return None, "Examine the original plaque on the Old Stone Bridge."
+    day, hour = _clock()
+    mystery = get_public_mystery(BRIDGE_PLAQUE_ID)
+    if not mystery:
+        return None, "The bridge case registry is unavailable."
+    actor = _player_ref(player)
+    observations = [
+        row for row in mystery.get("observations") or []
+        if row.get("day") == day
+        and any(w.get("account_id") == actor["account_id"]
+                and w.get("mask_id") == actor["mask_id"]
+                for w in row.get("witnesses") or [])
+    ]
+    if not observations:
+        return None, "Look at the physical plaque today before filing a case examination."
+    observation = observations[-1]
+    signed_observation = get_event_ledger().get_event(observation.get("source_event_id"))
+    payload = (signed_observation or {}).get("payload") or {}
+    if (not signed_observation or signed_observation.get("status") != "complete"
+            or signed_observation.get("kind") != "public_mystery.bridge_plaque.observed"
+            or payload.get("public_mystery_id") != BRIDGE_PLAQUE_ID
+            or payload.get("day") != day
+            or payload.get("pattern") != observation.get("pattern")):
+        return None, "The physical observation lacks a matching completed source."
+    _, ok, error = examine(
+        mystery, day=day, hour=hour, account_id=actor["account_id"],
+        mask_id=actor["mask_id"], mask=actor["mask"], event_id=1,
+        observation=observation,
+    )
+    if not ok:
+        return None, error
+
+    def consequence(event):
+        updated, valid, reason = examine(
+            mystery, day=day, hour=hour, account_id=actor["account_id"],
+            mask_id=actor["mask_id"], mask=actor["mask"], event_id=event["id"],
+            observation=observation,
+        )
+        if not valid:
+            raise ValueError(reason)
+        _save(updated)
+        return {
+            "case_exam_event_id": event["id"],
+            "observation_event_id": observation["source_event_id"],
+            "pattern": observation["pattern"], "finding": "physical_marks_only",
+        }
+
+    event = publish_world_event(
+        "village.bridge_plaque_examined", actor=player,
+        payload={
+            "day": day, "hour": hour, "location": "The Old Stone Bridge",
+            "professional_calling": "detective",
+            "observation_event_id": observation["source_event_id"],
+            "chronicle_eligible": False, "harbinger": False,
+        },
+        consequence=consequence,
+    )
+    return event, None
+
+
+def publish_bridge_case(player):
+    """Independent Chronicler publishes an attributed, non-omniscient bulletin."""
+    from world.callings import active_calling
+    from world.events import get_event_ledger, publish_world_event
+    from world.bridge_case_state import publish
+
+    if not getattr(player, "has_account", False) or active_calling(player) != "chronicler":
+        return None, "Only an active Chronicler may publish a case bulletin."
+    if getattr(getattr(player, "location", None), "key", None) != "Village Square":
+        return None, "Publish the case bulletin from Village Square."
+    day, hour = _clock()
+    mystery = get_public_mystery(BRIDGE_PLAQUE_ID)
+    if not mystery:
+        return None, "The bridge case registry is unavailable."
+    exams = [x for x in mystery.get("case_examinations") or [] if x.get("day") == day]
+    if len(exams) != 1:
+        return None, "A signed Detective examination is required today."
+    source = get_event_ledger().get_event(exams[0]["event_id"])
+    actor = _player_ref(player)
+    _, ok, error = publish(
+        mystery, day=day, hour=hour, account_id=actor["account_id"],
+        mask_id=actor["mask_id"], mask=actor["mask"], event_id=1,
+        source=source,
+    )
+    if not ok:
+        return None, error
+
+    def consequence(event):
+        updated, valid, reason = publish(
+            mystery, day=day, hour=hour, account_id=actor["account_id"],
+            mask_id=actor["mask_id"], mask=actor["mask"], event_id=event["id"],
+            source=source,
+        )
+        if not valid:
+            raise ValueError(reason)
+        _save(updated)
+        return {
+            "case_bulletin_event_id": event["id"],
+            "source_event_id": exams[0]["event_id"],
+            "observation_event_id": exams[0]["observation_event_id"],
+            "status": "attributed_evidence_only",
+        }
+
+    event = publish_world_event(
+        "village.bridge_case_bulletin", actor=player,
+        payload={
+            "day": day, "hour": hour, "location": "Village Square",
+            "professional_calling": "chronicler",
+            "source_event_id": exams[0]["event_id"],
+            "chronicle_eligible": False, "harbinger": False,
+        },
+        consequence=consequence,
+    )
+    return event, None
+
+
 def resolve_subject(token):
     token = str(token or "").strip().lower()
     if token in {
@@ -577,5 +702,8 @@ def mystery_lines(player=None, stable_id=MANOR_LIGHTS_ID):
     else:
         lines.append("No public theory has been submitted yet.")
 
+    if stable_id == BRIDGE_PLAQUE_ID:
+        from world.bridge_case_state import case_lines
+        lines.extend(case_lines(mystery, _clock()[0]))
     lines.append(definition["unresolved_note"])
     return lines
