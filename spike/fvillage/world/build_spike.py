@@ -1181,7 +1181,8 @@ stage_platform = get_or_create_scenery(
     "polished by years of boots. This is a place for actual musicians, "
     "not a promise of automatic applause. Try stage to read the public "
     "record, stage rehearse ballad or reel, stage perform, or stage witness "
-    "when somebody really plays.",
+    "when somebody really plays. Detectives can inspect the platform and "
+    "use stage investigate after a signed show, without declaring an alibi.",
     aliases=["stage", "platform", "tavern stage"],
 )
 stage_platform.locks.add("get:false()")

@@ -1307,6 +1307,37 @@ for _action, _entry in (
     assert _event["kind"] == "village.stage_" + _action
     assert _event["status"] == "complete"
 assert "PerformerTester" in _stage_lines(_stage, _stage["day"])
+# EDGE-40: the separate Detective's limited inquiry survives an actual
+# Evennia server stop/start, with both source and consequence independently
+# checked in the canonical ledger. It cannot retroactively create an audience.
+_detective = one("DetectiveTester")
+assert active_calling(_detective) == "detective"
+assert len(_stage["inquiries"]) == 1, "The stage inquiry vanished or duplicated"
+_inquiry = _stage["inquiries"][0]
+assert _inquiry["mask_id"] == _detective.id
+assert _inquiry["account_id"] == _detective.account.id
+assert _inquiry["account_id"] != _stage_performer.account.id
+assert _inquiry["source_event_id"] == _stage["performance"]["event_id"]
+assert _inquiry["witness_event_ids"] == [_stage["witnesses"][0]["event_id"]]
+assert _inquiry["firsthand_witness"] is False
+assert not any(w["account_id"] == _detective.account.id
+               for w in _stage["witnesses"])
+assert _inquiry["stage_object_id"] == one("a modest performance platform").id
+_source = warning_ledger.get_event(_inquiry["source_event_id"])
+_signed_inquiry = warning_ledger.get_event(_inquiry["event_id"])
+assert _source["status"] == "complete"
+assert _source["kind"] == "village.stage_perform"
+assert _source["actor"]["account_id"] == _stage_performer.account.id
+assert _signed_inquiry["status"] == "complete"
+assert _signed_inquiry["kind"] == "village.stage_investigated"
+assert _signed_inquiry["actor"]["account_id"] == _detective.account.id
+assert _signed_inquiry["payload"]["source_performance_event_id"] == _source["id"]
+assert _signed_inquiry["payload"]["verified_witness_event_ids"] == _inquiry["witness_event_ids"]
+assert _signed_inquiry["consequence"]["conclusion"] == "signed_show_not_alibi"
+assert _signed_inquiry["consequence"]["stage_object_id"] == _inquiry["stage_object_id"]
+assert calling_record(_detective, "detective")["participation"]["stage_investigations"] == 1
+assert "not proof of an alibi" in _stage_lines(_stage, _stage["day"])
+print("POST_RESTART_GDD_EDGE40_SIGNED_INDEPENDENT_STAGE_INQUIRY_GREEN")
 print("POST_RESTART_SIGNED_TAVERN_PERFORMANCE_GREEN")
 print("POST_RESTART_GDD_T06_LATE_NONWITNESS_GREEN")
 # Physical St. Lazarus clinic, signed Healer work and consumed linen persist.

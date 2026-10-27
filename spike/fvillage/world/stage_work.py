@@ -7,7 +7,7 @@ from evennia.utils import search
 
 from world import stage_state
 from world.callings import active_calling, record_participation
-from world.events import publish_world_event
+from world.events import get_event_ledger, publish_world_event
 
 TAVERN = "The Blood of the Vine"
 
@@ -118,3 +118,96 @@ def act(mask, action, tune=None):
     if action != "witness":
         record_participation(mask, "stage_" + action, calling="performer")
     return {"event_id": event["id"], "action": action, "tune": tune}, None
+
+
+
+def _verified_performance(tavern, state, ledger, day):
+    return stage_state.verify_sources(
+        state, day=day, tavern_room_id=tavern.id,
+        get_event=ledger.get_event,
+    )
+
+
+def investigate(mask):
+    """An independent Detective inspects the stage and signs a limited timeline.
+
+    The performance remains playable without a Detective. This does not grant
+    access to private notes or certify the performer's innocence or location
+    outside the recorded performance.
+    """
+    tavern, error = _guard(mask)
+    if error:
+        return None, error
+    if active_calling(mask) != "detective":
+        return None, "Only an active Detective may file a stage investigation."
+    platform = next((obj for obj in tavern.contents
+                     if obj.key == "a modest performance platform"
+                     and obj.location == tavern), None)
+    if platform is None:
+        return None, "The physical performance platform is missing."
+    day, hour = _clock()
+    state = stage_state.refresh(tavern.db.village_stage, day)
+    verified, error = _verified_performance(tavern, state, get_event_ledger(), day)
+    if error:
+        return None, error
+    show = state["performance"]
+    kwargs = {
+        "day": day, "hour": hour,
+        "account_id": mask.account.id, "mask_id": mask.id, "mask": mask.key,
+        "source_event_id": show["event_id"],
+        "source_account_id": show["account_id"],
+        "source_mask_id": show["mask_id"],
+        "source_hour": show["hour"], "source_tune": show["tune"],
+        "witness_event_ids": verified, "stage_object_id": platform.id,
+    }
+    _preview, ok, reason = stage_state.investigate(
+        tavern.db.village_stage, event_id=1, **kwargs
+    )
+    if not ok:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            if (_clock() != (day, hour) or mask.location != tavern
+                    or platform.location != tavern
+                    or active_calling(mask) != "detective"):
+                raise RuntimeError("The Detective, stage or village time changed.")
+            current = stage_state.refresh(tavern.db.village_stage, day)
+            current_verified, why = _verified_performance(
+                tavern, current, get_event_ledger(), day
+            )
+            if why or current_verified != verified:
+                raise RuntimeError(why or "The signed audience evidence changed.")
+            changed, accepted, reason = stage_state.investigate(
+                tavern.db.village_stage, event_id=event["id"], **kwargs
+            )
+            if not accepted:
+                raise RuntimeError(reason)
+            tavern.db.village_stage = changed
+            return {
+                "tavern_room_id": tavern.id,
+                "stage_object_id": platform.id,
+                "performance_event_id": show["event_id"],
+                "witness_event_ids": list(verified),
+                "independent_detective_account_id": mask.account.id,
+                "inquiry_event_id": event["id"],
+                "conclusion": "signed_show_not_alibi",
+            }
+
+    event = publish_world_event(
+        "village.stage_investigated", actor=mask,
+        payload={
+            "day": day, "hour": hour, "tavern_room_id": tavern.id,
+            "stage_object_id": platform.id,
+            "source_performance_event_id": show["event_id"],
+            "verified_witness_event_ids": list(verified),
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    record_participation(mask, "stage_investigations", calling="detective")
+    return {
+        "event_id": event["id"],
+        "source_event_id": show["event_id"],
+        "witness_count": len(verified),
+    }, None
