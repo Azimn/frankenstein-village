@@ -9,7 +9,7 @@ class CmdSurvey(Command):
         survey
         survey report
         survey protect       (Hound, Northern Treeline)
-        survey passability   (Wanderer, Northern Treeline)
+        survey passability   (Wanderer, Northern Treeline)\n        survey gauge         (Wanderer, Riverside Path)\n        survey compare       (Detective, Riverside Path)\n        survey evidence      (public river-gauge case record)
 
     Read the board, go to an outstanding district, examine the actual
     landmark and sign a firsthand report. Anyone can contribute. Wanderers,
@@ -51,6 +51,26 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
+        if verb == "evidence":
+            caller.msg(route_work.river_status(caller))
+            return
+        if verb in {"gauge", "compare"}:
+            result, error = route_work.river_action(caller, verb)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"Signed river-gauge evidence (world event {result['event_id']}). "
+                + ("The observed flood marks are not a forecast. "
+                   if verb == "gauge" else
+                   "This qualified comparison does not identify a culprit. ")
+                + result["lines"]
+            )
+            caller.location.msg_contents(
+                f"{caller.key} records firsthand river-gauge evidence.",
+                exclude=[caller],
+            )
+            return
         if verb in {"protect", "passability"}:
             result, error = route_work.field_action(caller, verb)
             if error:
@@ -71,4 +91,4 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
-        caller.msg("Use: survey | survey report | survey protect | survey passability")
+        caller.msg("Use: survey | survey report | survey protect | survey passability | survey gauge | survey compare | survey evidence")
