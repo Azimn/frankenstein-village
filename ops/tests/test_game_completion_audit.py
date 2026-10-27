@@ -143,10 +143,10 @@ class CompletionAuditTests(unittest.TestCase):
                 self.assertTrue((ROOT / entry["world_owner"]["path"]).is_file())
                 self.assertIn("not_playtested", entry["level"])
         markdown = g01_markdown(evidence)
-        self.assertIn("21 content families", markdown.lower().replace("twenty-one", "21"))
+        self.assertIn("Twenty-one GDD content families", markdown)
         self.assertIn("Forty-five Calling collaboration contracts", markdown)
         self.assertIn("UNVERIFIED", markdown)
-        self.assertNotIn("certifies world-state", markdown)
+        self.assertIn("No registered command", markdown)
 
 
 if __name__ == "__main__":
