@@ -274,6 +274,8 @@ class CompletionAuditTests(unittest.TestCase):
                 "    if False:\n"
                 "        smith.command('another disabled command')\n"
                 "    True or smith.command('short circuited')\n"
+                "    0 and print('ZERO_DISABLED_MARKER')\n"
+                "    out = '' if not 0 else smith.command('zero disabled')\n"
                 "    smith.command('genuine command')\n"
                 "    print('GOOD_MARKER')\n",
                 encoding="utf-8",
@@ -282,7 +284,9 @@ class CompletionAuditTests(unittest.TestCase):
             self.assertFalse(any(_player_command(node, "workshop forge") for node in calls))
             self.assertFalse(any(_player_command(node, "another disabled command") for node in calls))
             self.assertFalse(any(_player_command(node, "short circuited") for node in calls))
+            self.assertFalse(any(_player_command(node, "zero disabled") for node in calls))
             self.assertFalse(any(_printed_marker(node, "BAD_MARKER") for node in calls))
+            self.assertFalse(any(_printed_marker(node, "ZERO_DISABLED_MARKER") for node in calls))
             self.assertTrue(any(_player_command(node, "genuine command") for node in calls))
             self.assertTrue(any(_printed_marker(node, "GOOD_MARKER") for node in calls))
 
