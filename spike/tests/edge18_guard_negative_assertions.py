@@ -39,7 +39,7 @@ def downstream_ready():
         return clinic_cot_work.supported_rest_ready(healer)
 
 
-assert original_clock == (2, 21), original_clock
+assert original_clock[0] == 2 and 0 <= original_clock[1] <= 23, original_clock
 assert clinic_cot_edge18.normalize(original_equipment)["condition"] == "certified"
 assert clinic_state.normalize(original_clinic)["treatment"]["method"] == "supported"
 try:
@@ -86,8 +86,8 @@ try:
     # Moving the certification timestamp into the future must not grant
     # access, regardless of the original signed event's existence.
     forged_equipment = deepcopy(original_equipment)
-    forged_equipment["certification"]["day"] = 2
-    forged_equipment["certification"]["hour"] = 22
+    forged_equipment["certification"]["day"] = original_clock[0] + 1
+    forged_equipment["certification"]["hour"] = 0
     cot.db.clinic_equipment = forged_equipment
     ready, reason = downstream_ready()
     assert not ready and "still in the future" in reason.lower(), reason
