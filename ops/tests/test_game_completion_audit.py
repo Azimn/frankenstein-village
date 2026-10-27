@@ -14,6 +14,7 @@ from game_completion_audit import TARGETS, CALLING_FIELDS, build_audit, to_markd
 from gdd_g01_evidence_register import (  # noqa: E402
     PROOF_FIELDS, build_register, to_markdown as g01_markdown,
 )
+from gdd_g01_ci_observations import load_ci_observations  # noqa: E402
 
 
 class CompletionAuditTests(unittest.TestCase):
@@ -145,6 +146,51 @@ class CompletionAuditTests(unittest.TestCase):
         self.assertEqual((evidence["verified_family_count"],
                           evidence["verified_calling_count"],
                           evidence["verified_edge_count"]), (0, 0, 0))
+
+    def test_g01_real_client_restart_ci_receipts_are_bounded(self):
+        source = load_ci_observations(ROOT)
+        self.assertEqual(set(source), {3, 4, 6, 10, 12, 19, 38})
+        evidence = build_register(ROOT)
+        self.assertEqual(evidence["partial_ci_edge_count"], 7)
+        self.assertEqual(evidence["verified_edge_count"], 0)
+        self.assertFalse(evidence["package_complete"])
+        for edge in evidence["edges"]:
+            receipt = edge["historical_ci_observation"]
+            if edge["number"] in source:
+                self.assertIsNotNone(receipt)
+                self.assertEqual(receipt["observed_on_commit"],
+                                 "f1ada1cb9b1e640d2ed839063a6b10ceba47f9a5")
+                self.assertIn("/runs/40455328096", receipt["ci_run_url"])
+                self.assertTrue(receipt["remaining_gaps"])
+                self.assertTrue(receipt["client_commands"])
+                self.assertIn("partial_not_accepted", receipt["proof_level"])
+            else:
+                self.assertIsNone(receipt)
+            self.assertFalse(edge["verified_complete"])
+            self.assertTrue(all(value is None for value in edge["evidence"].values()))
+
+    def test_g01_ci_marker_source_drift_fails_closed(self):
+        import shutil
+        with tempfile.TemporaryDirectory(prefix="g01-source-drift-") as tmp:
+            sandbox = Path(tmp)
+            for rel in (
+                "ops/GDD_G01_CI_OBSERVATIONS_2026-10-27.json",
+                "spike/tests/run_all.py",
+                "spike/tests/telnet_playthrough.py",
+                "spike/tests/post_restart_assertions.py",
+            ):
+                dest = sandbox / rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / rel, dest)
+            self.assertEqual(len(load_ci_observations(sandbox)), 7)
+            telnet = sandbox / "spike/tests/telnet_playthrough.py"
+            changed = telnet.read_text(encoding="utf-8").replace(
+                'print("TELNET_TWO_ACCOUNT_PHYSICAL_MARKET_WORKSHOP_GREEN")',
+                'print("STAGED_WORKSHOP_MARKER_NO_LONGER_MATCHES")',
+            )
+            telnet.write_text(changed, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "CI marker"):
+                load_ci_observations(sandbox)
 
     def test_g01_owner_cards_resolve_real_repo_files_without_claiming_gameplay(self):
         evidence = build_register(ROOT)
