@@ -506,6 +506,36 @@ def main() -> int:
             day4_restart_env["FV_T13_DAY4_RESTART"] = "1"
             run([evennia, "shell"], cwd=game, env=day4_restart_env,
                 input_text=day4_assertions)
+
+            # EDGE-41: isolate a fresh physical scene only after all legacy
+            # assertions. No player action is injected by the fixture.
+            edge41_setup = (
+                checkout / "spike" / "tests" / "gdd_edge41_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge41_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge41_two_account.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=180,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            # A genuinely new server process must read the persisted signed
+            # Hound source, independent Performer decision and actual show.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            edge41_restart = (
+                checkout / "spike" / "tests" /
+                "gdd_edge41_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge41_restart)
         except Exception:
             dump_logs(game)
             raise
