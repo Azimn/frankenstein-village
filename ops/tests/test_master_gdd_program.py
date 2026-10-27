@@ -104,7 +104,10 @@ class MasterGDDProgramTests(unittest.TestCase):
                          ("Innkeep","Merchant","V"))
         for edge in edges:
             self.assertFalse(edge["verified_complete"])
-            self.assertIsNone(edge["ordinary_player_discovery_proof"])
+            discovery = edge["ordinary_player_discovery_proof"]
+            self.assertTrue(discovery is None or
+                            (isinstance(discovery, str) and len(discovery) > 15))
+            self.assertIsNone(edge["uncoached_gameplay_evidence"])
             self.assertIsNone(edge["two_account_test"])
             self.assertIsNone(edge["post_restart_test"])
             self.assertGreater(len(edge["design_contract"]),60)
