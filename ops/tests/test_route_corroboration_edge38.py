@@ -56,7 +56,7 @@ class Edge38Tests(unittest.TestCase):
 
     def test_duplicate_and_account_switch_are_rejected(self):
         state, marker = prepared()
-        result, ok, _ = r.corroborate(state, 4, "red_cord", 102, 31, "W", 103)
+        result, ok, _ = r.corroborate(state, 4, "red_cord", 102, 31, "Wanderer", 103)
         self.assertTrue(ok)
         for aid, event in ((31, 104), (32, 104), (33, 104)):
             after, ok, error = r.corroborate(result, 4, "red_cord", 102, aid, "X", event)
@@ -73,12 +73,12 @@ class Edge38Tests(unittest.TestCase):
         for role in ("hound", "wanderer"):
             state, marker = prepared()
             del state["field_decisions"][role]
-            after, ok, _ = r.corroborate(state, 4, "red_cord", 102, 31, "W", 103)
+            after, ok, _ = r.corroborate(state, 4, "red_cord", 102, 31, "Wanderer", 103)
             self.assertFalse(ok)
             self.assertNotIn("corroboration", after["field_decisions"].get("wanderer", {}))
         state, marker = prepared()
         for site, source in (("river_gauge", 102), ("red_cord", 999)):
-            after, ok, _ = r.corroborate(state, 4, site, source, 31, "W", 103)
+            after, ok, _ = r.corroborate(state, 4, site, source, 31, "Wanderer", 103)
             self.assertFalse(ok)
             self.assertEqual(after, state)
 
@@ -87,10 +87,10 @@ class Edge38Tests(unittest.TestCase):
         for source, aid, event in ((True, 31, 103), (102, 0, 103),
                                    (102, 31, -1), (102, 31, 102),
                                    (102, 31, 101)):
-            after, ok, _ = r.corroborate(state, 4, "red_cord", source, aid, "W", event)
+            after, ok, _ = r.corroborate(state, 4, "red_cord", source, aid, "Wanderer", event)
             self.assertFalse(ok)
             self.assertEqual(after, state)
-        after, ok, reason = r.corroborate(state, 3, "red_cord", 102, 31, "W", 103)
+        after, ok, reason = r.corroborate(state, 3, "red_cord", 102, 31, "Wanderer", 103)
         self.assertFalse(ok)
         self.assertIn("later village day", reason)
 
@@ -133,7 +133,7 @@ class Edge38Tests(unittest.TestCase):
 
     def test_json_restart_and_day_rollover_preserve_link(self):
         state, _ = prepared()
-        linked, ok, _ = r.corroborate(state, 4, "red_cord", 102, 31, "W", 103)
+        linked, ok, _ = r.corroborate(state, 4, "red_cord", 102, 31, "Wanderer", 103)
         self.assertTrue(ok)
         restored = r.normalize(json.loads(json.dumps(linked)))
         self.assertEqual(restored, linked)
