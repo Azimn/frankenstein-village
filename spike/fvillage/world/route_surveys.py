@@ -208,6 +208,8 @@ def corroborate(raw, day, site, marker_event_id, account_id, mask, event_id):
         return state, False, "The physical warning does not match the Hound's source."
     if account_id != wanderer["account_id"] or account_id == hound["account_id"]:
         return state, False, "A separate Wanderer account must verify the Hound's work."
+    if mask != wanderer["mask"]:
+        return state, False, "The original Wanderer must sign their own follow-up."
     if event_id in {marker_event_id, wanderer["event_id"]}:
         return state, False, "Corroboration needs its own signed event."
     wanderer["corroboration"] = {
