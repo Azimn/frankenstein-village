@@ -1205,8 +1205,8 @@ def main() -> int:
             f"connect qa_detective_lodging {detective_pw}", wait=4.0
         )
         require(out, "connected", "account qa_detective_lodging")
-        out = detective.command("substrate ai")
-        require(out, "gate is open", "substrate recorded")
+        out = detective.command("substrate")
+        require_all(out, "account substrate: ai", "disclosure gate is complete")
         detective.command("charcreate DetectiveTester", wait=3.0)
         out = detective.command("ic DetectiveTester", wait=4.0)
         require(out, "private room")
