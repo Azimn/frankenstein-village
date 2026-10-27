@@ -39,6 +39,31 @@ zero, and it never declares a sourced row playable-complete. CI unit tests use
 the same static scanner from ops/content_inventory.py. This is only the first
 tier; the next coding batch must supply command-level execution evidence.
 
+### FV-G01 executable-coverage card export (implemented in this branch)
+
+Run without an Evennia server or inference model, at the exact checkout:
+
+    python3.12 ops/gdd_g01_evidence_register.py --format json --source-ref "$(git rev-parse HEAD)" > g01-evidence.json
+    python3.12 ops/gdd_g01_evidence_register.py --format markdown --source-ref "$(git rev-parse HEAD)" > g01-evidence.md
+    python3.12 -m unittest discover -s ops/tests -p "test_game_completion_audit.py" -v
+
+The G01 generator joins the existing source inventory with the **merged** Phase A
+Calling AST audit and the Master GDD's canonical 45-edge design register.
+Every one of the 21 section-15 content families, ten Callings and 45 pairwise
+relationships has a source-indexed evidence card. For measured definitions
+the relevant repository source file is included; all registered Calling verbs
+have their real command class and world owner source paths. For the six V
+chains, the world-function anchors include exact source line numbers.
+These are **candidate anchors only**, not proof of normal player action or
+of pair-specific professions.
+
+Required `observed_room`, normal player command, finite input, authoritative
+signed world transition, independent-account view, negative outcome, true
+restart and uncoached UX proof remain null until individually observed and
+reviewed. Unknown is not failure, nor success. G01 is in progress rather
+than certified until missing runtime evidence is linked to its real owner.
+The generated JSON is an *output*, not a new database or source of world truth.
+
 ## Dependencies and open integration
 
 - This draft's original baseline (`9b16f73f1acec60cd7803476caaa744a5be4a42f`) is historical, not current main. Main was observed at `d7e4ddc45305e35658f7c6bf48eef132b9dfa6be` in the FV-G00 audit on 2026-10-26. Recheck before merging.
