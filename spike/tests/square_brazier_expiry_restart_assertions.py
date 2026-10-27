@@ -18,13 +18,28 @@ def one(key):
 
 
 clock = ScriptDB.objects.get(db_key="village_time")
-assert int(clock.db.day or 1) == 5
-assert int(clock.db.hour) == 6
+day = int(clock.db.day or 1)
+hour = int(clock.db.hour if clock.db.hour is not None else 0)
 brazier = one("a public warming brazier")
 state = fire.normalize(brazier.db.square_brazier)
-assert state["observed_at"] == fire.hour_index(5, 7)
-assert state["warm_until"] == fire.hour_index(5, 7)
-assert not fire.active(state, 5, 6)
+# The previous stage advanced the REAL clock past the signed fire deadline,
+# then rewound the disposable QA time by one hour before this restart.
+# Derive the deadline from persisted ignition instead of assuming day five.
+assert len(state["history"]) == 2
+ignition = state["history"][0]
+assert state["warm_until"] == fire.hour_index(
+    ignition["day"], ignition["hour"]
+) + 10, state
+deadline = state["warm_until"]
+assert state["observed_at"] >= deadline + 1, state
+now = fire.hour_index(day, hour)
+assert deadline - 1 <= now <= state["observed_at"], (now, state)
+assert not fire.active(state, day, hour)
+# Check the intentionally rewound pre-expiry hour as well; the persisted
+# observed high-water must prevent burned fuel from reigniting there.
+rewind_hour_index = deadline - 1
+rewind_day, rewind_hour = divmod(rewind_hour_index, 24)
+assert not fire.active(state, rewind_day + 1, rewind_hour)
 assert not is_active()
 assert len(state["history"]) == 2
 assert "cold" in brazier.get_display_desc(looker=one("SmithTester")).lower()
