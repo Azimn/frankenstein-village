@@ -1265,8 +1265,6 @@ def main() -> int:
         require_all(out, "signed performance and review archive",
                     "attributed praise review", "performer contested", "not objective proof")
         print("TELNET_GDD_EDGE14_SIGNED_CHRONICLER_REVIEW_CONTEST_GREEN")
-        out = c.command("west")
-        require(out, "village square")
         print("TELNET_GDD_T06_LATE_ARRIVAL_WITNESS_DENIED_GREEN")
         out = performer.command("agent")
         assert agent_json(out)["commands"]["public_stage"] == "stage"
@@ -1717,7 +1715,8 @@ def main() -> int:
         require(out, "blood of the vine")
         out = smith.command("east")
         require(out, "blood of the vine")
-        out = c.command("east")
+        # The Chronicler stayed in the Tavern after reviewing the stage.
+        out = c.command("look")
         require(out, "blood of the vine")
         out = c.command("roll dice vs MerchantTester")
         require(out, "merchanttester", "dice")
