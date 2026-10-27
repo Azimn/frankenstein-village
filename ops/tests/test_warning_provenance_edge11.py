@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "spike/fvillage"))
 from world.warning_provenance import verify_healer_source
-from world.situations import WELL_MUSHROOM_WARNING_ID
+WELL_MUSHROOM_WARNING_ID = "CIV-HEALTH-0001-WELL-MUSHROOMS"
 
 
 def signed():
@@ -35,6 +35,7 @@ def verify(finding, event, **kwargs):
     return verify_healer_source(
         finding, event, chronicler_account_id=kwargs.get("account", 20),
         day=kwargs.get("day", 2), hour=kwargs.get("hour", 13),
+        situation_id=WELL_MUSHROOM_WARNING_ID,
     )
 
 
