@@ -54,7 +54,9 @@ def status(mask=None):
         if error:
             return error
     day, _ = _clock()
-    return clinic_state.public_lines(room.db.village_clinic, day)
+    from world import clinic_cot_work
+    return (clinic_state.public_lines(room.db.village_clinic, day)
+            + "\n" + clinic_cot_work.status())
 
 
 def confidential_records(mask):
