@@ -1333,7 +1333,7 @@ assert _verify_review_event(
 _stage_contest = warning_ledger.get_event(_stage_review["contest_event_id"])
 assert _stage_contest["kind"] == "village.stage_contest"
 assert _stage_contest["status"] == "complete"
-assert _stage_contest["actor"]["account_id"] == _stage_performer.account.id
+assert _stage_contest["actor"]["account_id"] == _stage["performance"]["account_id"]
 assert _stage_contest["payload"]["review_event_id"] == _stage_review["event_id"]
 assert _stage_contest["consequence"]["review_event_id"] == _stage_review["event_id"]
 assert "contested by the Performer" in _stage_lines(_stage, _stage["day"])
