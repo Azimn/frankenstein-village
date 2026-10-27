@@ -12,6 +12,9 @@ class CmdStage(Command):
         stage perform ballad
         stage perform reel
         stage witness
+        stage warn              (Hound after signed treeline protection)
+        stage adapt indoor      (Performer chooses a bounded indoor show)
+        stage adapt cancel      (Performer cancels today\'s show)
 
     Performers must practice before playing a public set. The world records
     only real player action, never an imagined audience.
@@ -27,18 +30,30 @@ class CmdStage(Command):
         if not raw or raw in (["status"], ["help"]):
             self.caller.msg(stage_work.status(self.caller))
             return
-        if raw == ["witness"]:
+        if raw == ["warn"]:
+            result, error = stage_work.safety_action(self.caller, "warn")
+        elif len(raw) == 2 and raw[0] == "adapt":
+            result, error = stage_work.safety_action(self.caller, "adapt", raw[1])
+        elif raw == ["witness"]:
             result, error = stage_work.act(self.caller, "witness")
         elif len(raw) == 2 and raw[0] in ("rehearse", "perform"):
             result, error = stage_work.act(self.caller, raw[0], raw[1])
         else:
-            self.caller.msg("Use stage | stage rehearse ballad|reel | stage perform ballad|reel | stage witness")
+            self.caller.msg("Use stage | stage rehearse ballad|reel | stage perform ballad|reel | stage witness | stage warn | stage adapt indoor|cancel")
             return
         if error:
             self.caller.msg(error)
             return
         action = result["action"]
-        if action == "rehearse":
+        if action == "warn":
+            message = ("You bring a verified, firsthand treeline caution to the "
+                       "stage (world event %s). The Performer must decide "
+                       "whether to proceed indoors or cancel." % result["event_id"])
+        elif action == "adapt":
+            message = ("You sign the stage's %s decision after the Hound's "
+                       "verified warning (world event %s)."
+                       % (result["choice"], result["event_id"]))
+        elif action == "rehearse":
             message = ("You rehearse the %s on the real Tavern stage. "
                        "The work is signed as world event %s. You can now perform it."
                        % (result["tune"], result["event_id"]))
