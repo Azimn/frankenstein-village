@@ -11,6 +11,9 @@ sys.path.insert(0, str(ROOT / "ops"))
 
 from content_inventory import build_inventory  # noqa: E402
 from game_completion_audit import TARGETS, CALLING_FIELDS, build_audit, to_markdown  # noqa: E402
+from gdd_g01_evidence_register import (  # noqa: E402
+    PROOF_FIELDS, build_register, to_markdown as g01_markdown,
+)
 
 
 class CompletionAuditTests(unittest.TestCase):
@@ -93,6 +96,57 @@ class CompletionAuditTests(unittest.TestCase):
         }
         print("GAME_COMPLETION_AUDIT_SOURCE_COUNTS " + json.dumps(counts, sort_keys=True))
         self.assertFalse(self.audit["game_complete"])
+
+
+    def test_g01_register_has_exact_21_10_45_card_set(self):
+        evidence = build_register(ROOT, source_ref="explicit-fixture-commit")
+        self.assertEqual(evidence["schema"], "fvillage.gdd_g01_evidence_register.v1")
+        self.assertEqual((len(evidence["families"]), len(evidence["callings"]),
+                          len(evidence["edges"])), (21, 10, 45))
+        self.assertEqual([edge["number"] for edge in evidence["edges"]],
+                         list(range(1, 46)))
+        self.assertEqual({kind: sum(edge["baseline_class"] == kind
+                                    for edge in evidence["edges"])
+                          for kind in "VSDC"}, {"V": 6, "S": 6, "D": 24, "C": 9})
+        self.assertEqual(evidence["source_ref"], "explicit-fixture-commit")
+        self.assertFalse(evidence["package_complete"])
+        self.assertFalse(evidence["live_game_session_executed"])
+
+    def test_g01_verified_evidence_is_never_invented_from_source(self):
+        evidence = build_register(ROOT, source_ref="unit-fixture")
+        for category in ("families", "callings", "edges"):
+            for card in evidence[category]:
+                with self.subTest(category=category, identifier=card.get("id", card.get("calling"))):
+                    self.assertFalse(card["verified_complete"])
+                    self.assertEqual(set(card["evidence"]), set(PROOF_FIELDS))
+                    self.assertTrue(all(v is None for v in card["evidence"].values()))
+        for edge in evidence["edges"]:
+            self.assertIsNone(edge["verified_pair_command"])
+            self.assertIsNone(edge["verified_pair_room"])
+        self.assertEqual([e["number"] for e in evidence["edges"]
+                          if e["static_pair_world_owner_examples"]],
+                         [3, 4, 10, 11, 12, 19])
+        self.assertEqual((evidence["verified_family_count"],
+                          evidence["verified_calling_count"],
+                          evidence["verified_edge_count"]), (0, 0, 0))
+
+    def test_g01_owner_cards_resolve_real_repo_files_without_claiming_gameplay(self):
+        evidence = build_register(ROOT)
+        for card in evidence["families"]:
+            if card["source_path"]:
+                self.assertTrue((ROOT / card["source_path"]).is_file())
+        for calling in evidence["callings"]:
+            self.assertTrue(calling["registered_command_candidates"])
+            self.assertIsNone(calling["workplace_room"])
+            for entry in calling["registered_command_candidates"]:
+                self.assertTrue((ROOT / entry["command_source"]["path"]).is_file())
+                self.assertTrue((ROOT / entry["world_owner"]["path"]).is_file())
+                self.assertIn("not_playtested", entry["level"])
+        markdown = g01_markdown(evidence)
+        self.assertIn("21 content families", markdown.lower().replace("twenty-one", "21"))
+        self.assertIn("Forty-five Calling collaboration contracts", markdown)
+        self.assertIn("UNVERIFIED", markdown)
+        self.assertNotIn("certifies world-state", markdown)
 
 
 if __name__ == "__main__":
