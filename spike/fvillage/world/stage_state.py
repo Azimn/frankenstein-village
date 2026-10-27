@@ -229,6 +229,17 @@ def verify_sources(state, *, day, tavern_room_id, get_event):
             or (rehearsal.get("payload") or {}).get("day") != day
             or (rehearsal.get("payload") or {}).get("tune") != show["tune"]):
         return None, "The signed rehearsal provenance is missing or mismatched."
+    matched_rehearsal = next((
+        row for row in state["rehearsals"]
+        if row["event_id"] == show.get("rehearsal_event_id")
+        and row["account_id"] == show["account_id"]
+        and row["mask_id"] == show["mask_id"]
+        and row["tune"] == show["tune"]
+    ), None)
+    if (not matched_rehearsal
+            or (rehearsal.get("payload") or {}).get("hour") != matched_rehearsal["hour"]
+            or matched_rehearsal["hour"] > show["hour"]):
+        return None, "The rehearsal did not precede the witnessed stage performance."
     verified = []
     seen_accounts = set()
     seen_events = set()
