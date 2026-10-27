@@ -122,6 +122,26 @@ class MarketInquiryTests(unittest.TestCase):
         self.assertEqual(len(rows), inquiry.MAX_CASES)
         self.assertEqual(rows[-1]["day"], 74)
 
+    def test_evennia_sequence_wrapper_and_string_ids(self):
+        class SaverSequence:
+            def __init__(self, values):
+                self.values = values
+
+            def __iter__(self):
+                return iter(self.values)
+
+        rows, okay, why = open_one(
+            day="3", source_day="3", source_event_id="40",
+            detective_account_id="20")
+        self.assertTrue(okay, why)
+        self.assertEqual(rows[0]["day"], 3)
+        self.assertEqual(rows[0]["source_event_id"], 40)
+        self.assertEqual(inquiry.normalize(SaverSequence(rows)), rows)
+        self.assertEqual(inquiry.normalize(json.loads(json.dumps(rows))), rows)
+        rows, okay, why = rebut_one(SaverSequence(rows), event_id="42")
+        self.assertTrue(okay, why)
+        self.assertEqual(rows[0]["rebuttal_event_id"], 42)
+
     def test_no_inquiry_is_valid_solo_market_fallback(self):
         self.assertIn("No independent", inquiry.public_lines(None))
         self.assertEqual(inquiry.normalize({"fake": "case"}), [])
