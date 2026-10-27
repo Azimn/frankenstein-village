@@ -73,7 +73,7 @@ def _is_target(obj):
 def submit_healer_finding(mask, obj):
     """File the Healer half of the warning without making it public yet."""
     if active_calling(mask) != "healer":
-        return None, "An active Healer must file the professional assessment."
+        return None, "An active Healer Calling is required to file the professional assessment."
     if not _is_target(obj):
         return (
             None,
