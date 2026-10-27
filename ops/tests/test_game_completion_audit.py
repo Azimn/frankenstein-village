@@ -226,6 +226,42 @@ class CompletionAuditTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "CI marker"):
                 load_ci_observations(sandbox)
 
+    def test_g01_constant_dead_branches_do_not_validate_ci_receipts(self):
+        import shutil
+        with tempfile.TemporaryDirectory(prefix="g01-unreachable-") as tmp:
+            sandbox = Path(tmp)
+            for rel in (
+                "ops/GDD_G01_CI_OBSERVATIONS_2026-10-27.json",
+                "spike/tests/run_all.py",
+                "spike/tests/telnet_playthrough.py",
+                "spike/tests/post_restart_assertions.py",
+            ):
+                destination = sandbox / rel
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / rel, destination)
+            self.assertEqual(len(load_ci_observations(sandbox)), 7)
+            telnet = sandbox / "spike/tests/telnet_playthrough.py"
+            original = telnet.read_text(encoding="utf-8")
+            # Matches the independent review's actual repro, preserving syntax
+            # and line numbers while making workshop forge impossible to run.
+            dead_commands = original.replace(
+                'out = smith.command("workshop forge")',
+                'out = "" if True else smith.command("workshop forge")',
+            )
+            self.assertNotEqual(original, dead_commands)
+            telnet.write_text(dead_commands, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Missing executable player command"):
+                load_ci_observations(sandbox)
+            # The AST contains print(...), but Python cannot evaluate it.
+            dead_marker = original.replace(
+                'print("TELNET_TWO_ACCOUNT_PHYSICAL_MARKET_WORKSHOP_GREEN")',
+                'False and print("TELNET_TWO_ACCOUNT_PHYSICAL_MARKET_WORKSHOP_GREEN")',
+            )
+            self.assertNotEqual(original, dead_marker)
+            telnet.write_text(dead_marker, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "CI marker"):
+                load_ci_observations(sandbox)
+
     def test_g01_owner_cards_resolve_real_repo_files_without_claiming_gameplay(self):
         evidence = build_register(ROOT)
         for card in evidence["families"]:
