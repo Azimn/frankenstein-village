@@ -12,7 +12,7 @@ from evennia.utils import search
 from world import route_surveys
 from world.callings import active_calling, record_participation
 from world.discoveries import LANDMARKS, normalize as known_landmarks
-from world.events import publish_world_event
+from world.events import get_event_ledger, publish_world_event
 
 SQUARE = "Village Square"
 SCOUT_ROLES = frozenset({"wanderer", "hound", "detective"})
@@ -61,6 +61,7 @@ def status_lines():
                 f"{spec['key']} and examine it."
             )
     lines.extend(route_surveys.field_lines(state))
+    lines.extend(route_surveys.advisory_lines(state))
     lines.append(
         "At the Northern Treeline, an active Hound can examine the actual "
         "frayed red cord and use |wsurvey protect|n to tie a visible warning. "
@@ -90,6 +91,8 @@ def status_lines():
             + ("complete" if prior["completed"] else "unfinished")
             + f" ({len(prior['reports'])} of {len(route_surveys.SITES)})."
         )
+        if prior.get("advisory"):
+            lines.append("The prior day\'s signed route map is archived, not a live forecast.")
     return "\n".join(lines)
 
 
@@ -271,3 +274,84 @@ def field_action(mask, action):
         consequence=consequence,
     )
     return {"event_id": event["id"], "role": role, "action": action}, None
+
+
+def publish_advisory(mask):
+    """Chronicler publishes a dated map from an independent Wanderer source.
+
+    Publication changes the same public Square route record, not physical
+    road conditions. The source event must exist and be complete in the
+    canonical ledger; role labels or unverified prose cannot forge a map.
+    """
+    if not getattr(mask, "account", None):
+        return None, "An ordinary logged-in player mask is required."
+    if active_calling(mask) != "chronicler":
+        return None, "Only an active Chronicler may edit a route map."
+    square = _square()
+    if square is None:
+        return None, "The Square's public route board is missing."
+    if mask.location != square or not square.tags.has("ic", category="side"):
+        return None, "Visit the Village Square to publish at the public route board."
+    day, hour = _day_hour()
+    state = route_surveys.refresh(square.db.daily_route_survey, day)
+    if state["day"] > day:
+        return None, "A later village day is already recorded."
+    source = state["field_decisions"].get("wanderer")
+    if not source:
+        return None, "A Wanderer's signed firsthand route observation is required."
+
+    def valid_source():
+        event = get_event_ledger().get_event(source["event_id"])
+        if not event or event.get("status") != "complete":
+            return False
+        if event.get("kind") != "village.route_passability_observed":
+            return False
+        payload, actor = event.get("payload") or {}, event.get("actor") or {}
+        return (payload.get("site") == "red_cord"
+                and payload.get("day") == day
+                and actor.get("account_id") == source["account_id"])
+
+    if not valid_source():
+        return None, "The Wanderer's canonical signed source could not be verified."
+    _candidate, allowed, reason = route_surveys.publish_advisory(
+        state, day, mask.account.id, mask.key, 1, source["event_id"],
+    )
+    if not allowed:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            now_day, now_hour = _day_hour()
+            if ((now_day, now_hour) != (day, hour) or mask.location != square
+                    or active_calling(mask) != "chronicler"):
+                raise RuntimeError("The publisher moved, changed Calling, or the village clock advanced.")
+            if not valid_source():
+                raise RuntimeError("The original Wanderer source is no longer valid.")
+            changed, accepted, error = route_surveys.publish_advisory(
+                square.db.daily_route_survey, day, mask.account.id,
+                mask.key, event["id"], source["event_id"],
+            )
+            if not accepted:
+                raise RuntimeError(error)
+            square.db.daily_route_survey = changed
+            record_participation(mask, "route_advisories", calling="chronicler")
+            return {
+                "day": day, "version": 1, "square_room_id": square.id,
+                "source_event_id": source["event_id"],
+                "source_account_id": source["account_id"],
+                "observation": source["observation"],
+            }
+
+    event = publish_world_event(
+        "village.route_map_published",
+        actor=mask,
+        payload={
+            "site": "red_cord", "day": day, "hour": hour,
+            "version": 1, "source_event_id": source["event_id"],
+            "source_account_id": source["account_id"],
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "source_event_id": source["event_id"],
+            "version": 1, "day": day}, None
