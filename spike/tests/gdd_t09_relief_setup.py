@@ -24,6 +24,13 @@ tavern = one("The Blood of the Vine")
 smith = one("SmithTester")
 assert smith.account and smith.account.username == "qa_smith_repair"
 assert smith.move_to(tavern, quiet=True)
+# The baseline NPC refill needs the keeper physically on duty. Make this a
+# genuinely unattended-Tavern shortage in the disposable QA world, rather
+# than racing a routine sideboard refill during authenticated commands.
+keeper = one("Bram")
+if keeper.location == tavern:
+    assert keeper.move_to(one("Village Square"), quiet=True)
+assert keeper.location != tavern
 smith.db.hunger = 96
 smith.db.queasy = 0
 
