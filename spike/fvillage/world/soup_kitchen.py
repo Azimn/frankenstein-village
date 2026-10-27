@@ -22,6 +22,14 @@ TAVERN = "The Blood of the Vine"
 MARKET = "Market Lane"
 PACKET = "a packet of soup ingredients"
 CRATE = "a crate of kitchen roots"
+RATION = "a bowl of plain kitchen broth"
+# A visitor can prepare a modest, finite meal without taking the Innkeep's
+# professional cooking, quality choices, notebook or participation credit.
+RATION_PAIRS = (
+    ("barley", "salt"), ("turnip", "salt"),
+    ("barley", "thyme"), ("turnip", "thyme"),
+    ("barley", "pepper"), ("turnip", "pepper"),
+)
 
 
 def _room(name):
@@ -53,6 +61,35 @@ def _held(mask, attr):
     return [obj for obj in mask.contents if getattr(obj.db, attr, None)]
 
 
+def _ration_pair(raw, day):
+    """Pick from real available pantry ingredients without modifying stock."""
+    for base, seasoning in RATION_PAIRS:
+        _preview, available, _reason = soup_state.reserve(
+            raw, day, base, seasoning)
+        if available:
+            return base, seasoning
+    return None
+
+
+def can_make_ration():
+    """Read-only, public kitchen availability for co-located body guidance."""
+    tavern = _room(TAVERN)
+    if tavern is None:
+        return False
+    day, _hour = _clock()
+    return _ration_pair(tavern.db.soup_pantry, day) is not None
+
+
+def _full_bowls(mask):
+    """Spent bowls do not count against the small physical carry limit."""
+    return sum(
+        1 for obj in mask.contents
+        if (getattr(obj.db, "kitchen_ration", None)
+            or getattr(obj.db, "soup_serving", None))
+        and int(getattr(obj.db, "servings", 0) or 0) > 0
+    )
+
+
 def pot_description():
     tavern = _room(TAVERN)
     if not tavern:
@@ -75,8 +112,10 @@ def pot_description():
         f"Pantry day {state['day']}: {listed}. "
         f"The main hearth is {'warm' if fire else 'low'}."
         + last +
-        " Use soup prep <turnip|barley> <thyme|salt|pepper>, soup simmer, "
-        "soup notebook, or coordinate a Merchant delivery."
+        " Any visitor may cook soup ration from genuinely remaining pantry "
+        "ingredients; Innkeeps can use soup prep and soup simmer for "
+        "professional recipes. Also try soup notebook or coordinate "
+        "a Merchant delivery."
     )
 
 
@@ -86,6 +125,97 @@ def status(mask):
     if mask.location.key != TAVERN:
         return "The shared soup kitchen is at the Blood of the Vine."
     return pot_description()
+
+
+def ration(mask):
+    """Any player can make ONE plain physical meal from finite pantry stock.
+
+    It is a modest unskilled alternative, not an Innkeep recipe, free meal
+    from nowhere, or an additional world stock ledger.
+    """
+    tavern, err = _access(mask, TAVERN)
+    if err:
+        return None, err
+    if _full_bowls(mask) >= 3:
+        return None, "Serve or eat a carried soup bowl before taking more."
+    day, hour = _clock()
+    if _ration_pair(tavern.db.soup_pantry, day) is None:
+        return None, (
+            "The shared pantry has no complete broth ingredients right now. "
+            "The finite pantry renews next village day; carry or eat other "
+            "real food if you have it."
+        )
+
+    def consequence(event):
+        with transaction.atomic():
+            live_room, reason = _access(mask, TAVERN)
+            if reason:
+                raise RuntimeError(reason)
+            if live_room != tavern:
+                raise RuntimeError("The kitchen changed during preparation.")
+            if _clock()[0] != day:
+                raise RuntimeError("The village day changed before the broth was made.")
+            if _full_bowls(mask) >= 3:
+                raise RuntimeError("Serve or eat a carried soup bowl before taking more.")
+            pair = _ration_pair(tavern.db.soup_pantry, day)
+            if pair is None:
+                raise RuntimeError(
+                    "The shared pantry is out of broth ingredients. "
+                    "No bowl was made and no stock was spent."
+                )
+            base, seasoning = pair
+            updated, accepted, reason = soup_state.reserve(
+                tavern.db.soup_pantry, day, base, seasoning)
+            if not accepted:
+                raise RuntimeError(reason)
+            recipe = soup_state.produce(base, seasoning, warmed=False)
+            bowl = create_object(
+                "typeclasses.objects.Object",
+                key=RATION, location=mask,
+                aliases=["plain broth", "kitchen broth", "broth"],
+            )
+            bowl.tags.add("consumable")
+            bowl.tags.add("food")
+            bowl.db.consume = {
+                "nourish": recipe["nourish"], "servings_max": 1,
+                "short": "plain kitchen broth",
+                "flavor": (
+                    "You eat the plain broth you made from the communal "
+                    "pantry. It settles a little of your hunger."
+                ),
+                "room": f"{mask.key} eats plain broth from the village pot.",
+            }
+            bowl.db.servings = 1
+            bowl.db.kitchen_ration = {
+                "day": day, "hour": hour, "cook_event_id": event["id"],
+                "maker_id": mask.id, "source_room_id": tavern.id,
+                "base": base, "seasoning": seasoning,
+            }
+            bowl.db.desc = (
+                f"A single transferable bowl of plain {base} and {seasoning} "
+                "broth. It came from real shared kitchen ingredients, "
+                f"signed as event {event['id']}. Eat plain broth to use it."
+            )
+            tavern.db.soup_pantry = updated
+            return {
+                "bowl_id": bowl.id, "base": base, "seasoning": seasoning,
+                "nourish": recipe["nourish"],
+                "stock_after": copy.deepcopy(updated["stock"]),
+                "tavern_room_id": tavern.id,
+            }
+
+    try:
+        event = publish_world_event(
+            "village.kitchen_plain_ration", actor=mask,
+            payload={
+                "day": day, "hour": hour, "tavern_room_id": tavern.id,
+                "chronicle_eligible": False, "harbinger": False,
+            },
+            consequence=consequence,
+        )
+    except RuntimeError as error:
+        return None, str(error)
+    return {"event_id": event["id"], **event["consequence"]}, None
 
 
 def recipe_notes(mask):
