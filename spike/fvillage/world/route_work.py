@@ -317,13 +317,19 @@ def field_action(mask, action):
                 ).get("observation"),
             }
 
-    event = publish_world_event(
-        "village.route_protected" if role == "hound"
-        else "village.route_passability_observed",
-        actor=mask,
-        payload={"site": site, "day": day, "hour": hour,
-                 "role": role, "action": action, "location": room.key,
-                 "harbinger": False, "chronicle_eligible": False},
-        consequence=consequence,
-    )
+    try:
+        event = publish_world_event(
+            "village.route_protected" if role == "hound"
+            else "village.route_passability_observed",
+            actor=mask,
+            payload={"site": site, "day": day, "hour": hour,
+                     "role": role, "action": action, "location": room.key,
+                     "harbinger": False, "chronicle_eligible": False},
+            consequence=consequence,
+        )
+    except RuntimeError as error:
+        # A competing player or advancing village clock can invalidate the
+        # physical action after preflight. The ledger records the rejection;
+        # give the player a recoverable message, never a server traceback.
+        return None, str(error)
     return {"event_id": event["id"], "role": role, "action": action}, None
