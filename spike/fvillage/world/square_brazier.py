@@ -186,6 +186,7 @@ def act(mask, mode):
     if not allowed:
         return None, reason
     source_event_id = int(bundle.db.gather_event_id)
+    bundle_id = int(bundle.id)  # Django may clear pk after object.delete()
 
     def consequence(event):
         with transaction.atomic():
@@ -211,7 +212,7 @@ def act(mask, mode):
             changed, accepted, why = square_brazier_state.contribute(
                 brazier.db.square_brazier, day, hour, mode=mode,
                 actor={"mask_id": mask.id, "mask": mask.key},
-                bundle_id=bundle.id, gather_event_id=source_event_id,
+                bundle_id=bundle_id, gather_event_id=source_event_id,
                 event_id=event["id"],
             )
             if not accepted:
@@ -220,7 +221,7 @@ def act(mask, mode):
             brazier.db.square_brazier = changed
             return {
                 "brazier_id": brazier.id,
-                "bundle_id": bundle.id,
+                "bundle_id": bundle_id,
                 "gather_event_id": source_event_id,
                 "warm_until": changed["warm_until"],
                 "remaining": square_brazier_state.remaining(
@@ -234,7 +235,7 @@ def act(mask, mode):
             payload={
                 "day": day, "hour": hour,
                 "brazier_id": brazier.id,
-                "bundle_id": bundle.id,
+                "bundle_id": bundle_id,
                 "gather_event_id": source_event_id,
                 "chronicle_eligible": False,
                 "harbinger": False,
@@ -247,5 +248,5 @@ def act(mask, mode):
         "mode": mode,
         "event_id": event["id"],
         "remaining": event["consequence"]["remaining"],
-        "bundle_id": bundle.id,
+        "bundle_id": bundle_id,
     }, None
