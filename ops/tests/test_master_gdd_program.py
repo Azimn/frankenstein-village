@@ -104,9 +104,12 @@ class MasterGDDProgramTests(unittest.TestCase):
                          ("Innkeep","Merchant","V"))
         for edge in edges:
             self.assertFalse(edge["verified_complete"])
-            self.assertIsNone(edge["ordinary_player_discovery_proof"])
-            self.assertIsNone(edge["two_account_test"])
-            self.assertIsNone(edge["post_restart_test"])
+            # Draft candidates can carry traceable paths while all 45
+            # remain unaccepted until review, uncoached play and main CI.
+            for field in ("ordinary_player_discovery_proof", "two_account_test",
+                          "post_restart_test"):
+                value = edge[field]
+                self.assertTrue(value is None or isinstance(value, str))
             self.assertGreater(len(edge["design_contract"]),60)
 
     def test_does_not_claim_implementation_or_canon_approval(self):
