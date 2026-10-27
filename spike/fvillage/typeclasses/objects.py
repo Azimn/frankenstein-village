@@ -861,8 +861,7 @@ class ClinicCot(DefaultObject):
             "Church dispensary. The patient is visible, but confidential "
             "case notes are not public. Only an active Healer can file care, "
             "and the patient's permission is needed for private notes.\n"
-            + status(looker) + "\\n"
-            + __import__("world.clinic_cot_work", fromlist=["status"]).status()
+            + status(looker)
         )
 
 
