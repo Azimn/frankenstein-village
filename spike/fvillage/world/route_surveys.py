@@ -8,7 +8,7 @@ incomplete to complete. Incomplete days become explicit historical outcomes.
 from __future__ import annotations
 
 import copy
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 SITES = ("grave_marker", "red_cord", "market_scale", "river_gauge")
 MAX_HISTORY = 30
@@ -68,7 +68,11 @@ def normalize(raw):
         if role == "wanderer":
             decisions[role]["observation"] = observation
     saved_history = value.get("history")
-    if not isinstance(saved_history, (list, tuple)):
+    # Evennia persists Attribute lists as _SaverList (MutableSequence), not
+    # built-in list. Reject strings and mappings, but preserve wrapped rows.
+    if not isinstance(saved_history, Sequence) or isinstance(
+        saved_history, (str, bytes, bytearray)
+    ):
         saved_history = []
     return {
         "day": day,
@@ -190,7 +194,7 @@ def history_records(raw, day, *, limit=5, selected_day=None):
         return []
     rows = []
     for raw_row in state["history"][-MAX_HISTORY:]:
-        if not hasattr(raw_row, "get"):
+        if not isinstance(raw_row, Mapping):
             continue
         try:
             old_day = int(raw_row.get("day"))
@@ -203,8 +207,8 @@ def history_records(raw, day, *, limit=5, selected_day=None):
         decisions = raw_row.get("field_decisions")
         clean = normalize({
             "day": old_day,
-            "reports": reports if isinstance(reports, dict) else {},
-            "field_decisions": decisions if isinstance(decisions, dict) else {},
+            "reports": reports if isinstance(reports, Mapping) else {},
+            "field_decisions": decisions if isinstance(decisions, Mapping) else {},
         })
         rows.append({
             "day": old_day,
