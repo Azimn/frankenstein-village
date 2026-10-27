@@ -22,7 +22,8 @@ def one(key):
 assert not any(account.is_connected for account in AccountDB.objects.all())
 clock = ScriptDB.objects.get(db_key="village_time")
 day, hour = int(clock.db.day or 1), int(clock.db.hour or 0)
-assert day == 4, day
+# The real clock can cross midnight while two players complete the project.
+# The signed ignition time and live expiry, not a fixed QA day, govern it.
 square = one("Village Square")
 brazier = one("a public warming brazier")
 smith = one("SmithTester")
@@ -40,9 +41,15 @@ assert (second["mask_id"], second["mode"]) == (merchant.id, "feed")
 assert first["bundle_id"] == smith.db.qa_brazier_bundle_id
 assert first["bundle_id"] != second["bundle_id"]
 assert first["event_id"] != second["event_id"]
-assert state["warm_until"] == fire.hour_index(4, first["hour"]) + 10, state
+ignition = fire.hour_index(first["day"], first["hour"])
+now = fire.hour_index(day, hour)
+assert fire.hour_index(second["day"], second["hour"]) >= ignition
+assert state["warm_until"] == ignition + 10, state
+assert ignition <= now < state["warm_until"], (ignition, now, state)
 assert fire.active(state, day, hour), "The true signed fire ended before restart"
-assert not fire.active(state, 5, 12), "Expired fire incorrectly survives a later day"
+assert not fire.active(state, day + 1, hour), (
+    "Expired fire incorrectly survives another village day", state
+)
 assert is_active(), "Runtime warmth check could not find persisted fire"
 
 ledger = ScriptDB.objects.get(db_key="world_event_ledger")
