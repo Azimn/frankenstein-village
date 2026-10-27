@@ -176,8 +176,9 @@ def cater(mask):
 
     if not source_valid():
         return None, "The bowl, performance or firsthand audience source cannot be verified."
-    show = stage_state.refresh(tavern.db.village_stage, day)["performance"]
-    preview_id = max(show["event_id"], cook_event_id) + 1
+    stage = stage_state.refresh(tavern.db.village_stage, day)
+    preview_id = max(stage["performance"]["event_id"], cook_event_id,
+                     *(w["event_id"] for w in stage["witnesses"])) + 1
     _, allowed, reason = stage_state.cater(
         tavern.db.village_stage, day=day, hour=hour,
         account_id=mask.account.id, mask_id=mask.id, mask=mask.key,
