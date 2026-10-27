@@ -51,17 +51,24 @@ def normalize(raw):
     """Read existing durable records without inventing or repairing evidence."""
     if raw is None:
         return []
-    if not isinstance(raw, (list, tuple)):
+    if isinstance(raw, (str, bytes, bytearray, Mapping)):
         return []
-    return [r for row in raw if (r := _record(row)) is not None][-MAX_RECORDS:]
+    try:
+        rows = list(raw)
+    except (TypeError, ValueError):
+        return []
+    return [r for row in rows if (r := _record(row)) is not None][-MAX_RECORDS:]
 
 
 def inspect(raw, *, calibration, source_event, account_id, mask_id,
             mask, day, hour, event_id, scale_id, market_id):
     """Return (new_history, accepted, reason), never mutating an input."""
-    if raw is not None and not isinstance(raw, (list, tuple)):
+    if isinstance(raw, (str, bytes, bytearray, Mapping)):
         return [], False, "The scale's stored custody history is malformed."
-    original = list(raw or [])
+    try:
+        original = list(raw) if raw is not None else []
+    except (TypeError, ValueError):
+        return [], False, "The scale's stored custody history is malformed."
     history = normalize(original)
     if len(history) != len(original) or len(original) > MAX_RECORDS:
         return history, False, "The scale's stored custody history is malformed."
