@@ -1448,11 +1448,13 @@ _market_cases = _inquiry_normalize(one("Market Lane").db.market_inquiries)
 assert len(_market_cases) == 1, "Market inquiry was lost or duplicated"
 _market_case = _market_cases[0]
 _detective = one("DetectiveTester")
+_merchant_account_id = AccountDB.objects.get(db_key="qa_merchant_repair").id
+_detective_account_id = AccountDB.objects.get(db_key="qa_detective_inquiry").id
 assert active_calling(_detective) == "detective"
 assert _market_case["source_event_id"] == _market_live["review"]["event_id"]
-assert _market_case["source_account_id"] == merchant_tester.account.id
+assert _market_case["source_account_id"] == _merchant_account_id
 assert _market_case["source_mask_id"] == merchant_tester.id
-assert _market_case["detective_account_id"] == _detective.account.id
+assert _market_case["detective_account_id"] == _detective_account_id
 assert _market_case["detective_mask_id"] == _detective.id
 assert _market_case["source_account_id"] != _market_case["detective_account_id"]
 assert _market_case["scale_id"] == one("a crooked market scale").id
@@ -1464,7 +1466,10 @@ for _kind, _eid, _actor in (
 ):
     _e = warning_ledger.get_event(_eid)
     assert _e and _e["status"] == "complete" and _e["kind"] == _kind
-    assert _e["actor"]["account_id"] == _actor.account.id
+    assert _e["actor"]["account_id"] == (
+        _merchant_account_id if _actor.id == merchant_tester.id
+        else _detective_account_id
+    )
     assert _e["actor"]["mask_id"] == _actor.id
 assert warning_ledger.get_event(_market_case["case_event_id"])["payload"][
     "source_event_id"] == _market_case["source_event_id"]
