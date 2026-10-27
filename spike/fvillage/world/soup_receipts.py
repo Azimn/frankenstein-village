@@ -51,18 +51,24 @@ def _source_valid(row, cooked, prepared):
     if not _event(prepared, "professional.innkeep_soup_prepared", row["prep_event_id"]):
         return False
     cp, cc, ca = cooked["payload"], cooked["consequence"], cooked["actor"]
-    pp, pc = prepared["payload"], prepared["consequence"]
+    pp, pc, pa = prepared["payload"], prepared["consequence"], prepared["actor"]
     return (
         _signed(ca)
+        and _signed(pa)
         and ca["mask_id"] == row["maker_id"]
         and ca["mask"] == row["maker"]
         and cp.get("day") == row["day"]
         and cp.get("base") == row["base"]
         and cp.get("seasoning") == row["seasoning"]
         and cp.get("prep_event_id") == row["prep_event_id"]
+        and cp.get("packet_id") == pc.get("packet_id")
         and cc.get("source_event_id") == row["prep_event_id"]
         and cc.get("quality") == row["quality"]
         and _positive(cc.get("bowl_id"))
+        and _positive(cc.get("pantry_room_id"))
+        and cc.get("pantry_room_id") == pp.get("room_id")
+        and _positive(pp.get("room_id"))
+        and pp.get("day") <= row["day"]
         and pp.get("base") == row["base"]
         and pp.get("seasoning") == row["seasoning"]
         and _positive(pc.get("packet_id"))
