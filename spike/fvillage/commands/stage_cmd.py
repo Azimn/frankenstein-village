@@ -40,7 +40,7 @@ class CmdStage(Command):
         elif raw == ["contest"]:
             result, error = stage_work.act(self.caller, "contest")
         else:
-            self.caller.msg("Use stage | stage rehearse ballad|reel | stage perform ballad|reel | stage witness | stage archive | stage review praise|critique | stage contest <review event>")
+            self.caller.msg("Use stage, stage rehearse ballad (or reel), stage perform ballad (or reel), stage witness, stage archive, stage review praise (or critique), or stage contest <review event>.")
             return
         if error:
             self.caller.msg(error)
