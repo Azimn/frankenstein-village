@@ -5,6 +5,8 @@ teleports, grants a quest reward, or publishes a claim as objective truth.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from django.db import transaction
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
@@ -34,6 +36,23 @@ def _day_hour():
         )
     except ScriptDB.DoesNotExist:
         return 1, 21
+
+
+def _inspected_today(mask, site, day):
+    """Require a valid same-day physical inspection, even for old/corrupt saves."""
+    views = getattr(mask.db, "landmark_latest_view", None)
+    if not isinstance(views, Mapping):
+        return False
+    recent = views.get(site)
+    if not isinstance(recent, Mapping):
+        return False
+    recorded_day = recent.get("day")
+    if isinstance(recorded_day, bool):
+        return False
+    try:
+        return int(recorded_day or 0) == day
+    except (ValueError, TypeError, OverflowError):
+        return False
 
 
 def status_lines():
@@ -165,11 +184,7 @@ def report(mask):
         row["id"] == site
         for row in known_landmarks(mask.db.landmark_discoveries)
     )
-    try:
-        recent = dict(mask.db.landmark_latest_view or {}).get(site) or {}
-        inspected_today = int(recent.get("day") or 0) == day
-    except (ValueError, TypeError, OverflowError):
-        inspected_today = False
+    inspected_today = _inspected_today(mask, site, day)
     if not witnessed or not inspected_today:
         return None, (
             f"First examine {LANDMARKS[site]['key']} here today. "
@@ -267,11 +282,7 @@ def field_action(mask, action):
         return None, "The physical red cord is unavailable."
     day, hour = _day_hour()
     observed = any(e["id"] == site for e in known_landmarks(mask.db.landmark_discoveries))
-    try:
-        recent = dict(mask.db.landmark_latest_view or {}).get(site) or {}
-        today = int(recent.get("day") or 0) == day
-    except (ValueError, TypeError, OverflowError):
-        today = False
+    today = _inspected_today(mask, site, day)
     if not observed or not today:
         return None, "Examine the physical red cord here today first."
     square = _square()
