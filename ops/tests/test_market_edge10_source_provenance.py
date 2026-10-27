@@ -99,6 +99,18 @@ class Edge10SourceVerification(unittest.TestCase):
             market.refresh(self.state, 2), 2, self.ledger.get,
         ))
 
+    def test_corrupt_persisted_attestation_cannot_appear_on_public_board(self):
+        attested, ok, error = signed(self.state, "attest", 11, 14)
+        self.assertTrue(ok, error)
+        forged = copy.deepcopy(attested)
+        forged["attestation"]["calibration_event_id"] = 888
+        self.assertIsNone(market.normalize(forged)["attestation"])
+        self.assertNotIn("attested both source events",
+                         " ".join(market.public_lines(forged, 1)))
+        forged = copy.deepcopy(attested)
+        forged["attestation"]["event_id"] = 10
+        self.assertIsNone(market.normalize(forged)["attestation"])
+
     def test_smith_can_work_without_merchant_or_chronicler(self):
         solo, ok, error = signed(None, "calibrate", 9, 12)
         self.assertTrue(ok, error)
