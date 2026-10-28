@@ -8,8 +8,8 @@ import contextlib
 import sys
 import types
 import unittest
-from collections import UserDict
-from collections.abc import Mapping
+from collections import UserDict, UserList
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 SOURCE = (Path(__file__).resolve().parents[2] /
@@ -23,7 +23,7 @@ def production():
              if isinstance(node, ast.FunctionDef) and node.name in FUNCTIONS]
     if len(nodes) != len(FUNCTIONS):
         raise AssertionError("Production route caution functions not found")
-    ns = {"Mapping": Mapping}
+    ns = {"Mapping": Mapping, "Sequence": Sequence}
     exec(compile(ast.Module(body=nodes, type_ignores=[]),
                  str(SOURCE), "exec"), ns)
     return ns
@@ -147,6 +147,67 @@ class MalformedCautionTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "became malformed"):
                     self.ns["field_action"](mask, action)
 
+
+    def test_third_day_renewal_accepts_persisted_evennia_sequence(self):
+        """Day 6 must accept the day-5 saved history, not just the first renewal."""
+        mask = self._player_scene("hound", UserDict(self.marker))
+        # The adapter test executes the real field_action body, not a
+        # substitute for its persistence and provenance checks.
+        self.ns["route_surveys"] = types.SimpleNamespace(
+            field_decision=lambda *a, **kw: (
+                {"field_decisions": {}}, True, None))
+        signed_day_five = signed_source()
+        signed_day_five["payload"]["day"] = 5
+        signed_day_five["consequence"]["day"] = 5
+        sources = {90: self.source, 99: signed_day_five}
+        self.ns["get_event_ledger"] = lambda: types.SimpleNamespace(
+            get_event=lambda event_id: sources.get(event_id))
+
+        def publish_five(kind, *, actor, payload, consequence):
+            consequence({"id": 99})
+            return {"id": 99}
+
+        self.ns["publish_world_event"] = publish_five
+        result, error = self.ns["field_action"](mask, "protect")
+        self.assertIsNone(error)
+        self.assertEqual(result["event_id"], 99)
+        self.assertEqual(
+            [row["event_id"] for row in self.cord.db.route_caution_history],
+            [90])
+        self.assertEqual(self.cord.db.route_caution["day"], 5)
+
+        # Evennia restores this list as a mutable sequence wrapper on restart.
+        self.cord.db.route_caution_history = UserList(
+            self.cord.db.route_caution_history)
+        mask.db.landmark_latest_view["red_cord"]["day"] = 6
+        self.ns["_day_hour"] = lambda: (6, 20)
+
+        def publish_six(kind, *, actor, payload, consequence):
+            consequence({"id": 100})
+            return {"id": 100}
+
+        self.ns["publish_world_event"] = publish_six
+        result, error = self.ns["field_action"](mask, "protect")
+        self.assertIsNone(error)
+        self.assertEqual(result["event_id"], 100)
+        self.assertEqual(
+            [row["event_id"] for row in self.cord.db.route_caution_history],
+            [90, 99])
+        self.assertEqual(self.cord.db.route_caution["day"], 6)
+        self.assertEqual(self.cord.db.route_caution["prior_caution_event_id"], 99)
+
+    def test_wrapped_history_rejects_malformed_rows_and_strings(self):
+        for bad in (UserList([self.marker, "bad"]),
+                    UserList([self.marker, None]), "bad", b"bad"):
+            with self.subTest(history=repr(bad)):
+                mask = self._player_scene("hound", self.marker)
+                self.cord.db.route_caution_history = bad
+                self.ns["publish_world_event"] = (
+                    lambda kind, *, actor, payload, consequence:
+                    consequence({"id": 99}))
+                with self.assertRaisesRegex(RuntimeError, "history is malformed"):
+                    self.ns["field_action"](mask, "protect")
+                self.assertEqual(self.cord.db.route_caution, self.marker)
 
     def test_corrupt_history_prevents_signed_retying(self):
         mask = self._player_scene("hound", self.marker)
