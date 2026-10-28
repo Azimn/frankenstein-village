@@ -113,5 +113,80 @@ class MalformedStagePersistenceTests(unittest.TestCase):
                       stage.public_lines(state, 4))
 
 
+    def test_corrupt_audience_eligibility_cannot_crash_or_create_witnesses(self):
+        state, ok, reason = stage.rehearse(
+            None, day=4, hour=19, account_id=11, mask_id=111,
+            mask="Performer", tune="ballad", event_id=90)
+        self.assertTrue(ok, reason)
+        state, ok, reason = stage.perform(
+            state, day=4, hour=20, account_id=11, mask_id=111,
+            mask="Performer", tune="ballad", event_id=91,
+            audience_account_ids=[22])
+        self.assertTrue(ok, reason)
+        for corrupt in (None, 22, True, "22", {"account": 22}, object()):
+            with self.subTest(kind=type(corrupt).__name__):
+                forged = {**state, "performance": {
+                    **state["performance"], "eligible_audience_ids": corrupt,
+                }, "witnesses": [{"account_id": 22, "event_id": 92}]}
+                restored = stage.normalize(forged)
+                self.assertEqual(
+                    restored["performance"]["eligible_audience_ids"], [])
+                self.assertEqual(restored["witnesses"], [])
+                _, allowed, error = stage.witness(
+                    forged, day=4, hour=20, account_id=22, mask_id=222,
+                    mask="Listener", event_id=93)
+                self.assertFalse(allowed)
+                self.assertIn("present for the actual performance", error)
+                self.assertIn(
+                    "0 other player account(s) witnessed",
+                    stage.public_lines(forged, 4))
+
+    def test_persisted_audience_eligibility_is_bounded_and_independent(self):
+        state, ok, reason = stage.rehearse(
+            None, day=4, hour=19, account_id=11, mask_id=111,
+            mask="Performer", tune="reel", event_id=100)
+        self.assertTrue(ok, reason)
+        state, ok, reason = stage.perform(
+            state, day=4, hour=20, account_id=11, mask_id=111,
+            mask="Performer", tune="reel", event_id=101,
+            audience_account_ids=[22])
+        self.assertTrue(ok, reason)
+        wrapped = {**state, "performance": {
+            **state["performance"],
+            "eligible_audience_ids": UserList([22, 22, 11, True, "bad"]),
+        }, "witnesses": UserList([
+            UserDict({"account_id": 22, "event_id": 102}),
+            UserDict({"account_id": 22, "event_id": 103}),
+            UserDict({"account_id": 33, "event_id": 104}),
+        ])}
+        restored = stage.normalize(wrapped)
+        self.assertEqual(
+            restored["performance"]["eligible_audience_ids"], [22])
+        self.assertEqual(len(restored["witnesses"]), 1)
+        self.assertEqual(restored["witnesses"][0]["event_id"], 102)
+        _, allowed, error = stage.witness(
+            wrapped, day=4, hour=20, account_id=22, mask_id=222,
+            mask="Listener", event_id=105)
+        self.assertFalse(allowed)
+        self.assertIn("already witnessed", error)
+
+    def test_historical_day_strings_normalize_without_future_claims(self):
+        state = {"day": 5, "history": UserList([
+            UserDict({"day": "4", "performance": UserDict({
+                "mask": "Earlier Performer"})}),
+            UserDict({"day": 8, "performance": UserDict({
+                "mask": "Future Forgery"})}),
+            UserDict({"day": "invalid", "performance": UserDict({
+                "mask": "Bad Date"})}),
+        ])}
+        restored = stage.normalize(state)
+        self.assertEqual(len(restored["history"]), 1)
+        self.assertEqual(restored["history"][0]["day"], 4)
+        status = stage.public_lines(state, 5)
+        self.assertIn("Previous recorded show: Earlier Performer, day 4", status)
+        self.assertNotIn("Future Forgery", status)
+
+
+
 if __name__ == "__main__":
     unittest.main()
