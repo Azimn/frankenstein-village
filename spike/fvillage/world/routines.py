@@ -360,7 +360,18 @@ def restock_sideboard():
     tavern = _room("The Blood of the Vine")
     if not tavern:
         return []
-    keeper = next((o for o in tavern.contents if o.key == "Bram"), None)
+    # A player or prop named Bram cannot refill the house board. Require
+    # the actual keeper typeclass, not merely the display name.
+    keeper = next(
+        (
+            o for o in tavern.contents
+            if o.key == "Bram"
+            and getattr(o, "typeclass_path", None)
+            == "typeclasses.characters.TavernKeeper"
+            and not getattr(o, "has_account", False)
+        ),
+        None,
+    )
     if keeper is None:
         return []  # nobody's hands to set it out
     # One-time, idempotent compatibility for worlds built before the house
