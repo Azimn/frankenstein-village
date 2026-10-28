@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "ops"))
 from content_inventory import build_inventory  # noqa: E402
 from game_completion_audit import TARGETS, CALLING_FIELDS, build_audit, to_markdown  # noqa: E402
 from gdd_g01_evidence_register import (  # noqa: E402
-    PROOF_FIELDS, build_register, to_markdown as g01_markdown,
+    PROOF_FIELDS, COVERAGE_FIELDS, build_register, to_markdown as g01_markdown,
 )
 from gdd_g01_ci_observations import (  # noqa: E402
     load_ci_observations, _call_nodes, _player_command, _printed_marker,
@@ -114,6 +114,9 @@ class CompletionAuditTests(unittest.TestCase):
                           for kind in "VSDC"}, {"V": 6, "S": 6, "D": 24, "C": 9})
         self.assertEqual(evidence["source_ref"], "explicit-fixture-commit")
         self.assertFalse(evidence["package_complete"])
+        self.assertTrue(evidence["coverage_index_complete"])
+        self.assertEqual(evidence["package_gate"],
+                         "index_built_pending_independent_review_and_main_integration")
         self.assertFalse(evidence["live_game_session_executed"])
 
     def test_g01_command_line_exports_reproducible_evidence_json(self):
@@ -131,6 +134,7 @@ class CompletionAuditTests(unittest.TestCase):
         self.assertEqual(len(cards["edges"]), 45)
         self.assertFalse(cards["live_game_session_executed"])
         self.assertFalse(cards["package_complete"])
+        self.assertTrue(cards["coverage_index_complete"])
 
     def test_g01_verified_evidence_is_never_invented_from_source(self):
         evidence = build_register(ROOT, source_ref="unit-fixture")
@@ -149,6 +153,45 @@ class CompletionAuditTests(unittest.TestCase):
         self.assertEqual((evidence["verified_family_count"],
                           evidence["verified_calling_count"],
                           evidence["verified_edge_count"]), (0, 0, 0))
+
+    def test_g01_every_card_has_explicit_evidence_contract(self):
+        cards = build_register(ROOT, source_ref="coverage-fixture")
+        self.assertTrue(cards["coverage_index_complete"])
+        self.assertEqual(
+            sum(len(cards[group]) for group in ("families", "callings", "edges")),
+            76,
+        )
+        for group in ("families", "callings", "edges"):
+            for card in cards[group]:
+                with self.subTest(group=group, id=card.get("id", card.get("calling"))):
+                    cover = card["coverage"]
+                    self.assertEqual(
+                        set(cover), set(COVERAGE_FIELDS) | {"proof_level", "unknown_fields"}
+                    )
+                    self.assertTrue(cover["source_file"])
+                    self.assertEqual(
+                        set(cover["unknown_fields"]),
+                        {key for key in COVERAGE_FIELDS if cover[key] is None},
+                    )
+                    self.assertIsNone(cover["uncoached_ux"])
+                    self.assertFalse(card["verified_complete"])
+                    if group in ("callings", "edges"):
+                        self.assertTrue(cover["world_owner"])
+        partial = [e for e in cards["edges"]
+                   if e["coverage"]["proof_level"].startswith("historical")]
+        self.assertEqual({e["number"] for e in partial},
+                         {3, 4, 6, 10, 12, 19, 38})
+        for edge in partial:
+            cover = edge["coverage"]
+            self.assertTrue(cover["player_command"])
+            self.assertTrue(cover["room"])
+            self.assertTrue(cover["signed_transition"])
+            self.assertTrue(cover["restart_proof"]["marker"])
+            self.assertIsNone(cover["uncoached_ux"])
+        for edge in cards["edges"]:
+            if edge not in partial:
+                self.assertIsNone(edge["coverage"]["signed_transition"])
+                self.assertIsNone(edge["coverage"]["restart_proof"])
 
     def test_g01_real_client_restart_ci_receipts_are_bounded(self):
         source = load_ci_observations(ROOT)
