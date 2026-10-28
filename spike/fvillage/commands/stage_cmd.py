@@ -12,6 +12,7 @@ class CmdStage(Command):
         stage perform ballad
         stage perform reel
         stage witness
+        stage serve <musician or signed witness>   (Innkeep, real soup bowl)
 
     Performers must practice before playing a public set. The world records
     only real player action, never an imagined audience.
@@ -29,10 +30,12 @@ class CmdStage(Command):
             return
         if raw == ["witness"]:
             result, error = stage_work.act(self.caller, "witness")
+        elif len(raw) >= 2 and raw[0] == "serve":
+            result, error = stage_work.serve(self.caller, " ".join(raw[1:]))
         elif len(raw) == 2 and raw[0] in ("rehearse", "perform"):
             result, error = stage_work.act(self.caller, raw[0], raw[1])
         else:
-            self.caller.msg("Use stage | stage rehearse ballad|reel | stage perform ballad|reel | stage witness")
+            self.caller.msg("Use stage | stage rehearse ballad|reel | stage perform ballad|reel | stage witness | stage serve <player>")
             return
         if error:
             self.caller.msg(error)
@@ -47,6 +50,10 @@ class CmdStage(Command):
                        "The Tavern records the music as world event %s, "
                        "without inventing spectators."
                        % (result["tune"], result["event_id"]))
+        elif action == "serve":
+            message = ("You serve a real cooked soup bowl to %s after the actual "
+                       "Tavern performance (world event %s). The bowl is now "
+                       "in their inventory." % (result["recipient"], result["event_id"]))
         else:
             message = ("You sign that you actually witnessed this hour's music "
                        "(world event %s)." % result["event_id"])

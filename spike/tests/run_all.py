@@ -506,6 +506,40 @@ def main() -> int:
             day4_restart_env["FV_T13_DAY4_RESTART"] = "1"
             run([evennia, "shell"], cwd=game, env=day4_restart_env,
                 input_text=day4_assertions)
+
+            # GDD T-09: all standard finite Tavern dishes are exhausted.
+            # A logged-in Smith (not an Innkeep) must be able to prepare
+            # and eat exactly one plain portion from the existing real
+            # communal pantry. The signed physical bowl and changed hunger
+            # must survive an actual Evennia server process restart.
+            t09_setup = (
+                checkout / "spike" / "tests" / "gdd_t09_relief_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env, input_text=t09_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [
+                        vpython,
+                        checkout / "spike" / "tests" / "telnet_t09_depleted_relief.py",
+                        "--host", "127.0.0.1", "--port", "4000",
+                    ],
+                    cwd=checkout, env=env, timeout=90,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            # Persisted result is checked only after a fresh real server
+            # process has started and stopped, never against live caches.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            t09_assertions = (
+                checkout / "spike" / "tests"
+                / "gdd_t09_relief_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=t09_assertions)
         except Exception:
             dump_logs(game)
             raise

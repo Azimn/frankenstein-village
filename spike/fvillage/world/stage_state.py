@@ -7,11 +7,13 @@ accounts may explicitly witness it during that village hour.
 from __future__ import annotations
 
 import copy
+from collections.abc import Sequence
 
 TUNES = ("ballad", "reel")
 MAX_HISTORY = 32
 MAX_REHEARSALS = 12
 MAX_WITNESSES = 20
+MAX_HOSPITALITY = 20
 
 
 def _ident(value):
@@ -67,6 +69,34 @@ def normalize(raw):
                     and _ident(r.get("event_id"))):
                 result["witnesses"].append(dict(r))
     result["witnesses"] = result["witnesses"][-MAX_WITNESSES:]
+    if result["performance"] is not None:
+        show = result["performance"]
+        raw_meals = show.get("hospitality") or []
+        # Evennia deserializes Attribute-backed lists as _SaverList, a
+        # MutableSequence rather than a built-in list. Preserve signed
+        # hospitality rows when reading the actual persisted room state.
+        if not isinstance(raw_meals, Sequence) or isinstance(
+            raw_meals, (str, bytes, bytearray)
+        ):
+            raw_meals = []
+        accepted = []
+        seen = set()
+        witnessed = {r["account_id"] for r in result["witnesses"]}
+        for row in raw_meals[-MAX_HOSPITALITY * 2:]:
+            if not hasattr(row, "get"):
+                continue
+            guest = _ident(row.get("recipient_account_id"))
+            innkeep = _ident(row.get("account_id"))
+            if (not guest or not innkeep or guest == innkeep
+                    or guest in seen
+                    or guest not in witnessed | {show["account_id"]}
+                    or not all(_ident(row.get(k)) for k in
+                               ("event_id", "mask_id", "recipient_mask_id",
+                                "bowl_id", "cook_event_id"))):
+                continue
+            accepted.append(dict(row))
+            seen.add(guest)
+        show["hospitality"] = accepted[-MAX_HOSPITALITY:]
     result["history"] = [
         copy.deepcopy(r) for r in list(raw.get("history") or [])
         if hasattr(r, "get") and _ident(r.get("day"))
@@ -166,6 +196,48 @@ def witness(raw, *, day, hour, account_id, mask_id, mask, event_id):
     return state, True, None
 
 
+def serve(raw, *, day, hour, account_id, mask_id, mask, event_id,
+          recipient_account_id, recipient_mask_id, bowl_id, cook_event_id):
+    """Signed catering for a real musician or firsthand audience member."""
+    state = refresh(raw, day)
+    if not _time(day, hour) or day < state["day"]:
+        return state, False, "The village clock cannot be rewound."
+    aid, mid, eid = _ident(account_id), _ident(mask_id), _ident(event_id)
+    guest = _ident(recipient_account_id)
+    guest_mask = _ident(recipient_mask_id)
+    bowl, cook = _ident(bowl_id), _ident(cook_event_id)
+    if not all((aid, mid, eid, guest, guest_mask, bowl, cook)):
+        return state, False, "Real players, a physical bowl and signed events are required."
+    show = state["performance"]
+    if not show or show["hour"] != hour:
+        return state, False, "No actual performance is available for service this hour."
+    if aid == guest:
+        return state, False, "You cannot record a hospitality service to yourself."
+    if guest == show["account_id"]:
+        if guest_mask != show["mask_id"]:
+            return state, False, "The performer has changed masks."
+        role = "performer"
+    elif any(r["account_id"] == guest and r["mask_id"] == guest_mask
+             for r in state["witnesses"]):
+        role = "signed_witness"
+    else:
+        return state, False, "The guest is not the actual performer or a signed firsthand witness."
+    served = show.setdefault("hospitality", [])
+    if any(r["recipient_account_id"] == guest for r in served):
+        return state, False, "That guest has already been served for this performance."
+    if len(served) >= MAX_HOSPITALITY:
+        return state, False, "Today's performance hospitality book is full."
+    if any(r["bowl_id"] == bowl for r in served):
+        return state, False, "That physical soup bowl has already been served."
+    served.append({
+        "account_id": aid, "mask_id": mid, "mask": str(mask)[:70],
+        "recipient_account_id": guest, "recipient_mask_id": guest_mask,
+        "recipient_role": role, "bowl_id": bowl,
+        "cook_event_id": cook, "event_id": eid, "hour": hour,
+    })
+    return state, True, None
+
+
 def public_lines(raw, day):
     state = refresh(raw, day)
     lines = ["The Tavern stage", "Today: village day %d." % state["day"]]
@@ -175,6 +247,8 @@ def public_lines(raw, day):
                      % (p["mask"], p["tune"], p["hour"]))
         lines.append("%d other player account(s) witnessed it firsthand."
                      % len(state["witnesses"]))
+        lines.append("%d real soup serving(s) given to the musician or signed witnesses."
+                     % len(p.get("hospitality") or []))
     else:
         lines.append("No public performance has occurred today.")
     if state["history"]:
@@ -183,4 +257,5 @@ def public_lines(raw, day):
                      % (last["performance"]["mask"], last["day"]))
     lines.append("Performers: stage rehearse ballad|reel, then stage perform ballad|reel.")
     lines.append("During the actual performance hour, other visitors may stage witness.")
+    lines.append("Innkeepers with a real cooked soup bowl may stage serve <musician or signed witness>.")
     return "\n".join(lines)

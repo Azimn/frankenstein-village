@@ -246,7 +246,7 @@ class SpikeCharacter(Character):
         The same projection is available in score deep and agent context.
         """
         from world.embodied_perception import perception
-        return perception(
+        snapshot = perception(
             hunger=50 if self.db.hunger is None else self.db.hunger,
             warmth=1.0 if self.db.warmth is None else self.db.warmth,
             drunkenness=0 if self.db.drunkenness is None else self.db.drunkenness,
@@ -254,6 +254,18 @@ class SpikeCharacter(Character):
             seated=bool(self.db.posture),
             place=self.location.key if self.location else None,
         )
+        # Only a co-located mask learns the kitchen's currently usable
+        # resources. An empty pantry must never advertise a phantom meal.
+        if (self.location and self.location.key == "The Blood of the Vine"
+                and snapshot["bands"]["hunger"] in ("hungry", "famished")):
+            from world.soup_kitchen import can_make_ration
+            if can_make_ration():
+                snapshot["possible_relief"].append(
+                    "The communal Tavern pantry has ingredients for a plain "
+                    "meal right now. Use soup ration, then eat plain broth. "
+                    "The ingredients and finished serving are finite."
+                )
+        return snapshot
 
     def hunger_band(self):
         h = self._hunger()

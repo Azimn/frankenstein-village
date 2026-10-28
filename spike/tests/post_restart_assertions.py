@@ -168,11 +168,12 @@ _soup_log = soup_state.pantry(_tavern_soup.db.soup_pantry, 1)
 assert _soup_log["history"], "The shared soup pot lost all batches"
 _batch = _soup_log["history"][-1]
 assert _batch["maker_id"] == innkeep_tester.id
-assert _batch["base"] == "turnip" and _batch["seasoning"] == "thyme"
+assert _batch["base"] == "barley" and _batch["seasoning"] == "salt"
+assert _soup_log["history"][-2]["base"] == "turnip"
 assert _batch["prep_event_id"] < _batch["cook_event_id"]
-assert innkeep_record["participation"]["soup_preparations"] == 1
-assert innkeep_record["participation"]["soup_batches_cooked"] == 1
-assert len(list(innkeep_tester.db.soup_notebook or [])) == 1
+assert innkeep_record["participation"]["soup_preparations"] == 2
+assert innkeep_record["participation"]["soup_batches_cooked"] == 2
+assert len(list(innkeep_tester.db.soup_notebook or [])) == 2
 assert list(innkeep_tester.db.soup_notebook)[-1]["cook_event_id"] == _batch["cook_event_id"]
 assert calling_record(merchant_tester, "merchant")["participation"]["kitchen_procurements"] == 1
 _soup_cooked = ScriptDB.objects.get(db_key="world_event_ledger").get_event(_batch["cook_event_id"])
@@ -185,6 +186,9 @@ assert not [obj for obj in innkeep_tester.contents if obj.key == "a packet of so
 _soup_bowl = one("a bowl of turnip and thyme soup")
 assert _soup_bowl.location == innkeep_tester
 assert _soup_bowl.db.servings == 0, "Consumed bowl refilled across restart"
+_stage_served_bowl = one("a bowl of barley and salt soup")
+assert _stage_served_bowl.location == one("PerformerTester")
+assert _stage_served_bowl.db.servings == 0, "Served and eaten soup was refilled"
 assert one("a communal soup pot").location == _tavern_soup
 print("POST_RESTART_SHARED_SOUP_WORKPLACE_GREEN")
 
@@ -1288,6 +1292,28 @@ assert _stage["performance"] is not None, "The performance vanished after restar
 assert _stage["performance"]["mask_id"] == _stage_performer.id
 assert _stage["performance"]["tune"] == "ballad"
 assert len(_stage["witnesses"]) == 1
+_raw_stage = _stage_tavern.db.village_stage or {}
+_raw_show = _raw_stage.get("performance") or {}
+assert len(_stage["performance"]["hospitality"]) == 1, (
+    "The restart lost or rejected the actual signed Innkeep stage service: "
+    "raw hospitality=%r; normalized hospitality=%r; "
+    "raw show account=%r; witnessed accounts=%r; performer account=%r"
+    % (_raw_show.get("hospitality"),
+       _stage["performance"].get("hospitality"),
+       _raw_show.get("account_id"),
+       [r.get("account_id") for r in _stage["witnesses"]],
+       _stage["performance"].get("account_id"))
+)
+_stage_service = _stage["performance"]["hospitality"][0]
+assert _stage_service["recipient_mask_id"] == _stage_performer.id
+assert _stage_service["bowl_id"] == _stage_served_bowl.id
+assert _stage_service["cook_event_id"] == _batch["cook_event_id"]
+assert calling_record(innkeep_tester, "innkeep")["participation"]["stage_hospitality"] == 1
+_stage_service_event = warning_ledger.get_event(_stage_service["event_id"])
+assert _stage_service_event["kind"] == "village.stage_hospitality"
+assert _stage_service_event["status"] == "complete"
+assert _stage_service_event["consequence"]["bowl_id"] == _stage_served_bowl.id
+print("POST_RESTART_EDGE_06_STAGE_HOSPITALITY_GREEN")
 assert _stage["witnesses"][0]["mask"] == "InnkeepTester"
 # GDD T-06: HealerTester left the room before the show, arrived afterward,
 # and was refused a firsthand witness record by the ordinary stage command.

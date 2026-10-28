@@ -360,11 +360,51 @@ def restock_sideboard():
     tavern = _room("The Blood of the Vine")
     if not tavern:
         return []
-    keeper = next((o for o in tavern.contents if o.key == "Bram"), None)
+    # A player or prop named Bram cannot refill the house board. Require
+    # the actual keeper typeclass, not merely the display name.
+    keeper = next(
+        (
+            o for o in tavern.contents
+            if o.key == "Bram"
+            and getattr(o, "typeclass_path", None)
+            == "typeclasses.characters.TavernKeeper"
+            and not getattr(o, "has_account", False)
+        ),
+        None,
+    )
     if keeper is None:
         return []  # nobody's hands to set it out
+    # One-time, idempotent compatibility for worlds built before the house
+    # origin tag existed. Match the original finite fare's exact identity,
+    # category and recipe metadata, and refuse ambiguous duplicate keys.
+    # Never infer house origin from a generic consumable or a cooked bowl.
+    legacy_house = {
+        "a loaf of bread": ("food", "bread", 6),
+        "a wedge of cheese": ("food", "cheese", 5),
+        "a bowl of stew": ("food", "stew", 8),
+        "a tankard of ale": ("drink", "ale", 8),
+        "a cup of wine": ("drink", "wine", 6),
+    }
+    keys = [obj.key for obj in tavern.contents]
     refilled = []
     for obj in tavern.contents:
+        # Player-cooked bowls are finite even when dropped in the Tavern.
+        if obj.db.kitchen_ration or obj.db.soup_serving:
+            continue
+        if not obj.tags.has("house-sideboard-fare", category="origin"):
+            signature = legacy_house.get(obj.key)
+            if signature is None or keys.count(obj.key) != 1:
+                continue
+            category, short, expected_max = signature
+            data = obj.db.consume or {}
+            if (
+                not obj.tags.has("consumable")
+                or not obj.tags.has(category)
+                or data.get("short") != short
+                or data.get("servings_max") != expected_max
+            ):
+                continue
+            obj.tags.add("house-sideboard-fare", category="origin")
         data = obj.db.consume or {}
         max_s = mechanical_value(obj, "uses", None)
         if max_s is None:
