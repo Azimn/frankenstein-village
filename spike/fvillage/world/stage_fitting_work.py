@@ -113,6 +113,22 @@ def _verified_plays(tavern):
     if state["condition"] == "invalid":
         return False, "The physical rail record is inconsistent."
     fitting = state["fitting"]
+    ledger = get_event_ledger()
+    # A valid-looking old Attribute snapshot cannot erase a completed set.
+    # Reconcile against the full canonical ledger, including entries omitted
+    # from the mutable Tavern record. A mere subset check is not sufficient.
+    completed = [
+        e for e in (ledger.db.events or [])
+        if hasattr(e, "get")
+        and e.get("kind") == "professional.stage_acoustic_played"
+        and e.get("status") == "complete"
+        and hasattr(e.get("payload"), "get")
+        and e["payload"].get("tavern_id") == tavern.id
+        and e["payload"].get("fitting_event_id") == fitting["event_id"]
+    ]
+    if [e.get("id") for e in completed] != [
+            p["event_id"] for p in state["plays"]]:
+        return False, "The stage rail history omits or reorders a completed signed acoustic set."
     for index, play in enumerate(state["plays"]):
         event = get_event_ledger().get_event(play["event_id"])
         if (not event or event.get("status") != "complete"
