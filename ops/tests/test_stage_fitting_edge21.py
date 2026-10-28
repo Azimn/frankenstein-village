@@ -111,6 +111,8 @@ class StageRailTests(unittest.TestCase):
             dict(a, soundcheck=dict(a["soundcheck"], account_id=7)),
             dict(a, plays=[dict(a["plays"][0], tune="ghost")]),
             dict(a, plays="fake"),
+            dict(condition="worn", fitting=None, soundcheck=None,
+                 plays=a["plays"], remaining=0),
         ):
             self.assertEqual(rail.normalize(broken)["condition"], "invalid")
             _state, ok, _why = play(broken, day=5)
