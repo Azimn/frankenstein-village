@@ -57,7 +57,7 @@ def _core_distributions(path, visited=None):
             # Never infer the package identity from an archive filename.
             declaration = line.split(" #", 1)[0].strip()
             if ("file:" in declaration.lower() or re.search(
-                r"\\.(?:whl|zip|egg|tar(?:\\.(?:gz|bz2|xz))?|tgz)(?:[?#].*)?$",
+                r"\.(?:whl|zip|egg|tar(?:\.(?:gz|bz2|xz))?|tgz)(?:[?#].*)?$",
                 declaration, re.IGNORECASE,
             )):
                 raise AssertionError(f"Uninspectable core archive: {line}")
@@ -115,10 +115,10 @@ class ModelFreeContractTests(unittest.TestCase):
         with TemporaryDirectory(dir=ROOT) as temp:
             directory = Path(temp)
             (directory / "nested.txt").write_text(
-                "ollama-0.6.1-py3-none-any.whl\\n", encoding="utf-8"
+                "ollama-0.6.1-py3-none-any.whl\n", encoding="utf-8"
             )
             (directory / "requirements.txt").write_text(
-                "-r nested.txt\\n", encoding="utf-8"
+                "-r nested.txt\n", encoding="utf-8"
             )
             with self.assertRaisesRegex(AssertionError, "Uninspectable core archive"):
                 _core_distributions(directory / "requirements.txt")
