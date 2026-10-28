@@ -108,6 +108,16 @@ class CautionAdapterTests(unittest.TestCase):
             return {"id": 41}
         self.work.publish_world_event = publish
 
+    def _prepare_report_landmarks(self):
+        # The adapter's route lookup iterates all four canonical landmarks.
+        # Supply the other three nonmatching rooms in this isolated fixture.
+        self.work.LANDMARKS = {
+            **{site: {"room": site, "key": site}
+               for site in route_surveys.SITES if site != "red_cord"},
+            "red_cord": {"room": "The Northern Treeline",
+                         "key": "a frayed red cord"},
+        }
+
     def test_signed_public_route_report_requires_same_account_clock_and_inspection(self):
         # Exercise the real report adapter, not only the pure state machine.
         for label, change in (
@@ -122,6 +132,7 @@ class CautionAdapterTests(unittest.TestCase):
         ):
             with self.subTest(race=label):
                 self.setUp()
+                self._prepare_report_landmarks()
                 actor = self._hound_renewal_actor()
                 self.mutate = lambda: change(actor)
                 with self.assertRaises(RuntimeError):
@@ -132,6 +143,7 @@ class CautionAdapterTests(unittest.TestCase):
                 self.assertEqual(self.published, [])
 
     def test_signed_public_route_report_commits_legitimate_firsthand_observation(self):
+        self._prepare_report_landmarks()
         actor = self._hound_renewal_actor()
         result, error = self.work.report(actor)
         self.assertIsNone(error)
