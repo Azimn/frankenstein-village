@@ -48,7 +48,7 @@ class MasterGDDProgramTests(unittest.TestCase):
         ids=[x["id"] for x in work]
         self.assertEqual(len(ids),len(set(ids)))
         statuses={x["status"] for x in work}
-        self.assertTrue(statuses <= {"planned", "in_progress", "verified"})
+        self.assertTrue(statuses <= {"planned", "in_progress", "ready_for_review", "verified"})
         self.assertEqual(len(work),14)
         parents={x["id"]:x["depends"] for x in work}
         indexed={x["id"]:x for x in work}
@@ -58,6 +58,13 @@ class MasterGDDProgramTests(unittest.TestCase):
             self.assertIsInstance(evidence,list)
             if status=="planned":
                 self.assertEqual(evidence,[],package["id"])
+            if status=="ready_for_review":
+                self.assertEqual(evidence,[], "Review-ready is not accepted")
+                self.assertTrue(package.get("delivery_evidence"),
+                                "Review-ready package needs source-linked deliverables")
+                self.assertTrue(all(indexed[parent]["status"]=="verified"
+                                    for parent in package["depends"]))
+                self.assertTrue((ROOT / "ops/FV_G01_PACKAGE_HANDOFF_2026-10-27.md").is_file())
             if status=="verified":
                 self.assertTrue(evidence,"Verified package needs recorded proof")
                 self.assertTrue(
