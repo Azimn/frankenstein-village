@@ -8,6 +8,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", required=True)
     parser.add_argument("--port", required=True, type=int)
+    parser.add_argument("--third-day", action="store_true")
     args = parser.parse_args()
     hound = Client(args.host, args.port)
     performer = Client(args.host, args.port)
@@ -43,7 +44,10 @@ def main():
         require(performer.command("stage perform ballad"), "cancelled")
         require_all(performer.command("stage"), "hound signed", "performer chose cancel",
                     "no public performance")
-        print("TELNET_GDD_EDGE41_LATER_DAY_SIGNED_WARNING_AND_CANCEL_GREEN")
+        if args.third_day:
+            print("TELNET_GDD_EDGE41_THIRD_DAY_SIGNED_WARNING_AND_CANCEL_GREEN")
+        else:
+            print("TELNET_GDD_EDGE41_LATER_DAY_SIGNED_WARNING_AND_CANCEL_GREEN")
     finally:
         hound.close()
         performer.close()
