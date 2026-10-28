@@ -62,6 +62,12 @@ def status_lines():
                 f"* {spec['room']}: not yet inspected. Find "
                 f"{spec['key']} and examine it."
             )
+    # The public Hound attribution must also be tied to the signed physical
+    # source. A damaged Square label is not independent eyewitness evidence.
+    if (state["field_decisions"].get("hound")
+            and not _signed_hound_source(square, day, 23)):
+        state["field_decisions"].pop("hound", None)
+        state["caution_notice"] = None
     # Never expose an unsupported publication as a verified public notice.
     if state.get('caution_notice') and not _verified_notice(square, state, day):
         state['caution_notice'] = None
