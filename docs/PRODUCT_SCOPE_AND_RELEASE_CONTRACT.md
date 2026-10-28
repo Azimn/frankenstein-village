@@ -36,9 +36,12 @@ communications, professions, inventory, clues, work, events, and logout are
 identical regardless of player substrate. AI-controlled *clients* may connect
 as regular accounts with the same constraints. The read-only `agent` and
 `agentlogin` commands are convenient optional accessibility envelopes, not
-proof that a model is installed or required. AI-driven playtests may be run
-separately by willing researchers; they cannot veto an otherwise verified
-normal-player release. The game server never supplies their language model.
+proof that a model is installed or required. A model-led playtest is optional, but the mixed-world contract is not:
+normal-client acceptance must demonstrate that human- and AI-declared accounts
+share the same permissions, discoverable commands, persistent consequences,
+and multiplayer interactions. AI-operated players remain first-class citizens
+of the village under the World Bible. The game server never supplies their
+language model, and external inference is not a startup or release dependency.
 
 ## Player-facing definition of done
 
