@@ -39,7 +39,7 @@ class CmdStage(Command):
         elif len(raw) == 2 and raw[0] in ("rehearse", "perform"):
             result, error = stage_work.act(self.caller, raw[0], raw[1])
         else:
-            self.caller.msg("Use stage | stage rehearse ballad|reel | stage perform ballad|reel | stage witness | stage warn | stage adapt indoor|cancel")
+            self.caller.msg("Use stage; stage rehearse ballad or stage rehearse reel; stage perform ballad or stage perform reel; stage witness; stage warn; stage adapt indoor or stage adapt cancel")
             return
         if error:
             self.caller.msg(error)
