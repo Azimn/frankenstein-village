@@ -542,13 +542,13 @@ def main() -> int:
             # avoids another midnight transition during an authenticated
             # refusal, without ever backdating the clock or world receipts.
             edge18_future_day = (
-                "from evennia.scripts.models import ScriptDB\\n"
-                "clock = ScriptDB.objects.get(db_key='village_time')\\n"
-                "before = (int(clock.db.day), int(clock.db.hour))\\n"
-                "clock.db.day = before[0] + 1\\n"
-                "clock.db.hour = 0\\n"
-                "assert (int(clock.db.day), int(clock.db.hour)) > before\\n"
-                "print('EDGE18_AUTH_NEGATIVE_FUTURE_DAY_READY')\\n"
+                "from evennia.scripts.models import ScriptDB\n"
+                "clock = ScriptDB.objects.get(db_key='village_time')\n"
+                "before = (int(clock.db.day), int(clock.db.hour))\n"
+                "clock.db.day = before[0] + 1\n"
+                "clock.db.hour = 0\n"
+                "assert (int(clock.db.day), int(clock.db.hour)) > before\n"
+                "print('EDGE18_AUTH_NEGATIVE_FUTURE_DAY_READY')\n"
             )
             run([evennia, "shell"], cwd=game, env=env,
                 input_text=edge18_future_day)
