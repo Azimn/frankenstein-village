@@ -50,6 +50,7 @@ class PlainRationTests(unittest.TestCase):
             ast.Module(body=funcs, type_ignores=[])),
             str(path), "exec"), self.ns)
         self.day = 1
+        self.hour = 21
         self.tavern = SimpleNamespace(
             id=55, key="The Blood of the Vine",
             db=SimpleNamespace(soup_pantry=soup_state.pantry(None, 1)))
@@ -83,7 +84,7 @@ class PlainRationTests(unittest.TestCase):
                 else (None, "You must be in the IC kitchen.")
             ),
             "_room": lambda name: self.tavern,
-            "_clock": lambda: (self.day, 21),
+            "_clock": lambda: (self.day, self.hour),
             "soup_state": soup_state,
             "transaction": SimpleNamespace(atomic=nullcontext),
             "create_object": create_object,
@@ -169,6 +170,17 @@ class PlainRationTests(unittest.TestCase):
         result, error = self.ns["ration"](self.mask)
         self.assertIsNone(result)
         self.assertIn("ic kitchen", error.lower())
+
+    def test_hour_change_rejects_stale_broth_receipt_without_spending_food(self):
+        """A late event must not sign a broth meal for an earlier hour."""
+        initial = copy.deepcopy(self.tavern.db.soup_pantry)
+        self.before_consequence = lambda: setattr(self, "hour", 22)
+        result, error = self.ns["ration"](self.mask)
+        self.assertIsNone(result)
+        self.assertIn("hour changed", error.lower())
+        self.assertEqual(self.tavern.db.soup_pantry, initial)
+        self.assertEqual(self.created, [])
+        self.assertEqual(self.events, [])
 
     def test_spent_bowls_do_not_block_new_but_three_live_do(self):
         spent = FakeBowl(self.mask, 802)
