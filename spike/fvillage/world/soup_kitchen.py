@@ -16,7 +16,7 @@ from evennia.utils import search
 
 from world import soup_state, hearth_state
 from world.callings import active_calling, record_participation
-from world.events import publish_world_event
+from world.events import publish_world_event, get_event_ledger
 
 TAVERN = "The Blood of the Vine"
 MARKET = "Market Lane"
@@ -535,6 +535,37 @@ def deliver(mask):
     if day < source["day"]:
         return None, "The crate's procurement lies in the future."
 
+    def procurement_is_signed():
+        """Bind the physical crate to its completed canonical market event.
+
+        A plausible-looking item attribute is not evidence that any Merchant
+        spent a finite market crate. The ledger is the existing authority.
+        """
+        record = get_event_ledger().get_event(source["procurement_event_id"])
+        if not isinstance(record, dict):
+            return False
+        actor = record.get("actor")
+        payload = record.get("payload")
+        consequence = record.get("consequence")
+        return (
+            record.get("kind") == "professional.merchant_kitchen_procurement"
+            and record.get("status") == "complete"
+            and isinstance(actor, dict)
+            and type(actor.get("mask_id")) is int
+            and actor["mask_id"] == source["merchant_id"]
+            and isinstance(payload, dict)
+            and type(payload.get("day")) is int
+            and payload["day"] == source["day"]
+            and type(payload.get("market_room_id")) is int
+            and payload["market_room_id"] == market.id
+            and isinstance(consequence, dict)
+            and type(consequence.get("crate_id")) is int
+            and consequence["crate_id"] == crate.id
+        )
+
+    if not procurement_is_signed():
+        return None, "The crate has no completed Merchant procurement in the world ledger."
+
     def consequence(event):
         # Another player can fill the pantry between the preview and event.
         # The crate is consumed only after revalidating the real shared stock.
@@ -553,6 +584,8 @@ def deliver(mask):
                 raise RuntimeError("The village hour changed before delivery.")
             if crate.location != mask or dict(crate.db.soup_delivery or {}) != source:
                 raise RuntimeError("The physical kitchen crate changed hands or contents.")
+            if not procurement_is_signed():
+                raise RuntimeError("The crate\'s signed procurement changed before delivery.")
             updated, accepted = soup_state.deliver(
                 tavern.db.soup_pantry, day)
             if not accepted:
