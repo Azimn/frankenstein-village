@@ -317,8 +317,15 @@ def safety_action(mask, action, choice=None):
 
     def consequence(event):
         with transaction.atomic():
-            if mask.location != tavern or active_calling(mask) != role:
-                raise RuntimeError("The player left the stage or changed Calling.")
+            # A signed Hound/Performer decision must belong to the same
+            # authenticated account that passed the original role check.
+            account = getattr(mask, "account", None)
+            if (mask.location != tavern or account is None
+                    or account.id != base["account_id"]
+                    or active_calling(mask) != role):
+                raise RuntimeError(
+                    "The player left the stage or changed account or Calling."
+                )
             if _clock() != (day, hour):
                 raise RuntimeError("Village time changed before the stage decision.")
             if action == "warn":
