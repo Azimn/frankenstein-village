@@ -54,7 +54,7 @@ class MalformedCautionTests(unittest.TestCase):
                 landmark_id="red_cord", route_caution=None,
                 route_caution_history=None),
             access=lambda *a, **kw: True)
-        self.square = types.SimpleNamespace(id=88)
+        self.square = types.SimpleNamespace(\n            id=88, db=types.SimpleNamespace(daily_route_survey=None))
         self.ns["LANDMARKS"] = {
             "red_cord": {"room": "Northern Treeline",
                          "key": "frayed red cord"}}
