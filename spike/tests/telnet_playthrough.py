@@ -1995,7 +1995,7 @@ def main() -> int:
         out = stage_smith.command("stage fit")
         require(out, "carry one real workshop-forged hinge")
         out = performer.command("stage acoustic reel")
-        require(out, "independently soundchecked")
+        require(out, "no completed performer soundcheck")
         out = performer.command("stage soundcheck")
         require_all(out, "independently test", "signed world event")
         out = performer.command("stage soundcheck")
