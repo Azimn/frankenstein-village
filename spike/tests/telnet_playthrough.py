@@ -1954,7 +1954,7 @@ def main() -> int:
         out = performer.command("stage")
         require(out, "stage rail: worn")
         out = performer.command("stage soundcheck")
-        require(out, "active smith", "physically fitted")
+        require(out, "no signed physical stage fitting")
         stage_smith = Client(args.host, args.port)
         require(stage_smith.sync_login_screen(), "frankenstein village")
         stage_password = os.environ["FV_QA_REPAIR_PASSWORD"]
