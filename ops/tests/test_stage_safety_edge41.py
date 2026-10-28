@@ -183,6 +183,42 @@ class StageSafetyTests(unittest.TestCase):
         self.assertFalse(check({**route, "day": 2}, event, marker, **kwargs))
         self.assertFalse(check(route, event, marker, **{**kwargs, "hour": 18}))
 
+    def test_malformed_nested_hound_evidence_fails_closed(self):
+        # Persisted ledger or route structures can be malformed after a bad
+        # import or partial restore. They must not crash the stage command or
+        # count as evidence that the Hound physically protected the cord.
+        route = {"day": 1, "field_decisions": {
+            "hound": {"account_id": 11, "event_id": 90}}}
+        marker = {"account_id": 11, "event_id": 90, "day": 1}
+        event = {
+            "id": 90, "kind": "village.route_protected", "status": "complete",
+            "actor": {"account_id": 11, "mask_id": 111},
+            "payload": {"site": "red_cord", "role": "hound",
+                        "action": "protect", "location": "Northern Treeline",
+                        "day": 1, "hour": 19},
+            "consequence": {"cord_object_id": 777, "square_room_id": 88,
+                            "role": "hound", "action": "protect",
+                            "day": 1, "caution_marked": True},
+        }
+        args = dict(account_id=11, mask_id=111, source_event_id=90,
+                    cord_id=777, square_id=88, day=1, hour=20,
+                    room_name="Northern Treeline")
+        verify = stage.verified_hound_source
+        self.assertTrue(verify(route, event, marker, **args))
+        for field in ("actor", "payload", "consequence"):
+            for malformed in (["bad"], "bad", 17, None):
+                with self.subTest(field=field, malformed=malformed):
+                    broken = copy.deepcopy(event)
+                    broken[field] = malformed
+                    self.assertFalse(verify(route, broken, marker, **args))
+        for malformed in (["bad"], "bad", 17, None):
+            with self.subTest(route_decisions=malformed):
+                broken_route = {**route, "field_decisions": malformed}
+                self.assertFalse(verify(broken_route, event, marker, **args))
+            with self.subTest(hound_entry=malformed):
+                broken_route = {**route, "field_decisions": {"hound": malformed}}
+                self.assertFalse(verify(broken_route, event, marker, **args))
+
     def test_persisted_performer_decision_cannot_predate_hound_warning(self):
         state, ok, why = warning(hour=21)
         self.assertTrue(ok, why)
