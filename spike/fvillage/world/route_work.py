@@ -5,7 +5,7 @@ teleports, grants a quest reward, or publishes a claim as objective truth.
 """
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from django.db import transaction
 from evennia.scripts.models import ScriptDB
@@ -315,7 +315,8 @@ def field_action(mask, action):
                     raw_history = cord.db.route_caution_history
                     if raw_history is None:
                         history = []
-                    elif (isinstance(raw_history, (list, tuple))
+                    elif (isinstance(raw_history, Sequence)
+                          and not isinstance(raw_history, (str, bytes, bytearray))
                           and all(isinstance(item, Mapping) for item in raw_history)):
                         history = list(raw_history)
                     else:
