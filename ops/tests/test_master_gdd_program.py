@@ -117,10 +117,18 @@ class MasterGDDProgramTests(unittest.TestCase):
                 self.assertTrue(
                     evidence is None or (
                         isinstance(evidence, str)
-                        and evidence.startswith("CANDIDATE")
+                        and len(evidence.strip()) > 20
                     ),
-                    f"{edge['id']}: {field} is not marked candidate-only",
+                    f"{edge['id']}: {field} needs a substantive source anchor",
                 )
+                if evidence is not None:
+                    # Existing independent PRs use both 'candidate:' and
+                    # longer source/test descriptions. The explicit review
+                    # state, not a prose prefix, is the acceptance boundary.
+                    self.assertTrue(
+                        edge["review_state"].startswith("candidate"),
+                        f"{edge['id']}: evidence lacks candidate review state",
+                    )
             self.assertIsNone(
                 edge["uncoached_gameplay_evidence"],
                 f"{edge['id']}: uncoached play has not been independently accepted",
