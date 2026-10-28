@@ -58,7 +58,7 @@ class CmdSurvey(Command):
                 return
             if verb == "protect":
                 caller.msg(
-                    f"You tie or re-tighten the original frayed cord as a visible warning, "
+                    f"You tie the original frayed cord as a visible warning, or re-tighten its older marker, "
                     f"without repairing it (signed event {result['event_id']})."
                 )
             else:
