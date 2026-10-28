@@ -385,6 +385,11 @@ def main() -> int:
                 env=env,
                 input_text=post_restart,
             )
+            edge21_restart = (
+                checkout / "spike" / "tests" / "gdd_edge21_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge21_restart)
             # GDD T-13: prepare day two while the server is stopped, then
             # perform every state-changing action with two authenticated
             # ordinary telnet accounts. Offline masks cannot sign events.
