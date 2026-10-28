@@ -102,6 +102,17 @@ class Edge41MalformedAdapterTests(unittest.TestCase):
                     self.assertTrue(self.ns["_verified_warning"](state, 4, 21))
                     self.assertFalse(self.ns["_verified_decision"](state, 4, 21))
 
+    def test_corrupt_root_receipts_are_rejected_not_crashed(self):
+        for event_id in (102, 103):
+            for invalid in (None, 17, "corrupt", ["bad"]):
+                with self.subTest(event_id=event_id, invalid=invalid):
+                    state, events = evidence()
+                    events[event_id] = invalid
+                    self.events = events
+                    if event_id == 102:
+                        self.assertFalse(self.ns["_verified_warning"](state, 4, 21))
+                    self.assertFalse(self.ns["_verified_decision"](state, 4, 21))
+
     def test_persisted_mapping_wrappers_remain_valid(self):
         state, events = evidence()
         for event in events.values():
