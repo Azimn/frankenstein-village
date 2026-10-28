@@ -226,7 +226,7 @@ def main() -> int:
                 "import os\n"
                 "from evennia.utils import create\n"
                 "from evennia.accounts.models import AccountDB\n"
-                "for key in ('qa_smith_repair', 'qa_merchant_repair', 'qa_mystic_study', 'qa_performer_stage', 'qa_wanderer_mail', 'qa_hound_protection'):\n"
+                "for key in ('qa_smith_repair', 'qa_smith_stage', 'qa_merchant_repair', 'qa_mystic_study', 'qa_performer_stage', 'qa_wanderer_mail', 'qa_hound_protection'):\n"
                 "    account = AccountDB.objects.filter(db_key=key).first()\n"
                 "    if account is None:\n"
                 "        account = create.create_account(\n"
@@ -385,6 +385,11 @@ def main() -> int:
                 env=env,
                 input_text=post_restart,
             )
+            edge21_restart = (
+                checkout / "spike" / "tests" / "gdd_edge21_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge21_restart)
             # GDD T-13: prepare day two while the server is stopped, then
             # perform every state-changing action with two authenticated
             # ordinary telnet accounts. Offline masks cannot sign events.
