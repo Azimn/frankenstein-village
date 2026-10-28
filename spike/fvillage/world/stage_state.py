@@ -78,7 +78,10 @@ def normalize(raw):
             continue
         if (_ident(r.get("account_id")) and _ident(r.get("mask_id"))
                 and _ident(r.get("event_id")) and _time(day, r.get("hour"))):
-            result["rehearsals"].append(dict(r))
+            receipt = dict(r)
+            for key in ("account_id", "mask_id", "event_id", "hour"):
+                receipt[key] = int(receipt[key])
+            result["rehearsals"].append(receipt)
     result["rehearsals"] = result["rehearsals"][-MAX_REHEARSALS:]
     perf = raw.get("performance")
     if (hasattr(perf, "get") and perf.get("tune") in TUNES
@@ -87,6 +90,8 @@ def normalize(raw):
             and _ident(perf.get("mask_id"))
             and _time(day, perf.get("hour"))):
         result["performance"] = dict(perf)
+        for key in ("account_id", "mask_id", "event_id", "hour"):
+            result["performance"][key] = int(perf[key])
         eligible = _eligible_accounts(
             perf.get("eligible_audience_ids"), _ident(perf.get("account_id"))
         )
@@ -109,6 +114,9 @@ def normalize(raw):
                 "cord_id"))
             and _time(day, warning.get("hour"))):
         result["safety_warning"] = dict(warning)
+        for key in ("account_id", "mask_id", "event_id",
+                    "source_event_id", "cord_id", "hour"):
+            result["safety_warning"][key] = int(warning[key])
     decision = raw.get("safety_decision")
     if (hasattr(decision, "get") and result["safety_warning"]
             and all(_ident(decision.get(k)) for k in (
@@ -119,6 +127,9 @@ def normalize(raw):
             and _time(day, decision.get("hour"))
             and int(decision["hour"]) >= int(result["safety_warning"]["hour"])):
         result["safety_decision"] = dict(decision)
+        for key in ("account_id", "mask_id", "event_id",
+                    "warning_event_id", "hour"):
+            result["safety_decision"][key] = int(decision[key])
     for row in _records(raw.get("history")):
         historical_day = _ident(row.get("day"))
         if historical_day is None or historical_day >= day:
