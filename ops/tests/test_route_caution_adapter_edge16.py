@@ -189,6 +189,20 @@ class CautionAdapterTests(unittest.TestCase):
         self.assertEqual(len(self.published), 1)
 
 
+    def test_damaged_notice_cannot_create_second_signed_publication(self):
+        result, error = self.work.publish_caution(self.mask)
+        self.assertIsNone(error)
+        self.assertEqual(result["event_id"], 41)
+        damaged = json.loads(json.dumps(self.square.db.daily_route_survey))
+        damaged["caution_notice"]["source_event_id"] = 999
+        self.square.db.daily_route_survey = damaged
+        self.assertFalse(self.work._verified_notice(
+            self.square, route_surveys.normalize(damaged), 4))
+        result, error = self.work.publish_caution(self.mask)
+        self.assertIsNone(result)
+        self.assertIn("already published", error)
+        self.assertEqual(self.published, ["village.route_caution_published"])
+
     def _hound_renewal_actor(self):
         self.day, self.hour = 5, 11
         self.square.db.daily_route_survey = route_surveys.refresh(
