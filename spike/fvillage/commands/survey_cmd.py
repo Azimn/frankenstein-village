@@ -72,10 +72,16 @@ class CmdSurvey(Command):
                 caller.msg(error)
                 return
             if verb == "protect":
-                caller.msg(
-                    f"You tie the original frayed cord as a visible warning, "
-                    f"without repairing it (signed event {result['event_id']})."
-                )
+                if result.get("renewed"):
+                    caller.msg(
+                        "You inspect and tend the existing cord warning, "
+                        f"without repairing it (signed event {result['event_id']})."
+                    )
+                else:
+                    caller.msg(
+                        "You tie the original frayed cord as a visible warning, "
+                        f"without repairing it (signed event {result['event_id']})."
+                    )
             else:
                 caller.msg(
                     f"You record firsthand passability evidence from the "
