@@ -5,6 +5,8 @@ teleports, grants a quest reward, or publishes a claim as objective truth.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from django.db import transaction
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
@@ -12,7 +14,7 @@ from evennia.utils import search
 from world import route_surveys
 from world.callings import active_calling, record_participation
 from world.discoveries import LANDMARKS, normalize as known_landmarks
-from world.events import publish_world_event
+from world.events import publish_world_event, get_event_ledger
 
 SQUARE = "Village Square"
 SCOUT_ROLES = frozenset({"wanderer", "hound", "detective"})
@@ -60,6 +62,9 @@ def status_lines():
                 f"* {spec['room']}: not yet inspected. Find "
                 f"{spec['key']} and examine it."
             )
+    # Never expose an unsupported publication as a verified public notice.
+    if state.get('caution_notice') and not _verified_notice(square, state, day):
+        state['caution_notice'] = None
     lines.extend(route_surveys.field_lines(state))
     lines.append(
         "At the Northern Treeline, an active Hound can examine the actual "
@@ -68,6 +73,9 @@ def status_lines():
         "there to record whether the warning was present when inspected. "
         "Neither action proves why the cord was damaged."
     )
+    lines.append("Chroniclers: after a Hound protects the real treeline cord, "
+                 "visit this Square board and use survey caution to publish "
+                 "one independently sourced warning. It cannot prove a threat.")
     if route_surveys.complete(state):
         lines.append(
             "The public route is complete for today. Tomorrow's observations "
@@ -271,3 +279,152 @@ def field_action(mask, action):
         consequence=consequence,
     )
     return {"event_id": event["id"], "role": role, "action": action}, None
+
+
+def _signed_hound_source(square, day, hour):
+    """Return only a current, physical, completed Hound source."""
+    state = route_surveys.refresh(square.db.daily_route_survey, day)
+    if state["day"] != day:
+        return None
+    source = state["field_decisions"].get("hound")
+    if not isinstance(source, Mapping):
+        return None
+    spec = LANDMARKS["red_cord"]
+    rooms = [room for room in search.search_object(spec["room"])
+             if room.key == spec["room"] and room.location is None]
+    if len(rooms) != 1:
+        return None
+    cord = next((obj for obj in rooms[0].contents
+                 if obj.key == spec["key"]
+                 and getattr(obj.db, "landmark_id", None) == "red_cord"), None)
+    if cord is None:
+        return None
+    marker = getattr(cord.db, "route_caution", None)
+    if not isinstance(marker, Mapping):
+        return None
+    source_id = source.get("event_id")
+    account_id = source.get("account_id")
+    if (marker.get("event_id") != source_id
+            or marker.get("account_id") != account_id
+            or marker.get("day") != day):
+        return None
+    signed = get_event_ledger().get_event(source_id)
+    if (not isinstance(signed, Mapping)
+            or signed.get("id") != source_id
+            or signed.get("status") != "complete"
+            or signed.get("kind") != "village.route_protected"):
+        return None
+    actor, payload, effect = (
+        signed.get("actor"), signed.get("payload"), signed.get("consequence"))
+    if not all(isinstance(item, Mapping) for item in (actor, payload, effect)):
+        return None
+    source_hour = payload.get("hour")
+    if (not isinstance(source_hour, int) or isinstance(source_hour, bool)
+            or not 0 <= source_hour <= hour <= 23
+            or actor.get("account_id") != account_id
+            or not route_surveys._positive(actor.get("mask_id"))
+            or payload.get("day") != day
+            or payload.get("site") != "red_cord"
+            or payload.get("role") != "hound"
+            or payload.get("action") != "protect"
+            or payload.get("location") != spec["room"]
+            or effect.get("cord_object_id") != cord.id
+            or effect.get("square_room_id") != square.id
+            or effect.get("site") != "red_cord"
+            or effect.get("day") != day
+            or effect.get("role") != "hound"
+            or effect.get("action") != "protect"
+            or effect.get("caution_marked") is not True):
+        return None
+    return {
+        "source_event_id": source_id,
+        "source_account_id": account_id,
+        "source_mask_id": actor["mask_id"],
+        "source_cord_id": cord.id,
+        "source_hour": source_hour,
+    }
+
+
+def _verified_notice(square, state, day):
+    notice = state.get("caution_notice")
+    if not notice:
+        return False
+    source = _signed_hound_source(square, day, 23)
+    if not source or any(notice.get(k) != v for k, v in source.items()):
+        return False
+    signed = get_event_ledger().get_event(notice["event_id"])
+    if (not isinstance(signed, Mapping)
+            or signed.get("id") != notice["event_id"]
+            or signed.get("status") != "complete"
+            or signed.get("kind") != "village.route_caution_published"):
+        return False
+    actor, payload, effect = (
+        signed.get("actor"), signed.get("payload"), signed.get("consequence"))
+    if not all(isinstance(v, Mapping) for v in (actor, payload, effect)):
+        return False
+    return (
+        actor.get("account_id") == notice["account_id"]
+        and actor.get("mask_id") == notice["mask_id"]
+        and payload.get("day") == day
+        and payload.get("hour") == notice["hour"]
+        and payload.get("source_event_id") == notice["source_event_id"]
+        and effect.get("square_room_id") == square.id
+        and effect.get("source_event_id") == notice["source_event_id"]
+        and effect.get("publication_event_id") == notice["event_id"]
+    )
+
+
+def publish_caution(mask):
+    """Chronicler publishes a bounded public warning after a Hound's act."""
+    account = getattr(mask, "account", None)
+    if account is None or active_calling(mask) != "chronicler":
+        return None, "An authenticated Chronicler is required."
+    square = _square()
+    if square is None or mask.location != square:
+        return None, "Visit the Village Square route board."
+    day, hour = _day_hour()
+    source = _signed_hound_source(square, day, hour)
+    if not source:
+        return None, "A completed Hound protection of the real cord is required today."
+    original_account = account.id
+    base = {"day": day, "hour": hour, "account_id": original_account,
+            "mask_id": mask.id, "mask": mask.key, **source}
+    _state, accepted, reason = route_surveys.publish_caution(
+        square.db.daily_route_survey, event_id=1, **base)
+    if not accepted:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            current_account = getattr(mask, "account", None)
+            if (mask.location != square or current_account is None
+                    or current_account.id != original_account
+                    or active_calling(mask) != "chronicler"):
+                raise RuntimeError("The Chronicler changed account, Calling or location.")
+            try:
+                connected = bool(current_account.sessions.all())
+            except (AttributeError, TypeError):
+                connected = False
+            if not connected:
+                raise RuntimeError("The Chronicler disconnected before publication.")
+            if _day_hour() != (day, hour):
+                raise RuntimeError("Village time changed before publication.")
+            if _signed_hound_source(square, day, hour) != source:
+                raise RuntimeError("The physical Hound source changed.")
+            updated, ok, why = route_surveys.publish_caution(
+                square.db.daily_route_survey, event_id=event["id"], **base)
+            if not ok:
+                raise RuntimeError(why)
+            square.db.daily_route_survey = updated
+            return {"square_room_id": square.id, "day": day, "hour": hour,
+                    "source_event_id": source["source_event_id"],
+                    "publication_event_id": event["id"]}
+    event = publish_world_event(
+        "village.route_caution_published", actor=mask,
+        payload={"day": day, "hour": hour,
+                 "source_event_id": source["source_event_id"],
+                 "harbinger": False, "chronicle_eligible": False},
+        consequence=consequence,
+    )
+    record_participation(mask, "route_caution_publication", calling="chronicler")
+    return {"event_id": event["id"], "source_event_id": source["source_event_id"]}, None

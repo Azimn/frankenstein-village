@@ -1,0 +1,110 @@
+"""GDD-EDGE-16: independent sourced Hound and Chronicler caution notice."""
+import json
+import sys
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "spike/fvillage"))
+from world import route_surveys as state
+
+
+class CautionNoticeTests(unittest.TestCase):
+    def setUp(self):
+        self.s, ok, reason = state.field_decision(
+            None, 4, "red_cord", "hound", "protect", False,
+            11, "Hound", 40)
+        self.assertTrue(ok, reason)
+        self.base = dict(day=4, hour=12, account_id=22, mask_id=222,
+                         mask="Chronicler", event_id=41, source_event_id=40,
+                         source_account_id=11, source_mask_id=111,
+                         source_cord_id=500, source_hour=10)
+
+    def publish(self, **overrides):
+        return state.publish_caution(self.s, **{**self.base, **overrides})
+
+    def test_distinct_roles_sign_source_bound_public_notice(self):
+        s, ok, why = self.publish()
+        self.assertTrue(ok, why)
+        self.assertEqual(s["caution_notice"]["source_event_id"], 40)
+        self.assertIn("not a verified threat", " ".join(state.field_lines(s)))
+        self.assertEqual(s["field_decisions"]["hound"]["event_id"], 40)
+
+    def test_same_account_cannot_self_publish_after_role_switch(self):
+        _, ok, _ = self.publish(account_id=11)
+        self.assertFalse(ok)
+
+    def test_reject_missing_source(self):
+        _, ok, _ = state.publish_caution(None, **self.base)
+        self.assertFalse(ok)
+
+    def test_reject_forged_source_id_and_account(self):
+        for change in ({"source_event_id": 99}, {"source_account_id": 99}):
+            with self.subTest(change=change):
+                _, ok, _ = self.publish(**change)
+                self.assertFalse(ok)
+
+    def test_reject_future_source_and_invalid_hours(self):
+        for change in ({"source_hour": 13}, {"hour": 24},
+                       {"hour": True}, {"source_hour": -1}):
+            with self.subTest(change=change):
+                _, ok, _ = self.publish(**change)
+                self.assertFalse(ok)
+
+    def test_reject_invalid_or_boolean_identifiers(self):
+        for key in ("account_id", "mask_id", "event_id", "source_event_id",
+                    "source_account_id", "source_mask_id", "source_cord_id"):
+            for value in (True, 0, "not-an-id"):
+                with self.subTest(key=key, value=value):
+                    _, ok, _ = self.publish(**{key: value})
+                    self.assertFalse(ok)
+
+    def test_duplicate_publication_rejected(self):
+        self.s, ok, _ = self.publish()
+        self.assertTrue(ok)
+        _, ok, why = self.publish(event_id=42)
+        self.assertFalse(ok)
+        self.assertIn("already published", why)
+
+    def test_json_restart_preserves_source_and_blocks_replay(self):
+        self.s, ok, _ = self.publish()
+        self.assertTrue(ok)
+        restored = json.loads(json.dumps(self.s))
+        normalized = state.normalize(restored)
+        self.assertEqual(normalized["caution_notice"]["account_id"], 22)
+        _, ok, _ = state.publish_caution(restored, **{**self.base, "event_id": 42})
+        self.assertFalse(ok)
+
+    def test_day_rollover_archives_but_does_not_republish(self):
+        self.s, ok, _ = self.publish()
+        self.assertTrue(ok)
+        newer = state.refresh(json.loads(json.dumps(self.s)), 5)
+        self.assertIsNone(newer["caution_notice"])
+        self.assertEqual(newer["history"][-1]["caution_notice"]["event_id"], 41)
+        self.assertIsNone(state.normalize(newer)["caution_notice"])
+
+    def test_old_day_cannot_overwrite_new_day(self):
+        self.s, ok, _ = self.publish()
+        self.assertTrue(ok)
+        newer = state.refresh(self.s, 5)
+        _, ok, _ = state.publish_caution(newer, **self.base)
+        self.assertFalse(ok)
+
+    def test_corrupted_notice_does_not_become_public_truth(self):
+        self.s, ok, _ = self.publish()
+        self.assertTrue(ok)
+        for change in ({"source_event_id": 999}, {"source_account_id": 22},
+                       {"day": 8}, {"hour": "invalid"}):
+            with self.subTest(change=change):
+                broken = json.loads(json.dumps(self.s))
+                broken["caution_notice"].update(change)
+                self.assertIsNone(state.normalize(broken)["caution_notice"])
+
+    def test_solo_hound_still_has_public_firsthand_record(self):
+        self.assertIsNone(self.s["caution_notice"])
+        self.assertIn("frayed cord was tied", " ".join(state.field_lines(self.s)))
+        self.assertEqual(self.s["field_decisions"]["hound"]["event_id"], 40)
+
+
+if __name__ == "__main__":
+    unittest.main()
