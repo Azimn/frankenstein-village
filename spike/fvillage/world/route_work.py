@@ -316,11 +316,6 @@ def field_action(mask, action):
     today = _inspected_today(mask, site, day)
     if not observed or not today:
         return None, "Examine the physical red cord here today first."
-    if not _cord_condition_matches_inspection(mask, cord):
-        return None, (
-            "The cord's warning has changed since your inspection. "
-            "Examine the physical red cord again before reporting."
-        )
     square = _square()
     if square is None:
         return None, "The Square's existing public route board is missing."
@@ -331,6 +326,13 @@ def field_action(mask, action):
     )
     if not allowed:
         return None, why
+    # Preserve the useful already-signed message on a duplicate action.
+    # For a new action, stale same-hour evidence must be reexamined.
+    if not _cord_condition_matches_inspection(mask, cord):
+        return None, (
+            "The cord's warning has changed since your inspection. "
+            "Examine the physical red cord again before reporting."
+        )
 
     # The consequence decides whether the real cord was already marked.
     # Do not report the earlier preview as a signed physical observation.
