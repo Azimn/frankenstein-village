@@ -209,5 +209,17 @@ class PlainRationTests(unittest.TestCase):
         self.assertEqual(self.created, [])
 
 
+    def test_account_swap_rejects_signed_ration_without_spending_food(self):
+        initial = copy.deepcopy(self.tavern.db.soup_pantry)
+        self.before_consequence = lambda: setattr(
+            self.mask, "account", SimpleNamespace(id=222))
+        result, error = self.ns["ration"](self.mask)
+        self.assertIsNone(result)
+        self.assertIn("account identity changed", error)
+        self.assertEqual(self.tavern.db.soup_pantry, initial)
+        self.assertEqual(self.created, [])
+        self.assertEqual(self.events, [])
+
+
 if __name__ == "__main__":
     unittest.main()
