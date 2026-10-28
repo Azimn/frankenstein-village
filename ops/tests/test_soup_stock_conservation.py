@@ -404,5 +404,59 @@ class SoupStockConservationTests(unittest.TestCase):
         self.assertEqual(self.events, [])
 
 
+    def test_prep_account_swap_cannot_sign_or_spend_stock(self):
+        before = copy.deepcopy(self.tavern.db.soup_pantry)
+        self.before_consequence = lambda: setattr(
+            self.mask, "account", SimpleNamespace(id=401))
+        result, error = self.execute("prep", "turnip", "thyme")
+        self.assertIsNone(result)
+        self.assertIn("account identity changed", error)
+        self.assertEqual(self.tavern.db.soup_pantry, before)
+        self.assertEqual(self.created, [])
+        self.assertEqual(self.events, [])
+        self.assertEqual(self.recorded, [])
+
+    def test_simmer_account_swap_preserves_real_packet(self):
+        prepared, error = self.execute("prep", "barley", "salt")
+        self.assertIsNone(error)
+        packet = self.created[0]
+        self.before_consequence = lambda: setattr(
+            self.mask, "account", SimpleNamespace(id=401))
+        result, error = self.execute("simmer")
+        self.assertIsNone(result)
+        self.assertIn("account identity changed", error)
+        self.assertFalse(packet.deleted)
+        self.assertEqual(len(self.created), 1)
+        self.assertEqual(len(self.events), 1)
+        self.assertEqual(self.tavern.db.soup_pantry["history"], [])
+        self.assertIsNone(self.mask.db.soup_notebook)
+
+    def test_procure_account_swap_does_not_issue_market_crate(self):
+        self.mask.location = self.market
+        self.mask.role = "merchant"
+        before = copy.deepcopy(self.market.db.soup_market)
+        self.before_consequence = lambda: setattr(
+            self.mask, "account", SimpleNamespace(id=401))
+        result, error = self.execute("procure")
+        self.assertIsNone(result)
+        self.assertIn("account identity changed", error)
+        self.assertEqual(self.market.db.soup_market, before)
+        self.assertEqual(self.created, [])
+        self.assertEqual(self.events, [])
+
+    def test_deliver_account_swap_preserves_physical_crate(self):
+        crate = self.crate()
+        before = copy.deepcopy(self.tavern.db.soup_pantry)
+        self.before_consequence = lambda: setattr(
+            self.mask, "account", SimpleNamespace(id=401))
+        result, error = self.execute("deliver")
+        self.assertIsNone(result)
+        self.assertIn("account identity changed", error)
+        self.assertEqual(self.tavern.db.soup_pantry, before)
+        self.assertFalse(crate.deleted)
+        self.assertIs(crate.location, self.mask)
+        self.assertEqual(self.events, [])
+
+
 if __name__ == "__main__":
     unittest.main()
