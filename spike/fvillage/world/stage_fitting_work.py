@@ -106,6 +106,44 @@ def _check_receipt(tavern):
     return c, None
 
 
+
+def _verified_plays(tavern):
+    """Cross-check all consumed acoustic uses against completed ledger events."""
+    state = rules.normalize(tavern.db.stage_rail_edge21)
+    if state["condition"] == "invalid":
+        return False, "The physical rail record is inconsistent."
+    fitting = state["fitting"]
+    for index, play in enumerate(state["plays"]):
+        event = get_event_ledger().get_event(play["event_id"])
+        if (not event or event.get("status") != "complete"
+                or event.get("kind") != "professional.stage_acoustic_played"
+                or not hasattr(event.get("actor"), "get")
+                or not hasattr(event.get("payload"), "get")
+                or not hasattr(event.get("consequence"), "get")
+                or event["actor"].get("account_id") != play["account_id"]
+                or event["actor"].get("mask_id") != play["mask_id"]
+                or event["payload"].get("tavern_id") != tavern.id
+                or event["payload"].get("day") != play["day"]
+                or event["payload"].get("hour") != play["hour"]
+                or event["payload"].get("tune") != play["tune"]
+                or event["payload"].get("fitting_event_id") != fitting["event_id"]
+                or event["payload"].get("soundcheck_event_id") != play["soundcheck_event_id"]
+                or event["consequence"].get("tavern_id") != tavern.id
+                or event["consequence"].get("soundcheck_event_id") != play["soundcheck_event_id"]
+                or event["consequence"].get("remaining") != rules.USES - index - 1):
+            return False, "A claimed acoustic use lacks its completed signed event."
+        check = get_event_ledger().get_event(play["soundcheck_event_id"])
+        if (not check or check.get("status") != "complete"
+                or check.get("kind") != "professional.stage_rail_soundchecked"
+                or not hasattr(check.get("actor"), "get")
+                or not hasattr(check.get("payload"), "get")
+                or check["actor"].get("account_id") != play["account_id"]
+                or check["actor"].get("mask_id") != play["mask_id"]
+                or check["payload"].get("day") != play["day"]
+                or check["payload"].get("fitting_event_id") != fitting["event_id"]):
+            return False, "An acoustic use lacks a genuine independent soundcheck."
+    return True, None
+
 def act(mask, action, tune=None):
     if action not in ("fit", "soundcheck", "acoustic"):
         return None, "Use stage fit, stage soundcheck, or stage acoustic ballad or reel."
@@ -137,6 +175,10 @@ def act(mask, action, tune=None):
             _check, error = _check_receipt(tavern)
             if error:
                 return None, error
+    if action != "fit":
+        valid_plays, play_error = _verified_plays(tavern)
+        if not valid_plays:
+            return None, play_error
     day, hour = stage_work._clock()
     account_id = mask.account.id
     mask_id = mask.id
@@ -171,6 +213,10 @@ def act(mask, action, tune=None):
                     _c, check_error = _check_receipt(tavern)
                     if check_error:
                         raise RuntimeError(check_error)
+            if action != "fit":
+                valid_plays, play_error = _verified_plays(tavern)
+                if not valid_plays:
+                    raise RuntimeError(play_error)
             changed, valid, reason = transform(
                 tavern.db.stage_rail_edge21, event_id=event["id"], **props)
             if not valid:
@@ -199,6 +245,9 @@ def act(mask, action, tune=None):
                  "fitting_event_id": (
                      rules.normalize(tavern.db.stage_rail_edge21)["fitting"]["event_id"]
                      if action != "fit" else None),
+                 "soundcheck_event_id": (
+                     rules.normalize(tavern.db.stage_rail_edge21)["soundcheck"]["event_id"]
+                     if action == "acoustic" else None),
                  "tune": tune, "professional_calling": calling,
                  "harbinger": False, "chronicle_eligible": False},
         consequence=consequence,
