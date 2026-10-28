@@ -25,8 +25,13 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
             node for node in module.body
             if isinstance(node, ast.FunctionDef) and node.name == "_inspected_today"
         )
+        cord_guard = next(
+            node for node in module.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_cord_condition_matches_inspection"
+        )
         code = compile(ast.fix_missing_locations(ast.Module(
-            body=[inspection_guard, function], type_ignores=[]
+            body=[inspection_guard, cord_guard, function], type_ignores=[]
         )), str(source), "exec")
         cord = SimpleNamespace(
             key="frayed red cord",
@@ -42,7 +47,7 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
             account=SimpleNamespace(id=7), key="Hound", location=room,
             db=SimpleNamespace(
                 landmark_discoveries=[],
-                landmark_latest_view={"red_cord": {"day": 3}},
+                landmark_latest_view={"red_cord": {"day": 3, "caution_event_id": 0}},
             ),
         )
         square = SimpleNamespace(db=SimpleNamespace(daily_route_survey=None))
@@ -88,7 +93,9 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
             if isinstance(node, ast.FunctionDef)
         }
         code = compile(ast.fix_missing_locations(ast.Module(
-            body=[functions["_inspected_today"], functions["field_action"]],
+            body=[functions["_inspected_today"],
+                  functions["_cord_condition_matches_inspection"],
+                  functions["field_action"]],
             type_ignores=[],
         )), str(source), "exec")
         roles = ["hound"]
@@ -110,7 +117,7 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
             account=SimpleNamespace(id=7), key="Hound", location=room,
             db=SimpleNamespace(
                 landmark_discoveries=[],
-                landmark_latest_view={"red_cord": {"day": 3}},
+                landmark_latest_view={"red_cord": {"day": 3, "caution_event_id": 0}},
             ),
         )
         square = SimpleNamespace(
@@ -157,7 +164,7 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
                 can_view[0] = True
                 discovered[0] = True
                 mask.account = SimpleNamespace(id=7)
-                mask.db.landmark_latest_view = {"red_cord": {"day": 3}}
+                mask.db.landmark_latest_view = {"red_cord": {"day": 3, "caution_event_id": 0}}
                 square.db.daily_route_survey = None
                 cord.db.route_caution = None
                 participation.reset_mock()
@@ -174,7 +181,7 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
         can_view[0] = True
         discovered[0] = True
         mask.account = SimpleNamespace(id=7)
-        mask.db.landmark_latest_view = {"red_cord": {"day": 3}}
+        mask.db.landmark_latest_view = {"red_cord": {"day": 3, "caution_event_id": 0}}
         mode[0] = "none"
         result, error = namespace["field_action"](mask, "protect")
         self.assertIsNone(error)
@@ -218,7 +225,7 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
             account=SimpleNamespace(id=7), key="Witness", location=room,
             db=SimpleNamespace(
                 landmark_discoveries=[],
-                landmark_latest_view={"red_cord": {"day": 3}},
+                landmark_latest_view={"red_cord": {"day": 3, "caution_event_id": 0}},
             ),
         )
         square = SimpleNamespace(db=SimpleNamespace(daily_route_survey=None))
@@ -271,7 +278,7 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
         for scenario in ("account", "inspection", "discovery", "view"):
             with self.subTest(scenario=scenario):
                 mask.account = SimpleNamespace(id=7)
-                mask.db.landmark_latest_view = {"red_cord": {"day": 3}}
+                mask.db.landmark_latest_view = {"red_cord": {"day": 3, "caution_event_id": 0}}
                 discovered[0] = True
                 can_view[0] = True
                 square.db.daily_route_survey = None
@@ -284,7 +291,7 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
                 signed.assert_not_called()
 
         mask.account = SimpleNamespace(id=7)
-        mask.db.landmark_latest_view = {"red_cord": {"day": 3}}
+        mask.db.landmark_latest_view = {"red_cord": {"day": 3, "caution_event_id": 0}}
         discovered[0] = True
         can_view[0] = True
         mode[0] = "valid"
@@ -313,7 +320,9 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
         funcs = {node.name: node for node in tree.body
                  if isinstance(node, ast.FunctionDef)}
         code = compile(ast.fix_missing_locations(ast.Module(
-            body=[funcs["_inspected_today"], funcs["field_action"]],
+            body=[funcs["_inspected_today"],
+                  funcs["_cord_condition_matches_inspection"],
+                  funcs["field_action"]],
             type_ignores=[],
         )), str(source), "exec")
 
@@ -333,7 +342,7 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
             account=SimpleNamespace(id=7), key="HoundTester", location=room,
             db=SimpleNamespace(
                 landmark_discoveries=[],
-                landmark_latest_view={"red_cord": {"day": 4}},
+                landmark_latest_view={"red_cord": {"day": 4, "caution_event_id": 0}},
             ),
         )
         square = SimpleNamespace(
@@ -375,6 +384,8 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
 
         day[0] = 5
         mask.db.landmark_latest_view["red_cord"]["day"] = 5
+        # A new physical look at the already tied cord on the next day.
+        mask.db.landmark_latest_view["red_cord"]["caution_event_id"] = 901
         renewed, error = action(mask, "protect")
         self.assertIsNone(error)
         self.assertTrue(renewed["renewed"])
