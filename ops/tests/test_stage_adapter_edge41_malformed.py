@@ -120,7 +120,10 @@ class Edge41MalformedAdapterTests(unittest.TestCase):
         # Exercise the real source adapter with an actual route/room/object
         # arrangement, but replace external Evennia/Django dependencies.
         original = self.ns["_verified_route_source"]
-        self.ns["_verified_route_source"] = load_functions()["_verified_route_source"]
+        source_ns = load_functions()
+        source_ns["stage_state"] = self.ns["stage_state"]
+        source_ns["get_event_ledger"] = self.ns["get_event_ledger"]
+        self.ns["_verified_route_source"] = source_ns["_verified_route_source"]
         square = types.SimpleNamespace(
             id=88, db=types.SimpleNamespace(daily_route_survey={
                 "day": 4, "field_decisions": {
@@ -138,7 +141,7 @@ class Edge41MalformedAdapterTests(unittest.TestCase):
         discoveries = types.ModuleType("world.discoveries")
         discoveries.LANDMARKS = {
             "red_cord": {"room": "Northern Treeline", "key": "frayed red cord"}}
-        self.ns["search"] = types.SimpleNamespace(search_object=lambda key: [room])
+        source_ns["search"] = types.SimpleNamespace(search_object=lambda key: [room])
         args = dict(account_id=11, mask_id=111, source_event_id=90,
                     cord_id=777, day=4, hour=21)
         try:
