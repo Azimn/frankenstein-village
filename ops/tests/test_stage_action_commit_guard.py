@@ -1,6 +1,6 @@
 """Exercise real stage command consequences after preflight state changes.
 
-The production act() function is loaded from its AST so these tests do not
+The production act() and serve() functions are loaded from their AST so these tests do not
 need an Evennia server. The clean-checkout regression separately exercises
 real accounts and server restart. No simulated concurrency is called a lock.
 """
@@ -34,9 +34,9 @@ class StageActionCommitGuardTests(unittest.TestCase):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         funcs = [
             node for node in tree.body
-            if isinstance(node, ast.FunctionDef) and node.name == "act"
+            if isinstance(node, ast.FunctionDef) and node.name in {"act", "serve"}
         ]
-        self.assertEqual(len(funcs), 1)
+        self.assertEqual({node.name for node in funcs}, {"act", "serve"})
 
         def guard(mask):
             if mask.account is None or mask.location is not self.tavern:
@@ -64,6 +64,7 @@ class StageActionCommitGuardTests(unittest.TestCase):
             ast.Module(body=funcs, type_ignores=[])), str(path), "exec"),
             namespace)
         self.act = namespace["act"]
+        self.serve = namespace["serve"]
 
     def player(self, account_id, mask_id, name, calling):
         account = SimpleNamespace(
@@ -71,7 +72,7 @@ class StageActionCommitGuardTests(unittest.TestCase):
         )
         return SimpleNamespace(
             id=mask_id, key=name, account=account, calling=calling,
-            location=self.tavern,
+            location=self.tavern, contents=[],
         )
 
     def test_departed_performer_cannot_sign_rehearsal(self):
@@ -138,6 +139,63 @@ class StageActionCommitGuardTests(unittest.TestCase):
         self.assertEqual(show["account_id"], 7)
         self.assertEqual(show["eligible_audience_ids"], [8])
         self.assertEqual(len(self.participation), 2)
+
+
+    def _prepared_service(self):
+        # A genuine same-hour show, a real Innkeep, and a transferable bowl.
+        result, error = self.act(self.performer, "rehearse", "ballad")
+        self.assertIsNone(error)
+        result, error = self.act(self.performer, "perform", "ballad")
+        self.assertIsNone(error)
+        self.listener.calling = "innkeep"
+        bowl = SimpleNamespace(
+            id=501, location=self.listener,
+            db=SimpleNamespace(soup_serving={"event_id": 777}, servings=1),
+        )
+
+        def move_to(guest, quiet=False):
+            self.listener.contents.remove(bowl)
+            guest.contents.append(bowl)
+            bowl.location = guest
+            return True
+
+        bowl.move_to = move_to
+        self.listener.contents.append(bowl)
+        return bowl
+
+    def test_stage_service_rejects_changed_serving_account(self):
+        bowl = self._prepared_service()
+        self.before_commit = lambda: setattr(
+            self.listener, "account",
+            SimpleNamespace(
+                id=99, sessions=SimpleNamespace(all=lambda: [object()])
+            ),
+        )
+        result, error = self.serve(self.listener, "Musician")
+        self.assertIsNone(result)
+        self.assertIn("identity changed", error)
+        self.assertIs(bowl.location, self.listener)
+        self.assertEqual(bowl.db.servings, 1)
+        self.assertEqual(
+            stage_state.normalize(self.tavern.db.village_stage)
+            ["performance"].get("hospitality", []), [],
+        )
+        self.assertEqual(len(self.participation), 2)
+
+    def test_stage_service_transfers_real_bowl_with_original_signature(self):
+        bowl = self._prepared_service()
+        result, error = self.serve(self.listener, "Musician")
+        self.assertIsNone(error)
+        self.assertEqual(result["action"], "serve")
+        self.assertIs(bowl.location, self.performer)
+        services = stage_state.normalize(
+            self.tavern.db.village_stage
+        )["performance"]["hospitality"]
+        self.assertEqual(len(services), 1)
+        self.assertEqual(services[0]["account_id"], 8)
+        self.assertEqual(services[0]["recipient_account_id"], 7)
+        self.assertEqual(services[0]["bowl_id"], bowl.id)
+        self.assertEqual(len(self.participation), 3)
 
 
 if __name__ == "__main__":
