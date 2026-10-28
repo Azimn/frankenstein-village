@@ -8,6 +8,7 @@ incomplete to complete. Incomplete days become explicit historical outcomes.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping, Sequence
 
 SITES = ("grave_marker", "red_cord", "market_scale", "river_gauge")
 MAX_HISTORY = 30
@@ -18,13 +19,16 @@ def fresh(day=0):
 
 
 def normalize(raw):
-    value = copy.deepcopy(dict(raw or {}))
+    # Persisted Evennia attributes can be malformed after interrupted or old
+    # writes. Reject invalid shapes instead of crashing every survey reader.
+    value = copy.deepcopy(dict(raw)) if isinstance(raw, Mapping) else {}
     try:
         day = max(0, int(value.get("day") or 0))
     except (TypeError, ValueError, OverflowError):
         day = 0
     reports = {}
-    for ident, entry in dict(value.get("reports") or {}).items():
+    saved_reports = value.get("reports")
+    for ident, entry in (saved_reports.items() if isinstance(saved_reports, Mapping) else ()):
         if ident not in SITES or not hasattr(entry, "get"):
             continue
         try:
@@ -32,14 +36,17 @@ def normalize(raw):
             event = int(entry["event_id"])
         except (ValueError, TypeError, KeyError, OverflowError):
             continue
-        if account < 1 or event < 1:
+        if (isinstance(entry.get("account_id"), bool)
+                or isinstance(entry.get("event_id"), bool)
+                or account < 1 or event < 1):
             continue
         reports[ident] = {
             "account_id": account, "mask": str(entry.get("mask") or "")[:70],
             "event_id": event,
         }
     decisions = {}
-    for role, entry in dict(value.get("field_decisions") or {}).items():
+    saved_decisions = value.get("field_decisions")
+    for role, entry in (saved_decisions.items() if isinstance(saved_decisions, Mapping) else ()):
         if role not in {"hound", "wanderer"} or not hasattr(entry, "get"):
             continue
         try:
@@ -54,17 +61,27 @@ def normalize(raw):
         observation = entry.get("observation")
         if entry.get("action") != action:
             continue
-        if role == "wanderer" and observation not in {"unmarked", "marked_caution"}:
+        if role == "wanderer" and observation not in ("unmarked", "marked_caution"):
             continue
         decisions[role] = {"account_id": account, "mask": str(entry.get("mask") or "")[:70],
                            "event_id": event, "action": action, "site": "red_cord"}
         if role == "wanderer":
             decisions[role]["observation"] = observation
+        else:
+            # Older Hound records predate the daily maintenance distinction.
+            decisions[role]["renewed"] = entry.get("renewed") is True
+    saved_history = value.get("history")
+    # Evennia persists Attribute lists as _SaverList (MutableSequence), not
+    # built-in list. Reject strings and mappings, but preserve wrapped rows.
+    if not isinstance(saved_history, Sequence) or isinstance(
+        saved_history, (str, bytes, bytearray)
+    ):
+        saved_history = []
     return {
         "day": day,
         "reports": reports,
         "field_decisions": decisions,
-        "history": list(value.get("history") or [])[-MAX_HISTORY:],
+        "history": list(saved_history)[-MAX_HISTORY:],
     }
 
 
@@ -98,6 +115,8 @@ def report(raw, day, ident, account_id, mask, event_id):
         return state, False, "That location is not on today's inspection route."
     if ident in state["reports"]:
         return state, False, "Today's report for this landmark is already signed."
+    if isinstance(account_id, bool) or isinstance(event_id, bool):
+        return state, False, "A signed account and canonical event are required."
     try:
         account_id, event_id = int(account_id), int(event_id)
     except (ValueError, TypeError, OverflowError):
@@ -142,8 +161,6 @@ def field_decision(raw, day, site, role, action, caution_marked,
             return state, False, "A signed ordinary account and event are required."
     if role in state["field_decisions"]:
         return state, False, "That professional field action is already signed today."
-    if role == "hound" and caution_marked:
-        return state, False, "The frayed cord is already tied as a visible caution marker."
     entry = {
         "site": site, "action": action,
         "account_id": int(account_id), "mask": str(mask)[:70],
@@ -151,8 +168,63 @@ def field_decision(raw, day, site, role, action, caution_marked,
     }
     if role == "wanderer":
         entry["observation"] = "marked_caution" if caution_marked else "unmarked"
+    else:
+        # A later day can tend an existing warning without pretending the
+        # cord was newly repaired or spending imaginary supplies.
+        entry["renewed"] = caution_marked
     state["field_decisions"][role] = entry
     return state, True, None
+
+
+def history_records(raw, day, *, limit=5, selected_day=None):
+    """Public, read-only snapshots of previous village days, newest first.
+
+    A day transition can be viewed before the next report is signed. Archive
+    rows are normalized through the same public report and field-decision
+    validators, so unrelated private keys and malformed receipts never leak.
+    The stored record is not mutated and no new canonical state is created.
+    """
+    state = refresh(raw, day)
+    # Exact-day lookups may inspect the whole retained archive, but never
+    # private keys, dates at/after the current day, or malformed day values.
+    if selected_day is not None and (
+        type(selected_day) is not int or selected_day < 1
+    ):
+        return []
+    try:
+        count = max(0, min(10, int(limit)))
+    except (TypeError, ValueError, OverflowError):
+        count = 0
+    if count == 0:
+        return []
+    rows = []
+    for raw_row in state["history"][-MAX_HISTORY:]:
+        if not isinstance(raw_row, Mapping):
+            continue
+        try:
+            old_day = int(raw_row.get("day"))
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if (isinstance(raw_row.get("day"), bool)
+                or old_day < 1 or old_day >= state["day"]):
+            continue
+        reports = raw_row.get("reports")
+        decisions = raw_row.get("field_decisions")
+        clean = normalize({
+            "day": old_day,
+            "reports": reports if isinstance(reports, Mapping) else {},
+            "field_decisions": decisions if isinstance(decisions, Mapping) else {},
+        })
+        rows.append({
+            "day": old_day,
+            "completed": len(clean["reports"]) == len(SITES),
+            "reports": clean["reports"],
+            "field_decisions": clean["field_decisions"],
+        })
+    if selected_day is not None:
+        matches = [row for row in rows if row["day"] == selected_day]
+        return matches[-1:]  # one authoritative dated snapshot
+    return rows[-count:][::-1]
 
 
 def field_lines(raw):
@@ -162,8 +234,9 @@ def field_lines(raw):
     lines = []
     if "hound" in entries:
         hound = entries["hound"]
+        action = "tended" if hound.get("renewed") else "tied"
         lines.append(
-            f"The Northern Treeline's frayed cord was tied as a caution marker "
+            f"The Northern Treeline's frayed cord was {action} as a caution marker "
             f"by {hound['mask']} (signed event {hound['event_id']}). "
             "This does not repair the cord or establish what damaged it."
         )

@@ -26,6 +26,31 @@ def main():
                            "SmithTester", "Village Square")
         carrier = connect(args.host, args.port, "qa_merchant_repair", password,
                           "MerchantTester", "The Blood of the Vine")
+        # The server was genuinely restarted and the village clock is now
+        # on day two. Earlier players' signed route work must remain legible
+        # to an ordinary account, without treating dated caution as truth now.
+        history = supplier.command("survey history")
+        require_all(history, "signed village route history", "village day 1",
+                    "wanderertester", "houndtester", "unmarked cord",
+                    "not proof of what caused a hazard")
+        # Exact-day history uses the same persisted Square records, not a
+        # separately fabricated answer. Both clients are authenticated after
+        # the actual Evennia process restart.
+        dated = carrier.command("survey history 1")
+        require_all(dated, "village day 1", "wanderertester",
+                    "houndtester", "unmarked cord",
+                    "not proof of what caused a hazard")
+        missing = supplier.command("survey history 999")
+        require_all(missing, "no signed route archive", "village day 999")
+        invalid = supplier.command("survey history tomorrow")
+        require(invalid, "survey history <positive village day>")
+        # The public daily board must also project the persisted previous
+        # day safely, without changing signed archive or current reports.
+        board = supplier.command("survey")
+        require_all(board, "previous surveyed day 1", "use survey history")
+        print("TELNET_POST_RESTART_ROUTE_BOARD_SUMMARY_GREEN")
+        print("TELNET_POST_RESTART_EXACT_DAY_ROUTE_HISTORY_GREEN")
+        print("TELNET_POST_RESTART_SIGNED_ROUTE_HISTORY_GREEN")
         out = supplier.command("commission")
         require_all(out, "village commission", "open")
         out = supplier.command("hearth gather")

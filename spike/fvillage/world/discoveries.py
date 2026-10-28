@@ -98,7 +98,17 @@ def capture(looker, physical, ident):
     # physical inspections are also stamped for today's renewable civic work.
     # An old first visit is never sufficient evidence of a NEW day's patrol.
     latest = dict(getattr(looker.db, "landmark_latest_view", None) or {})
-    latest[ident] = {"day": day, "hour": hour}
+    observed = {"day": day, "hour": hour}
+    if ident == "red_cord":
+        # Preserve the exact physical warning that was visible on inspection.
+        # A later Hound may tend the same cord before this player signs a
+        # Wanderer report. Day/hour alone cannot distinguish that change.
+        marker = getattr(physical.db, "route_caution", None)
+        event_id = marker.get("event_id") if hasattr(marker, "get") else None
+        observed["caution_event_id"] = (
+            event_id if type(event_id) is int and event_id > 0 else 0
+        )
+    latest[ident] = observed
     looker.db.landmark_latest_view = {
         key: value for key, value in latest.items() if key in LANDMARKS
     }

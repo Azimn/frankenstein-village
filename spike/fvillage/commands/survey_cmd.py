@@ -8,6 +8,8 @@ class CmdSurvey(Command):
     Usage:
         survey
         survey report
+        survey history           (latest five archived village days)
+        survey history <day>     (one older retained village day)
         survey protect       (Hound, Northern Treeline)
         survey passability   (Wanderer, Northern Treeline)
 
@@ -31,6 +33,19 @@ class CmdSurvey(Command):
         verb = (self.args or "").strip().lower()
         if verb in {"", "status", "help"}:
             caller.msg(route_work.status_lines())
+            return
+        if verb == "history":
+            caller.msg(route_work.history_lines())
+            return
+        if verb.startswith("history "):
+            day_text = verb[len("history "):].strip()
+            if (
+                not day_text.isascii() or not day_text.isdecimal()
+                or len(day_text) > 12 or int(day_text) < 1
+            ):
+                caller.msg("Use: survey history | survey history <positive village day>")
+                return
+            caller.msg(route_work.history_lines(day_filter=int(day_text)))
             return
         if verb in {"report", "inspect"}:
             result, error = route_work.report(caller)
@@ -57,10 +72,16 @@ class CmdSurvey(Command):
                 caller.msg(error)
                 return
             if verb == "protect":
-                caller.msg(
-                    f"You tie the original frayed cord as a visible warning, "
-                    f"without repairing it (signed event {result['event_id']})."
-                )
+                if result.get("renewed"):
+                    caller.msg(
+                        "You inspect and tend the existing cord warning, "
+                        f"without repairing it (signed event {result['event_id']})."
+                    )
+                else:
+                    caller.msg(
+                        "You tie the original frayed cord as a visible warning, "
+                        f"without repairing it (signed event {result['event_id']})."
+                    )
             else:
                 caller.msg(
                     f"You record firsthand passability evidence from the "
@@ -71,4 +92,4 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
-        caller.msg("Use: survey | survey report | survey protect | survey passability")
+        caller.msg("Use: survey | survey history [day] | survey report | survey protect | survey passability")
