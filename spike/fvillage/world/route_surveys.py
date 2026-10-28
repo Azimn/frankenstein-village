@@ -16,7 +16,8 @@ MAX_HISTORY = 30
 
 def fresh(day=0):
     return {"day": int(day), "reports": {}, "field_decisions": {},
-            "caution_notice": None, "history": []}
+            "caution_notice": None, "caution_publication_event_id": None,
+            "history": []}
 
 
 
@@ -120,11 +121,22 @@ def normalize(raw):
                     or prior_completed != (len(prior_reports) == len(SITES))):
                 continue
             history.append(copy.deepcopy(dict(prior)))
+    # A damaged editorial notice must not re-open an already consumed daily
+    # publication slot. The canonical event remains the provenance authority;
+    # this is only a durable replay guard on the existing Square record.
+    raw_notice = value.get("caution_notice")
+    published_id = _positive(value.get("caution_publication_event_id"))
+    if not published_id and isinstance(raw_notice, Mapping):
+        # Backfill pre-guard records, including notices with damaged source
+        # fields. Fail closed rather than silently permitting a second event.
+        if _positive(raw_notice.get("day")) == day:
+            published_id = _positive(raw_notice.get("event_id"))
     return {
         "day": day,
         "reports": reports,
         "field_decisions": decisions,
-        "caution_notice": _notice(value.get("caution_notice"), decisions, day),
+        "caution_notice": _notice(raw_notice, decisions, day),
+        "caution_publication_event_id": published_id,
         "history": history[-MAX_HISTORY:],
     }
 
@@ -143,6 +155,7 @@ def refresh(raw, day):
             "reports": copy.deepcopy(state["reports"]),
             "field_decisions": copy.deepcopy(state["field_decisions"]),
             "caution_notice": copy.deepcopy(state["caution_notice"]),
+            "caution_publication_event_id": state["caution_publication_event_id"],
         }
         state["history"].append(previous)
         state["history"] = state["history"][-MAX_HISTORY:]
@@ -150,6 +163,7 @@ def refresh(raw, day):
     state["reports"] = {}
     state["field_decisions"] = {}
     state["caution_notice"] = None
+    state["caution_publication_event_id"] = None
     return state
 
 
@@ -233,7 +247,7 @@ def publish_caution(raw, *, day, hour, account_id, mask_id, mask,
     state = refresh(raw, day)
     if day < state["day"]:
         return state, False, "A later village day is already recorded."
-    if state["caution_notice"]:
+    if state["caution_notice"] or state["caution_publication_event_id"]:
         return state, False, "Today's sourced caution notice is already published."
     hound = state["field_decisions"].get("hound")
     if not hound:
@@ -251,6 +265,7 @@ def publish_caution(raw, *, day, hour, account_id, mask_id, mask,
     if not notice:
         return state, False, "Independent, chronological signed source evidence is required."
     state["caution_notice"] = notice
+    state["caution_publication_event_id"] = notice["event_id"]
     return state, True, None
 
 
