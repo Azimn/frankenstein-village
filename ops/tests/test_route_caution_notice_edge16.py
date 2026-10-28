@@ -137,6 +137,45 @@ class CautionNoticeTests(unittest.TestCase):
             11, "Hound", 51, caution_day=4)
         self.assertFalse(ok)
 
+    def test_malformed_persisted_decision_containers_never_authorize_notice(self):
+        self.s, ok, why = self.publish()
+        self.assertTrue(ok, why)
+        for bad in ("corrupt", 17, [1], {"hound": ["bad"]}):
+            with self.subTest(bad=bad):
+                damaged = json.loads(json.dumps(self.s))
+                damaged["field_decisions"] = bad
+                restored = state.normalize(damaged)
+                self.assertEqual(restored["field_decisions"], {})
+                self.assertIsNone(restored["caution_notice"])
+                _, allowed, _ = state.publish_caution(
+                    damaged, **{**self.base, "event_id": 42})
+                self.assertFalse(allowed)
+
+    def test_malformed_report_and_history_containers_do_not_crash(self):
+        self.s, ok, why = self.publish()
+        self.assertTrue(ok, why)
+        rolled = state.refresh(self.s, 5)
+        valid_history = rolled["history"][-1]
+        self.assertEqual(valid_history["caution_notice"]["event_id"], 41)
+        for bad in ("corrupt", 17, [1], {"invalid": "entry"}):
+            with self.subTest(bad=bad):
+                damaged = json.loads(json.dumps(rolled))
+                damaged["reports"] = bad
+                damaged["history"] = bad
+                normalized = state.normalize(damaged)
+                self.assertEqual(normalized["reports"], {})
+                self.assertEqual(normalized["history"], [])
+                self.assertIsInstance(state.field_lines(normalized), list)
+        mixed = json.loads(json.dumps(rolled))
+        mixed["history"] = [
+            None, {"day": 4, "completed": True, "reports": {}},
+            {"day": 4, "completed": False, "reports": {"bogus": {}}},
+            valid_history,
+        ]
+        restored = state.normalize(mixed)
+        self.assertEqual(len(restored["history"]), 1)
+        self.assertEqual(restored["history"][0]["caution_notice"]["event_id"], 41)
+
     def test_solo_hound_still_has_public_firsthand_record(self):
         self.assertIsNone(self.s["caution_notice"])
         self.assertIn("frayed cord was tied", " ".join(state.field_lines(self.s)))
