@@ -2060,6 +2060,37 @@ def main() -> int:
                     "does not repair the cord")
         print("TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN")
 
+        # EDGE-16: separate Chronicler account publishes only the signed,
+        # physical Hound warning at the existing Square board. The ordinary
+        # Hound and Wanderer remain playable without this editorial handoff.
+        out = wanderer.command("survey caution")
+        require(out, "authenticated chronicler")
+        out = c.command("survey caution")
+        require(out, "visit the village square")
+        for move, destination in (
+            ("north", "lamp shop"), ("north", "village square"),
+        ):
+            out = c.command(move)
+            require(out, destination)
+        out = c.command("survey")
+        require_all(out, "houndtester", "survey caution")
+        assert "published a chronicler caution notice" not in out.lower()
+        out = c.command("survey caution")
+        require_all(out, "publish a sourced public caution",
+                    "hound's physical marker", "does not prove danger")
+        out = c.command("survey")
+        require_all(out, "chronicler caution notice", "hound's physical",
+                    "not a verified threat")
+        out = c.command("survey caution")
+        require(out, "already published")
+        for move, destination in (
+            ("south", "lamp shop"), ("south", "market lane"),
+        ):
+            out = c.command(move)
+            require(out, destination)
+        print("TELNET_GDD_EDGE16_INDEPENDENT_HOUND_CHRONICLER_CAUTION_GREEN")
+
+
         print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
         out = c.command("guide")
         require_all(out, "civic material table", "bridgework collect preserve")
