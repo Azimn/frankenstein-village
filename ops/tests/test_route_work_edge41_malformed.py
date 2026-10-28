@@ -105,6 +105,7 @@ class MalformedCautionTests(unittest.TestCase):
         room = types.SimpleNamespace(
             key="Northern Treeline", contents=[self.cord],
             tags=types.SimpleNamespace(has=lambda *a, **kw: True))
+        self.cord.location = room
         mask = types.SimpleNamespace(
             key="Player", account=types.SimpleNamespace(id=11),
             location=room, db=types.SimpleNamespace(
