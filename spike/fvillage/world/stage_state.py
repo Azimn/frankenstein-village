@@ -49,6 +49,16 @@ def _records(value):
     return [row for row in value if isinstance(row, Mapping)]
 
 
+def _eligible_accounts(raw, performer_id):
+    """Retain only actual bounded audience identifiers from persisted state."""
+    if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes, bytearray)):
+        return []
+    return sorted({
+        account for value in raw[:MAX_WITNESSES * 2]
+        if (account := _ident(value)) is not None and account != performer_id
+    })[:MAX_WITNESSES]
+
+
 def fresh(day=1):
     return {"day": day, "rehearsals": [], "performance": None,
             "witnesses": [], "safety_warning": None,
@@ -77,10 +87,20 @@ def normalize(raw):
             and _ident(perf.get("mask_id"))
             and _time(day, perf.get("hour"))):
         result["performance"] = dict(perf)
+        eligible = _eligible_accounts(
+            perf.get("eligible_audience_ids"), _ident(perf.get("account_id"))
+        )
+        result["performance"]["eligible_audience_ids"] = eligible
+        seen = set()
         for r in _records(raw.get("witnesses"))[-MAX_WITNESSES * 2:]:
-            if (hasattr(r, "get") and _ident(r.get("account_id"))
-                    and _ident(r.get("event_id"))):
-                result["witnesses"].append(dict(r))
+            account = _ident(r.get("account_id"))
+            event = _ident(r.get("event_id"))
+            if account in eligible and event and account not in seen:
+                seen.add(account)
+                receipt = dict(r)
+                receipt["account_id"] = account
+                receipt["event_id"] = event
+                result["witnesses"].append(receipt)
     result["witnesses"] = result["witnesses"][-MAX_WITNESSES:]
     warning = raw.get("safety_warning")
     if (hasattr(warning, "get")
@@ -99,10 +119,14 @@ def normalize(raw):
             and _time(day, decision.get("hour"))
             and int(decision["hour"]) >= int(result["safety_warning"]["hour"])):
         result["safety_decision"] = dict(decision)
-    result["history"] = [
-        copy.deepcopy(r) for r in _records(raw.get("history"))
-        if hasattr(r, "get") and _ident(r.get("day"))
-    ][-MAX_HISTORY:]
+    for row in _records(raw.get("history")):
+        historical_day = _ident(row.get("day"))
+        if historical_day is None or historical_day >= day:
+            continue
+        receipt = copy.deepcopy(dict(row))
+        receipt["day"] = historical_day
+        result["history"].append(receipt)
+    result["history"] = result["history"][-MAX_HISTORY:]
     return result
 
 
