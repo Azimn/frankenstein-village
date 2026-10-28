@@ -5,7 +5,7 @@ actual Evennia restart assertions remain in the clean-checkout regression.
 """
 import sys
 import unittest
-from collections import UserDict
+from collections import UserDict, UserList
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "spike/fvillage"))
@@ -65,6 +65,52 @@ class MalformedStagePersistenceTests(unittest.TestCase):
         ]})
         self.assertIn("Previous recorded show: Actual Performer, day 4",
                       stage.public_lines(raw, 5))
+
+
+    def test_evennia_style_mutable_sequence_preserves_rehearsal_and_replay_guard(self):
+        # Evennia wraps Attribute lists as _SaverList, a MutableSequence
+        # rather than a builtin list. UserList reproduces this interface.
+        state, ok, reason = stage.rehearse(
+            None, day=4, hour=19, account_id=11, mask_id=111,
+            mask="Performer", tune="ballad", event_id=90)
+        self.assertTrue(ok, reason)
+        wrapped = {**state, "rehearsals": UserList([
+            UserDict(row) for row in state["rehearsals"]])}
+        self.assertEqual(len(stage.normalize(wrapped)["rehearsals"]), 1)
+        denied, ok, reason = stage.rehearse(
+            wrapped, day=4, hour=20, account_id=11, mask_id=111,
+            mask="Performer", tune="ballad", event_id=91)
+        self.assertFalse(ok)
+        self.assertIn("already rehearsed", reason)
+        self.assertEqual(len(denied["rehearsals"]), 1)
+        played, ok, reason = stage.perform(
+            wrapped, day=4, hour=20, account_id=11, mask_id=111,
+            mask="Performer", tune="ballad", event_id=92,
+            audience_account_ids=[22])
+        self.assertTrue(ok, reason)
+        self.assertEqual(played["performance"]["rehearsal_event_id"], 90)
+
+    def test_evennia_style_mutable_sequence_preserves_witnesses_and_history(self):
+        state, ok, reason = stage.rehearse(
+            None, day=4, hour=19, account_id=11, mask_id=111,
+            mask="Performer", tune="reel", event_id=100)
+        self.assertTrue(ok, reason)
+        state, ok, reason = stage.perform(
+            state, day=4, hour=20, account_id=11, mask_id=111,
+            mask="Performer", tune="reel", event_id=101,
+            audience_account_ids=[22])
+        self.assertTrue(ok, reason)
+        state["witnesses"] = UserList([
+            UserDict({"account_id": 22, "event_id": 102})])
+        state["history"] = UserList([
+            UserDict({"day": 3, "performance": UserDict({
+                "mask": "Prior Performer"}), "safety_decision": None})])
+        restored = stage.normalize(state)
+        self.assertEqual(len(restored["witnesses"]), 1)
+        self.assertEqual(restored["witnesses"][0]["account_id"], 22)
+        self.assertEqual(len(restored["history"]), 1)
+        self.assertIn("Previous recorded show: Prior Performer, day 3",
+                      stage.public_lines(state, 4))
 
 
 if __name__ == "__main__":

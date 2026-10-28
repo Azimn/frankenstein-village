@@ -7,7 +7,7 @@ accounts may explicitly witness it during that village hour.
 from __future__ import annotations
 
 import copy
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 TUNES = ("ballad", "reel")
 MAX_HISTORY = 32
@@ -42,7 +42,9 @@ def _records(value):
     Corrupt scalar or mapping containers are not iterable evidence. Keep
     Mapping-backed rows, including Evennia persistence wrappers.
     """
-    if not isinstance(value, (list, tuple)):
+    # Evennia stores lists as _SaverList (MutableSequence), not list.
+    # Restrict input to real sequences, never strings, bytes or mappings.
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
         return []
     return [row for row in value if isinstance(row, Mapping)]
 
