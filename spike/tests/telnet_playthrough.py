@@ -2076,6 +2076,24 @@ def main() -> int:
         require_all(out, "houndtester", "survey caution")
         assert "published a chronicler caution notice" not in out.lower()
         out = c.command("survey caution")
+        require(out, "examine the real red cord")
+        # The Chronicler must independently see the original cord. A remote
+        # second account merely reading the Hound's board cannot publish.
+        for move, destination in (
+            ("west", "st. lazarus church"), ("west", "churchyard"),
+            ("north", "northern treeline"),
+        ):
+            out = c.command(move)
+            require(out, destination)
+        out = c.command("look cord")
+        require(out, "scarlet cord")
+        for move, destination in (
+            ("south", "churchyard"), ("east", "st. lazarus church"),
+            ("east", "village square"),
+        ):
+            out = c.command(move)
+            require(out, destination)
+        out = c.command("survey caution")
         require_all(out, "publish a sourced public caution",
                     "hound's physical marker", "does not prove danger")
         out = c.command("survey")
