@@ -565,6 +565,37 @@ def main() -> int:
             ).read_text(encoding="utf-8")
             run([evennia, "shell"], cwd=game, env=env,
                 input_text=renewal_restart)
+
+            # EDGE-41 review finding: the second protection saved a list on
+            # the real cord. After a new process restart, a third village day
+            # must accept Evennia's persisted mutable-sequence wrapper.
+            third_setup = (
+                checkout / "spike" / "tests" /
+                "gdd_edge41_third_day_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=third_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge41_renewal.py",
+                     "--host", "127.0.0.1", "--port", "4000",
+                     "--third-day"],
+                    cwd=checkout, env=env, timeout=180,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            third_restart = (
+                checkout / "spike" / "tests" /
+                "gdd_edge41_third_day_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=third_restart)
         except Exception:
             dump_logs(game)
             raise
