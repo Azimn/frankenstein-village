@@ -177,8 +177,10 @@ def _verified_warning(stage, day, hour):
         actor.get("account_id") == warning["account_id"]
         and actor.get("mask_id") == warning["mask_id"]
         and payload.get("day") == day
+        and payload.get("hour") == warning["hour"]
         and payload.get("source_event_id") == warning["source_event_id"]
         and effect.get("source_event_id") == warning["source_event_id"]
+        and effect.get("hour") == warning["hour"]
         and effect.get("cord_id") == warning["cord_id"]
         and effect.get("tavern_room_id") == _tavern().id
         and isinstance(warning["hour"], int)
@@ -188,7 +190,7 @@ def _verified_warning(stage, day, hour):
     return _verified_route_source(
         account_id=warning["account_id"], mask_id=warning["mask_id"],
         source_event_id=warning["source_event_id"],
-        cord_id=warning["cord_id"], day=day, hour=hour,
+        cord_id=warning["cord_id"], day=day, hour=warning["hour"],
     )
 
 
@@ -209,11 +211,15 @@ def _verified_decision(stage, day, hour):
         and actor.get("account_id") == decision["account_id"]
         and actor.get("mask_id") == decision["mask_id"]
         and payload.get("day") == day
+        and payload.get("hour") == decision["hour"]
         and payload.get("choice") == decision["choice"]
         and effect.get("tavern_room_id") == _tavern().id
+        and effect.get("hour") == decision["hour"]
         and effect.get("warning_event_id") == warning["event_id"]
         and effect.get("choice") == decision["choice"]
         and isinstance(decision["hour"], int)
+        and not isinstance(decision["hour"], bool)
+        and decision["hour"] >= warning["hour"]
         and decision["hour"] <= hour
     )
 
