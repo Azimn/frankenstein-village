@@ -5,6 +5,7 @@ source adapter require separate authenticated Evennia integration testing.
 """
 import json
 import copy
+from collections import UserDict
 import sys
 import unittest
 from pathlib import Path
@@ -156,6 +157,23 @@ class StageSafetyTests(unittest.TestCase):
                       room_name="Northern Treeline")
         check = stage.verified_hound_source
         self.assertTrue(check(route, event, marker, **kwargs))
+        # Evennia persistence can return mapping wrappers rather than plain
+        # dicts. Valid completed evidence must remain usable after reload.
+        wrapped_route = UserDict({
+            **route,
+            "field_decisions": UserDict({
+                "hound": UserDict(route["field_decisions"]["hound"]),
+            }),
+        })
+        wrapped_event = UserDict({
+            **event,
+            "actor": UserDict(event["actor"]),
+            "payload": UserDict(event["payload"]),
+            "consequence": UserDict(event["consequence"]),
+        })
+        self.assertTrue(check(
+            wrapped_route, wrapped_event, UserDict(marker), **kwargs,
+        ))
         for path, invalid in (
             (("status",), "consequence_failed"),
             (("kind",), "village.route_passability_observed"),
