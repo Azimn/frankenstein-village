@@ -65,6 +65,10 @@ def main():
         assert condition not in public.lower(), "Public care leaked patient finding"
         assert "healertester" not in public.lower(), "Public care leaked examiner"
         require(smith.command("clinic records"), "attending healer")
+        # Keep the shared QA Healer at the Tavern for subsequent scripted
+        # tests; relocation is performed by the real logged-in character.
+        require(healer.command("east"), "village square")
+        require(healer.command("east"), "blood of the vine")
         print(f"TELNET_GDD_EDGE18_LATER_DAY_SUPPORTED_CARE_TWO_ACCOUNT_GREEN day={patient_day}")
         if patient_day == 2:
             print("TELNET_GDD_EDGE18_DAY_TWO_SUPPORTED_CARE_TWO_ACCOUNT_GREEN")
