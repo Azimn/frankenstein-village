@@ -101,6 +101,33 @@ class CautionNoticeTests(unittest.TestCase):
                 self.assertIsNone(state.normalize(broken)["caution_notice"])
 
 
+    def test_damaged_persisted_notice_keeps_daily_slot_consumed(self):
+        self.s, ok, why = self.publish()
+        self.assertTrue(ok, why)
+        damaged = json.loads(json.dumps(self.s))
+        damaged["caution_notice"]["source_event_id"] = 999
+        normalized = state.normalize(damaged)
+        self.assertIsNone(normalized["caution_notice"])
+        self.assertEqual(normalized["caution_publication_event_id"], 41)
+        _, accepted, reason = state.publish_caution(
+            damaged, **{**self.base, "event_id": 42})
+        self.assertFalse(accepted)
+        self.assertIn("already published", reason)
+
+        # Upgrade a pre-guard saved Square without erasing its completed slot.
+        legacy = json.loads(json.dumps(damaged))
+        del legacy["caution_publication_event_id"]
+        self.assertEqual(state.normalize(legacy)["caution_publication_event_id"], 41)
+        _, accepted, reason = state.publish_caution(
+            legacy, **{**self.base, "event_id": 42})
+        self.assertFalse(accepted)
+        self.assertIn("already published", reason)
+
+        # A new village day can receive a fresh independently sourced notice.
+        rolled = state.refresh(damaged, 5)
+        self.assertIsNone(rolled["caution_publication_event_id"])
+        self.assertEqual(rolled["history"][-1]["caution_publication_event_id"], 41)
+
     def test_later_day_renewed_hound_source_can_be_published(self):
         first, ok, _ = self.publish()
         self.assertTrue(ok)
