@@ -342,7 +342,7 @@
       "finite_resource_or_time_proof": "CANDIDATE: one sourced notice per village day, no retroactive or future event",
       "solo_fallback_proof": "CANDIDATE: Hound physical warning and civic survey remain usable without publication",
       "authoritative_state_change_proof": "CANDIDATE: signed village.route_caution_published and Square daily_route_survey.caution_notice",
-      "negative_and_late_state_proof": "CANDIDATE: ops/tests/test_route_caution_notice_edge16.py; adapter source recheck",
+      "negative_and_late_state_proof": "CANDIDATE: ops/tests/test_route_caution_notice_edge16.py and test_route_caution_adapter_edge16.py; physical source and account/clock transaction races",
       "two_account_test": "CANDIDATE: spike/tests/telnet_playthrough.py TELNET_GDD_EDGE16_INDEPENDENT_HOUND_CHRONICLER_CAUTION_GREEN",
       "post_restart_test": "CANDIDATE: spike/tests/post_restart_assertions.py POST_RESTART_GDD_EDGE16_SIGNED_INDEPENDENT_CAUTION_GREEN",
       "uncoached_gameplay_evidence": null,
