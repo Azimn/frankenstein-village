@@ -122,8 +122,8 @@ def normalize(raw):
             and all(_ident(decision.get(k)) for k in (
                 "account_id", "mask_id", "event_id", "warning_event_id"))
             and decision.get("choice") in {"indoor", "cancel"}
-            and decision["warning_event_id"] == result["safety_warning"]["event_id"]
-            and decision["account_id"] != result["safety_warning"]["account_id"]
+            and _ident(decision["warning_event_id"]) == result["safety_warning"]["event_id"]
+            and _ident(decision["account_id"]) != result["safety_warning"]["account_id"]
             and _time(day, decision.get("hour"))
             and int(decision["hour"]) >= int(result["safety_warning"]["hour"])):
         result["safety_decision"] = dict(decision)
