@@ -40,7 +40,9 @@ def normalize(raw):
     if not isinstance(raw, Mapping):
         return invalid()
     condition = raw.get("condition")
-    if (condition == "worn" and raw.get("fitting") is None\n            and raw.get("soundcheck") is None\n            and raw.get("plays", []) == [] and raw.get("remaining", 0) == 0):
+    if (condition == "worn" and raw.get("fitting") is None
+            and raw.get("soundcheck") is None
+            and raw.get("plays", []) == [] and raw.get("remaining", 0) == 0):
         return fresh()
     f = raw.get("fitting")
     if condition not in ("fitted", "ready", "spent") or not _row(
