@@ -100,6 +100,43 @@ class CautionNoticeTests(unittest.TestCase):
                 broken["caution_notice"].update(change)
                 self.assertIsNone(state.normalize(broken)["caution_notice"])
 
+
+    def test_later_day_renewed_hound_source_can_be_published(self):
+        first, ok, _ = self.publish()
+        self.assertTrue(ok)
+        next_day = state.refresh(first, 5)
+        renewed, ok, why = state.field_decision(
+            next_day, 5, "red_cord", "hound", "protect", True,
+            11, "Hound", 50, caution_day=4)
+        self.assertTrue(ok, why)
+        self.assertTrue(renewed["field_decisions"]["hound"]["retied_previous_day"])
+        newer, ok, why = state.publish_caution(
+            renewed, day=5, hour=13, account_id=22, mask_id=222,
+            mask="Chronicler", event_id=51, source_event_id=50,
+            source_account_id=11, source_mask_id=111,
+            source_cord_id=500, source_hour=11)
+        self.assertTrue(ok, why)
+        self.assertEqual(newer["caution_notice"]["source_event_id"], 50)
+        self.assertEqual(newer["history"][-1]["caution_notice"]["event_id"], 41)
+        self.assertIn("re-tied", " ".join(state.field_lines(newer)))
+
+    def test_later_day_renewal_rejects_missing_or_same_day_source(self):
+        next_day = state.refresh(self.s, 5)
+        for caution_day in (None, 5, 6, True, "4"):
+            with self.subTest(caution_day=caution_day):
+                _, ok, _ = state.field_decision(
+                    next_day, 5, "red_cord", "hound", "protect", True,
+                    11, "Hound", 50, caution_day=caution_day)
+                self.assertFalse(ok)
+        renewed, ok, _ = state.field_decision(
+            next_day, 5, "red_cord", "hound", "protect", True,
+            11, "Hound", 50, caution_day=4)
+        self.assertTrue(ok)
+        _, ok, _ = state.field_decision(
+            renewed, 5, "red_cord", "hound", "protect", True,
+            11, "Hound", 51, caution_day=4)
+        self.assertFalse(ok)
+
     def test_solo_hound_still_has_public_firsthand_record(self):
         self.assertIsNone(self.s["caution_notice"])
         self.assertIn("frayed cord was tied", " ".join(state.field_lines(self.s)))

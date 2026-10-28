@@ -85,8 +85,8 @@ WORK = {
     "hound": (
         "At the Northern Treeline, examine the frayed red cord and use "
         "survey protect to tie its loose end into a real caution marker. "
-        "The physical change is one-time; it cannot be repeated after "
-        "someone else has already protected the route.",
+        "The same day cannot be signed twice. On a later village day, "
+        "inspect the cord again and re-tighten a verified older marker.",
         "Use survey and perform signed firsthand inspections in the "
         "churchyard, treeline, market and riverside districts.",
         "Talk to residents you physically encounter during their "

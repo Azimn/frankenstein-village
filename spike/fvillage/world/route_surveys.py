@@ -97,6 +97,8 @@ def normalize(raw):
             continue
         decisions[role] = {"account_id": account, "mask": str(entry.get("mask") or "")[:70],
                            "event_id": event, "action": action, "site": "red_cord"}
+        if role == "hound":
+            decisions[role]["retied_previous_day"] = entry.get("retied_previous_day") is True
         if role == "wanderer":
             decisions[role]["observation"] = observation
     return {
@@ -156,7 +158,7 @@ def complete(state):
     return len(normalize(state)["reports"]) == len(SITES)
 
 def field_decision(raw, day, site, role, action, caution_marked,
-                   account_id, mask, event_id):
+                   account_id, mask, event_id, *, caution_day=None):
     """One signed profession-specific action at the same physical treeline.
 
     The cord is the physical safety authority. A Hound may tie its existing
@@ -185,12 +187,15 @@ def field_decision(raw, day, site, role, action, caution_marked,
     if role in state["field_decisions"]:
         return state, False, "That professional field action is already signed today."
     if role == "hound" and caution_marked:
-        return state, False, "The frayed cord is already tied as a visible caution marker."
+        if type(caution_day) is not int or not 0 < caution_day < day:
+            return state, False, "The frayed cord is already tied as a visible caution marker."
     entry = {
         "site": site, "action": action,
         "account_id": int(account_id), "mask": str(mask)[:70],
         "event_id": int(event_id),
     }
+    if role == "hound":
+        entry["retied_previous_day"] = caution_marked
     if role == "wanderer":
         entry["observation"] = "marked_caution" if caution_marked else "unmarked"
     state["field_decisions"][role] = entry
@@ -238,7 +243,8 @@ def field_lines(raw):
     if "hound" in entries:
         hound = entries["hound"]
         lines.append(
-            f"The Northern Treeline's frayed cord was tied as a caution marker "
+            f"The Northern Treeline's frayed cord was "
+            f"{'re-tied' if hound.get('retied_previous_day') else 'tied'} as a caution marker "
             f"by {hound['mask']} (signed event {hound['event_id']}). "
             "This does not repair the cord or establish what damaged it."
         )
