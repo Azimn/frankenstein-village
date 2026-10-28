@@ -39,13 +39,14 @@ def production_function(filename, name, globals_dict):
     return namespace[name]
 
 
-def item(key, *, house=False, servings=0, maximum=1,
+def item(key, *, house=False, keeper=False, servings=0, maximum=1,
          ration=None, soup=None):
     tags = Tags()
     if house:
         tags.add("house-sideboard-fare", category="origin")
     return SimpleNamespace(
-        key=key, tags=tags, typeclass_path="typeclasses.objects.Object",
+        key=key, tags=tags, typeclass_path=("typeclasses.characters.TavernKeeper"
+                        if keeper else "typeclasses.objects.Object"),
         db=SimpleNamespace(
             consume={"short": key, "servings_max": maximum},
             servings=servings, uses=maximum if house else None,
@@ -72,7 +73,7 @@ class SideboardFiniteMealTests(TestCase):
         self.assertEqual(bread.db.servings, 6)
 
     def test_only_house_fare_refills_after_player_drops_spent_bowls(self):
-        keeper = item("Bram")
+        keeper = item("Bram", keeper=True)
         bread = item("a loaf of bread", house=True, servings=0, maximum=6)
         plain = item("a bowl of plain kitchen broth", servings=0,
                      ration={"cook_event_id": 41})
@@ -101,7 +102,7 @@ class SideboardFiniteMealTests(TestCase):
         self.assertEqual(len(announcements), 1)
 
     def test_legacy_house_fare_backfills_only_signed_recipe_shapes(self):
-        keeper = item("Bram")
+        keeper = item("Bram", keeper=True)
         bread = item("a loaf of bread", servings=0, maximum=6)
         bread.db.consume["short"] = "bread"
         bread.tags.add("consumable")
@@ -138,7 +139,7 @@ class SideboardFiniteMealTests(TestCase):
         self.assertEqual(len(announcements), 1)
 
     def test_ambiguous_legacy_house_key_does_not_backfill(self):
-        keeper = item("Bram")
+        keeper = item("Bram", keeper=True)
         original = item("a loaf of bread", servings=0, maximum=6)
         duplicate = item("a loaf of bread", servings=0, maximum=6)
         for bread in (original, duplicate):
@@ -159,6 +160,32 @@ class SideboardFiniteMealTests(TestCase):
         for bread in (original, duplicate):
             self.assertEqual(bread.db.servings, 0)
             self.assertFalse(bread.tags.has("house-sideboard-fare", category="origin"))
+
+    def test_named_bram_player_or_prop_cannot_refill_house_fare(self):
+        """The keeper's presence must be real, not a spoofed display name."""
+        properties = ModuleType("world.object_properties")
+        properties.mechanical_value = lambda obj, key, default: obj.db.uses
+        restock = production_function("routines.py", "restock_sideboard", {
+            "_room": lambda key: room,
+        })
+        for impostor_type, has_account in (
+            ("typeclasses.characters.SpikeCharacter", True),
+            ("typeclasses.objects.Object", False),
+        ):
+            with self.subTest(impostor_type=impostor_type):
+                fake = item("Bram")
+                fake.typeclass_path = impostor_type
+                fake.has_account = has_account
+                bread = item("a loaf of bread", house=True,
+                             servings=0, maximum=6)
+                room = SimpleNamespace(
+                    contents=[fake, bread], msg_contents=lambda msg: None,
+                )
+                with patch.dict(sys.modules, {
+                    "world.object_properties": properties,
+                }):
+                    self.assertEqual(restock(), [])
+                self.assertEqual(bread.db.servings, 0)
 
     def test_no_keeper_means_no_house_restock(self):
         bread = item("a loaf of bread", house=True, servings=0, maximum=6)
