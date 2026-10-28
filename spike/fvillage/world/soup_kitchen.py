@@ -7,6 +7,7 @@ special AI capabilities, home ownership or free-score cooking shortcuts.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping
 
 from django.db import transaction
 
@@ -542,7 +543,7 @@ def deliver(mask):
         spent a finite market crate. The ledger is the existing authority.
         """
         record = get_event_ledger().get_event(source["procurement_event_id"])
-        if not isinstance(record, dict):
+        if not isinstance(record, Mapping):
             return False
         actor = record.get("actor")
         payload = record.get("payload")
@@ -550,15 +551,15 @@ def deliver(mask):
         return (
             record.get("kind") == "professional.merchant_kitchen_procurement"
             and record.get("status") == "complete"
-            and isinstance(actor, dict)
+            and isinstance(actor, Mapping)
             and type(actor.get("mask_id")) is int
             and actor["mask_id"] == source["merchant_id"]
-            and isinstance(payload, dict)
+            and isinstance(payload, Mapping)
             and type(payload.get("day")) is int
             and payload["day"] == source["day"]
             and type(payload.get("market_room_id")) is int
             and payload["market_room_id"] == market.id
-            and isinstance(consequence, dict)
+            and isinstance(consequence, Mapping)
             and type(consequence.get("crate_id")) is int
             and consequence["crate_id"] == crate.id
         )
