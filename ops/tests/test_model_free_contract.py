@@ -52,7 +52,16 @@ def _core_distributions(path, visited=None):
             # the default-install model dependency guard.
             if line.startswith("-") or line.startswith(("git+", "http://", "https://")):
                 raise AssertionError(f"Uninspectable core requirement: {line}")
-            name = _distribution_name(line.split(" #", 1)[0])
+            # A wheel, sdist, egg or local file URL is installable without
+            # declaring its true distribution name in the requirement line.
+            # Never infer the package identity from an archive filename.
+            declaration = line.split(" #", 1)[0].strip()
+            if ("file:" in declaration.lower() or re.search(
+                r"\\.(?:whl|zip|egg|tar(?:\\.(?:gz|bz2|xz))?|tgz)(?:[?#].*)?$",
+                declaration, re.IGNORECASE,
+            )):
+                raise AssertionError(f"Uninspectable core archive: {line}")
+            name = _distribution_name(declaration)
             if name is None:
                 raise AssertionError(f"Invalid core requirement: {line}")
             packages.append(name)
@@ -91,10 +100,28 @@ class ModelFreeContractTests(unittest.TestCase):
         with TemporaryDirectory(dir=ROOT) as temp:
             path = Path(temp) / "requirements.txt"
             for line in ("-e git+https://example.org/model#egg=ollama",
-                         "-r https://example.org/requirements.txt"):
+                         "-r https://example.org/requirements.txt",
+                         "ollama-0.6.1-py3-none-any.whl",
+                         "ollama-0.6.1.tar.gz",
+                         "local_model.zip",
+                         "ollama @ file:///tmp/ollama.whl"):
                 path.write_text(line + "\n", encoding="utf-8")
                 with self.subTest(line=line), self.assertRaises(AssertionError):
                     _core_distributions(path)
+
+    def test_nested_local_archive_cannot_hide_model_sdk(self):
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory(dir=ROOT) as temp:
+            directory = Path(temp)
+            (directory / "nested.txt").write_text(
+                "ollama-0.6.1-py3-none-any.whl\\n", encoding="utf-8"
+            )
+            (directory / "requirements.txt").write_text(
+                "-r nested.txt\\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(AssertionError, "Uninspectable core archive"):
+                _core_distributions(directory / "requirements.txt")
 
     def test_requirement_name_variants_cannot_bypass_model_guard(self):
         for declaration, name in (
