@@ -1403,10 +1403,14 @@ from world import workshop_state as _workshop_rules
 _workroom = one("The Market Workshop")
 _public_market = one("Market Lane")
 _work_docket = _workshop_rules.normalize(_workroom.db.repair_docket)
-assert _work_docket["offcuts"] == 1, "Workshop forged stock was replenished on restart"
-assert len(_work_docket["crafts"]) == 1
+assert _work_docket["offcuts"] == 0, "Two signed physical Workshop fittings must consume both offcuts"
+assert len(_work_docket["crafts"]) == 2
+assert {row["mask"] for row in _work_docket["crafts"]} == {"SmithTester", "StageSmithTester"}
 assert _work_docket["installation"] is not None
-_repair_craft = _work_docket["crafts"][0]
+_repair_craft = next(row for row in _work_docket["crafts"] if row["mask"] == "SmithTester")
+_stage_craft = next(row for row in _work_docket["crafts"] if row["mask"] == "StageSmithTester")
+assert _stage_craft["item_id"] != _repair_craft["item_id"]
+assert _stage_craft["event_id"] != _repair_craft["event_id"]
 _repair_install = _work_docket["installation"]
 assert _repair_craft["mask"] == "SmithTester"
 assert _repair_install["mask"] == "MerchantTester"
@@ -1431,11 +1435,12 @@ assert calling_record(one("MerchantTester"), "merchant")["participation"][
     "market_hinges_installed"
 ] == 1
 assert "MerchantTester" in one("a market fittings board").get_display_desc()
-assert "1 of 2 iron offcuts" in one("a public smithing bench").get_display_desc()
+assert "0 of 2 iron offcuts" in one("a public smithing bench").get_display_desc()
 assert _public_market in [e.destination for e in _workroom.exits]
 _next_repair = _workshop_rules.refresh(_work_docket, _work_docket["day"] + 1)
 assert _next_repair["offcuts"] == _workshop_rules.DAILY_OFFCUTS
 assert _next_repair["installation"] is None
+assert len(_next_repair["history"][-1]["crafts"]) == 2
 assert _next_repair["history"][-1]["installation"]["mask"] == "MerchantTester"
 print("POST_RESTART_TWO_ACCOUNT_MARKET_WORKSHOP_GREEN")
 
