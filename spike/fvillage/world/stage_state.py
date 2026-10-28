@@ -7,6 +7,7 @@ accounts may explicitly witness it during that village hour.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping
 
 TUNES = ("ballad", "reel")
 MAX_HISTORY = 32
@@ -188,10 +189,10 @@ def verified_hound_source(route, event, marker, *, account_id, mask_id,
         return False
     if not _time(day, hour):
         return False
-    if not all(isinstance(v, dict) for v in (route, event, marker)):
+    if not all(isinstance(v, Mapping) for v in (route, event, marker)):
         return False
     decisions = route.get("field_decisions")
-    if not isinstance(decisions, dict):
+    if not isinstance(decisions, Mapping):
         return False
     source = decisions.get("hound")
     actor, payload, effect = (
@@ -199,7 +200,7 @@ def verified_hound_source(route, event, marker, *, account_id, mask_id,
         event.get("consequence"))
     # Corrupted or forged persisted nested structures must be rejected as
     # missing evidence, not crash an ordinary player's stage command.
-    if not all(isinstance(v, dict) for v in (source, actor, payload, effect)):
+    if not all(isinstance(v, Mapping) for v in (source, actor, payload, effect)):
         return False
     h = payload.get("hour")
     return (
