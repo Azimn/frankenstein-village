@@ -80,8 +80,9 @@ def status_lines():
         "Neither action proves why the cord was damaged."
     )
     lines.append("Chroniclers: after a Hound protects the real treeline cord, "
-                 "visit this Square board and use survey caution to publish "
-                 "one independently sourced warning. It cannot prove a threat.")
+                 "examine that physical cord at Northern Treeline today, "
+                 "then return to this Square board and use survey caution "
+                 "to publish one source-linked warning. This does not prove a threat.")
     if route_surveys.complete(state):
         lines.append(
             "The public route is complete for today. Tomorrow's observations "
@@ -488,6 +489,31 @@ def _verified_notice(square, state, day):
     )
 
 
+def _chronicler_inspected_source(mask, day, source_hour):
+    """Require an independent, same-day physical cord inspection.
+
+    The landmark clock records whole hours, so same-hour inspections cannot
+    establish an ordering within that hour. This proves firsthand access,
+    not that the Chronicler independently verified an unseen threat.
+    """
+    db = getattr(mask, "db", None)
+    if db is None:
+        return False
+    if not any(row["id"] == "red_cord" for row in
+               known_landmarks(getattr(db, "landmark_discoveries", None))):
+        return False
+    try:
+        latest = dict(getattr(db, "landmark_latest_view", None) or {}).get("red_cord")
+    except (TypeError, ValueError, AttributeError):
+        return False
+    if not isinstance(latest, Mapping):
+        return False
+    observed_day, observed_hour = latest.get("day"), latest.get("hour")
+    return (type(observed_day) is int and observed_day == day
+            and type(observed_hour) is int
+            and source_hour <= observed_hour <= 23)
+
+
 def publish_caution(mask):
     """Chronicler publishes a bounded public warning after a Hound's act."""
     account = getattr(mask, "account", None)
@@ -500,6 +526,9 @@ def publish_caution(mask):
     source = _signed_hound_source(square, day, hour)
     if not source:
         return None, "A completed Hound protection of the real cord is required today."
+    if not _chronicler_inspected_source(mask, day, source["source_hour"]):
+        return None, ("Examine the real red cord at Northern Treeline today "
+                      "and return to the Square before publishing.")
     original_account = account.id
     base = {"day": day, "hour": hour, "account_id": original_account,
             "mask_id": mask.id, "mask": mask.key, **source}
@@ -523,6 +552,8 @@ def publish_caution(mask):
                 raise RuntimeError("The Chronicler disconnected before publication.")
             if _day_hour() != (day, hour):
                 raise RuntimeError("Village time changed before publication.")
+            if not _chronicler_inspected_source(mask, day, source["source_hour"]):
+                raise RuntimeError("The Chronicler's firsthand cord inspection changed.")
             if _signed_hound_source(square, day, hour) != source:
                 raise RuntimeError("The physical Hound source changed.")
             updated, ok, why = route_surveys.publish_caution(
