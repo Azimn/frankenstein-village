@@ -183,6 +183,27 @@ class StageSafetyTests(unittest.TestCase):
         self.assertFalse(check({**route, "day": 2}, event, marker, **kwargs))
         self.assertFalse(check(route, event, marker, **{**kwargs, "hour": 18}))
 
+    def test_rehearsal_cannot_follow_performance_after_clock_rewind(self):
+        # A real rehearsal at hour 21 cannot authorize an hour-20 show,
+        # even if the village clock or a persisted stage record is rewound.
+        state, ok, why = stage.rehearse(
+            None, tune="ballad",
+            **who(account=22, mask=222, event=200, hour=21))
+        self.assertTrue(ok, why)
+        before = stage.normalize(state)
+        unchanged, ok, why = stage.perform(
+            state, tune="ballad",
+            **who(account=22, mask=222, event=201, hour=20))
+        self.assertFalse(ok)
+        self.assertIn("rehearsal cannot occur after", why)
+        self.assertEqual(unchanged, before)
+        self.assertIsNone(unchanged["performance"])
+        state, ok, why = stage.perform(
+            state, tune="ballad",
+            **who(account=22, mask=222, event=202, hour=21))
+        self.assertTrue(ok, why)
+        self.assertEqual(state["performance"]["rehearsal_event_id"], 200)
+
     def test_warning_and_decision_chronology_cannot_be_reversed(self):
         state, ok, _ = warning(hour=20)
         self.assertTrue(ok)
