@@ -273,6 +273,27 @@ class CautionAdapterTests(unittest.TestCase):
         self.events[41]["actor"]["mask"] = "Another Chronicler"
         self.assertFalse(self.work._verified_notice(self.square, signed, 4))
 
+    def test_public_board_hides_forged_hound_name_without_erasing_record(self):
+        result, error = self.work.publish_caution(self.mask)
+        self.assertIsNone(error)
+        state = json.loads(json.dumps(self.square.db.daily_route_survey))
+        state["field_decisions"]["hound"]["mask"] = "Impersonated Hound"
+        self.square.db.daily_route_survey = state
+        # The full public board, not just the verified-notice helper, must
+        # suppress the false attribution and any notice relying on it.
+        self.work.LANDMARKS = {
+            **self.work.LANDMARKS,
+            **{site: {"room": site, "key": site}
+               for site in route_surveys.SITES if site != "red_cord"},
+        }
+        display = self.work.status_lines()
+        self.assertNotIn("Impersonated Hound", display)
+        self.assertNotIn("published a Chronicler caution notice", display)
+        self.assertEqual(
+            self.square.db.daily_route_survey["field_decisions"]["hound"]["mask"],
+            "Impersonated Hound",
+        )  # projection is read-only; no invented state repair
+
     def test_tampered_published_event_is_not_displayable(self):
         result, error = self.work.publish_caution(self.mask)
         self.assertIsNone(error)
