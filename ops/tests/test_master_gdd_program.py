@@ -88,7 +88,7 @@ class MasterGDDProgramTests(unittest.TestCase):
             with self.subTest(string=string):
                 self.assertIn(string,self.plan)
 
-    def test_source_pair_register_has_all_45_with_evidence_unverified(self):
+    def test_source_pair_register_preserves_candidate_evidence_without_acceptance(self):
         register=json.loads(
             (ROOT/"ops/MASTER_GDD_45_EDGE_REGISTER_2026-10-25.json").read_text(encoding="utf-8")
         )
@@ -103,10 +103,36 @@ class MasterGDDProgramTests(unittest.TestCase):
         self.assertEqual((edges[3]["calling_a"],edges[3]["calling_b"],edges[3]["baseline_class"]),
                          ("Innkeep","Merchant","V"))
         for edge in edges:
-            self.assertFalse(edge["verified_complete"])
-            self.assertIsNone(edge["ordinary_player_discovery_proof"])
-            self.assertIsNone(edge["two_account_test"])
-            self.assertIsNone(edge["post_restart_test"])
+            # A working PR may attach exact-head CI receipts before the
+            # independent play and main-branch acceptance gates are satisfied.
+            # Preserve that candidate evidence instead of requiring every
+            # evidence field to remain null forever.
+            self.assertIs(edge["verified_complete"], False, edge["id"])
+            for field in (
+                "ordinary_player_discovery_proof",
+                "two_account_test",
+                "post_restart_test",
+            ):
+                evidence = edge[field]
+                self.assertTrue(
+                    evidence is None or (
+                        isinstance(evidence, str)
+                        and len(evidence.strip()) > 20
+                    ),
+                    f"{edge['id']}: {field} needs a substantive source anchor",
+                )
+                if evidence is not None:
+                    # Existing independent PRs use both 'candidate:' and
+                    # longer source/test descriptions. The explicit review
+                    # state, not a prose prefix, is the acceptance boundary.
+                    self.assertTrue(
+                        edge["review_state"].startswith("candidate"),
+                        f"{edge['id']}: evidence lacks candidate review state",
+                    )
+            self.assertIsNone(
+                edge["uncoached_gameplay_evidence"],
+                f"{edge['id']}: uncoached play has not been independently accepted",
+            )
             self.assertGreater(len(edge["design_contract"]),60)
 
     def test_does_not_claim_implementation_or_canon_approval(self):

@@ -1403,8 +1403,8 @@ from world import workshop_state as _workshop_rules
 _workroom = one("The Market Workshop")
 _public_market = one("Market Lane")
 _work_docket = _workshop_rules.normalize(_workroom.db.repair_docket)
-assert _work_docket["offcuts"] == 1, "Workshop forged stock was replenished on restart"
-assert len(_work_docket["crafts"]) == 1
+assert _work_docket["offcuts"] == 0, "Both real Workshop fittings must consume finite stock"
+assert len(_work_docket["crafts"]) == 2
 assert _work_docket["installation"] is not None
 _repair_craft = _work_docket["crafts"][0]
 _repair_install = _work_docket["installation"]
@@ -1431,13 +1431,57 @@ assert calling_record(one("MerchantTester"), "merchant")["participation"][
     "market_hinges_installed"
 ] == 1
 assert "MerchantTester" in one("a market fittings board").get_display_desc()
-assert "1 of 2 iron offcuts" in one("a public smithing bench").get_display_desc()
+assert "0 of 2 iron offcuts" in one("a public smithing bench").get_display_desc()
 assert _public_market in [e.destination for e in _workroom.exits]
 _next_repair = _workshop_rules.refresh(_work_docket, _work_docket["day"] + 1)
 assert _next_repair["offcuts"] == _workshop_rules.DAILY_OFFCUTS
 assert _next_repair["installation"] is None
 assert _next_repair["history"][-1]["installation"]["mask"] == "MerchantTester"
 print("POST_RESTART_TWO_ACCOUNT_MARKET_WORKSHOP_GREEN")
+
+# GDD-EDGE-18: the SECOND finite Workshop hinge was physically consumed
+# on the original Church cot, and a different authenticated Healer signed
+# a suitability decision based on a real patient assessment. Neither
+# forging nor the certification retroactively changes prior patient care.
+from world import clinic_cot_edge18 as _cot_rules
+_cot = one("a clinic treatment cot")
+_cot_state = _cot_rules.normalize(_cot.db.clinic_equipment)
+assert _cot_state["condition"] == "certified"
+_brace = _cot_state["brace"]
+_cert = _cot_state["certification"]
+assert _brace["mask"] == "CotSmithTester"
+assert _cert["mask"] == "HealerTester"
+assert _brace["account_id"] != _cert["account_id"]
+assert _brace["mask_id"] != _cert["mask_id"]
+assert _brace["cot_id"] == _cert["cot_id"] == _cot.id
+assert _cert["assessment_event_id"] == _clinic["assessment"]["event_id"]
+assert _brace["forge_event_id"] == _work_docket["crafts"][1]["event_id"]
+assert _brace["item_id"] == _work_docket["crafts"][1]["item_id"]
+assert _brace["workshop_id"] == _workroom.id
+assert not [obj for obj in one("CotSmithTester").contents
+            if obj.db.forged_market_part], "Consumed cot hinge reappeared"
+_brace_event = warning_ledger.get_event(_brace["event_id"])
+_cert_event = warning_ledger.get_event(_cert["event_id"])
+_cot_forge = warning_ledger.get_event(_brace["forge_event_id"])
+assert _brace_event["kind"] == "professional.clinic_cot_braced"
+assert _cert_event["kind"] == "professional.clinic_cot_certified"
+assert _cot_forge["kind"] == "village.market_hinge_forged"
+assert all(e["status"] == "complete" for e in
+           (_brace_event, _cert_event, _cot_forge))
+assert _brace_event["actor"]["account_id"] == _brace["account_id"]
+assert _cert_event["actor"]["account_id"] == _cert["account_id"]
+assert _brace_event["consequence"]["consumed_item_id"] == _brace["item_id"]
+assert _brace_event["consequence"]["forge_event_id"] == _brace["forge_event_id"]
+assert _cert_event["consequence"]["brace_event_id"] == _brace["event_id"]
+assert _cert_event["consequence"]["assessment_event_id"] == _cert["assessment_event_id"]
+assert _clinic["treatment"]["method"] == "compress", "Cot repair changed prior care"
+assert "clinically approved" in _cot.get_display_desc().lower()
+assert "cold" not in _cot.get_display_desc().lower()
+assert calling_record(one("CotSmithTester"), "smith")["participation"][
+    "clinic_cot_braces"] == 1
+assert calling_record(healer_tester, "healer")["participation"][
+    "clinic_cot_certifications"] == 1
+print("POST_RESTART_GDD_EDGE18_SIGNED_INDEPENDENT_COT_CERTIFICATION_GREEN")
 
 
 
