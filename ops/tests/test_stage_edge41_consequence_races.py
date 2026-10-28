@@ -167,5 +167,36 @@ class StageConsequenceRaceTests(unittest.TestCase):
         self.assertEqual(self.tavern.db.village_stage["witnesses"][0]["account_id"], 22)
 
 
+    def test_safety_adaptation_cannot_be_signed_after_account_switch(self):
+        state, ok, why = stage_state.warn(
+            None, day=4, hour=20, account_id=33, mask_id=133,
+            mask="Hound", event_id=480, source_event_id=479, cord_id=777)
+        self.assertTrue(ok, why)
+        self.tavern.db.village_stage = state
+        # Isolate the transaction boundary: canonical source validation is
+        # exercised by the separate live Hound/Performer and restart tests.
+        self.work._verified_warning = lambda *_args: True
+        self.mutate = lambda: setattr(self.actor, "account", Account(44))
+        with self.assertRaisesRegex(RuntimeError, "changed account or Calling"):
+            self.work.safety_action(self.actor, "adapt", "indoor")
+        self.assertIsNone(self.tavern.db.village_stage["safety_decision"])
+        self.assertEqual(self.published, [])
+
+    def test_safety_adaptation_keeps_valid_independent_actor(self):
+        state, ok, why = stage_state.warn(
+            None, day=4, hour=20, account_id=33, mask_id=133,
+            mask="Hound", event_id=480, source_event_id=479, cord_id=777)
+        self.assertTrue(ok, why)
+        self.tavern.db.village_stage = state
+        self.work._verified_warning = lambda *_args: True
+        result, error = self.work.safety_action(self.actor, "adapt", "indoor")
+        self.assertIsNone(error)
+        self.assertEqual(result["action"], "adapt")
+        self.assertEqual(
+            self.tavern.db.village_stage["safety_decision"]["account_id"], 11)
+        self.assertEqual(
+            self.tavern.db.village_stage["safety_decision"]["warning_event_id"], 480)
+
+
 if __name__ == "__main__":
     unittest.main()
