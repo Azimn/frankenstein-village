@@ -319,5 +319,41 @@ class RouteHistoryTests(unittest.TestCase):
         self.assertNotIn("guaranteed safety", public.split("this does not repair")[0])
 
 
+    def test_hound_can_tend_existing_warning_on_next_day_without_resigning_today(self):
+        # The physical caution marker survives midnight. It must not lock
+        # Hounds out of repeatable daily work or pretend to be a new repair.
+        state, accepted, error = route.field_decision(
+            None, 4, "red_cord", "hound", "protect",
+            False, 11, "FirstHound", 401,
+        )
+        self.assertTrue(accepted, error)
+        self.assertFalse(state["field_decisions"]["hound"]["renewed"])
+        state, accepted, error = route.field_decision(
+            state, 4, "red_cord", "hound", "protect",
+            True, 12, "SecondHound", 402,
+        )
+        self.assertFalse(accepted, "One signed Hound action per day")
+        self.assertEqual(state["field_decisions"]["hound"]["event_id"], 401)
+
+        state, accepted, error = route.field_decision(
+            state, 5, "red_cord", "hound", "protect",
+            True, 12, "SecondHound", 403,
+        )
+        self.assertTrue(accepted, error)
+        self.assertTrue(state["field_decisions"]["hound"]["renewed"])
+        self.assertIn("tended as a caution marker", " ".join(route.field_lines(state)))
+        prior = route.history_records(state, 5, selected_day=4)
+        self.assertEqual(prior[0]["field_decisions"]["hound"]["event_id"], 401)
+        self.assertFalse(prior[0]["field_decisions"]["hound"]["renewed"])
+        self.assertIn("tied as a caution marker", " ".join(route.field_lines(prior[0])))
+        self.assertEqual(state["field_decisions"]["hound"]["event_id"], 403)
+        state, accepted, error = route.field_decision(
+            state, 5, "red_cord", "hound", "protect",
+            True, 11, "FirstHound", 404,
+        )
+        self.assertFalse(accepted)
+        self.assertEqual(state["field_decisions"]["hound"]["event_id"], 403)
+
+
 if __name__ == "__main__":
     unittest.main()
