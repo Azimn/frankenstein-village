@@ -536,6 +536,35 @@ def main() -> int:
             ).read_text(encoding="utf-8")
             run([evennia, "shell"], cwd=game, env=env,
                 input_text=edge41_restart)
+
+            # EDGE-41 renewal: no source is reset. A forward-only QA day
+            # retains the original signed cord and completed indoor show.
+            renewal_setup = (
+                checkout / "spike" / "tests" /
+                "gdd_edge41_renewal_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=renewal_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge41_renewal.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=180,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            renewal_restart = (
+                checkout / "spike" / "tests" /
+                "gdd_edge41_renewal_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=renewal_restart)
         except Exception:
             dump_logs(game)
             raise
