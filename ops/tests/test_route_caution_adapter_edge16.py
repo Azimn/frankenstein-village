@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "spike/fvillage"))
-from world import route_surveys
+from world import route_surveys, discoveries
 
 
 class CautionAdapterTests(unittest.TestCase):
@@ -41,7 +41,8 @@ class CautionAdapterTests(unittest.TestCase):
             location=self.square, role="chronicler",
             db=types.SimpleNamespace(
                 landmark_discoveries=[{"id": "red_cord"}],
-                landmark_latest_view={"red_cord": {"day": 4, "hour": 11}}))
+                landmark_latest_view={"red_cord": {"day": 4, "hour": 11,
+                    "route_caution_event_id": 40, "route_caution_cord_id": 700}}))
         self.hound_event = {
             "id": 40, "kind": "village.route_protected", "status": "complete",
             "actor": {"account_id": 11, "mask_id": 111, "mask": "Hound"},
@@ -177,6 +178,12 @@ class CautionAdapterTests(unittest.TestCase):
                             {"red_cord": {"day": 4, "hour": 9}}),
             lambda: setattr(self.mask.db, "landmark_latest_view",
                             {"red_cord": {"day": 4, "hour": "11"}}),
+            lambda: self.mask.db.landmark_latest_view["red_cord"].update(
+                route_caution_event_id=None, hour=10),
+            lambda: self.mask.db.landmark_latest_view["red_cord"].update(
+                route_caution_event_id=39, hour=10),
+            lambda: self.mask.db.landmark_latest_view["red_cord"].update(
+                route_caution_cord_id=999),
         ):
             with self.subTest(change=change):
                 self.setUp()
@@ -185,6 +192,41 @@ class CautionAdapterTests(unittest.TestCase):
                 self.assertIsNone(result)
                 self.assertIn("Examine the real red cord", error)
                 self.assertEqual(self.published, [])
+
+    def test_actual_look_binds_inspection_to_visible_marker_not_clock_only(self):
+        # An earlier same-hour look cannot attest a marker not yet tied.
+        self.mask.location = self.treeline
+        self.cord.db.route_caution = {}
+        class Clock:
+            class DoesNotExist(Exception):
+                pass
+            objects = types.SimpleNamespace(get=lambda **_kw:
+                types.SimpleNamespace(db=types.SimpleNamespace(day=4, hour=10)))
+        with patch.dict(sys.modules, {
+            "evennia.scripts.models": types.SimpleNamespace(ScriptDB=Clock)
+        }):
+            self.assertTrue(discoveries.capture(self.mask, self.cord, "red_cord"))
+            first = self.mask.db.landmark_latest_view["red_cord"]
+            self.assertNotIn("route_caution_event_id", first)
+            self.cord.db.route_caution = {
+                "day": 4, "event_id": 40, "account_id": 11}
+            self.assertFalse(discoveries.capture(self.mask, self.cord, "red_cord"))
+        second = self.mask.db.landmark_latest_view["red_cord"]
+        self.assertEqual(second["route_caution_event_id"], 40)
+        self.assertEqual(second["route_caution_cord_id"], 700)
+        self.assertEqual(second["hour"], 10)
+        self.mask.location = self.square
+        result, error = self.work.publish_caution(self.mask)
+        self.assertIsNone(error)
+        self.assertEqual(result["source_event_id"], 40)
+
+    def test_marker_bound_inspection_revoked_during_publication(self):
+        self.mutate = lambda: self.mask.db.landmark_latest_view[
+            "red_cord"].update(route_caution_event_id=39)
+        with self.assertRaisesRegex(RuntimeError, "firsthand cord inspection changed"):
+            self.work.publish_caution(self.mask)
+        self.assertIsNone(self.square.db.daily_route_survey["caution_notice"])
+        self.assertEqual(self.published, [])
 
     def test_chronicler_inspection_revoked_before_event_consequence(self):
         self.mutate = lambda: self.mask.db.landmark_latest_view.clear()

@@ -489,12 +489,12 @@ def _verified_notice(square, state, day):
     )
 
 
-def _chronicler_inspected_source(mask, day, source_hour):
-    """Require an independent, same-day physical cord inspection.
+def _chronicler_inspected_source(mask, day, source):
+    """Require a physical look at this particular signed Hound marker.
 
-    The landmark clock records whole hours, so same-hour inspections cannot
-    establish an ordering within that hour. This proves firsthand access,
-    not that the Chronicler independently verified an unseen threat.
+    Whole-hour timestamps cannot order two actions within an hour.
+    The private inspection stamp must identify the source event actually
+    present on the original cord when the Chronicler looked.
     """
     db = getattr(mask, "db", None)
     if db is None:
@@ -511,7 +511,11 @@ def _chronicler_inspected_source(mask, day, source_hour):
     observed_day, observed_hour = latest.get("day"), latest.get("hour")
     return (type(observed_day) is int and observed_day == day
             and type(observed_hour) is int
-            and source_hour <= observed_hour <= 23)
+            and source["source_hour"] <= observed_hour <= 23
+            and type(latest.get("route_caution_event_id")) is int
+            and latest["route_caution_event_id"] == source["source_event_id"]
+            and type(latest.get("route_caution_cord_id")) is int
+            and latest["route_caution_cord_id"] == source["source_cord_id"])
 
 
 def publish_caution(mask):
@@ -526,7 +530,7 @@ def publish_caution(mask):
     source = _signed_hound_source(square, day, hour)
     if not source:
         return None, "A completed Hound protection of the real cord is required today."
-    if not _chronicler_inspected_source(mask, day, source["source_hour"]):
+    if not _chronicler_inspected_source(mask, day, source):
         return None, ("Examine the real red cord at Northern Treeline today "
                       "and return to the Square before publishing.")
     original_account = account.id
@@ -552,7 +556,7 @@ def publish_caution(mask):
                 raise RuntimeError("The Chronicler disconnected before publication.")
             if _day_hour() != (day, hour):
                 raise RuntimeError("Village time changed before publication.")
-            if not _chronicler_inspected_source(mask, day, source["source_hour"]):
+            if not _chronicler_inspected_source(mask, day, source):
                 raise RuntimeError("The Chronicler's firsthand cord inspection changed.")
             if _signed_hound_source(square, day, hour) != source:
                 raise RuntimeError("The physical Hound source changed.")
