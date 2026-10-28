@@ -148,5 +148,16 @@ class MalformedCautionTests(unittest.TestCase):
                     self.ns["field_action"](mask, action)
 
 
+    def test_corrupt_history_prevents_signed_retying(self):
+        mask = self._player_scene("hound", self.marker)
+        self.cord.db.route_caution_history = "corrupt"
+        def publish(kind, *, actor, payload, consequence):
+            return consequence({"id": 99})
+        self.ns["publish_world_event"] = publish
+        with self.assertRaisesRegex(RuntimeError, "history is malformed"):
+            self.ns["field_action"](mask, "protect")
+        self.assertEqual(self.cord.db.route_caution, self.marker)
+
+
 if __name__ == "__main__":
     unittest.main()
