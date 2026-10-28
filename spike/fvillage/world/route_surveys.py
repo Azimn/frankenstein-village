@@ -67,6 +67,9 @@ def normalize(raw):
                            "event_id": event, "action": action, "site": "red_cord"}
         if role == "wanderer":
             decisions[role]["observation"] = observation
+        else:
+            # Older Hound records predate the daily maintenance distinction.
+            decisions[role]["renewed"] = entry.get("renewed") is True
     saved_history = value.get("history")
     # Evennia persists Attribute lists as _SaverList (MutableSequence), not
     # built-in list. Reject strings and mappings, but preserve wrapped rows.
@@ -158,8 +161,6 @@ def field_decision(raw, day, site, role, action, caution_marked,
             return state, False, "A signed ordinary account and event are required."
     if role in state["field_decisions"]:
         return state, False, "That professional field action is already signed today."
-    if role == "hound" and caution_marked:
-        return state, False, "The frayed cord is already tied as a visible caution marker."
     entry = {
         "site": site, "action": action,
         "account_id": int(account_id), "mask": str(mask)[:70],
@@ -167,6 +168,10 @@ def field_decision(raw, day, site, role, action, caution_marked,
     }
     if role == "wanderer":
         entry["observation"] = "marked_caution" if caution_marked else "unmarked"
+    else:
+        # A later day can tend an existing warning without pretending the
+        # cord was newly repaired or spending imaginary supplies.
+        entry["renewed"] = caution_marked
     state["field_decisions"][role] = entry
     return state, True, None
 
@@ -229,8 +234,9 @@ def field_lines(raw):
     lines = []
     if "hound" in entries:
         hound = entries["hound"]
+        action = "tended" if hound.get("renewed") else "tied"
         lines.append(
-            f"The Northern Treeline's frayed cord was tied as a caution marker "
+            f"The Northern Treeline's frayed cord was {action} as a caution marker "
             f"by {hound['mask']} (signed event {hound['event_id']}). "
             "This does not repair the cord or establish what damaged it."
         )
