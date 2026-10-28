@@ -208,5 +208,81 @@ class MalformedStagePersistenceTests(unittest.TestCase):
         self.assertNotIn("indoor|cancel", command_source)
 
 
+    def test_persisted_numeric_string_rehearsal_and_show_are_canonical(self):
+        state, ok, reason = stage.rehearse(
+            None, day=4, hour=19, account_id=11, mask_id=111,
+            mask="Performer", tune="ballad", event_id=90)
+        self.assertTrue(ok, reason)
+        restored = {**state, "rehearsals": [{
+            **state["rehearsals"][0],
+            "account_id": "11", "mask_id": "111",
+            "event_id": "90", "hour": "19",
+        }]}
+        self.assertEqual(stage.normalize(restored)["rehearsals"][0]["hour"], 19)
+        self.assertEqual(stage.normalize(restored)["rehearsals"][0]["account_id"], 11)
+        _, ok, reason = stage.rehearse(
+            restored, day=4, hour=20, account_id=11, mask_id=111,
+            mask="Performer", tune="ballad", event_id=91)
+        self.assertFalse(ok)
+        self.assertIn("already rehearsed", reason)
+        played, ok, reason = stage.perform(
+            restored, day=4, hour=20, account_id=11, mask_id=111,
+            mask="Performer", tune="ballad", event_id=92,
+            audience_account_ids=[22])
+        self.assertTrue(ok, reason)
+        restored_show = {**played, "performance": {
+            **played["performance"], "account_id": "11",
+            "mask_id": "111", "event_id": "92", "hour": "20",
+        }}
+        self.assertEqual(stage.normalize(restored_show)["performance"]["hour"], 20)
+        self.assertIn("hour 20", stage.public_lines(restored_show, 4))
+        _, ok, reason = stage.perform(
+            restored_show, day=4, hour=20, account_id=11, mask_id=111,
+            mask="Performer", tune="ballad", event_id=93)
+        self.assertFalse(ok)
+        self.assertIn("already taken place", reason)
+        witnessed, ok, reason = stage.witness(
+            restored_show, day=4, hour=20, account_id=22, mask_id=222,
+            mask="Witness", event_id=94)
+        self.assertTrue(ok, reason)
+        self.assertEqual(len(witnessed["witnesses"]), 1)
+
+    def test_persisted_numeric_string_warning_and_decision_remain_consistent(self):
+        state, ok, reason = stage.warn(
+            None, day=4, hour=18, account_id=11, mask_id=111,
+            mask="Hound", event_id=90, source_event_id=80, cord_id=777)
+        self.assertTrue(ok, reason)
+        state, ok, reason = stage.adapt(
+            state, day=4, hour=19, account_id=22, mask_id=222,
+            mask="Performer", event_id=91, choice="indoor")
+        self.assertTrue(ok, reason)
+        restored = {**state,
+            "safety_warning": {**state["safety_warning"],
+                "account_id": "11", "mask_id": "111",
+                "event_id": "90", "source_event_id": "80",
+                "cord_id": "777", "hour": "18"},
+            "safety_decision": {**state["safety_decision"],
+                "account_id": "22", "mask_id": "222",
+                "event_id": "91", "warning_event_id": 90,
+                "hour": "19"},
+        }
+        normalized = stage.normalize(restored)
+        self.assertIsNotNone(normalized["safety_warning"])
+        self.assertIsNotNone(normalized["safety_decision"])
+        self.assertEqual(normalized["safety_warning"]["hour"], 18)
+        self.assertEqual(normalized["safety_decision"]["hour"], 19)
+        self.assertIn("A Hound signed", stage.public_lines(restored, 4))
+        state, ok, reason = stage.rehearse(
+            restored, day=4, hour=19, account_id=22, mask_id=222,
+            mask="Performer", tune="reel", event_id=92)
+        self.assertTrue(ok, reason)
+        state, ok, reason = stage.perform(
+            state, day=4, hour=20, account_id=22, mask_id=222,
+            mask="Performer", tune="reel", event_id=93)
+        self.assertTrue(ok, reason)
+        self.assertEqual(state["performance"]["safety_mode"], "indoor")
+
+
+
 if __name__ == "__main__":
     unittest.main()
