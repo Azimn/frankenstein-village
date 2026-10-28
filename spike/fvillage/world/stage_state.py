@@ -152,6 +152,8 @@ def perform(raw, *, day, hour, account_id, mask_id, mask, tune, event_id,
                       if r["account_id"] == aid and r["tune"] == tune), None)
     if not rehearsal:
         return state, False, "Rehearse that piece here before performing."
+    if rehearsal["hour"] > hour:
+        return state, False, "The rehearsal cannot occur after this performance."
     state["performance"] = {
         "account_id": aid, "mask_id": mid, "mask": str(mask)[:70],
         "tune": tune, "hour": hour, "event_id": eid,
