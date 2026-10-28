@@ -16,6 +16,9 @@ WORK = {
         "only if that unresolved need remains in the village.",
     ),
     "chronicler": (
+        "After a Hound physically protects the Northern Treeline cord, "
+        "visit the Village Square board and use survey caution to publish "
+        "a source-linked warning. It records uncertainty, not hazard truth.",
         "At Market Lane: inspect the crooked market scale, use trade, and "
         "trade attest after an actual Merchant decision and Smith calibration.",
         "In the village: read chronicle and rumors; investigate conflicting "
@@ -82,8 +85,8 @@ WORK = {
     "hound": (
         "At the Northern Treeline, examine the frayed red cord and use "
         "survey protect to tie its loose end into a real caution marker. "
-        "The physical change is one-time; it cannot be repeated after "
-        "someone else has already protected the route.",
+        "The same day cannot be signed twice. On a later village day, "
+        "inspect the cord again and re-tighten a verified older marker.",
         "Use survey and perform signed firsthand inspections in the "
         "churchyard, treeline, market and riverside districts.",
         "Talk to residents you physically encounter during their "
