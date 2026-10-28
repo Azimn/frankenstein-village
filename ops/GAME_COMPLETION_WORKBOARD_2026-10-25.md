@@ -57,12 +57,22 @@ chains, the world-function anchors include exact source line numbers.
 These are **candidate anchors only**, not proof of normal player action or
 of pair-specific professions.
 
+The FV-G01 indexing deliverable now has **76 explicit evidence cards**
+(21 content families, 10 Calling entrypoint cards and 45 pair contracts).
+Every card carries a source file and seven coverage dimensions: candidate
+source, player command, room, world owner, signed transition, restart proof,
+and uncoached UX. Missing proof remains `null` / UNVERIFIED with named gaps.
+The Markdown report displays all 45 pairs' evidence fields and has a
+dedicated acceptance handoff at `ops/FV_G01_PACKAGE_HANDOFF_2026-10-27.md`.
+
 Required `observed_room`, normal player command, finite input, authoritative
 signed world transition, independent-account view, negative outcome, true
-restart and uncoached UX proof remain null until individually observed and
-reviewed. Unknown is not failure, nor success. G01 is in progress rather
-than certified until missing runtime evidence is linked to its real owner.
-The generated JSON is an *output*, not a new database or source of world truth.
+restart and uncoached UX proof remain unknown for untested pairs. Unknown is
+not failure, nor success. **The coverage-index deliverable is complete on
+this PR; G01 package acceptance is pending current-head CI, independent
+review, explicit merge authorization and exact-main verification.** No
+pairwise gameplay acceptance is implied. The generated JSON is an *output*,
+not a new database or source of world truth.
 
 ### Actual CI-backed examples, with explicit limits
 
