@@ -367,5 +367,42 @@ class SoupStockConservationTests(unittest.TestCase):
         self.assertIsNone(self.mask.db.soup_notebook)
 
 
+    def test_prep_rejects_hour_rollover_without_minting_packet(self):
+        before = copy.deepcopy(self.tavern.db.soup_pantry)
+        self.before_consequence = lambda: setattr(self, "hour", 22)
+        result, error = self.execute("prep", "turnip", "thyme")
+        self.assertIsNone(result)
+        self.assertIn("hour changed", error.lower())
+        self.assertEqual(self.tavern.db.soup_pantry, before)
+        self.assertEqual(self.created, [])
+        self.assertEqual(self.events, [])
+        self.assertEqual(self.recorded, [])
+
+    def test_procure_rejects_hour_rollover_without_spending_market_stock(self):
+        self.mask.location = self.market
+        self.mask.role = "merchant"
+        before = copy.deepcopy(self.market.db.soup_market)
+        self.before_consequence = lambda: setattr(self, "hour", 22)
+        result, error = self.execute("procure")
+        self.assertIsNone(result)
+        self.assertIn("hour changed", error.lower())
+        self.assertEqual(self.market.db.soup_market, before)
+        self.assertEqual(self.created, [])
+        self.assertEqual(self.events, [])
+        self.assertEqual(self.recorded, [])
+
+    def test_deliver_rejects_hour_rollover_without_consuming_crate(self):
+        crate = self.crate()
+        before = copy.deepcopy(self.tavern.db.soup_pantry)
+        self.before_consequence = lambda: setattr(self, "hour", 22)
+        result, error = self.execute("deliver")
+        self.assertIsNone(result)
+        self.assertIn("hour changed", error.lower())
+        self.assertEqual(self.tavern.db.soup_pantry, before)
+        self.assertFalse(crate.deleted)
+        self.assertIs(crate.location, self.mask)
+        self.assertEqual(self.events, [])
+
+
 if __name__ == "__main__":
     unittest.main()
