@@ -297,5 +297,97 @@ class FieldActionErrorBoundaryTests(unittest.TestCase):
         signed.assert_called_once()
 
 
+    def test_real_field_command_renews_existing_cord_only_on_later_day(self):
+        """Execute the production action, ledger consequence and daily state."""
+        import importlib.util
+        from contextlib import nullcontext
+
+        root = Path(__file__).resolve().parents[2] / "spike/fvillage"
+        spec = importlib.util.spec_from_file_location(
+            "route_surveys_under_test", root / "world/route_surveys.py"
+        )
+        surveys = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(surveys)
+        source = root / "world/route_work.py"
+        tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+        funcs = {node.name: node for node in tree.body
+                 if isinstance(node, ast.FunctionDef)}
+        code = compile(ast.fix_missing_locations(ast.Module(
+            body=[funcs["_inspected_today"], funcs["field_action"]],
+            type_ignores=[],
+        )), str(source), "exec")
+
+        day = [4]
+        cord = SimpleNamespace(
+            id=23, key="frayed red cord",
+            db=SimpleNamespace(landmark_id="red_cord", route_caution=None),
+            access=lambda *_a, **_kw: True,
+        )
+        room = SimpleNamespace(
+            key="Northern Treeline",
+            tags=SimpleNamespace(has=lambda *_a, **_kw: True),
+            contents=[cord],
+        )
+        cord.location = room
+        mask = SimpleNamespace(
+            account=SimpleNamespace(id=7), key="HoundTester", location=room,
+            db=SimpleNamespace(
+                landmark_discoveries=[],
+                landmark_latest_view={"red_cord": {"day": 4}},
+            ),
+        )
+        square = SimpleNamespace(
+            id=11, db=SimpleNamespace(daily_route_survey=None)
+        )
+        next_event = iter([901, 902])
+        signed = []
+
+        def publish(_kind, **kwargs):
+            event = {"id": next(next_event)}
+            kwargs["consequence"](event)
+            signed.append(event["id"])
+            return event
+
+        namespace = {
+            "Mapping": Mapping,
+            "active_calling": lambda _mask: "hound",
+            "LANDMARKS": {"red_cord": {
+                "room": "Northern Treeline", "key": "frayed red cord",
+            }},
+            "known_landmarks": lambda _raw: [{"id": "red_cord"}],
+            "_square": lambda: square,
+            "_day_hour": lambda: (day[0], 12),
+            "route_surveys": surveys,
+            "publish_world_event": publish,
+            "transaction": SimpleNamespace(atomic=nullcontext),
+            "record_participation": Mock(),
+        }
+        exec(code, namespace)
+        action = namespace["field_action"]
+        first, error = action(mask, "protect")
+        self.assertIsNone(error)
+        self.assertFalse(first["renewed"])
+        self.assertEqual(cord.db.route_caution["event_id"], 901)
+        duplicate, error = action(mask, "protect")
+        self.assertIsNone(duplicate)
+        self.assertIn("already signed today", error)
+        self.assertEqual(signed, [901])
+
+        day[0] = 5
+        mask.db.landmark_latest_view["red_cord"]["day"] = 5
+        renewed, error = action(mask, "protect")
+        self.assertIsNone(error)
+        self.assertTrue(renewed["renewed"])
+        self.assertEqual(cord.db.route_caution["event_id"], 902)
+        self.assertEqual(signed, [901, 902])
+        self.assertIn("tended as a caution marker",
+                      " ".join(surveys.field_lines(square.db.daily_route_survey)))
+        old = surveys.history_records(square.db.daily_route_survey, 5,
+                                      selected_day=4)
+        self.assertEqual(old[0]["field_decisions"]["hound"]["event_id"], 901)
+        self.assertIn("tied as a caution marker",
+                      " ".join(surveys.field_lines(old[0])))
+
+
 if __name__ == "__main__":
     unittest.main()
