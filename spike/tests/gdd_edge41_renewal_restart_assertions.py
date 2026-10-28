@@ -1,7 +1,7 @@
 """Verify renewable physical cord and second-day independent decision after restart."""
 from evennia.utils import search
 from evennia.accounts.models import AccountDB
-from world import stage_state, route_surveys
+from world import stage_state, route_surveys, route_work
 from world.events import get_event_ledger
 
 def one(key):
@@ -32,6 +32,13 @@ old = history[-1]
 assert old["day"] < marker["day"]
 assert marker["prior_caution_event_id"] == old["event_id"]
 assert marker["account_id"] == hound_id
+assert route_work._signed_prior_caution(cord, square, old, marker["day"])
+assert not route_work._signed_prior_caution(
+    cord, square, {**old, "event_id": 99999999}, marker["day"])
+assert not route_work._signed_prior_caution(
+    cord, square, {**old, "day": marker["day"]}, marker["day"])
+assert not route_work._signed_prior_caution(
+    cord, square, {**old, "account_id": performer_id}, marker["day"])
 assert route["day"] == stage["day"] == marker["day"]
 assert route["field_decisions"]["hound"]["event_id"] == marker["event_id"]
 assert route["field_decisions"]["hound"]["retied_previous_day"] is True
