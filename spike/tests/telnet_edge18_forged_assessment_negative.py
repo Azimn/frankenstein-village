@@ -34,6 +34,11 @@ def main():
         require(healer.command("clinic treat supported"),
                 "assessment lacks a signed healer event")
         require(healer.command("clinic assess"), "already assessed")
+        # Both tests reuse one persistent QA character. Return by ordinary
+        # player movement so a rejected forged assessment cannot leave the
+        # subsequent positive day-two scenario stranded at the Church.
+        require(healer.command("east"), "village square")
+        require(healer.command("east"), "blood of the vine")
         print("TELNET_GDD_EDGE18_AUTHENTICATED_FORGED_ASSESSMENT_REFUSED_GREEN")
     finally:
         if healer is not None:
