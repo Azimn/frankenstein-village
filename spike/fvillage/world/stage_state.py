@@ -82,7 +82,8 @@ def normalize(raw):
             and decision.get("choice") in {"indoor", "cancel"}
             and decision["warning_event_id"] == result["safety_warning"]["event_id"]
             and decision["account_id"] != result["safety_warning"]["account_id"]
-            and _time(day, decision.get("hour"))):
+            and _time(day, decision.get("hour"))
+            and int(decision["hour"]) >= int(result["safety_warning"]["hour"])):
         result["safety_decision"] = dict(decision)
     result["history"] = [
         copy.deepcopy(r) for r in list(raw.get("history") or [])
