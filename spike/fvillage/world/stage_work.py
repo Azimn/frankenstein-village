@@ -184,6 +184,9 @@ def serve(mask, target_name):
             current_tavern, access_error = _guard(mask)
             if access_error or current_tavern != tavern:
                 raise RuntimeError(access_error or "The Innkeep left the Tavern.")
+            if (mask.id != details["mask_id"]
+                    or mask.account.id != details["account_id"]):
+                raise RuntimeError("The serving player's identity changed before service.")
             if active_calling(mask) != "innkeep":
                 raise RuntimeError("The Innkeep Calling changed before service.")
             if _clock() != (day, hour):
