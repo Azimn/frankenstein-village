@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""GDD-EDGE-18: live day-two supported care on the original certified cot.
+"""GDD-EDGE-18: live supported care for a later visitor on the certified cot.
 
-The disposable QA clock is advanced by the existing T-13 fixture. Every
-patient action here uses ordinary authenticated telnet commands. This is
-scripted verification, not an uncoached acceptance session.
+The QA setup begins on village day two, but the actual Evennia clock may
+advance while the authenticated negative and real restart tests execute.
+Read the observed day rather than rewinding the clock or inventing a patient.
+Every patient action uses normal telnet commands, not a shell bypass.
 """
 import argparse
+import re
 from telnet_playthrough import require, require_all
 from telnet_t13_cancel import connect
 
@@ -29,22 +31,29 @@ def main():
         require(smith.command("west"), "st. lazarus church")
 
         public = smith.command("clinic")
-        require_all(public, "village day 2", "clinically approved")
-        assert "sprain" not in public.lower(), "Public status leaked day-two diagnosis"
+        require(public, "clinically approved")
+        match = re.search(r"village day (\\d+):", public, re.IGNORECASE)
+        assert match, "Clinic status did not report its actual village day"
+        patient_day = int(match.group(1))
+        assert patient_day >= 2, "The later patient was not available"
+        # Patient condition rotates in the existing clinic_state service.
+        # This test must not forge an earlier day just to expect a sprain.
+        condition = ("cold", "sprain", "fever")[(patient_day - 1) % 3]
+        assert condition not in public.lower(), "Public status leaked patient details"
         require(smith.command("clinic records"), "attending healer")
         require(smith.command("clinic treat supported"), "active healer")
         require(smith.command("clinic assess"), "active healer")
 
-        # The original day-one compress does not count as treatment of the
-        # day-two visitor. A real new assessment is mandatory.
+        # The original day-one compress does not count as care for the
+        # later visitor, whatever real village day the server has reached.
         require(healer.command("clinic treat supported"),
                 "examine the actual patient first")
         out = healer.command("clinic assess")
-        require_all(out, "assess the visiting patient", "sprain",
+        require_all(out, "assess the visiting patient", condition,
                     "signed world event")
         require(healer.command("clinic records"), "patient's signed permission")
         out = healer.command("clinic treat supported")
-        require_all(out, "carry out supported treatment", "sprain",
+        require_all(out, "carry out supported treatment", condition,
                     "signed as world event")
         require(healer.command("clinic treat supported"),
                 "already received treatment")
@@ -53,10 +62,12 @@ def main():
         smith.read_quiet()
         public = smith.command("clinic")
         require_all(public, "care has been provided", "clinically approved")
-        assert "sprain" not in public.lower(), "Public care leaked patient finding"
+        assert condition not in public.lower(), "Public care leaked patient finding"
         assert "healertester" not in public.lower(), "Public care leaked examiner"
         require(smith.command("clinic records"), "attending healer")
-        print("TELNET_GDD_EDGE18_DAY_TWO_SUPPORTED_CARE_TWO_ACCOUNT_GREEN")
+        print(f"TELNET_GDD_EDGE18_LATER_DAY_SUPPORTED_CARE_TWO_ACCOUNT_GREEN day={patient_day}")
+        if patient_day == 2:
+            print("TELNET_GDD_EDGE18_DAY_TWO_SUPPORTED_CARE_TWO_ACCOUNT_GREEN")
     finally:
         for client in (smith, healer):
             if client is not None:
