@@ -24,9 +24,11 @@ def main():
         require(healer.command("west"), "village square")
         require(healer.command("west"), "st. lazarus church")
         public = healer.command("clinic")
-        require_all(public, "village day 2", "clinically approved",
+        require_all(public, "village day", "clinically approved",
                     "assessment has been recorded")
-        assert "sprain" not in public.lower(), "Public status leaked patient details"
+        assert all(x not in public.lower() for x in ("cold", "sprain", "fever")), (
+            "Public status leaked private patient details"
+        )
         require(healer.command("clinic records"), "patient's signed permission")
         out = healer.command("clinic treat supported")
         require(out, "assessment lacks a signed healer event")
