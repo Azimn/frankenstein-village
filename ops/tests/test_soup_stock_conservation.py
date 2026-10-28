@@ -95,6 +95,10 @@ class SoupStockConservationTests(unittest.TestCase):
                 and getattr(item.db, attribute, None)
             ],
             "_clock": lambda: (self.day, self.hour),
+            "_room": lambda name: (
+                self.market if name == self.market.key else
+                self.tavern if name == self.tavern.key else None
+            ),
             "_full_bowls": lambda actor: sum(
                 1 for item in actor.contents if item.location is actor
                 and (getattr(item.db, "soup_serving", None)
@@ -227,6 +231,49 @@ class SoupStockConservationTests(unittest.TestCase):
         self.assertIn("already carry", error.lower())
         self.assertEqual(self.market.db.soup_market["remaining"], 2)
         self.assertEqual(self.created, [])
+
+    def test_deliver_requires_a_real_market_procurement_receipt(self):
+        valid = {
+            "day": 1, "market_id": self.market.id,
+            "procurement_event_id": 78, "merchant_id": 302,
+        }
+        invalid = (
+            {"day": 1},
+            {**valid, "market_id": self.tavern.id},
+            {**valid, "procurement_event_id": True},
+            {**valid, "merchant_id": 0},
+            {**valid, "day": "1"},
+            object(),
+        )
+        for source in invalid:
+            with self.subTest(source=repr(source)):
+                self.mask.contents.clear()
+                crate = self.crate()
+                crate.db.soup_delivery = source
+                before = copy.deepcopy(self.tavern.db.soup_pantry)
+                result, error = self.execute("deliver")
+                self.assertIsNone(result)
+                self.assertIn("valid signed market procurement", error)
+                self.assertEqual(self.tavern.db.soup_pantry, before)
+                self.assertFalse(crate.deleted)
+                self.assertIs(crate.location, self.mask)
+                self.assertEqual(self.events, [])
+
+    def test_real_merchant_crate_can_be_delivered_by_a_courier(self):
+        self.mask.location = self.market
+        self.mask.role = "merchant"
+        result, error = self.execute("procure")
+        self.assertIsNone(error)
+        self.assertIsNotNone(result)
+        crate = self.created[0]
+        self.assertEqual(crate.db.soup_delivery["market_id"], self.market.id)
+        self.mask.location = self.tavern
+        self.mask.role = "wanderer"
+        result, error = self.execute("deliver")
+        self.assertIsNone(error)
+        self.assertEqual(result["turnips"], 5)
+        self.assertTrue(crate.deleted)
+        self.assertEqual(len(self.events), 2)
 
     def test_deliver_full_pantry_after_preview_preserves_crate(self):
         self.tavern.db.soup_pantry["stock"]["turnip"] = 5
