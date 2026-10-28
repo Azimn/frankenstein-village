@@ -38,4 +38,16 @@ assert not any(
     obj.key == "a forged market hinge" and obj.id == fitting["item_id"]
     for obj in search.search_object("a forged market hinge")
 ), "Consumed physical hinge reappeared after restart"
+# Adversarial rollback: a valid pre-play Attribute snapshot is not allowed to
+# erase a completed acoustic event or replenish a finite physical fitting.
+stale = dict(state, plays=[], remaining=3)
+assert rules.normalize(stale)["condition"] == "ready"
+tavern.db.stage_rail_edge21 = stale
+try:
+    valid, reason = stage_fitting_work._verified_plays(tavern)
+    assert not valid and "omits" in reason, (valid, reason)
+finally:
+    tavern.db.stage_rail_edge21 = state
+assert stage_fitting_work._verified_plays(tavern) == (True, None)
+print("POST_RESTART_GDD_EDGE21_STALE_SNAPSHOT_REPLAY_REFUSED_GREEN")
 print("POST_RESTART_GDD_EDGE21_INDEPENDENT_SIGNED_RAIL_GREEN")
