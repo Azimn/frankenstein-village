@@ -183,6 +183,27 @@ class StageSafetyTests(unittest.TestCase):
         self.assertFalse(check({**route, "day": 2}, event, marker, **kwargs))
         self.assertFalse(check(route, event, marker, **{**kwargs, "hour": 18}))
 
+    def test_persisted_performer_decision_cannot_predate_hound_warning(self):
+        state, ok, why = warning(hour=21)
+        self.assertTrue(ok, why)
+        state, ok, why = decision(state, hour=21)
+        self.assertTrue(ok, why)
+        forged = copy.deepcopy(state)
+        forged["safety_decision"]["hour"] = 20
+        normalized = stage.normalize(forged)
+        self.assertIsNotNone(normalized["safety_warning"])
+        self.assertIsNone(normalized["safety_decision"])
+        # A missing valid decision never silently authorizes a show.
+        state, ok, why = stage.rehearse(
+            normalized, tune="ballad",
+            **who(account=22, mask=222, event=202, hour=21))
+        self.assertTrue(ok, why)
+        _, ok, why = stage.perform(
+            state, tune="ballad",
+            **who(account=22, mask=222, event=203, hour=21))
+        self.assertFalse(ok)
+        self.assertIn("requires a Performer decision", why)
+
     def test_rehearsal_cannot_follow_performance_after_clock_rewind(self):
         # A real rehearsal at hour 21 cannot authorize an hour-20 show,
         # even if the village clock or a persisted stage record is rewound.
