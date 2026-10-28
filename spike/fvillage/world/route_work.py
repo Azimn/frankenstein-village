@@ -400,6 +400,12 @@ def _signed_hound_source(square, day, hour):
     if not all(isinstance(item, Mapping) for item in (actor, payload, effect)):
         return None
     source_hour = payload.get("hour")
+    # Public attribution is a signed fact, not an editable Square label.
+    # Compare the historical name captured by the event, not the mask's
+    # potentially renamed current key.
+    if (not isinstance(actor.get("mask"), str)
+            or source.get("mask") != actor["mask"][:70]):
+        return None
     if (not isinstance(source_hour, int) or isinstance(source_hour, bool)
             or not 0 <= source_hour <= hour <= 23
             or actor.get("account_id") != account_id
@@ -446,6 +452,8 @@ def _verified_notice(square, state, day):
     return (
         actor.get("account_id") == notice["account_id"]
         and actor.get("mask_id") == notice["mask_id"]
+        and isinstance(actor.get("mask"), str)
+        and actor["mask"][:70] == notice["mask"]
         and payload.get("day") == day
         and payload.get("hour") == notice["hour"]
         and payload.get("source_event_id") == notice["source_event_id"]
