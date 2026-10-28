@@ -62,18 +62,18 @@ class Client:
         messages. A short quiet interval after those messages is not proof that
         the server has processed this account's command.
         """
-        print(f"\\n> {line}")
-        self.sock.sendall(line.encode("utf-8") + b"\\n")
+        print(f"\n> {line}")
+        self.sock.sendall(line.encode("utf-8") + b"\n")
         deadline = time.monotonic() + wait
         fragments = []
         while (remaining := deadline - time.monotonic()) > 0:
             fragment = self.read_quiet(max_wait=min(1.25, remaining), quiet=0.2)
             if fragment:
                 fragments.append(fragment)
-            combined = "\\n".join(fragments)
+            combined = "\n".join(fragments)
             if all(needle.lower() in combined.lower() for needle in needles):
                 return combined
-        return "\\n".join(fragments)
+        return "\n".join(fragments)
 
     def sync_login_screen(self) -> str:
         """Wait for Evennia's connection screen before sending credentials."""
