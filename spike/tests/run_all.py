@@ -537,7 +537,21 @@ def main() -> int:
             # EDGE-18 adversarial source check AFTER the existing T-13
             # day-two/three/four sequence. Extra REAL process restarts must
             # not consume T-13's deliberately pinned day-two clock window.
-            # The test now uses whichever later day the village truly reached.
+            # Advance only the disposable QA clock into the start of a fresh
+            # future day AFTER all time-pinned T-13 assertions finish. This
+            # avoids another midnight transition during an authenticated
+            # refusal, without ever backdating the clock or world receipts.
+            edge18_future_day = (
+                "from evennia.scripts.models import ScriptDB\\n"
+                "clock = ScriptDB.objects.get(db_key='village_time')\\n"
+                "before = (int(clock.db.day), int(clock.db.hour))\\n"
+                "clock.db.day = before[0] + 1\\n"
+                "clock.db.hour = 0\\n"
+                "assert (int(clock.db.day), int(clock.db.hour)) > before\\n"
+                "print('EDGE18_AUTH_NEGATIVE_FUTURE_DAY_READY')\\n"
+            )
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge18_future_day)
             forged_fixture = (
                 checkout / "spike" / "tests"
                 / "edge18_authenticated_forgery_fixture.py"
