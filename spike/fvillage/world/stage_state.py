@@ -373,7 +373,7 @@ def public_lines(raw, day):
             lines.append("Previous stage decision: %s, day %d."
                          % (prior_decision["choice"], last["day"]))
     lines.append("Hounds: after survey protect at the real red cord, visit here and stage warn.")
-    lines.append("Performers: stage adapt indoor|cancel after a Hound warning.")
-    lines.append("Performers: stage rehearse ballad|reel, then stage perform ballad|reel.")
+    lines.append("Performers: stage adapt indoor or stage adapt cancel after a Hound warning.")
+    lines.append("Performers: stage rehearse ballad or stage rehearse reel, then stage perform ballad or stage perform reel.")
     lines.append("During the actual performance hour, other visitors may stage witness.")
     return "\n".join(lines)
