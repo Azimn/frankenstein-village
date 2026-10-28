@@ -5,6 +5,8 @@ teleports, grants a quest reward, or publishes a claim as objective truth.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from django.db import transaction
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
@@ -181,9 +183,20 @@ def report(mask):
         "completed": route_surveys.complete(current),
     }, None
 
+def _caution_marker(raw):
+    """Read a persisted physical marker without coercing corrupt values.
+
+    None is an unmarked cord. Other non-mappings are not empty evidence and
+    must never be silently replaced with an unmarked state.
+    """
+    if raw is None:
+        return {}
+    return dict(raw) if isinstance(raw, Mapping) else None
+
+
 def _signed_prior_caution(cord, square, marker, day):
     """Verify a completed earlier Hound event before re-tying this same cord."""
-    if not hasattr(marker, "get"):
+    if not isinstance(marker, Mapping):
         return False
     prior_day = marker.get("day")
     event_id = marker.get("event_id")
@@ -192,11 +205,14 @@ def _signed_prior_caution(cord, square, marker, day):
             (prior_day, event_id, account_id)) or prior_day >= day):
         return False
     signed = get_event_ledger().get_event(event_id)
-    if not signed or signed.get("kind") != "village.route_protected" or signed.get("status") != "complete":
+    if (not isinstance(signed, Mapping) or signed.get("kind") != "village.route_protected"
+            or signed.get("status") != "complete"):
         return False
-    actor = signed.get("actor") or {}
-    payload = signed.get("payload") or {}
-    effect = signed.get("consequence") or {}
+    actor = signed.get("actor")
+    payload = signed.get("payload")
+    effect = signed.get("consequence")
+    if not all(isinstance(value, Mapping) for value in (actor, payload, effect)):
+        return False
     return (
         actor.get("account_id") == account_id
         and type(actor.get("mask_id")) is int and actor["mask_id"] > 0
@@ -254,7 +270,9 @@ def field_action(mask, action):
     square = _square()
     if square is None:
         return None, "The Square's existing public route board is missing."
-    marker = dict(getattr(cord.db, "route_caution", None) or {})
+    marker = _caution_marker(getattr(cord.db, "route_caution", None))
+    if marker is None:
+        return None, "The physical cord warning record is malformed; ask a keeper to inspect it."
     marked = bool(marker)
     if (role == "hound" and marked and marker.get("day") != day
             and not _signed_prior_caution(cord, square, marker, day)):
@@ -275,7 +293,9 @@ def field_action(mask, action):
             now_day, now_hour = _day_hour()
             if (now_day, now_hour) != (day, hour):
                 raise RuntimeError("Village time advanced before this route action.")
-            now_marker = dict(getattr(cord.db, "route_caution", None) or {})
+            now_marker = _caution_marker(getattr(cord.db, "route_caution", None))
+            if now_marker is None:
+                raise RuntimeError("The physical cord warning record became malformed.")
             now_marked = bool(now_marker)
             if action == "protect":
                 if (now_marker.get("event_id") if now_marker else None) != prior_event_id:
@@ -292,7 +312,14 @@ def field_action(mask, action):
             if action == "protect":
                 # Re-tighten the same cord; preserve bounded historical markers.
                 if now_marker:
-                    history = list(cord.db.route_caution_history or [])
+                    raw_history = cord.db.route_caution_history
+                    if raw_history is None:
+                        history = []
+                    elif (isinstance(raw_history, (list, tuple))
+                          and all(isinstance(item, Mapping) for item in raw_history)):
+                        history = list(raw_history)
+                    else:
+                        raise RuntimeError("The physical cord caution history is malformed.")
                     history.append(now_marker)
                     cord.db.route_caution_history = history[-30:]
                 cord.db.route_caution = {
