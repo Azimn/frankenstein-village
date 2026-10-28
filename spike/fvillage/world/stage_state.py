@@ -36,6 +36,17 @@ def _time(day, hour):
     return (d, h) if d and 0 <= h <= 23 else None
 
 
+def _records(value):
+    """Only finite sequence containers can supply persisted state records.
+
+    Corrupt scalar or mapping containers are not iterable evidence. Keep
+    Mapping-backed rows, including Evennia persistence wrappers.
+    """
+    if not isinstance(value, (list, tuple)):
+        return []
+    return [row for row in value if isinstance(row, Mapping)]
+
+
 def fresh(day=1):
     return {"day": day, "rehearsals": [], "performance": None,
             "witnesses": [], "safety_warning": None,
@@ -50,7 +61,7 @@ def normalize(raw):
     except (TypeError, ValueError, OverflowError):
         day = 1
     result = fresh(day)
-    for r in list(raw.get("rehearsals") or [])[-MAX_REHEARSALS * 2:]:
+    for r in _records(raw.get("rehearsals"))[-MAX_REHEARSALS * 2:]:
         if not hasattr(r, "get") or r.get("tune") not in TUNES:
             continue
         if (_ident(r.get("account_id")) and _ident(r.get("mask_id"))
@@ -64,7 +75,7 @@ def normalize(raw):
             and _ident(perf.get("mask_id"))
             and _time(day, perf.get("hour"))):
         result["performance"] = dict(perf)
-        for r in list(raw.get("witnesses") or [])[-MAX_WITNESSES * 2:]:
+        for r in _records(raw.get("witnesses"))[-MAX_WITNESSES * 2:]:
             if (hasattr(r, "get") and _ident(r.get("account_id"))
                     and _ident(r.get("event_id"))):
                 result["witnesses"].append(dict(r))
@@ -87,7 +98,7 @@ def normalize(raw):
             and int(decision["hour"]) >= int(result["safety_warning"]["hour"])):
         result["safety_decision"] = dict(decision)
     result["history"] = [
-        copy.deepcopy(r) for r in list(raw.get("history") or [])
+        copy.deepcopy(r) for r in _records(raw.get("history"))
         if hasattr(r, "get") and _ident(r.get("day"))
     ][-MAX_HISTORY:]
     return result
@@ -325,12 +336,16 @@ def public_lines(raw, day):
         lines.append("No public performance has occurred today.")
     if state["history"]:
         last = state["history"][-1]
-        if last.get("performance"):
+        prior_show = last.get("performance")
+        prior_decision = last.get("safety_decision")
+        if (isinstance(prior_show, Mapping)
+                and isinstance(prior_show.get("mask"), str)):
             lines.append("Previous recorded show: %s, day %d."
-                         % (last["performance"]["mask"], last["day"]))
-        elif last.get("safety_decision"):
+                         % (prior_show["mask"], last["day"]))
+        elif (isinstance(prior_decision, Mapping)
+              and prior_decision.get("choice") in {"indoor", "cancel"}):
             lines.append("Previous stage decision: %s, day %d."
-                         % (last["safety_decision"]["choice"], last["day"]))
+                         % (prior_decision["choice"], last["day"]))
     lines.append("Hounds: after survey protect at the real red cord, visit here and stage warn.")
     lines.append("Performers: stage adapt indoor|cancel after a Hound warning.")
     lines.append("Performers: stage rehearse ballad|reel, then stage perform ballad|reel.")
