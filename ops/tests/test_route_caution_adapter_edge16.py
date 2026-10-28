@@ -27,6 +27,9 @@ class CautionAdapterTests(unittest.TestCase):
                 landmark_id="red_cord",
                 route_caution={"day": 4, "event_id": 40, "account_id": 11}))
         self.treeline.contents.append(self.cord)
+        self.treeline.tags = types.SimpleNamespace(has=lambda *_a, **_kw: True)
+        self.cord.access = lambda *_a, **_kw: True
+        self.cord.db.route_caution_history = None
         state, ok, why = route_surveys.field_decision(
             None, 4, "red_cord", "hound", "protect", False, 11, "Hound", 40)
         self.assertTrue(ok, why)
@@ -90,6 +93,7 @@ class CautionAdapterTests(unittest.TestCase):
         self.work.record_participation = lambda *_a, **_kw: None
         self.work.get_event_ledger = events.get_event_ledger
         self.work.search = utils.search
+        self.work.known_landmarks = lambda raw: raw or []
 
         def publish(kind, *, actor, payload, consequence):
             self.mutate()
@@ -183,6 +187,54 @@ class CautionAdapterTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertIn("already published", error)
         self.assertEqual(len(self.published), 1)
+
+
+    def _hound_renewal_actor(self):
+        self.day, self.hour = 5, 11
+        self.square.db.daily_route_survey = route_surveys.refresh(
+            self.square.db.daily_route_survey, 5)
+        return types.SimpleNamespace(
+            id=111, key="Hound", role="hound", location=self.treeline,
+            account=types.SimpleNamespace(
+                id=11, sessions=types.SimpleNamespace(all=lambda: [object()])),
+            db=types.SimpleNamespace(
+                landmark_discoveries=[{"id": "red_cord"}],
+                landmark_latest_view={"red_cord": {"day": 5}}),
+        )
+
+    def test_real_route_adapter_renews_verified_previous_day_cord(self):
+        hound = self._hound_renewal_actor()
+        result, error = self.work.field_action(hound, "protect")
+        self.assertIsNone(error)
+        self.assertEqual(result["event_id"], 41)
+        self.assertEqual(self.cord.db.route_caution["prior_caution_event_id"], 40)
+        self.assertEqual(self.cord.db.route_caution["day"], 5)
+        self.assertEqual(self.cord.db.route_caution_history[0]["event_id"], 40)
+        self.assertTrue(self.square.db.daily_route_survey[
+            "field_decisions"]["hound"]["retied_previous_day"])
+
+    def test_renewal_rejects_role_and_account_drift_before_consequence(self):
+        for change in (
+            lambda h: setattr(h, "role", "merchant"),
+            lambda h: setattr(h, "account", types.SimpleNamespace(id=33)),
+            lambda h: setattr(h, "location", self.square),
+        ):
+            with self.subTest(change=change):
+                self.setUp()
+                hound = self._hound_renewal_actor()
+                self.mutate = lambda: change(hound)
+                with self.assertRaisesRegex(RuntimeError, "changed account"):
+                    self.work.field_action(hound, "protect")
+                self.assertEqual(self.cord.db.route_caution["event_id"], 40)
+                self.assertEqual(self.published, [])
+
+    def test_renewal_rejects_forged_prior_physical_event(self):
+        hound = self._hound_renewal_actor()
+        self.events[40]["status"] = "consequence_failed"
+        result, error = self.work.field_action(hound, "protect")
+        self.assertIsNone(result)
+        self.assertIn("older cord warning", error)
+        self.assertEqual(self.cord.db.route_caution["event_id"], 40)
 
     def test_tampered_published_event_is_not_displayable(self):
         result, error = self.work.publish_caution(self.mask)

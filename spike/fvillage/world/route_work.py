@@ -284,6 +284,7 @@ def field_action(mask, action):
             and not _signed_prior_caution(cord, square, marker, day)):
         return None, "The older cord warning has no valid signed source or is already current."
     prior_event_id = marker.get("event_id") if role == "hound" and marked else None
+    original_account_id = mask.account.id
     current, allowed, why = route_surveys.field_decision(
         square.db.daily_route_survey, day, site, role, action,
         marked, mask.account.id, mask.key, 1,
@@ -294,8 +295,11 @@ def field_action(mask, action):
 
     def consequence(event):
         with transaction.atomic():
-            if mask.location != room or cord.location != room:
-                raise RuntimeError("The real observer or cord moved away.")
+            account = getattr(mask, "account", None)
+            if (mask.location != room or cord.location != room
+                    or account is None or account.id != original_account_id
+                    or active_calling(mask) != role):
+                raise RuntimeError("The route observer changed account, Calling or location.")
             now_day, now_hour = _day_hour()
             if (now_day, now_hour) != (day, hour):
                 raise RuntimeError("Village time advanced before this route action.")
