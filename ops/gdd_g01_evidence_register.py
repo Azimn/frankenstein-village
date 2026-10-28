@@ -40,6 +40,36 @@ FAMILY_REFERENCE_HINTS = {
     "player_request_templates": "files/quest-generation-packet-v0.1.md",
 }
 
+# Register coverage is not gameplay acceptance. Each card must explicitly state
+# what is known from immutable source or a pinned client run, and what remains
+# unobserved. This is the FV-G01 deliverable, NOT FV-G11 edge signoff.
+COVERAGE_FIELDS = (
+    "source_file", "player_command", "room", "world_owner",
+    "signed_transition", "restart_proof", "uncoached_ux",
+)
+
+
+def coverage_record(*, source_file, command=None, room=None, owner=None,
+                    transition=None, restart=None, ux=None,
+                    level="source_candidate_unverified") -> dict:
+    return {
+        "source_file": source_file,
+        "player_command": command,
+        "room": room,
+        "world_owner": owner,
+        "signed_transition": transition,
+        "restart_proof": restart,
+        "uncoached_ux": ux,
+        "proof_level": level,
+        "unknown_fields": [name for name, value in {
+            "source_file": source_file, "player_command": command,
+            "room": room, "world_owner": owner,
+            "signed_transition": transition, "restart_proof": restart,
+            "uncoached_ux": ux,
+        }.items() if value is None],
+    }
+
+
 PROOF_FIELDS = (
     "ordinary_player_command", "observed_room", "distinct_role_decisions",
     "signed_world_transition", "finite_resource_or_time",
@@ -87,6 +117,7 @@ def build_register(root: Path = ROOT, *, source_ref: str | None = None) -> dict:
             "bootstrap_reference_in_source": initialized_in_source,
             "status": "static_source_only" if source_path else "unmeasured",
             "evidence": empty_proof(),
+            "coverage": coverage_record(source_file=reference),
             "verified_complete": False,
         })
 
@@ -108,6 +139,11 @@ def build_register(root: Path = ROOT, *, source_ref: str | None = None) -> dict:
             "counted_distinct_jobs": None,
             "counted_authored_quests": None,
             "evidence": empty_proof(),
+            "coverage": coverage_record(
+                source_file=examples[0]["command_source"]["path"] if examples else None,
+                owner=[entry["world_owner"] for entry in examples],
+                level="registered_command_world_owner_candidate_not_player_proof",
+            ),
             "verified_complete": False,
         })
 
@@ -122,6 +158,19 @@ def build_register(root: Path = ROOT, *, source_ref: str | None = None) -> dict:
         a, b = design_edge["calling_a"].lower(), design_edge["calling_b"].lower()
         if a not in calling_index or b not in calling_index:
             raise ValueError("GDD edge refers to an unregistered Calling")
+        observed = ci_observations.get(design_edge["number"])
+        role_owner_candidates = [
+            entry["world_owner"] for role in (a, b)
+            for entry in calling_index[role]["registered_command_candidates"]
+        ]
+        pair_owners = source_edge["static_source_examples"]
+        # The generic role owners identify genuine repository functions, not
+        # proof that they implement this particular pair contract.
+        pair_source = pair_owners[0]["path"] if pair_owners else (
+            observed["client_source"] if observed else
+            role_owner_candidates[0]["path"] if role_owner_candidates else None
+        )
+        candidate_command = observed["client_commands"] if observed else None
         edges.append({
             "id": design_edge["id"],
             "number": design_edge["number"],
@@ -135,8 +184,25 @@ def build_register(root: Path = ROOT, *, source_ref: str | None = None) -> dict:
             },
             "verified_pair_command": None,
             "verified_pair_room": None,
-            "historical_ci_observation": ci_observations.get(design_edge["number"]),
+            "historical_ci_observation": observed,
             "evidence": empty_proof(),
+            "coverage": coverage_record(
+                source_file=pair_source,
+                command=candidate_command,
+                room=observed["observed_room"] if observed else None,
+                owner=pair_owners if pair_owners else role_owner_candidates,
+                transition=observed["observed_transition"] if observed else None,
+                restart={
+                    "run": observed["ci_run_url"],
+                    "source": observed["restart_source"],
+                    "lines": observed["restart_lines"],
+                    "marker": observed["restart_marker"],
+                    "scope": "historical_scripted_partial",
+                } if observed else None,
+                ux=None,
+                level=("historical_scripted_partial_not_accepted" if observed
+                       else "source_candidate_unverified"),
+            ),
             "verified_complete": False,
         })
     if [edge["number"] for edge in edges] != list(range(1, 46)):
@@ -154,6 +220,22 @@ def build_register(root: Path = ROOT, *, source_ref: str | None = None) -> dict:
             if edge["historical_ci_observation"]
             and name in [role.lower() for role in edge["callings"]]
         ]
+    all_cards = family_cards + calling_cards + edges
+    coverage_index_complete = all(
+        set(card["coverage"]) == set(COVERAGE_FIELDS) | {
+            "proof_level", "unknown_fields"
+        }
+        and card["coverage"]["source_file"]
+        and card["coverage"]["world_owner"] is not None
+        if card in (calling_cards + edges) else
+        set(card["coverage"]) == set(COVERAGE_FIELDS) | {
+            "proof_level", "unknown_fields"
+        }
+        and card["coverage"]["source_file"]
+        for card in all_cards
+    )
+    if not coverage_index_complete:
+        raise ValueError("FV-G01 cards lack required source and evidence-gap fields")
     return {
         "schema": "fvillage.gdd_g01_evidence_register.v1",
         "source_ref": source_ref,
@@ -175,7 +257,10 @@ def build_register(root: Path = ROOT, *, source_ref: str | None = None) -> dict:
         "verified_calling_count": 0,
         "verified_edge_count": 0,
         "partial_ci_edge_count": len(ci_observations),
+        "coverage_index_complete": coverage_index_complete,
+        "coverage_index_scope": "21_families_10_callings_45_edges_with_explicit_gaps",
         "package_complete": False,
+        "package_gate": "index_built_pending_independent_review_and_main_integration",
         "next_evidence": [
             "Record ordinary-client commands, actual rooms and attributable signed state transitions.",
             "Record conservation/permissions, independent second-account view and negative outcomes.",
@@ -189,6 +274,8 @@ def to_markdown(register: dict) -> str:
         "# FV-G01: Executable-coverage evidence cards",
         "",
         f"Source checkout: {register['source_ref'] or 'unspecified'}.",
+        "Coverage index COMPLETE for 21 families, 10 roles and 45 pairs;",
+        "package acceptance PENDING independent review and integration.",
         "All source owner references are static. Null evidence means UNVERIFIED.",
         "No registered command, declared room, V/S/D/C baseline or manuscript",
         "count certifies world-state mutation, persistence or player enjoyment.",
