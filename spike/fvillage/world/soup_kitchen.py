@@ -153,8 +153,11 @@ def ration(mask):
                 raise RuntimeError(reason)
             if live_room != tavern:
                 raise RuntimeError("The kitchen changed during preparation.")
-            if _clock()[0] != day:
+            now_day, now_hour = _clock()
+            if now_day != day:
                 raise RuntimeError("The village day changed before the broth was made.")
+            if now_hour != hour:
+                raise RuntimeError("The village hour changed before the broth was made.")
             if _full_bowls(mask) >= 3:
                 raise RuntimeError("Serve or eat a carried soup bowl before taking more.")
             pair = _ration_pair(tavern.db.soup_pantry, day)
@@ -259,8 +262,11 @@ def prep(mask, base, seasoning):
                 raise RuntimeError("The kitchen changed during preparation.")
             if active_calling(mask) != "innkeep":
                 raise RuntimeError("An active Innkeep is needed to prepare a recipe.")
-            if _clock()[0] != day:
+            now_day, now_hour = _clock()
+            if now_day != day:
                 raise RuntimeError("The village day changed during preparation.")
+            if now_hour != hour:
+                raise RuntimeError("The village hour changed during preparation.")
             if _held(mask, "soup_preparation"):
                 raise RuntimeError("You already carry a prepared packet.")
             updated, accepted, reason = soup_state.reserve(
@@ -439,8 +445,11 @@ def procure(mask):
                 raise RuntimeError("The market changed during procurement.")
             if active_calling(mask) != "merchant":
                 raise RuntimeError("An active Merchant must procure this crate.")
-            if _clock()[0] != day:
+            now_day, now_hour = _clock()
+            if now_day != day:
                 raise RuntimeError("The village day changed before procurement.")
+            if now_hour != hour:
+                raise RuntimeError("The village hour changed before procurement.")
             if _held(mask, "soup_delivery"):
                 raise RuntimeError("You already carry a kitchen delivery.")
             updated, accepted = soup_state.issue_crate(
@@ -504,8 +513,11 @@ def deliver(mask):
                 raise RuntimeError(reason)
             if _room_now != tavern:
                 raise RuntimeError("The kitchen changed before delivery.")
-            if _clock()[0] != day:
+            now_day, now_hour = _clock()
+            if now_day != day:
                 raise RuntimeError("The village day changed before delivery.")
+            if now_hour != hour:
+                raise RuntimeError("The village hour changed before delivery.")
             if crate.location != mask or dict(crate.db.soup_delivery or {}) != source:
                 raise RuntimeError("The physical kitchen crate changed hands or contents.")
             updated, accepted = soup_state.deliver(
