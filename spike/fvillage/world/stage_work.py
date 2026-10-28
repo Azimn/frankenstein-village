@@ -93,8 +93,28 @@ def act(mask, action, tune=None):
     if not ok:
         return None, reason
 
+    # The ledger may execute the consequence after the preview. Preserve the
+    # actual actor's identity and authorization across that boundary.
+    expected_account_id = mask.account.id
+
     def consequence(event):
         with transaction.atomic():
+            # A preview cannot authorize a later action by a different account,
+            # a player who has left the stage, or a former Performer.
+            account = getattr(mask, "account", None)
+            if (mask.location != tavern or account is None
+                    or account.id != expected_account_id):
+                raise RuntimeError("The stage actor left or changed account.")
+            if (action in {"rehearse", "perform"}
+                    and active_calling(mask) != "performer"):
+                raise RuntimeError("The Performer Calling changed before the event.")
+            if action == "witness":
+                try:
+                    connected = bool(account.sessions.all())
+                except (AttributeError, TypeError):
+                    connected = False
+                if not connected:
+                    raise RuntimeError("The witness is no longer connected.")
             # Recheck after the ledger opens; never trust an earlier preview.
             now_day, now_hour = _clock()
             if (now_day, now_hour) != (day, hour):
