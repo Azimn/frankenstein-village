@@ -41,7 +41,7 @@ class CautionAdapterTests(unittest.TestCase):
             location=self.square, role="chronicler")
         self.hound_event = {
             "id": 40, "kind": "village.route_protected", "status": "complete",
-            "actor": {"account_id": 11, "mask_id": 111},
+            "actor": {"account_id": 11, "mask_id": 111, "mask": "Hound"},
             "payload": {"site": "red_cord", "day": 4, "hour": 10,
                         "role": "hound", "action": "protect",
                         "location": "The Northern Treeline"},
@@ -100,7 +100,8 @@ class CautionAdapterTests(unittest.TestCase):
             effect = consequence({"id": 41})
             self.events[41] = {
                 "id": 41, "kind": kind, "status": "complete",
-                "actor": {"account_id": actor.account.id, "mask_id": actor.id},
+                "actor": {"account_id": actor.account.id, "mask_id": actor.id,
+                          "mask": actor.key},
                 "payload": payload, "consequence": effect,
             }
             self.published.append(kind)
@@ -249,6 +250,28 @@ class CautionAdapterTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertIn("older cord warning", error)
         self.assertEqual(self.cord.db.route_caution["event_id"], 40)
+
+    def test_public_names_must_match_canonical_signed_actor_names(self):
+        result, error = self.work.publish_caution(self.mask)
+        self.assertIsNone(error)
+        signed = self.square.db.daily_route_survey
+        self.assertTrue(self.work._verified_notice(self.square, signed, 4))
+        # A corrupted Square record cannot attribute a real Hound's act
+        # to another person while preserving valid event and account IDs.
+        forged_source = json.loads(json.dumps(signed))
+        forged_source["field_decisions"]["hound"]["mask"] = "Another Hound"
+        self.assertIsNone(self.work._signed_hound_source(
+            types.SimpleNamespace(id=500, db=types.SimpleNamespace(
+                daily_route_survey=forged_source)), 4, 23))
+        # The public Chronicler label is likewise bound to the event actor.
+        forged_notice = json.loads(json.dumps(signed))
+        forged_notice["caution_notice"]["mask"] = "Another Chronicler"
+        self.assertFalse(self.work._verified_notice(
+            self.square, forged_notice, 4))
+        # Even an intact Square record is not enough if the canonical
+        # publication actor name no longer matches its signed provenance.
+        self.events[41]["actor"]["mask"] = "Another Chronicler"
+        self.assertFalse(self.work._verified_notice(self.square, signed, 4))
 
     def test_tampered_published_event_is_not_displayable(self):
         result, error = self.work.publish_caution(self.mask)
