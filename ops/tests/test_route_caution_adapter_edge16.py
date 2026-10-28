@@ -108,6 +108,40 @@ class CautionAdapterTests(unittest.TestCase):
             return {"id": 41}
         self.work.publish_world_event = publish
 
+    def test_signed_public_route_report_requires_same_account_clock_and_inspection(self):
+        # Exercise the real report adapter, not only the pure state machine.
+        for label, change in (
+            ("account", lambda actor: setattr(
+                actor, "account", types.SimpleNamespace(id=33))),
+            ("clock", lambda actor: setattr(self, "hour", 12)),
+            ("inspection", lambda actor: actor.db.landmark_latest_view[
+                "red_cord"].update(day=4)),
+            ("landmark", lambda actor: setattr(
+                self.cord.db, "landmark_id", "replaced")),
+            ("location", lambda actor: setattr(actor, "location", self.square)),
+        ):
+            with self.subTest(race=label):
+                self.setUp()
+                actor = self._hound_renewal_actor()
+                self.mutate = lambda: change(actor)
+                with self.assertRaises(RuntimeError):
+                    self.work.report(actor)
+                self.assertEqual(
+                    route_surveys.normalize(self.square.db.daily_route_survey)[
+                        "reports"], {})
+                self.assertEqual(self.published, [])
+
+    def test_signed_public_route_report_commits_legitimate_firsthand_observation(self):
+        actor = self._hound_renewal_actor()
+        result, error = self.work.report(actor)
+        self.assertIsNone(error)
+        self.assertEqual(result["count"], 1)
+        self.assertEqual(self.published, ["village.route_inspected"])
+        signed = self.events[result["event_id"]]
+        self.assertEqual(signed["actor"]["account_id"], 11)
+        restored = json.loads(json.dumps(self.square.db.daily_route_survey))
+        self.assertEqual(restored["reports"]["red_cord"]["account_id"], 11)
+
     def test_independent_publication_has_verified_source_and_restart(self):
         result, error = self.work.publish_caution(self.mask)
         self.assertIsNone(error)
