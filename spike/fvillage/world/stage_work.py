@@ -235,6 +235,12 @@ def safety_action(mask, action, choice=None):
     if action == "adapt" and choice not in {"indoor", "cancel"}:
         return None, "Use stage adapt indoor or stage adapt cancel."
     day, hour = _clock()
+    # A completed performance is authoritative even when a later warning
+    # lacks valid provenance. Reject retroactive edits before consulting
+    # mutable route evidence; no world event is created on this path.
+    if (action == "warn"
+            and stage_state.refresh(tavern.db.village_stage, day).get("performance")):
+        return None, "A warning cannot retroactively change an actual show."
     base = {"day": day, "hour": hour, "account_id": mask.account.id,
             "mask_id": mask.id, "mask": mask.key}
     if action == "warn":
