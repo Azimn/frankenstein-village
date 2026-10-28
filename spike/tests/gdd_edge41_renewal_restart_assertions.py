@@ -1,7 +1,8 @@
 """Verify renewable physical cord and second-day independent decision after restart."""
+import copy
 from evennia.utils import search
 from evennia.accounts.models import AccountDB
-from world import stage_state, route_surveys, route_work
+from world import stage_state, stage_work, route_surveys, route_work
 from world.events import get_event_ledger
 
 def one(key):
@@ -68,6 +69,16 @@ assert source["consequence"]["square_room_id"] == square.id
 assert signed_warning["actor"]["account_id"] == hound_id
 assert signed_decision["actor"]["account_id"] == performer_id
 assert signed_decision["consequence"]["warning_event_id"] == warn["event_id"]
+# Recheck the real ledger-backed stage adapter after the second restart.
+assert stage_work._verified_warning(stage, stage["day"], 23)
+assert stage_work._verified_decision(stage, stage["day"], 23)
+forged_warning = copy.deepcopy(stage)
+forged_warning["safety_warning"]["hour"] = 22
+assert not stage_work._verified_warning(forged_warning, stage["day"], 23)
+assert not stage_work._verified_decision(forged_warning, stage["day"], 23)
+forged_decision = copy.deepcopy(stage)
+forged_decision["safety_decision"]["hour"] = 22
+assert not stage_work._verified_decision(forged_decision, stage["day"], 23)
 assert stage_state.verified_hound_source(
     route, source, marker, account_id=hound_id, mask_id=hound.id,
     source_event_id=source["id"], cord_id=cord.id, square_id=square.id,
