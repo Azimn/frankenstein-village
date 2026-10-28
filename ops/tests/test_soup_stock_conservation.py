@@ -6,6 +6,8 @@ These are deterministic interleavings, NOT parallel Evennia execution.
 """
 import ast
 import copy
+from collections import UserDict
+from collections.abc import Mapping
 from contextlib import nullcontext
 from pathlib import Path
 import sys
@@ -121,6 +123,7 @@ class SoupStockConservationTests(unittest.TestCase):
                 get_event=lambda event_id: self.ledger.get(event_id)),
             "soup_state": soup_state,
             "copy": copy,
+            "Mapping": Mapping,
             "TAVERN": self.tavern.key,
             "MARKET": self.market.key,
             "PACKET": "a packet of soup ingredients",
@@ -327,6 +330,24 @@ class SoupStockConservationTests(unittest.TestCase):
         self.assertEqual(result["turnips"], 5)
         self.assertTrue(crate.deleted)
         self.assertEqual(len(self.events), 2)
+
+    def test_delivery_accepts_persisted_mapping_receipt(self):
+        # Evennia deserializes nested ledger attributes as MutableMapping
+        # wrappers, not necessarily plain dicts.
+        crate = self.crate()
+        record = self.ledger[78]
+        self.ledger[78] = UserDict({
+            **record,
+            "actor": UserDict(record["actor"]),
+            "payload": UserDict(record["payload"]),
+            "consequence": UserDict(record["consequence"]),
+        })
+        result, error = self.execute("deliver")
+        self.assertIsNone(error)
+        self.assertEqual(result["turnips"], 5)
+        self.assertTrue(crate.deleted)
+        self.assertEqual(self.tavern.db.soup_pantry["stock"]["turnip"], 5)
+        self.assertEqual(len(self.events), 1)
 
     def test_deliver_full_pantry_after_preview_preserves_crate(self):
         self.tavern.db.soup_pantry["stock"]["turnip"] = 5
