@@ -82,7 +82,7 @@ def status_lines():
     lines.extend(route_surveys.field_lines(state))
     lines.append(
         "At the Northern Treeline, an active Hound can examine the actual "
-        "frayed red cord and use |wsurvey protect|n to tie a visible warning. "
+        "frayed red cord and use |wsurvey protect|n to tie or tend a visible warning. "
         "An active Wanderer can independently use |wsurvey passability|n "
         "there to record whether the warning was present when inspected. "
         "Neither action proves why the cord was damaged."
@@ -307,6 +307,10 @@ def field_action(mask, action):
     if not allowed:
         return None, why
 
+    # The consequence decides whether the real cord was already marked.
+    # Do not report the earlier preview as a signed physical observation.
+    outcome = {"renewed": False}
+
     def consequence(event):
         with transaction.atomic():
             if mask.location != room or cord.location != room:
@@ -335,8 +339,9 @@ def field_action(mask, action):
             if not valid:
                 raise RuntimeError(reason)
             if action == "protect":
-                # Reposition the ORIGINAL cord as a truthful visual caution,
-                # no repair, consumed object, invented hazard or new material.
+                # Tend the ORIGINAL cord on a later day, or tie it for the
+                # first time. No repair, consumed object or invented material.
+                outcome["renewed"] = now_marked
                 cord.db.route_caution = {
                     "event_id": event["id"], "account_id": account_id,
                     "mask": mask.key, "day": day,
@@ -367,4 +372,5 @@ def field_action(mask, action):
         # physical action after preflight. The ledger records the rejection;
         # give the player a recoverable message, never a server traceback.
         return None, str(error)
-    return {"event_id": event["id"], "role": role, "action": action}, None
+    return {"event_id": event["id"], "role": role, "action": action,
+            "renewed": outcome["renewed"]}, None
