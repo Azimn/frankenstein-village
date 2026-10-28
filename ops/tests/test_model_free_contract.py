@@ -61,6 +61,15 @@ def _core_distributions(path, visited=None):
                 declaration, re.IGNORECASE,
             )):
                 raise AssertionError(f"Uninspectable core archive: {line}")
+            # Pip also installs local directories and VCS URLs. A directory
+            # named "harmless/" can contain a project whose actual metadata
+            # declares an LLM dependency, and "hg+https://..." otherwise
+            # parses as the harmless-looking distribution name "hg".
+            # Only inspect plain named requirements in the core install.
+            if ("/" in declaration or "\\" in declaration
+                    or "@" in declaration or "://" in declaration
+                    or re.match(r"^(?:git|hg|svn|bzr)\+", declaration, re.I)):
+                raise AssertionError(f"Uninspectable core path or VCS: {line}")
             name = _distribution_name(declaration)
             if name is None:
                 raise AssertionError(f"Invalid core requirement: {line}")
@@ -104,7 +113,14 @@ class ModelFreeContractTests(unittest.TestCase):
                          "ollama-0.6.1-py3-none-any.whl",
                          "ollama-0.6.1.tar.gz",
                          "local_model.zip",
-                         "ollama @ file:///tmp/ollama.whl"):
+                         "ollama @ file:///tmp/ollama.whl",
+                         "vendored/",
+                         "./vendored",
+                         "../vendored",
+                         "hg+https://example.org/ollama",
+                         "svn+ssh://example.org/model",
+                         "harmless @ git+https://example.org/model",
+                         "harmless @ https://example.org/model.whl"):
                 path.write_text(line + "\n", encoding="utf-8")
                 with self.subTest(line=line), self.assertRaises(AssertionError):
                     _core_distributions(path)
