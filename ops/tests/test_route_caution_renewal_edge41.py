@@ -28,7 +28,7 @@ class RenewableCordTests(unittest.TestCase):
         self.assertTrue(ok, why)
         self.assertTrue(second["field_decisions"]["hound"]["retied_previous_day"])
         self.assertEqual(second["history"][-1]["field_decisions"]["hound"]["event_id"], 90)
-        self.assertIn("re-tied", route.field_lines(second))
+        self.assertIn("re-tied", " ".join(route.field_lines(second)))
         restored = route.normalize(json.loads(json.dumps(second)))
         self.assertEqual(restored["field_decisions"]["hound"]["event_id"], 92)
         third, ok, why = protect(route.refresh(restored, 3), day=3, event=93,
@@ -58,7 +58,7 @@ class RenewableCordTests(unittest.TestCase):
         )
         self.assertTrue(ok, why)
         self.assertEqual(state["field_decisions"]["wanderer"]["observation"], "marked_caution")
-        self.assertIn("not guaranteed safety", route.field_lines(state))
+        self.assertIn("not guaranteed safety", " ".join(route.field_lines(state)))
 
 
 if __name__ == "__main__":
