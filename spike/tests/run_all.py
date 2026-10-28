@@ -403,38 +403,8 @@ def main() -> int:
                     ],
                     cwd=checkout, env=env, timeout=140,
                 )
-                # EDGE-18 negative: a stopped-server QA fixture replays a
-                # REAL prior-day assessment event with forged day-two fields.
-                # The rejection itself runs through a logged-in Healer's
-                # ordinary telnet command, never a mocked login guard.
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
-                forged_fixture = (
-                    checkout / "spike" / "tests"
-                    / "edge18_authenticated_forgery_fixture.py"
-                ).read_text(encoding="utf-8")
-                staged_env = dict(env)
-                staged_env["FV_EDGE18_AUTH_NEGATIVE_PHASE"] = "stage"
-                run([evennia, "shell"], cwd=game, env=staged_env,
-                    input_text=forged_fixture)
-                run([evennia, "start"], cwd=game, env=env, timeout=120)
-                wait_for_port("127.0.0.1", 4000)
-                run(
-                    [
-                        vpython, checkout / "spike" / "tests"
-                        / "telnet_edge18_forged_assessment_negative.py",
-                        "--host", "127.0.0.1", "--port", "4000",
-                    ],
-                    cwd=checkout, env=env, timeout=100,
-                )
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
-                restored_env = dict(env)
-                restored_env["FV_EDGE18_AUTH_NEGATIVE_PHASE"] = "restore"
-                run([evennia, "shell"], cwd=game, env=restored_env,
-                    input_text=forged_fixture)
-                run([evennia, "start"], cwd=game, env=env, timeout=120)
-                wait_for_port("127.0.0.1", 4000)
-                # EDGE-18 positive: after restoring authentic state, the
-                # independent day-two Healer assesses and treats normally.
+                # EDGE-18 positive: assess and treat the next patient before
+                # the later negative-test restarts can advance village time.
                 run(
                     [
                         vpython,
@@ -564,6 +534,35 @@ def main() -> int:
             day4_restart_env["FV_T13_DAY4_RESTART"] = "1"
             run([evennia, "shell"], cwd=game, env=day4_restart_env,
                 input_text=day4_assertions)
+            # EDGE-18 adversarial source check AFTER the existing T-13
+            # day-two/three/four sequence. Extra REAL process restarts must
+            # not consume T-13's deliberately pinned day-two clock window.
+            # The test now uses whichever later day the village truly reached.
+            forged_fixture = (
+                checkout / "spike" / "tests"
+                / "edge18_authenticated_forgery_fixture.py"
+            ).read_text(encoding="utf-8")
+            staged_env = dict(env)
+            staged_env["FV_EDGE18_AUTH_NEGATIVE_PHASE"] = "stage"
+            run([evennia, "shell"], cwd=game, env=staged_env,
+                input_text=forged_fixture)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [
+                        vpython, checkout / "spike" / "tests"
+                        / "telnet_edge18_forged_assessment_negative.py",
+                        "--host", "127.0.0.1", "--port", "4000",
+                    ],
+                    cwd=checkout, env=env, timeout=100,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            restored_env = dict(env)
+            restored_env["FV_EDGE18_AUTH_NEGATIVE_PHASE"] = "restore"
+            run([evennia, "shell"], cwd=game, env=restored_env,
+                input_text=forged_fixture)
         except Exception:
             dump_logs(game)
             raise
