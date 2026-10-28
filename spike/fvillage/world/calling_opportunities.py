@@ -84,8 +84,8 @@ WORK = {
     "hound": (
         "At the Northern Treeline, examine the frayed red cord and use "
         "survey protect to tie its loose end into a real caution marker. "
-        "The physical change is one-time; it cannot be repeated after "
-        "someone else has already protected the route.",
+        "The same cord can be re-tightened after a new firsthand "
+        "inspection on a later village day, never twice in one day.",
         "After signing survey protect on the real treeline cord, travel to "
         "the Blood of the Vine and use stage warn before a public show. "
         "An independent Performer decides whether to play indoors or cancel.",
