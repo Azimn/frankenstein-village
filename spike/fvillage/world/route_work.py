@@ -152,14 +152,33 @@ def report(mask):
         return None, "A later village day is already recorded."
     if site in existing["reports"]:
         return None, "Today's report for this landmark is already signed."
+    original_account_id = mask.account.id
 
     def consequence(event):
         with transaction.atomic():
-            if mask.location != room or clue.location != room:
-                raise RuntimeError("The observer left the actual landmark.")
+            account = getattr(mask, "account", None)
+            if (mask.location != room or clue.location != room
+                    or account is None or account.id != original_account_id):
+                raise RuntimeError("The observer changed account or left the actual landmark.")
+            if (getattr(clue.db, "landmark_id", None) != site
+                    or not clue.access(mask, "view", default=True)):
+                raise RuntimeError("The inspected physical landmark changed.")
+            if _day_hour() != (day, hour):
+                raise RuntimeError("Village time advanced before the route report.")
+            still_known = any(
+                row["id"] == site
+                for row in known_landmarks(mask.db.landmark_discoveries)
+            )
+            try:
+                latest = dict(mask.db.landmark_latest_view or {}).get(site) or {}
+                still_inspected = int(latest.get("day") or 0) == day
+            except (ValueError, TypeError, OverflowError):
+                still_inspected = False
+            if not still_known or not still_inspected:
+                raise RuntimeError("The observer's current physical inspection is no longer valid.")
             changed, accepted, error = route_surveys.report(
                 square.db.daily_route_survey, day, site,
-                mask.account.id, mask.key, event["id"],
+                original_account_id, mask.key, event["id"],
             )
             if not accepted:
                 raise RuntimeError(error)
