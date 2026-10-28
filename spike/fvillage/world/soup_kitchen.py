@@ -139,6 +139,7 @@ def ration(mask):
     if _full_bowls(mask) >= 3:
         return None, "Serve or eat a carried soup bowl before taking more."
     day, hour = _clock()
+    initiating_account_id = getattr(getattr(mask, "account", None), "id", None)
     if _ration_pair(tavern.db.soup_pantry, day) is None:
         return None, (
             "The shared pantry has no complete broth ingredients right now. "
@@ -148,6 +149,8 @@ def ration(mask):
 
     def consequence(event):
         with transaction.atomic():
+            if getattr(getattr(mask, "account", None), "id", None) != initiating_account_id:
+                raise RuntimeError("The acting account identity changed during kitchen work.")
             live_room, reason = _access(mask, TAVERN)
             if reason:
                 raise RuntimeError(reason)
@@ -246,6 +249,7 @@ def prep(mask, base, seasoning):
     if _held(mask, "soup_preparation"):
         return None, "You already carry a prepared packet; cook or hand it off first."
     day, hour = _clock()
+    initiating_account_id = getattr(getattr(mask, "account", None), "id", None)
     _preview, ok, why = soup_state.reserve(
         tavern.db.soup_pantry, day, base, seasoning)
     if not ok:
@@ -255,6 +259,8 @@ def prep(mask, base, seasoning):
         # A preflight is not a stock reservation. Recheck live inventory,
         # village time and the shared pantry inside the signed consequence.
         with transaction.atomic():
+            if getattr(getattr(mask, "account", None), "id", None) != initiating_account_id:
+                raise RuntimeError("The acting account identity changed during kitchen work.")
             _room_now, reason = _access(mask, TAVERN)
             if reason:
                 raise RuntimeError(reason)
@@ -323,6 +329,7 @@ def simmer(mask):
     packet = packets[0]
     record = dict(packet.db.soup_preparation)
     day, hour = _clock()
+    initiating_account_id = getattr(getattr(mask, "account", None), "id", None)
     if day < int(record["day"]):
         return None, "The kitchen clock has moved behind this preparation."
     if day > int(record["day"]) + 2:
@@ -336,6 +343,8 @@ def simmer(mask):
         # Recheck the real packet, room, clock, Calling and carry limit at
         # commit time. A stale preview must not mint a second bowl.
         with transaction.atomic():
+            if getattr(getattr(mask, "account", None), "id", None) != initiating_account_id:
+                raise RuntimeError("The acting account identity changed during kitchen work.")
             room_now, reason = _access(mask, TAVERN)
             if reason:
                 raise RuntimeError(reason)
@@ -432,12 +441,15 @@ def procure(mask):
     if _held(mask, "soup_delivery"):
         return None, "You already carry a kitchen delivery; take it to the Tavern."
     day, hour = _clock()
+    initiating_account_id = getattr(getattr(mask, "account", None), "id", None)
     _preview, okay = soup_state.issue_crate(market.db.soup_market, day)
     if not okay:
         return None, "The market has no more kitchen root crates available today."
 
     def consequence(event):
         with transaction.atomic():
+            if getattr(getattr(mask, "account", None), "id", None) != initiating_account_id:
+                raise RuntimeError("The acting account identity changed during kitchen work.")
             _room_now, reason = _access(mask, MARKET)
             if reason:
                 raise RuntimeError(reason)
@@ -497,6 +509,7 @@ def deliver(mask):
         return None, "Bring a physical kitchen root crate from Market Lane."
     crate = crates[0]
     day, hour = _clock()
+    initiating_account_id = getattr(getattr(mask, "account", None), "id", None)
     _preview, okay = soup_state.deliver(tavern.db.soup_pantry, day)
     if not okay:
         return None, "The pantry already has enough turnips for now."
@@ -508,6 +521,8 @@ def deliver(mask):
         # Another player can fill the pantry between the preview and event.
         # The crate is consumed only after revalidating the real shared stock.
         with transaction.atomic():
+            if getattr(getattr(mask, "account", None), "id", None) != initiating_account_id:
+                raise RuntimeError("The acting account identity changed during kitchen work.")
             _room_now, reason = _access(mask, TAVERN)
             if reason:
                 raise RuntimeError(reason)
