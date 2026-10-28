@@ -175,7 +175,9 @@ def _verified_warning(stage, day, hour):
     if not warning:
         return False
     signed = get_event_ledger().get_event(warning["event_id"])
-    if not signed or signed.get("kind") != "village.stage_warned" or signed.get("status") != "complete":
+    if (not isinstance(signed, Mapping)
+            or signed.get("kind") != "village.stage_warned"
+            or signed.get("status") != "complete"):
         return False
     actor, payload, effect = (signed.get("actor"), signed.get("payload"),
                               signed.get("consequence"))
@@ -212,7 +214,9 @@ def _verified_decision(stage, day, hour):
     if not warning or not decision or not _verified_warning(stage, day, hour):
         return False
     signed = get_event_ledger().get_event(decision["event_id"])
-    if not signed or signed.get("status") != "complete" or signed.get("kind") != "village.stage_adapted":
+    if (not isinstance(signed, Mapping)
+            or signed.get("status") != "complete"
+            or signed.get("kind") != "village.stage_adapted"):
         return False
     actor, payload, effect = (
         signed.get("actor"), signed.get("payload"),
