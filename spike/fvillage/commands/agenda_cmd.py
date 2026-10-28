@@ -2,7 +2,7 @@
 from evennia import Command
 from evennia.scripts.models import ScriptDB
 
-from world import commons, commons_follow, return_agenda
+from world import civic_work, commons, commons_follow, return_agenda
 
 
 class CmdAgenda(Command):
@@ -59,4 +59,5 @@ class CmdAgenda(Command):
             followed=followed,
             day=day,
             location=mask.location.key if mask.location else "nowhere",
+            work_lines=civic_work.personal_agenda(mask),
         ))

@@ -127,6 +127,16 @@ class DiscoveryScenery(DefaultObject):
             anomaly = witness_description(looker, self)
             if anomaly:
                 detail += "\n" + anomaly
+        if ident == "red_cord" and self.location:
+            marker = getattr(self.db, "route_caution", None)
+            if hasattr(marker, "get") and marker.get("event_id"):
+                detail += (
+                    "\nThe original loose length has now been tied up where "
+                    "a traveler can see it as a clear caution marker. "
+                    "The cut and torn fibers remain unchanged. "
+                    "This warns of an uncertain path; it does not establish "
+                    "what cut the cord or remove any unseen danger."
+                )
         if ident == "market_scale" and self.location:
             from world.market_standards import normalize, public_lines
             from world.market_work import clock
@@ -168,6 +178,30 @@ class MarketBridgeMaterialTable(DefaultObject):
             "Use |wbridgework collect preserve|n or "
             "|wbridgework collect display|n here to carry one real kit."
         )
+
+
+class MarketWorkshopBench(DefaultObject):
+    """Visible finite Smith worksite, never a free inventory source."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.locks.add("get:false()")
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.workshop_work import bench_description
+        return bench_description()
+
+
+class MarketRepairBoard(DefaultObject):
+    """Public result of actual installed physical market repairs."""
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.locks.add("get:false()")
+
+    def get_display_desc(self, looker=None, **kwargs):
+        from world.workshop_work import market_board_description
+        return market_board_description()
 
 
 class BridgePlaqueView(DefaultObject):
@@ -824,8 +858,9 @@ class ClinicCot(DefaultObject):
         from world.clinic_work import status
         return (
             "A real cot shelters the day's visiting patient in the "
-            "Church dispensary. The current complaint is visible to anyone "
-            "here; only an active Healer can file an assessment or care.\n"
+            "Church dispensary. The patient is visible, but confidential "
+            "case notes are not public. Only an active Healer can file care, "
+            "and the patient's permission is needed for private notes.\n"
             + status(looker)
         )
 

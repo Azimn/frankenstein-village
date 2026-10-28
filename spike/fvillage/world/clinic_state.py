@@ -36,7 +36,7 @@ def hour_value(value):
 def _day_state(day):
     return {"day": day, "condition": CONDITIONS[(day - 1) % len(CONDITIONS)],
             "linen": DAILY_LINEN, "assessment": None, "treatment": None,
-            "history": []}
+            "records_permission": None, "history": []}
 
 
 def normalize(raw):
@@ -61,6 +61,15 @@ def normalize(raw):
                 state[key] = copy.deepcopy(dict(row))
     if state["treatment"] and not state["assessment"]:
         state["treatment"] = None
+    permission = raw.get("records_permission")
+    examined = state["assessment"]
+    if (examined and hasattr(permission, "get")
+            and ident(permission.get("account_id")) == examined["account_id"]
+            and ident(permission.get("mask_id")) == examined["mask_id"]
+            and ident(permission.get("event_id"))
+            and permission.get("day") == day
+            and hour_value(permission.get("hour")) is not None):
+        state["records_permission"] = copy.deepcopy(dict(permission))
     state["history"] = [
         copy.deepcopy(dict(row)) for row in list(raw.get("history") or [])[-MAX_HISTORY * 2:]
         if hasattr(row, "get") and ident(row.get("day"))
@@ -143,36 +152,81 @@ def treat(raw, *, day, hour, account_id, mask_id, mask, event_id, method):
     return state, True, None
 
 
-def public_lines(raw, day):
+def grant_records_permission(raw, *, day, hour, account_id, mask_id,
+                             mask, event_id):
+    """The day's visiting patient agrees to share notes with their examiner.
+
+    The consent is explicitly requested, stored in the *existing clinic state*
+    as a signed, day-scoped grant, and never transfers across masks/accounts.
+    In particular, another Healer does not inherit confidential records.
+    """
     state = refresh(raw, day)
+    if day < state["day"]:
+        return state, False, "The current patient belongs to a later day."
+    actor = _actor(day, hour, account_id, mask_id, mask, event_id)
+    if not actor:
+        return state, False, "A signed, present account is required."
+    examiner = state["assessment"]
+    if examiner is None:
+        return state, False, "First complete an assessment of the present patient."
+    if (examiner["account_id"], examiner["mask_id"]) != (
+            actor["account_id"], actor["mask_id"]):
+        return state, False, "Only this patient's examining Healer may request these records."
+    if state["records_permission"]:
+        return state, False, "The patient's permission is already signed for today."
+    state["records_permission"] = actor
+    return state, True, None
+
+
+def private_lines(raw, day, *, account_id, mask_id):
+    """Never return confidential details until the specific patient granted access.
+
+    This pure function is a projection, not an access authority by itself:
+    the runtime wrapper additionally checks current Calling and actual room.
+    """
+    state = refresh(raw, day)
+    permission = state["records_permission"]
+    if (permission is None or not ident(account_id) or not ident(mask_id)
+            or permission["account_id"] != ident(account_id)
+            or permission["mask_id"] != ident(mask_id)
+            or state["assessment"] is None):
+        return "Private clinical notes require this patient's signed permission for the examining Healer."
+    assessment = state["assessment"]
     lines = [
-        "|wSt. Lazarus village clinic|n",
-        f"Village day {state['day']}: a visiting patient presents with {state['condition']}.",
-        f"Fresh linen in the shared cabinet: {state['linen']} of {DAILY_LINEN}.",
+        "|wConfidential St. Lazarus case record|n",
+        f"Current patient, village day {state['day']}: {state['condition']}.",
+        f"Assessment by {assessment['mask']} (event {assessment['event_id']}).",
+        f"Patient permission recorded as event {permission['event_id']}.",
     ]
-    if state["assessment"]:
-        lines.append(
-            f"Assessment signed by {state['assessment']['mask']} "
-            f"(event {state['assessment']['event_id']})."
-        )
-    else:
-        lines.append("Nobody has completed a professional examination today.")
     if state["treatment"]:
         t = state["treatment"]
         lines.append(
-            f"{t['mask']} used {t['method']} (event {t['event_id']}). {t['outcome']}"
+            f"Treatment: {t['method']} by {t['mask']} "
+            f"(event {t['event_id']}). {t['outcome']}"
         )
     else:
-        lines.append("Treatment remains available after assessment.")
-    if state["history"]:
-        recent = state["history"][-1]
-        care = recent.get("treatment") or {}
-        lines.append(
-            f"Last archived patient: day {recent['day']}, {recent['condition']}; "
-            + (f"care recorded by {care['mask']}." if care else "no completed care.")
-        )
-    lines.append(
-        "Healers: clinic assess | clinic prepare | clinic treat rest|compress. "
-        "A fresh, physically carried linen compress is needed for compress care."
-    )
+        lines.append("Treatment not yet completed.")
+    # Today's unnamed visiting patient is not the previous day's patient.
+    # The bounded prior archive is NOT part of their current case record.
+    return "\n".join(lines)
+
+
+def public_lines(raw, day):
+    """Shared workplace status, never personal case detail or prior patients."""
+    state = refresh(raw, day)
+    lines = [
+        "|wSt. Lazarus village clinic|n",
+        f"Village day {state['day']}: a visiting patient is at the treatment cot.",
+        f"Fresh linen in the shared cabinet: {state['linen']} of {DAILY_LINEN}.",
+        ("A professional assessment has been recorded."
+         if state["assessment"] else
+         "No examination has been completed yet."),
+        ("Care has been provided."
+         if state["treatment"] else
+         "Treatment remains available after assessment."),
+        "Healers: clinic assess | clinic prepare | clinic treat rest|compress.",
+        "The examining Healer may request this patient's permission using "
+        "clinic request records, then use clinic records for confidential notes.",
+        "The public clinic board does not reveal individual findings or earlier patients.",
+    ]
     return "\n".join(lines)

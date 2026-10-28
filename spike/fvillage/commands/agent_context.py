@@ -99,6 +99,12 @@ def payload_for(mask):
             "public_schedule": "calendar",
         })
         result["boundary"] = "in_character"
+        # These simulated sensations are the exact same information any
+        # human player may request with score deep. They are read-only
+        # projections of this mask's existing body, not an AI privilege.
+        if callable(getattr(mask, "sensory_snapshot", None)):
+            result["embodiment"] = mask.sensory_snapshot()
+            result["commands"]["embodied_senses"] = "score deep"
         if room and room.tags.has("tavern", category="place"):
             result["commands"]["public_rumors"] = "rumors"
             result["commands"]["hearth"] = "hearth"
@@ -117,10 +123,15 @@ def payload_for(mask):
         if room and room.key == "Market Lane":
             result["commands"]["ferry_post_collect"] = "courier collect"
             result["commands"]["market_professions"] = "trade"
+            result["commands"]["market_repairs"] = "workshop"
+            result["commands"]["install_market_repair"] = "workshop install"
             result["commands"]["merchant_kitchen_supply"] = "soup procure"
             result["commands"]["physical_bridge_supplies"] = (
                 "bridgework collect preserve | bridgework collect display"
             )
+        if room and room.key == "The Market Workshop":
+            result["commands"]["smithing_bench"] = "workshop"
+            result["commands"]["forge_market_hinge"] = "workshop forge"
         if room and room.key == "The Old Stone Bridge":
             result["commands"]["bridge_investigation"] = "bridgework"
         if room and room.key == "The Lamp Shop":
