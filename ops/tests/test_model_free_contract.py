@@ -10,7 +10,8 @@ from launch_gate import REQUIRED
 
 MODEL_PACKAGES = (
     "ollama", "openai", "anthropic", "transformers", "torch",
-    "llama-cpp", "langchain", "vllm", "litellm", "sentence-transformers",
+    "llama-cpp", "llama-cpp-python", "langchain", "vllm", "litellm",
+    "sentence-transformers",
 )
 MODEL_ENV = (
     "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OLLAMA_HOST",
@@ -26,17 +27,74 @@ def _distribution_name(declaration):
     return re.sub(r"[-_.]+", "-", match.group(1)).lower()
 
 
+def _core_distributions(path, visited=None):
+    """Inspect default requirements and local includes, failing closed on opaque directives."""
+    visited = set() if visited is None else visited
+    path = path.resolve()
+    if not path.is_relative_to(ROOT.resolve()):
+        raise AssertionError(f"Requirement include escapes repository: {path}")
+    if path in visited:
+        return []
+    visited.add(path)
+    packages = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("--requirement="):
+            included = line.split("=", 1)[1].strip()
+        elif line.startswith("--requirement "):
+            included = line.split(maxsplit=1)[1].strip()
+        elif line.startswith("-r"):
+            included = line[2:].strip()
+        else:
+            # Editable, remote and pip option directives cannot silently evade
+            # the default-install model dependency guard.
+            if line.startswith("-") or line.startswith(("git+", "http://", "https://")):
+                raise AssertionError(f"Uninspectable core requirement: {line}")
+            name = _distribution_name(line.split(" #", 1)[0])
+            if name is None:
+                raise AssertionError(f"Invalid core requirement: {line}")
+            packages.append(name)
+            continue
+        if not included or included.startswith(("http://", "https://")):
+            raise AssertionError(f"Uninspectable requirement include: {line}")
+        packages.extend(_core_distributions(path.parent / included, visited))
+    return packages
+
+
 class ModelFreeContractTests(unittest.TestCase):
     def test_core_install_has_no_llm_dependencies(self):
-        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
-        packages = [
-            name
-            for line in requirements.splitlines()
-            if (row := line.split("#", 1)[0].strip())
-            if (name := _distribution_name(row))
-        ]
+        packages = _core_distributions(ROOT / "requirements.txt")
         for package in MODEL_PACKAGES:
             self.assertNotIn(package, packages)
+
+    def test_nested_requirements_cannot_hide_model_sdk(self):
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory(dir=ROOT) as temp:
+            directory = Path(temp)
+            (directory / "nested.txt").write_text(
+                "llama_cpp_python[server]>=0.3\n", encoding="utf-8"
+            )
+            for include in ("-r nested.txt", "-rnested.txt", "--requirement=nested.txt"):
+                (directory / "requirements.txt").write_text(
+                    include + "\n", encoding="utf-8"
+                )
+                packages = _core_distributions(directory / "requirements.txt")
+                self.assertIn("llama-cpp-python", packages)
+                self.assertIn("llama-cpp-python", MODEL_PACKAGES)
+
+    def test_uninspectable_core_requirement_is_not_silently_ignored(self):
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory(dir=ROOT) as temp:
+            path = Path(temp) / "requirements.txt"
+            for line in ("-e git+https://example.org/model#egg=ollama",
+                         "-r https://example.org/requirements.txt"):
+                path.write_text(line + "\n", encoding="utf-8")
+                with self.subTest(line=line), self.assertRaises(AssertionError):
+                    _core_distributions(path)
 
     def test_requirement_name_variants_cannot_bypass_model_guard(self):
         for declaration, name in (
