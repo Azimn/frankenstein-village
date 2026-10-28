@@ -1,6 +1,8 @@
 """Evennia adapter for the real, daily Tavern performance stage."""
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from django.db import transaction
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
@@ -152,7 +154,10 @@ def _verified_route_source(*, account_id, mask_id, source_event_id,
                  and getattr(o.db, "landmark_id", None) == "red_cord"), None)
     if cord is None:
         return False
-    marker = dict(getattr(cord.db, "route_caution", None) or {})
+    raw_marker = getattr(cord.db, "route_caution", None)
+    if not isinstance(raw_marker, Mapping):
+        return False
+    marker = dict(raw_marker)
     if (marker.get("event_id") != source_event_id
             or marker.get("account_id") != account_id
             or marker.get("day") != day):
@@ -172,7 +177,13 @@ def _verified_warning(stage, day, hour):
     signed = get_event_ledger().get_event(warning["event_id"])
     if not signed or signed.get("kind") != "village.stage_warned" or signed.get("status") != "complete":
         return False
-    actor, payload, effect = (signed.get("actor") or {}), (signed.get("payload") or {}), (signed.get("consequence") or {})
+    actor, payload, effect = (signed.get("actor"), signed.get("payload"),
+                              signed.get("consequence"))
+    if not all(isinstance(value, Mapping) for value in (actor, payload, effect)):
+        return False
+    tavern = _tavern()
+    if tavern is None:
+        return False
     if not (
         actor.get("account_id") == warning["account_id"]
         and actor.get("mask_id") == warning["mask_id"]
@@ -182,7 +193,7 @@ def _verified_warning(stage, day, hour):
         and effect.get("source_event_id") == warning["source_event_id"]
         and effect.get("hour") == warning["hour"]
         and effect.get("cord_id") == warning["cord_id"]
-        and effect.get("tavern_room_id") == _tavern().id
+        and effect.get("tavern_room_id") == tavern.id
         and isinstance(warning["hour"], int)
         and warning["hour"] <= hour
     ):
@@ -204,8 +215,13 @@ def _verified_decision(stage, day, hour):
     if not signed or signed.get("status") != "complete" or signed.get("kind") != "village.stage_adapted":
         return False
     actor, payload, effect = (
-        signed.get("actor") or {}, signed.get("payload") or {},
-        signed.get("consequence") or {})
+        signed.get("actor"), signed.get("payload"),
+        signed.get("consequence"))
+    if not all(isinstance(value, Mapping) for value in (actor, payload, effect)):
+        return False
+    tavern = _tavern()
+    if tavern is None:
+        return False
     return (
         decision["account_id"] != warning["account_id"]
         and actor.get("account_id") == decision["account_id"]
@@ -213,7 +229,7 @@ def _verified_decision(stage, day, hour):
         and payload.get("day") == day
         and payload.get("hour") == decision["hour"]
         and payload.get("choice") == decision["choice"]
-        and effect.get("tavern_room_id") == _tavern().id
+        and effect.get("tavern_room_id") == tavern.id
         and effect.get("hour") == decision["hour"]
         and effect.get("warning_event_id") == warning["event_id"]
         and effect.get("choice") == decision["choice"]
