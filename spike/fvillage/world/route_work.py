@@ -256,7 +256,8 @@ def field_action(mask, action):
         return None, "The Square's existing public route board is missing."
     marker = dict(getattr(cord.db, "route_caution", None) or {})
     marked = bool(marker)
-    if role == "hound" and marked and not _signed_prior_caution(cord, square, marker, day):
+    if (role == "hound" and marked and marker.get("day") != day
+            and not _signed_prior_caution(cord, square, marker, day)):
         return None, "The older cord warning has no valid signed source or is already current."
     prior_event_id = marker.get("event_id") if role == "hound" and marked else None
     current, allowed, why = route_surveys.field_decision(
