@@ -1,0 +1,41 @@
+"""EDGE-21: verify real player stage rail survives an Evennia process restart."""
+from evennia.utils import search
+
+from world import stage_fitting_edge21 as rules, stage_fitting_work, stage_work
+from world.events import get_event_ledger
+
+tavern = stage_work._tavern()
+assert tavern is not None, "Original Tavern missing"
+state = rules.normalize(tavern.db.stage_rail_edge21)
+assert state["condition"] == "ready", state
+assert state["remaining"] == 2, state
+assert len(state["plays"]) == 1, state
+fitting = state["fitting"]
+check = state["soundcheck"]
+play = state["plays"][0]
+assert fitting["account_id"] != check["account_id"], state
+assert fitting["mask_id"] != check["mask_id"], state
+assert play["account_id"] == check["account_id"], state
+assert play["soundcheck_event_id"] == check["event_id"], state
+assert play["tune"] == "reel", state
+assert (fitting["day"], fitting["hour"]) <= (check["day"], check["hour"]) <= (
+    play["day"], play["hour"]), state
+f, why = stage_fitting_work._fit_receipt(tavern)
+assert f == fitting and why is None, (f, why)
+c, why = stage_fitting_work._check_receipt(tavern)
+assert c == check and why is None, (c, why)
+valid, why = stage_fitting_work._verified_plays(tavern)
+assert valid and why is None, why
+ledger = get_event_ledger()
+for event_id, kind in (
+    (fitting["event_id"], "professional.stage_rail_fitted"),
+    (check["event_id"], "professional.stage_rail_soundchecked"),
+    (play["event_id"], "professional.stage_acoustic_played"),
+):
+    event = ledger.get_event(event_id)
+    assert event and event["kind"] == kind and event["status"] == "complete", event
+assert not any(
+    obj.key == "a forged market hinge" and obj.id == fitting["item_id"]
+    for obj in search.search_object("a forged market hinge")
+), "Consumed physical hinge reappeared after restart"
+print("POST_RESTART_GDD_EDGE21_INDEPENDENT_SIGNED_RAIL_GREEN")
