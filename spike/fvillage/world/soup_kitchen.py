@@ -513,8 +513,26 @@ def deliver(mask):
     _preview, okay = soup_state.deliver(tavern.db.soup_pantry, day)
     if not okay:
         return None, "The pantry already has enough turnips for now."
-    source = dict(crate.db.soup_delivery or {})
-    if day < int(source.get("day") or 0):
+    # A carried object is not proof of a Merchant procurement on its own.
+    # Older or damaged saves may retain a truthy delivery marker without the
+    # signed market receipt. Never turn such an object into pantry stock.
+    try:
+        source = dict(crate.db.soup_delivery)
+    except (TypeError, ValueError):
+        return None, "The crate has no valid signed market procurement record."
+    market = _room(MARKET)
+    if (
+        market is None
+        or type(source.get("day")) is not int or source["day"] < 1
+        or type(source.get("market_id")) is not int
+        or source["market_id"] != market.id
+        or type(source.get("procurement_event_id")) is not int
+        or source["procurement_event_id"] < 1
+        or type(source.get("merchant_id")) is not int
+        or source["merchant_id"] < 1
+    ):
+        return None, "The crate has no valid signed market procurement record."
+    if day < source["day"]:
         return None, "The crate's procurement lies in the future."
 
     def consequence(event):
