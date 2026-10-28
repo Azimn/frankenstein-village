@@ -62,6 +62,7 @@ class SoupStockConservationTests(unittest.TestCase):
         self.created = []
         self.recorded = []
         self.events = []
+        self.ledger = {}
         self.before_consequence = lambda: None
 
         def create_object(typeclass, *, key, location, aliases):
@@ -76,9 +77,13 @@ class SoupStockConservationTests(unittest.TestCase):
             self.assertIs(actor, self.mask)
             self.before_consequence()
             event = {"id": 100 + len(self.events), "kind": kind,
-                     "payload": payload}
+                     "payload": payload, "status": "recorded",
+                     "actor": {"mask_id": actor.id,
+                               "account_id": actor.account.id}}
             event["consequence"] = consequence(event)
+            event["status"] = "complete"
             self.events.append(event)
+            self.ledger[event["id"]] = event
             return event
 
         def access(actor, room_key):
@@ -112,6 +117,8 @@ class SoupStockConservationTests(unittest.TestCase):
             "transaction": SimpleNamespace(atomic=nullcontext),
             "create_object": create_object,
             "publish_world_event": publish,
+            "get_event_ledger": lambda: SimpleNamespace(
+                get_event=lambda event_id: self.ledger.get(event_id)),
             "soup_state": soup_state,
             "copy": copy,
             "TAVERN": self.tavern.key,
@@ -130,6 +137,12 @@ class SoupStockConservationTests(unittest.TestCase):
             "procurement_event_id": 78, "merchant_id": 302,
         }
         self.mask.contents.append(item)
+        self.ledger[78] = {
+            "id": 78, "kind": "professional.merchant_kitchen_procurement",
+            "status": "complete", "actor": {"mask_id": 302, "account_id": 400},
+            "payload": {"day": 1, "market_room_id": self.market.id},
+            "consequence": {"crate_id": item.id},
+        }
         return item
 
     def test_prep_competing_ingredient_depletion_preserves_real_stock(self):
@@ -258,6 +271,46 @@ class SoupStockConservationTests(unittest.TestCase):
                 self.assertFalse(crate.deleted)
                 self.assertIs(crate.location, self.mask)
                 self.assertEqual(self.events, [])
+
+    def test_delivery_rejects_plausible_but_unsigned_market_crate(self):
+        for field, value in (
+            ("kind", "village.kitchen_delivery"),
+            ("status", "consequence_failed"),
+            ("actor", {"mask_id": 999}),
+            ("payload", {"day": 2, "market_room_id": self.market.id}),
+            ("consequence", {"crate_id": 999}),
+        ):
+            with self.subTest(field=field):
+                self.mask.contents.clear()
+                crate = self.crate()
+                self.ledger[78][field] = value
+                before = copy.deepcopy(self.tavern.db.soup_pantry)
+                result, error = self.execute("deliver")
+                self.assertIsNone(result)
+                self.assertIn("completed Merchant procurement", error)
+                self.assertEqual(self.tavern.db.soup_pantry, before)
+                self.assertFalse(crate.deleted)
+                self.assertEqual(self.events, [])
+
+        self.mask.contents.clear()
+        crate = self.crate()
+        del self.ledger[78]
+        result, error = self.execute("deliver")
+        self.assertIsNone(result)
+        self.assertIn("completed Merchant procurement", error)
+        self.assertFalse(crate.deleted)
+        self.assertEqual(self.events, [])
+
+    def test_delivery_rechecks_signed_source_at_commit(self):
+        crate = self.crate()
+        self.before_consequence = lambda: self.ledger[78].update(
+            {"status": "consequence_failed"})
+        result, error = self.execute("deliver")
+        self.assertIsNone(result)
+        self.assertIn("signed procurement changed", error)
+        self.assertFalse(crate.deleted)
+        self.assertEqual(self.tavern.db.soup_pantry["stock"]["turnip"], 3)
+        self.assertEqual(self.events, [])
 
     def test_real_merchant_crate_can_be_delivered_by_a_courier(self):
         self.mask.location = self.market
