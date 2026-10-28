@@ -38,7 +38,10 @@ class CautionAdapterTests(unittest.TestCase):
             id=22, sessions=types.SimpleNamespace(all=lambda: [object()]))
         self.mask = types.SimpleNamespace(
             id=222, key="Chronicler", account=self.account,
-            location=self.square, role="chronicler")
+            location=self.square, role="chronicler",
+            db=types.SimpleNamespace(
+                landmark_discoveries=[{"id": "red_cord"}],
+                landmark_latest_view={"red_cord": {"day": 4, "hour": 11}}))
         self.hound_event = {
             "id": 40, "kind": "village.route_protected", "status": "complete",
             "actor": {"account_id": 11, "mask_id": 111, "mask": "Hound"},
@@ -162,6 +165,33 @@ class CautionAdapterTests(unittest.TestCase):
         state = json.loads(json.dumps(self.square.db.daily_route_survey))
         self.assertEqual(state["caution_notice"]["account_id"], 22)
         self.assertTrue(self.work._verified_notice(self.square, state, 4))
+
+    def test_chronicler_must_independently_inspect_original_cord_today(self):
+        # A signed Hound source alone must not let a remote editor publish.
+        for change in (
+            lambda: setattr(self.mask.db, "landmark_discoveries", []),
+            lambda: setattr(self.mask.db, "landmark_latest_view", {}),
+            lambda: setattr(self.mask.db, "landmark_latest_view",
+                            {"red_cord": {"day": 3, "hour": 11}}),
+            lambda: setattr(self.mask.db, "landmark_latest_view",
+                            {"red_cord": {"day": 4, "hour": 9}}),
+            lambda: setattr(self.mask.db, "landmark_latest_view",
+                            {"red_cord": {"day": 4, "hour": "11"}}),
+        ):
+            with self.subTest(change=change):
+                self.setUp()
+                change()
+                result, error = self.work.publish_caution(self.mask)
+                self.assertIsNone(result)
+                self.assertIn("Examine the real red cord", error)
+                self.assertEqual(self.published, [])
+
+    def test_chronicler_inspection_revoked_before_event_consequence(self):
+        self.mutate = lambda: self.mask.db.landmark_latest_view.clear()
+        with self.assertRaisesRegex(RuntimeError, "firsthand cord inspection changed"):
+            self.work.publish_caution(self.mask)
+        self.assertIsNone(self.square.db.daily_route_survey["caution_notice"])
+        self.assertEqual(self.published, [])
 
     def test_missing_or_failed_hound_source_rejected_without_event(self):
         for change in (
