@@ -188,12 +188,19 @@ def verified_hound_source(route, event, marker, *, account_id, mask_id,
         return False
     if not _time(day, hour):
         return False
-    if not all(hasattr(v, "get") for v in (route, event, marker)):
+    if not all(isinstance(v, dict) for v in (route, event, marker)):
         return False
-    source = (route.get("field_decisions") or {}).get("hound") or {}
+    decisions = route.get("field_decisions")
+    if not isinstance(decisions, dict):
+        return False
+    source = decisions.get("hound")
     actor, payload, effect = (
-        event.get("actor") or {}, event.get("payload") or {},
-        event.get("consequence") or {})
+        event.get("actor"), event.get("payload"),
+        event.get("consequence"))
+    # Corrupted or forged persisted nested structures must be rejected as
+    # missing evidence, not crash an ordinary player's stage command.
+    if not all(isinstance(v, dict) for v in (source, actor, payload, effect)):
+        return False
     h = payload.get("hour")
     return (
         route.get("day") == day
