@@ -220,19 +220,18 @@ def build_register(root: Path = ROOT, *, source_ref: str | None = None) -> dict:
             if edge["historical_ci_observation"]
             and name in [role.lower() for role in edge["callings"]]
         ]
-    all_cards = family_cards + calling_cards + edges
-    coverage_index_complete = all(
-        set(card["coverage"]) == set(COVERAGE_FIELDS) | {
-            "proof_level", "unknown_fields"
-        }
-        and card["coverage"]["source_file"]
-        and card["coverage"]["world_owner"] is not None
-        if card in (calling_cards + edges) else
-        set(card["coverage"]) == set(COVERAGE_FIELDS) | {
-            "proof_level", "unknown_fields"
-        }
-        and card["coverage"]["source_file"]
-        for card in all_cards
+    expected_fields = set(COVERAGE_FIELDS) | {"proof_level", "unknown_fields"}
+    coverage_index_complete = (
+        len(family_cards) == 21 and len(calling_cards) == 10 and len(edges) == 45
+        and all(set(card["coverage"]) == expected_fields
+                and bool(card["coverage"]["source_file"])
+                for card in family_cards + calling_cards + edges)
+        and all(bool(card["coverage"]["world_owner"])
+                for card in calling_cards + edges)
+        and all(set(card["coverage"]["unknown_fields"]) ==
+                {field for field in COVERAGE_FIELDS
+                 if card["coverage"][field] is None}
+                for card in family_cards + calling_cards + edges)
     )
     if not coverage_index_complete:
         raise ValueError("FV-G01 cards lack required source and evidence-gap fields")
@@ -312,6 +311,36 @@ def to_markdown(register: dict) -> str:
                   else "UNVERIFIED")
         out.append(f"| {edge['number']:02} | {' + '.join(edge['callings'])} | "
                    f"{sources} | {status} |")
+    out.extend([
+        "", "## Explicit G01 coverage fields for every pair", "",
+        "A source path or registered verb is a candidate, not proof of this pair.",
+        "HISTORICAL means a source-pinned scripted CI observation; it is not",
+        "a GDD relationship acceptance or an uncoached player session.",
+        "| Edge | Source file (candidate) | Actual command | Observed room | World owner | Signed transition | Restart | Uncoached UX |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ])
+    for edge in register["edges"]:
+        cover = edge["coverage"]
+        receipt = edge["historical_ci_observation"]
+        command = (", ".join(cover["player_command"]) if receipt
+                   else "UNVERIFIED")
+        room = cover["room"] if receipt else "UNVERIFIED"
+        transition = (cover["signed_transition"] if receipt
+                      else "UNVERIFIED")
+        restart = (f"historical [{cover['restart_proof']['marker']}]"
+                   f"({cover['restart_proof']['run']})" if receipt
+                   else "UNVERIFIED")
+        owners = ", ".join(
+            ref["path"] for ref in cover["world_owner"]
+        ) or "UNVERIFIED"
+        # Escaping the table separators only affects Markdown presentation.
+        def safe(value):
+            return str(value).replace("|", "/").replace("\\n", " ")
+        out.append(
+            f"| {edge['number']:02} | {safe(cover['source_file'])} | "
+            f"{safe(command)} | {safe(room)} | {safe(owners)} | "
+            f"{safe(transition)} | {safe(restart)} | UNVERIFIED |"
+        )
     # Render observations from validated, pinned receipts rather than a
     # hard-coded run/count that can become stale as the ledger evolves.
     partial = [edge for edge in register["edges"]
