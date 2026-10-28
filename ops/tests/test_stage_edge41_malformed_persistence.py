@@ -188,5 +188,25 @@ class MalformedStagePersistenceTests(unittest.TestCase):
 
 
 
+    def test_player_facing_stage_help_avoids_evennia_color_pipe_sequences(self):
+        # Evennia consumes a vertical bar as an inline markup introducer.
+        # A help string such as "indoor|cancel" visibly becomes "indoorancel".
+        status = stage.public_lines(stage.fresh(4), 4)
+        self.assertIn("stage adapt indoor or stage adapt cancel", status)
+        self.assertIn("stage rehearse ballad or stage rehearse reel", status)
+        self.assertIn("stage perform ballad or stage perform reel", status)
+        self.assertNotIn("|", status)
+
+        command_source = (
+            Path(__file__).resolve().parents[2]
+            / "spike/fvillage/commands/stage_cmd.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "stage adapt indoor or stage adapt cancel", command_source
+        )
+        self.assertNotIn("ballad|reel", command_source)
+        self.assertNotIn("indoor|cancel", command_source)
+
+
 if __name__ == "__main__":
     unittest.main()
