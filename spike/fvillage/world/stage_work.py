@@ -89,7 +89,17 @@ def act(mask, action, tune=None):
 
     def consequence(event):
         with transaction.atomic():
-            # Recheck after the ledger opens; never trust an earlier preview.
+            # A preflight is not proof that the musician or witness remains
+            # at the physical stage when the signed event actually commits.
+            current_tavern, access_error = _guard(mask)
+            if access_error or current_tavern != tavern:
+                raise RuntimeError(access_error or "The stage changed before the action.")
+            if (mask.id != kwargs["mask_id"]
+                    or mask.account.id != kwargs["account_id"]):
+                raise RuntimeError("The acting player identity changed before the event.")
+            if (action in {"rehearse", "perform"}
+                    and active_calling(mask) != "performer"):
+                raise RuntimeError("An active Performer must rehearse and perform.")
             now_day, now_hour = _clock()
             if (now_day, now_hour) != (day, hour):
                 raise RuntimeError("Village clock changed before the stage event.")
@@ -109,12 +119,17 @@ def act(mask, action, tune=None):
                 ),
             }
 
-    event = publish_world_event(
-        "village.stage_" + action, actor=mask,
-        payload={"day": day, "hour": hour, "tune": tune,
-                 "harbinger": False, "chronicle_eligible": False},
-        consequence=consequence,
-    )
+    try:
+        event = publish_world_event(
+            "village.stage_" + action, actor=mask,
+            payload={"day": day, "hour": hour, "tune": tune,
+                     "harbinger": False, "chronicle_eligible": False},
+            consequence=consequence,
+        )
+    except RuntimeError as error:
+        # A moved player or changed Calling is a normal rejected action,
+        # never a successful signature or a player-facing traceback.
+        return None, str(error)
     if action != "witness":
         record_participation(mask, "stage_" + action, calling="performer")
     return {"event_id": event["id"], "action": action, "tune": tune}, None
