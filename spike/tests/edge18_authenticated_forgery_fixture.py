@@ -23,7 +23,7 @@ healer = one("HealerTester")
 clock = ScriptDB.objects.get(db_key="village_time")
 ledger = ScriptDB.objects.get(db_key="world_event_ledger")
 day, hour = int(clock.db.day), int(clock.db.hour)
-assert day == 2 and 0 <= hour <= 23, (day, hour)
+assert day >= 2 and 0 <= hour <= 23, (day, hour)
 assert clinic_cot_edge18.normalize(cot.db.clinic_equipment)["condition"] == "certified"
 
 
@@ -44,7 +44,7 @@ if phase == "stage":
     prior = original.get("assessment")
     assert prior and prior["day"] < day and prior["mask_id"] == healer.id
     assert prior["event_id"] > 0 and ledger.get_event(prior["event_id"])
-    # Reuse an ACTUAL day-one assessment receipt but lie about its day/hour.
+    # Replay an ACTUAL earlier signed assessment at the current later day.
     # This passes the shape checks, so only ledger provenance can reject it.
     forged = deepcopy(next_day)
     forged["assessment"] = dict(
