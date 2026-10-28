@@ -7,6 +7,7 @@ accounts may explicitly witness it during that village hour.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping, Sequence
 
 TUNES = ("ballad", "reel")
 MAX_HISTORY = 32
@@ -35,9 +36,33 @@ def _time(day, hour):
     return (d, h) if d and 0 <= h <= 23 else None
 
 
+def _records(value):
+    """Only finite sequence containers can supply persisted state records.
+
+    Corrupt scalar or mapping containers are not iterable evidence. Keep
+    Mapping-backed rows, including Evennia persistence wrappers.
+    """
+    # Evennia stores lists as _SaverList (MutableSequence), not list.
+    # Restrict input to real sequences, never strings, bytes or mappings.
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+        return []
+    return [row for row in value if isinstance(row, Mapping)]
+
+
+def _eligible_accounts(raw, performer_id):
+    """Retain only actual bounded audience identifiers from persisted state."""
+    if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes, bytearray)):
+        return []
+    return sorted({
+        account for value in raw[:MAX_WITNESSES * 2]
+        if (account := _ident(value)) is not None and account != performer_id
+    })[:MAX_WITNESSES]
+
+
 def fresh(day=1):
     return {"day": day, "rehearsals": [], "performance": None,
-            "witnesses": [], "history": []}
+            "witnesses": [], "safety_warning": None,
+            "safety_decision": None, "history": []}
 
 
 def normalize(raw):
@@ -48,12 +73,15 @@ def normalize(raw):
     except (TypeError, ValueError, OverflowError):
         day = 1
     result = fresh(day)
-    for r in list(raw.get("rehearsals") or [])[-MAX_REHEARSALS * 2:]:
+    for r in _records(raw.get("rehearsals"))[-MAX_REHEARSALS * 2:]:
         if not hasattr(r, "get") or r.get("tune") not in TUNES:
             continue
         if (_ident(r.get("account_id")) and _ident(r.get("mask_id"))
                 and _ident(r.get("event_id")) and _time(day, r.get("hour"))):
-            result["rehearsals"].append(dict(r))
+            receipt = dict(r)
+            for key in ("account_id", "mask_id", "event_id", "hour"):
+                receipt[key] = int(receipt[key])
+            result["rehearsals"].append(receipt)
     result["rehearsals"] = result["rehearsals"][-MAX_REHEARSALS:]
     perf = raw.get("performance")
     if (hasattr(perf, "get") and perf.get("tune") in TUNES
@@ -62,15 +90,54 @@ def normalize(raw):
             and _ident(perf.get("mask_id"))
             and _time(day, perf.get("hour"))):
         result["performance"] = dict(perf)
-        for r in list(raw.get("witnesses") or [])[-MAX_WITNESSES * 2:]:
-            if (hasattr(r, "get") and _ident(r.get("account_id"))
-                    and _ident(r.get("event_id"))):
-                result["witnesses"].append(dict(r))
+        for key in ("account_id", "mask_id", "event_id", "hour"):
+            result["performance"][key] = int(perf[key])
+        eligible = _eligible_accounts(
+            perf.get("eligible_audience_ids"), _ident(perf.get("account_id"))
+        )
+        result["performance"]["eligible_audience_ids"] = eligible
+        seen = set()
+        for r in _records(raw.get("witnesses"))[-MAX_WITNESSES * 2:]:
+            account = _ident(r.get("account_id"))
+            event = _ident(r.get("event_id"))
+            if account in eligible and event and account not in seen:
+                seen.add(account)
+                receipt = dict(r)
+                receipt["account_id"] = account
+                receipt["event_id"] = event
+                result["witnesses"].append(receipt)
     result["witnesses"] = result["witnesses"][-MAX_WITNESSES:]
-    result["history"] = [
-        copy.deepcopy(r) for r in list(raw.get("history") or [])
-        if hasattr(r, "get") and _ident(r.get("day"))
-    ][-MAX_HISTORY:]
+    warning = raw.get("safety_warning")
+    if (hasattr(warning, "get")
+            and all(_ident(warning.get(k)) for k in (
+                "account_id", "mask_id", "event_id", "source_event_id",
+                "cord_id"))
+            and _time(day, warning.get("hour"))):
+        result["safety_warning"] = dict(warning)
+        for key in ("account_id", "mask_id", "event_id",
+                    "source_event_id", "cord_id", "hour"):
+            result["safety_warning"][key] = int(warning[key])
+    decision = raw.get("safety_decision")
+    if (hasattr(decision, "get") and result["safety_warning"]
+            and all(_ident(decision.get(k)) for k in (
+                "account_id", "mask_id", "event_id", "warning_event_id"))
+            and decision.get("choice") in {"indoor", "cancel"}
+            and _ident(decision["warning_event_id"]) == result["safety_warning"]["event_id"]
+            and _ident(decision["account_id"]) != result["safety_warning"]["account_id"]
+            and _time(day, decision.get("hour"))
+            and int(decision["hour"]) >= int(result["safety_warning"]["hour"])):
+        result["safety_decision"] = dict(decision)
+        for key in ("account_id", "mask_id", "event_id",
+                    "warning_event_id", "hour"):
+            result["safety_decision"][key] = int(decision[key])
+    for row in _records(raw.get("history")):
+        historical_day = _ident(row.get("day"))
+        if historical_day is None or historical_day >= day:
+            continue
+        receipt = copy.deepcopy(dict(row))
+        receipt["day"] = historical_day
+        result["history"].append(receipt)
+    result["history"] = result["history"][-MAX_HISTORY:]
     return result
 
 
@@ -79,14 +146,17 @@ def refresh(raw, day):
     target = _ident(day)
     if not target or target <= state["day"]:
         return state
-    if state["performance"]:
+    if state["performance"] or state["safety_decision"]:
         state["history"].append({
             "day": state["day"],
             "performance": copy.deepcopy(state["performance"]),
             "witnesses": copy.deepcopy(state["witnesses"]),
+            "safety_warning": copy.deepcopy(state["safety_warning"]),
+            "safety_decision": copy.deepcopy(state["safety_decision"]),
         })
     return {"day": target, "rehearsals": [], "performance": None,
-            "witnesses": [], "history": state["history"][-MAX_HISTORY:]}
+            "witnesses": [], "safety_warning": None, "safety_decision": None,
+            "history": state["history"][-MAX_HISTORY:]}
 
 
 def rehearse(raw, *, day, hour, account_id, mask_id, mask, tune, event_id):
@@ -122,14 +192,26 @@ def perform(raw, *, day, hour, account_id, mask_id, mask, tune, event_id,
         return state, False, "An actual player and signed world event are required."
     if state["performance"]:
         return state, False, "Today's public performance has already taken place."
+    if state["safety_warning"] and not state["safety_decision"]:
+        return state, False, "A Hound warning requires a Performer decision before the show."
+    if state["safety_decision"] and state["safety_decision"]["choice"] == "cancel":
+        return state, False, "Today's performance was cancelled after a signed warning."
+    if state["safety_decision"] and state["safety_decision"]["hour"] > hour:
+        return state, False, "The stage decision cannot occur after this performance."
     rehearsal = next((r for r in state["rehearsals"]
                       if r["account_id"] == aid and r["tune"] == tune), None)
     if not rehearsal:
         return state, False, "Rehearse that piece here before performing."
+    if rehearsal["hour"] > hour:
+        return state, False, "The rehearsal cannot occur after this performance."
     state["performance"] = {
         "account_id": aid, "mask_id": mid, "mask": str(mask)[:70],
         "tune": tune, "hour": hour, "event_id": eid,
         "rehearsal_event_id": rehearsal["event_id"],
+        "safety_decision_event_id": (
+            state["safety_decision"]["event_id"] if state["safety_decision"] else None),
+        "safety_mode": (
+            state["safety_decision"]["choice"] if state["safety_decision"] else "normal"),
         # Eligible accounts must have been actually connected and present
         # at performance time. Arriving later this hour is not witnessing.
         "eligible_audience_ids": sorted({
@@ -138,6 +220,112 @@ def perform(raw, *, day, hour, account_id, mask_id, mask, tune, event_id,
         })[:MAX_WITNESSES],
     }
     state["witnesses"] = []
+    return state, True, None
+
+
+
+def verified_hound_source(route, event, marker, *, account_id, mask_id,
+                          source_event_id, cord_id, square_id, day, hour,
+                          room_name):
+    """Pure fail-closed provenance check for the physical treeline warning.
+
+    The adapter separately checks that these values come from the original
+    Square, cord and canonical ledger, not player-provided arguments.
+    """
+    if not all(_ident(v) for v in (
+            account_id, mask_id, source_event_id, cord_id, square_id, day)):
+        return False
+    if not _time(day, hour):
+        return False
+    if not all(isinstance(v, Mapping) for v in (route, event, marker)):
+        return False
+    decisions = route.get("field_decisions")
+    if not isinstance(decisions, Mapping):
+        return False
+    source = decisions.get("hound")
+    actor, payload, effect = (
+        event.get("actor"), event.get("payload"),
+        event.get("consequence"))
+    # Corrupted or forged persisted nested structures must be rejected as
+    # missing evidence, not crash an ordinary player's stage command.
+    if not all(isinstance(v, Mapping) for v in (source, actor, payload, effect)):
+        return False
+    h = payload.get("hour")
+    return (
+        route.get("day") == day
+        and source.get("account_id") == account_id
+        and source.get("event_id") == source_event_id
+        and marker.get("account_id") == account_id
+        and marker.get("event_id") == source_event_id
+        and marker.get("day") == day
+        and event.get("id") == source_event_id
+        and event.get("kind") == "village.route_protected"
+        and event.get("status") == "complete"
+        and actor.get("account_id") == account_id
+        and actor.get("mask_id") == mask_id
+        and payload.get("site") == "red_cord"
+        and payload.get("role") == "hound"
+        and payload.get("action") == "protect"
+        and payload.get("location") == room_name
+        and payload.get("day") == day
+        and isinstance(h, int) and not isinstance(h, bool)
+        and 0 <= h <= hour
+        and effect.get("cord_object_id") == cord_id
+        and effect.get("square_room_id") == square_id
+        and effect.get("role") == "hound"
+        and effect.get("action") == "protect"
+        and effect.get("day") == day
+        and effect.get("caution_marked") is True
+    )
+
+def warn(raw, *, day, hour, account_id, mask_id, mask, event_id,
+         source_event_id, cord_id):
+    """Hound brings a firsthand, signed physical route caution to the Tavern."""
+    state = refresh(raw, day)
+    if not _time(day, hour) or day < state["day"]:
+        return state, False, "The village clock cannot be rewound."
+    values = (account_id, mask_id, event_id, source_event_id, cord_id)
+    if not all(_ident(v) for v in values):
+        return state, False, "A signed physical source and ordinary account are required."
+    if state["performance"]:
+        return state, False, "A warning cannot retroactively change an actual show."
+    if state["safety_warning"]:
+        return state, False, "Today's stage warning is already signed."
+    state["safety_warning"] = {
+        "account_id": int(account_id), "mask_id": int(mask_id),
+        "mask": str(mask)[:70], "event_id": int(event_id),
+        "source_event_id": int(source_event_id), "cord_id": int(cord_id),
+        "hour": int(hour),
+    }
+    return state, True, None
+
+
+def adapt(raw, *, day, hour, account_id, mask_id, mask, event_id, choice):
+    """Independent Performer elects a bounded indoor show or cancellation."""
+    state = refresh(raw, day)
+    if not _time(day, hour) or day < state["day"]:
+        return state, False, "The village clock cannot be rewound."
+    if choice not in {"indoor", "cancel"}:
+        return state, False, "Choose indoor or cancel."
+    if not all(_ident(v) for v in (account_id, mask_id, event_id)):
+        return state, False, "A signed ordinary account is required."
+    warning = state["safety_warning"]
+    if not warning:
+        return state, False, "A verified Hound warning is required first."
+    if int(account_id) == warning["account_id"]:
+        return state, False, "The Hound cannot also sign the Performer decision."
+    if warning["hour"] > hour:
+        return state, False, "The Hound warning has not happened yet."
+    if state["performance"]:
+        return state, False, "The actual show cannot be changed retroactively."
+    if state["safety_decision"]:
+        return state, False, "Today's stage safety decision is already signed."
+    state["safety_decision"] = {
+        "account_id": int(account_id), "mask_id": int(mask_id),
+        "mask": str(mask)[:70], "event_id": int(event_id),
+        "warning_event_id": warning["event_id"], "hour": int(hour),
+        "choice": choice,
+    }
     return state, True, None
 
 
@@ -170,6 +358,12 @@ def public_lines(raw, day):
     state = refresh(raw, day)
     lines = ["The Tavern stage", "Today: village day %d." % state["day"]]
     p = state["performance"]
+    if state["safety_warning"]:
+        w = state["safety_warning"]
+        lines.append("A Hound signed a route caution for this stage (event %d; physical source %d)." % (w["event_id"], w["source_event_id"]))
+    if state["safety_decision"]:
+        d = state["safety_decision"]
+        lines.append("A Performer chose %s after the warning (event %d)." % (d["choice"], d["event_id"]))
     if p:
         lines.append("%s actually performed a %s at hour %02d."
                      % (p["mask"], p["tune"], p["hour"]))
@@ -179,8 +373,18 @@ def public_lines(raw, day):
         lines.append("No public performance has occurred today.")
     if state["history"]:
         last = state["history"][-1]
-        lines.append("Previous recorded show: %s, day %d."
-                     % (last["performance"]["mask"], last["day"]))
-    lines.append("Performers: stage rehearse ballad|reel, then stage perform ballad|reel.")
+        prior_show = last.get("performance")
+        prior_decision = last.get("safety_decision")
+        if (isinstance(prior_show, Mapping)
+                and isinstance(prior_show.get("mask"), str)):
+            lines.append("Previous recorded show: %s, day %d."
+                         % (prior_show["mask"], last["day"]))
+        elif (isinstance(prior_decision, Mapping)
+              and prior_decision.get("choice") in {"indoor", "cancel"}):
+            lines.append("Previous stage decision: %s, day %d."
+                         % (prior_decision["choice"], last["day"]))
+    lines.append("Hounds: after survey protect at the real red cord, visit here and stage warn.")
+    lines.append("Performers: stage adapt indoor or stage adapt cancel after a Hound warning.")
+    lines.append("Performers: stage rehearse ballad or stage rehearse reel, then stage perform ballad or stage perform reel.")
     lines.append("During the actual performance hour, other visitors may stage witness.")
     return "\n".join(lines)

@@ -104,9 +104,16 @@ class MasterGDDProgramTests(unittest.TestCase):
                          ("Innkeep","Merchant","V"))
         for edge in edges:
             self.assertFalse(edge["verified_complete"])
-            self.assertIsNone(edge["ordinary_player_discovery_proof"])
-            self.assertIsNone(edge["two_account_test"])
-            self.assertIsNone(edge["post_restart_test"])
+            discovery = edge["ordinary_player_discovery_proof"]
+            self.assertTrue(discovery is None or
+                            (isinstance(discovery, str) and len(discovery) > 15))
+            self.assertIsNone(edge["uncoached_gameplay_evidence"])
+            for candidate_field in ("two_account_test", "post_restart_test"):
+                candidate = edge[candidate_field]
+                self.assertTrue(candidate is None or
+                                (isinstance(candidate, str) and len(candidate) > 15))
+            # Candidate paths are not acceptance, and cannot certify an edge.
+            self.assertFalse(edge["verified_complete"])
             self.assertGreater(len(edge["design_contract"]),60)
 
     def test_does_not_claim_implementation_or_canon_approval(self):

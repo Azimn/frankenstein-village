@@ -55,6 +55,26 @@ class Client:
         self.sock.sendall(line.encode("utf-8") + b"\n")
         return self.read_quiet(max_wait=wait)
 
+    def command_until(self, line: str, *needles: str, wait: float = 8.0) -> str:
+        """Wait for the requested command's actual reply, not an unrelated room broadcast.
+
+        Other connected accounts may generate unsolicited movement and login
+        messages. A short quiet interval after those messages is not proof that
+        the server has processed this account's command.
+        """
+        print(f"\n> {line}")
+        self.sock.sendall(line.encode("utf-8") + b"\n")
+        deadline = time.monotonic() + wait
+        fragments = []
+        while (remaining := deadline - time.monotonic()) > 0:
+            fragment = self.read_quiet(max_wait=min(1.25, remaining), quiet=0.2)
+            if fragment:
+                fragments.append(fragment)
+            combined = "\n".join(fragments)
+            if all(needle.lower() in combined.lower() for needle in needles):
+                return combined
+        return "\n".join(fragments)
+
     def sync_login_screen(self) -> str:
         """Wait for Evennia's connection screen before sending credentials."""
         deadline = time.monotonic() + 6.0
@@ -2059,9 +2079,26 @@ def main() -> int:
         require_all(out, "houndtester", "wanderertester", "unmarked cord",
                     "does not repair the cord")
         print("TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN")
+        # EDGE-41 late-arrival negative: this real show already happened.
+        # A verified Hound cannot rewrite the historical performance.
+        out = hound.command("stage warn")
+        require(out, "visit the real stage")
+        for move, destination in (
+            ("south", "churchyard"), ("east", "st. lazarus church"),
+            ("east", "village square"), ("east", "blood of the vine"),
+        ):
+            out = hound.command(move)
+            require(out, destination)
+        out = hound.command("stage warn")
+        require(out, "cannot retroactively change")
+        out = performer.command("stage adapt indoor")
+        require(out, "no verified current physical source")
+        print("TELNET_GDD_EDGE41_LATE_WARNING_AND_FALSE_ADAPTATION_DENIED_GREEN")
+
 
         print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
-        out = c.command("guide")
+        out = c.command_until("guide", "civic material table",
+                              "bridgework collect preserve", wait=8.0)
         require_all(out, "civic material table", "bridgework collect preserve")
         out = c.command("look civic material table")
         require_all(out, "2 canvas kits", "2 inquiry boards")
