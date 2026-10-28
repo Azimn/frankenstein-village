@@ -32,7 +32,7 @@ def main():
 
         public = smith.command("clinic")
         require(public, "clinically approved")
-        match = re.search(r"village day (\\d+):", public, re.IGNORECASE)
+        match = re.search(r"village day (\d+):", public, re.IGNORECASE)
         assert match, "Clinic status did not report its actual village day"
         patient_day = int(match.group(1))
         assert patient_day >= 2, "The later patient was not available"
