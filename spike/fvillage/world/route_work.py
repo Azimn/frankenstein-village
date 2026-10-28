@@ -55,6 +55,26 @@ def _inspected_today(mask, site, day):
         return False
 
 
+def _cord_condition_matches_inspection(mask, cord):
+    """Reject a stale firsthand cord observation after another Hound acts.
+
+    A same-day inspection is necessary but not sufficient: the warning can
+    change during that day, or even in the same village hour. Old saved
+    inspections without a physical version require a fresh look.
+    """
+    views = getattr(mask.db, "landmark_latest_view", None)
+    recent = views.get("red_cord") if isinstance(views, Mapping) else None
+    if not isinstance(recent, Mapping):
+        return False
+    observed = recent.get("caution_event_id")
+    if type(observed) is not int or observed < 0:
+        return False
+    marker = getattr(cord.db, "route_caution", None)
+    current = marker.get("event_id") if isinstance(marker, Mapping) else None
+    current = current if type(current) is int and current > 0 else 0
+    return observed == current
+
+
 def status_lines():
     square = _square()
     if not square:
@@ -296,6 +316,11 @@ def field_action(mask, action):
     today = _inspected_today(mask, site, day)
     if not observed or not today:
         return None, "Examine the physical red cord here today first."
+    if not _cord_condition_matches_inspection(mask, cord):
+        return None, (
+            "The cord's warning has changed since your inspection. "
+            "Examine the physical red cord again before reporting."
+        )
     square = _square()
     if square is None:
         return None, "The Square's existing public route board is missing."
@@ -331,6 +356,10 @@ def field_action(mask, action):
                 raise RuntimeError("Examine the physical red cord again before acting.")
             if not cord.access(mask, "view", default=True):
                 raise RuntimeError("The physical red cord is no longer available.")
+            if not _cord_condition_matches_inspection(mask, cord):
+                raise RuntimeError(
+                    "The physical cord warning changed. Examine it again before signing."
+                )
             now_marked = bool(getattr(cord.db, "route_caution", None))
             updated, valid, reason = route_surveys.field_decision(
                 square.db.daily_route_survey, day, site, role, action,
