@@ -8,7 +8,7 @@ incomplete to complete. Incomplete days become explicit historical outcomes.
 from __future__ import annotations
 
 import copy
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 SITES = ("grave_marker", "red_cord", "market_scale", "river_gauge")
 MAX_HISTORY = 30
@@ -57,13 +57,13 @@ def _notice(raw, decisions, day):
 
 
 def normalize(raw):
-    value = copy.deepcopy(dict(raw or {}))
+    value = copy.deepcopy(dict(raw)) if isinstance(raw, Mapping) else {}
     try:
         day = max(0, int(value.get("day") or 0))
     except (TypeError, ValueError, OverflowError):
         day = 0
     reports = {}
-    for ident, entry in dict(value.get("reports") or {}).items():
+    for ident, entry in (value.get("reports").items() if isinstance(value.get("reports"), Mapping) else ()):
         if ident not in SITES or not hasattr(entry, "get"):
             continue
         try:
@@ -78,7 +78,7 @@ def normalize(raw):
             "event_id": event,
         }
     decisions = {}
-    for role, entry in dict(value.get("field_decisions") or {}).items():
+    for role, entry in (value.get("field_decisions").items() if isinstance(value.get("field_decisions"), Mapping) else ()):
         if role not in {"hound", "wanderer"} or not hasattr(entry, "get"):
             continue
         try:
@@ -101,12 +101,31 @@ def normalize(raw):
             decisions[role]["retied_previous_day"] = entry.get("retied_previous_day") is True
         if role == "wanderer":
             decisions[role]["observation"] = observation
+    # Persisted Evennia sequence wrappers are valid, but strings, scalars and
+    # malformed history entries cannot become public previous-day evidence.
+    history = []
+    raw_history = value.get("history")
+    if (isinstance(raw_history, Sequence)
+            and not isinstance(raw_history, (str, bytes, bytearray))):
+        for prior in raw_history:
+            if not isinstance(prior, Mapping):
+                continue
+            prior_reports = prior.get("reports")
+            prior_completed = prior.get("completed")
+            if (not _positive(prior.get("day"))
+                    or not isinstance(prior_reports, Mapping)
+                    or type(prior_completed) is not bool
+                    or any(site not in SITES or not isinstance(entry, Mapping)
+                           for site, entry in prior_reports.items())
+                    or prior_completed != (len(prior_reports) == len(SITES))):
+                continue
+            history.append(copy.deepcopy(dict(prior)))
     return {
         "day": day,
         "reports": reports,
         "field_decisions": decisions,
         "caution_notice": _notice(value.get("caution_notice"), decisions, day),
-        "history": list(value.get("history") or [])[-MAX_HISTORY:],
+        "history": history[-MAX_HISTORY:],
     }
 
 
