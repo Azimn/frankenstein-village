@@ -50,7 +50,7 @@ def act(mask, action, tune=None):
     if error:
         return None, error
     if action not in {"rehearse", "perform", "witness"}:
-        return None, "Use stage, stage rehearse ballad|reel, stage perform ballad|reel, or stage witness."
+        return None, "Use stage, stage rehearse ballad or stage rehearse reel, stage perform ballad or stage perform reel, or stage witness."
     if action in {"rehearse", "perform"} and active_calling(mask) != "performer":
         return None, "An active Performer must rehearse and perform."
     if action == "witness" and tune is not None:
