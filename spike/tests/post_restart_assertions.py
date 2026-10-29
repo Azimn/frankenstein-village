@@ -186,6 +186,42 @@ _soup_bowl = one("a bowl of turnip and thyme soup")
 assert _soup_bowl.location == innkeep_tester
 assert _soup_bowl.db.servings == 0, "Consumed bowl refilled across restart"
 assert one("a communal soup pot").location == _tavern_soup
+# GDD-EDGE-04: the real Merchant crate was given to a different account,
+# accepted exactly once, and the two canonical events survived restart.
+_soup_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+_edge04_receipts = [
+    dict(row) for row in (_soup_ledger.db.events or [])
+    if row.get("kind") == "professional.innkeep_kitchen_acceptance"
+]
+assert len(_edge04_receipts) == 1, "Kitchen receipt missing or duplicated"
+_edge04 = _edge04_receipts[0]
+_edge04_source = _soup_ledger.get_event(
+    _edge04["payload"]["procurement_event_id"]
+)
+assert _edge04["status"] == "complete"
+assert _edge04_source and _edge04_source["status"] == "complete"
+assert _edge04_source["kind"] == "professional.merchant_kitchen_procurement"
+assert _edge04_source["actor"]["mask_id"] == merchant_tester.id
+assert _edge04["actor"]["mask_id"] == innkeep_tester.id
+assert _edge04_source["actor"]["account_id"] != _edge04["actor"]["account_id"]
+assert _edge04["consequence"]["merchant_account_id"] == (
+    _edge04_source["actor"]["account_id"]
+)
+assert _edge04["consequence"]["receiving_account_id"] == (
+    _edge04["actor"]["account_id"]
+)
+assert _edge04["consequence"]["procurement_event_id"] == _edge04_source["id"]
+assert _edge04_source["consequence"]["crate_id"] == (
+    _edge04["consequence"]["crate_id"]
+)
+assert _edge04["consequence"]["pantry_room_id"] == _tavern_soup.id
+assert _edge04["consequence"]["turnip_stock"] >= 4
+assert not [obj for obj in innkeep_tester.contents
+            if obj.key == "a crate of kitchen roots"], (
+    "Consumed Merchant crate survived a real server restart"
+)
+assert innkeep_record["participation"]["kitchen_acceptances"] == 1
+print("POST_RESTART_GDD_EDGE04_SIGNED_TWO_ACCOUNT_KITCHEN_SUPPLY_GREEN")
 print("POST_RESTART_SHARED_SOUP_WORKPLACE_GREEN")
 
 # EDGE-01: the same physical batch and existing pantry history survive an

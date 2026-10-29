@@ -2086,10 +2086,25 @@ def main() -> int:
             ):
                 out = actor.command(direction)
                 require(out, expected)
+        # GDD-EDGE-04: the Merchant's real crate must be handed to an
+        # independent Innkeep. The signed source, not a claimed inventory
+        # label, authorizes the two-account pantry receipt.
+        out = inn.command("soup accept")
+        require(out, "bring a physical kitchen root crate")
+        out = merchant.command("soup accept")
+        require(out, "active innkeep")
+        out = merchant.command("give kitchen roots = InnkeepTester")
+        require(out, "you give")
         out = merchant.command("soup deliver")
-        require_all(out, "actual crate enters the tavern pantry", "portions of turnip")
+        require(out, "bring a physical kitchen root crate")
+        out = inn.command("soup accept")
+        require_all(out, "verify the merchant's signed crate",
+                    "merchant source event", "innkeep acceptance event")
+        out = inn.command("soup accept")
+        require(out, "bring a physical kitchen root crate")
         out = inn.command("look soup pot")
         require_all(out, "pantry day", "Last completed batch: InnkeepTester")
+        print("TELNET_GDD_EDGE04_SIGNED_TWO_ACCOUNT_KITCHEN_SUPPLY_GREEN")
         print("TELNET_MARKET_TO_TAVERN_SOUP_SUPPLY_GREEN")
 
         # A real Wanderer moves a finite, non-magical parcel between rooms.

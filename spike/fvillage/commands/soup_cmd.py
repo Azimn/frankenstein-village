@@ -14,7 +14,8 @@ class CmdSoup(Command):
         soup publish [cooking event ID]   (independent Chronicler)
         soup receipts                    (public, no private guest data)
         soup procure             (Merchant, Market Lane)
-        soup deliver             (any courier carrying the real crate)
+        soup deliver             (solo/courier fallback with signed crate)
+        soup accept              (Innkeep verifies a separate Merchant crate)
 
     The kitchen has finite pantry supplies, a renewing daily baseline,
     a permanent work log and individual recipe notebooks. Prepared packets
@@ -122,10 +123,26 @@ class CmdSoup(Command):
                 "You collect a physical crate of kitchen roots. "
                 f"{result['remaining']} market crates remain today. "
                 "Carry it to the Blood of the Vine and use soup deliver, "
-                "or give it to a courier."
+                "or give it to a separate Innkeep for soup accept."
             )
             caller.location.msg_contents(
                 f"{caller.key} loads a crate for the village kitchen.",
+                exclude=[caller])
+            return
+        if raw == "accept":
+            result, error = soup_kitchen.accept(caller)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                "You verify the Merchant's signed crate and accept its "
+                "real roots into the shared pantry. "
+                f"It now holds {result['turnips']} turnip portions. "
+                f"Merchant source event {result['source_event_id']}; "
+                f"Innkeep acceptance event {result['event_id']}."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} checks and accepts a real kitchen delivery.",
                 exclude=[caller])
             return
         if raw == "deliver":
@@ -145,5 +162,5 @@ class CmdSoup(Command):
         caller.msg(
             "Use soup | soup prep <base> <seasoning> | soup simmer | "
             "soup notebook | soup receipt [event] | soup publish [event] | "
-            "soup receipts | soup procure | soup deliver."
+            "soup receipts | soup procure | soup deliver | soup accept."
         )
