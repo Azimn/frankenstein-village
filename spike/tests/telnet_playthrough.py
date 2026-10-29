@@ -2046,19 +2046,91 @@ def main() -> int:
         require(out, "scarlet cord")
         out = hound.command("survey passability")
         require(out, "only a hound")
-        out = hound.command("survey protect")
+        # Account A has already inspected the unmarked cord. Account B,
+        # using its own Hound mask, now signs the warning in the same hour.
+        # Reuse the Smith account's second mask so the Wanderer's separate
+        # signed field observation remains an independent third account.
+        # The IC "ooc" shortcut is deliberately blocked. Return through
+        # the actual front door before ending this session; reconnecting
+        # then exposes the account's ordinary OOC mask-selection commands.
+        for move, destination in (
+            ("west", "village square"),
+            ("north", "inn hallway"),
+        ):
+            out = smith.command(move)
+            require(out, destination)
+        require(out, "mask comes off")
+        smith.close()
+        smith = Client(args.host, args.port)
+        require(smith.sync_login_screen(), "frankenstein village")
+        out = smith.command(
+            f"connect qa_smith_repair {repair_password}", wait=4.0
+        )
+        require(out, "connected", "account qa_smith_repair")
+        out = smith.command("charcreate MarkerHound", wait=3.0)
+        require(out, "markerhound")
+        out = smith.command("ic MarkerHound", wait=4.0)
+        require(out, "private room")
+        out = smith.command("calling choose hound")
+        require(out, "hound is now your active calling")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("west", "st. lazarus church"),
+            ("west", "churchyard"), ("north", "northern treeline"),
+        ):
+            out = smith.command(move)
+            require(out, destination)
+        out = smith.command("look cord")
+        require(out, "scarlet cord")
+        out = smith.command("survey protect")
         require_all(out, "tie the original frayed cord", "visible warning", "signed event")
+        out = smith.command("survey protect")
+        require(out, "already signed today")
         out = hound.command("survey protect")
         require(out, "already signed today")
-        # The Hound's movement and action notified the nearby Wanderer.
-        # Drain unsolicited room broadcasts before testing object look.
-        wanderer.read_quiet()
-        out = wanderer.command("look cord")
-        require_all(out, "cut cleanly", "clear caution marker")
-        out = wanderer.command("survey")
-        require_all(out, "houndtester", "wanderertester", "unmarked cord",
+        out = hound.command("survey")
+        require_all(out, "markerhound", "wanderertester", "unmarked cord",
                     "does not repair the cord")
+        # The old date/hour-only check falsely accepted this pre-marker
+        # inspection. It must be rejected despite a matching village hour.
+        out = hound.command("survey dispatch")
+        require(out, "look at the physical signed red cord after")
+        out = hound.command("look cord")
+        require_all(out, "cut cleanly", "clear caution marker")
+        print("TELNET_GDD_EDGE08_TWO_ACCOUNT_PREMARKER_DENIED_UNTIL_RELOOK_GREEN")
         print("TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN")
+        # EDGE-08: the Hound is the actual traveler, not an invented NPC.
+        # A distinct Innkeep spends the original Tavern's finite pantry.
+        out = hound.command("survey dispatch")
+        require_all(out, "physical signed treeline refuge dispatch", "event")
+        out = hound.command("survey dispatch")
+        require(out, "already left this cord today")
+        out = hound.command("inventory")
+        require(out, "signed treeline refuge dispatch")
+        out = inn.command("soup refuge HoundTester")
+        require(out, "named logged-in hound is not here")
+        for move, destination in (
+            ("south", "churchyard"), ("east", "st. lazarus church"),
+            ("east", "village square"), ("east", "blood of the vine"),
+        ):
+            out = hound.command(move)
+            require(out, destination)
+        hound.read_quiet()
+        inn.read_quiet()
+        out = hound.command("soup refuge HoundTester")
+        require(out, "only an active innkeep")
+        out = inn.command("soup refuge HoundTester")
+        require_all(out, "one real bowl of refuge soup", "dispatch is consumed",
+                    "turnip portions remain")
+        out = hound.command("inventory")
+        require(out, "bowl of hound refuge soup")
+        assert "signed treeline refuge dispatch" not in out.lower()
+        out = inn.command("soup refuge HoundTester")
+        require(out, "exactly one physical refuge dispatch")
+        out = inn.command("look soup pot")
+        require_all(out, "1 signed hound arrival meal", "pantry day")
+        print("TELNET_GDD_EDGE08_TWO_ACCOUNT_FINITE_HOUND_REFUGE_GREEN")
+
 
         print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
         out = c.command("guide")

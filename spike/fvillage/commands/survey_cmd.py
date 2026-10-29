@@ -10,6 +10,7 @@ class CmdSurvey(Command):
         survey report
         survey protect       (Hound, Northern Treeline)
         survey passability   (Wanderer, Northern Treeline)
+        survey dispatch      (Hound, inspected original cord)
 
     Read the board, go to an outstanding district, examine the actual
     landmark and sign a firsthand report. Anyone can contribute. Wanderers,
@@ -51,6 +52,18 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
+        if verb == "dispatch":
+            from world import refuge_work
+            result, error = refuge_work.dispatch(caller)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"You carry a physical signed treeline refuge dispatch "
+                f"(event {result['event_id']}). Travel to the Blood of the "
+                "Vine and ask a separate Innkeep to use soup refuge <hound mask>."
+            )
+            return
         if verb in {"protect", "passability"}:
             result, error = route_work.field_action(caller, verb)
             if error:
@@ -71,4 +84,4 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
-        caller.msg("Use: survey | survey report | survey protect | survey passability")
+        caller.msg("Use: survey | survey report | survey protect | survey passability | survey dispatch")

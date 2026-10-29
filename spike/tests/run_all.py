@@ -506,6 +506,39 @@ def main() -> int:
             day4_restart_env["FV_T13_DAY4_RESTART"] = "1"
             run([evennia, "shell"], cwd=game, env=day4_restart_env,
                 input_text=day4_assertions)
+
+            # EDGE-08: the original cord remains physically marked after day
+            # one. On a later disposable QA day, two authenticated ordinary
+            # accounts must renew that SAME signed source and exchange a new
+            # finite refuge meal. The player commands, not shell, make changes.
+            edge08_setup = (
+                checkout / "spike" / "tests" / "gdd_edge08_renewal_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge08_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge08_renewal.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=140,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            # A genuine subsequent server process must recover the signed
+            # original marker history, new source, two independent accounts,
+            # consumed physical dispatch and second finite food consequence.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            edge08_restart = (
+                checkout / "spike" / "tests" /
+                "gdd_edge08_renewal_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge08_restart)
         except Exception:
             dump_logs(game)
             raise

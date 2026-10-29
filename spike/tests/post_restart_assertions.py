@@ -1152,15 +1152,17 @@ _cords = [x for x in _treeline.contents if x.key == "a frayed red cord"]
 assert len(_cords) == 1, "Treeline physical evidence missing or duplicated"
 _cord = _cords[0]
 _hound_protect = one("HoundTester")
+_marker_hound = one("MarkerHound")
 _wanderer_field = one("WandererTester")
 assert active_calling(_hound_protect) == "hound"
+assert active_calling(_marker_hound) == "hound"
 assert active_calling(_wanderer_field) == "wanderer"
-assert _cord.db.route_caution["mask"] == "HoundTester"
+assert _cord.db.route_caution["mask"] == "MarkerHound"
 assert _cord.db.route_caution["event_id"] > 0
 assert "clear caution marker" in _cord.get_display_desc(looker=_wanderer_field)
 _actions = route_board["field_decisions"]
 assert set(_actions) == {"hound", "wanderer"}
-assert _actions["hound"]["mask"] == "HoundTester"
+assert _actions["hound"]["mask"] == "MarkerHound"
 assert _actions["wanderer"]["mask"] == "WandererTester"
 assert _actions["wanderer"]["observation"] == "unmarked", (
     "Later protection overwrote the original Wanderer's observation"
@@ -1171,10 +1173,68 @@ for _role, _kind in (("hound", "village.route_protected"),
     _signed = warning_ledger.get_event(_actions[_role]["event_id"])
     assert _signed["kind"] == _kind
     assert _signed["status"] == "complete"
-assert calling_record(_hound_protect, "hound")["participation"]["field_surveys"] == 1
+assert calling_record(_marker_hound, "hound")["participation"]["field_surveys"] == 1
 assert calling_record(_wanderer_field, "wanderer")["participation"]["field_surveys"] == 1
 assert set(_next_survey_day["history"][-1]["field_decisions"]) == {"hound", "wanderer"}
 print("POST_RESTART_GDD_T07_SHARED_CORD_AND_DISTINCT_ACTIONS_GREEN")
+# EDGE-08: real player accounts, original signed cord source, finite food,
+# consumed physical dispatch and a persistent edible bowl after server restart.
+from world import refuge_state as _refuge_rules
+_tavern_refuge = one("The Blood of the Vine")
+_refuge_history = _refuge_rules.history(_tavern_refuge.db.route_refuge)
+assert _refuge_history is not None and len(_refuge_history) == 1
+_refuge_row = _refuge_history[0]
+_hound_account = next(
+    account for account in AccountDB.objects.all()
+    if any(character.id == _hound_protect.id
+           for character in account.characters.all())
+)
+_innkeep_account = next(
+    account for account in AccountDB.objects.all()
+    if any(character.id == innkeep_tester.id
+           for character in account.characters.all())
+)
+assert _hound_account.id != _innkeep_account.id
+assert _refuge_row["hound_account_id"] == _hound_account.id
+assert _refuge_row["innkeep_account_id"] == _innkeep_account.id
+assert _refuge_row["hound_mask_id"] == _hound_protect.id
+assert _refuge_row["innkeep_mask_id"] == innkeep_tester.id
+assert _refuge_row["tavern_id"] == _tavern_refuge.id
+assert _refuge_row["source_protect_event_id"] == _cord.db.route_caution["event_id"]
+_dispatch_event = warning_ledger.get_event(_refuge_row["dispatch_event_id"])
+_source_event = warning_ledger.get_event(_refuge_row["source_protect_event_id"])
+assert _dispatch_event["kind"] == "professional.hound_refuge_dispatch"
+assert _dispatch_event["status"] == "complete"
+assert _refuge_rules.protection_valid(
+    _source_event, _cord.db.route_caution, _cord.id)
+from world.discoveries import observed_caution as _observed_caution
+assert _observed_caution(
+    _hound_protect.db.landmark_latest_view,
+    day=_dispatch_event["payload"]["day"],
+    hour=_dispatch_event["payload"]["hour"],
+    source_event_id=_source_event["id"], cord_id=_cord.id), (
+    "The dispatching Hound's physical signed-marker inspection did not persist"
+)
+assert _dispatch_event["actor"]["mask_id"] != _source_event["actor"]["mask_id"]
+assert _dispatch_event["actor"]["account_id"] != _source_event["actor"]["account_id"]
+assert _dispatch_event["consequence"]["item_id"] == _refuge_row["item_id"]
+assert _dispatch_event["actor"]["account_id"] == _hound_account.id
+_meal_event = warning_ledger.get_event(_refuge_row["event_id"])
+assert _meal_event["kind"] == "professional.innkeep_refuge_meal"
+assert _meal_event["status"] == "complete"
+assert _meal_event["actor"]["account_id"] == _innkeep_account.id
+assert _meal_event["consequence"]["consumed_dispatch_id"] == _refuge_row["item_id"]
+assert _meal_event["consequence"]["bowl_id"] == _refuge_row["bowl_id"]
+assert _meal_event["consequence"]["source_protect_event_id"] == _source_event["id"]
+assert not search.search_object("a signed treeline refuge dispatch")
+assert any(o.id == _refuge_row["bowl_id"] for o in _hound_protect.contents)
+_refuge_pantry = _tavern_refuge.db.soup_pantry
+assert _refuge_pantry["stock"]["turnip"] >= 0
+assert _refuge_pantry["stock"]["salt"] >= 0
+assert _refuge_rules.public_lines(_tavern_refuge.db.route_refuge).startswith(
+    "1 signed Hound arrival")
+print("POST_RESTART_GDD_EDGE08_SIGNED_FINITE_HOUND_REFUGE_GREEN")
+
 
 from world.residents import (
     resident_state as _resident_state, relationship_for as _relationship_for
