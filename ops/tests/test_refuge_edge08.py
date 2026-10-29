@@ -86,8 +86,83 @@ class RefugeRules(unittest.TestCase):
         self.assertFalse(r.can_dispatch({"day": 4}, source, marker, **args)[0])
         self.assertFalse(r.can_dispatch(None, source, marker,
                          **dict(args, day=2))[0])
-        self.assertTrue(r.can_dispatch({"day": 3}, source, marker,
-                        **dict(args, day=4))[0])
+        # A new day cannot reuse yesterday's physical warning as fresh work.
+        self.assertFalse(r.can_dispatch({"day": 3}, source, marker,
+                         **dict(args, day=4))[0])
+
+    def test_corrupt_marker_day_cannot_create_dispatch_or_refuge_meal(self):
+        source, marker, event, token = fixture()
+        bad_markers = [
+            dict(marker, day=4),  # forged advanced day, genuine day-3 event
+            {key: value for key, value in marker.items() if key != "day"},
+            *[dict(marker, day=value)
+              for value in (None, False, True, "3", 3.0, 0, -1)],
+        ]
+        for altered in bad_markers:
+            with self.subTest(marker=altered):
+                self.assertFalse(r.protection_valid(source, altered, 301))
+                allowed, _why = r.can_dispatch(
+                    {"day": 3}, source, altered, cord_id=301,
+                    day=4, hour=11, hound_account_id=101,
+                    hound_mask_id=201)
+                self.assertFalse(allowed)  # no physical dispatch token
+                history, pantry, served, _why = serve(marker=altered)
+                self.assertFalse(served)  # no Tavern meal or pantry mutation
+                self.assertIsNone(history)
+                self.assertEqual(pantry, soup_state.pantry(None, 3))
+
+        # Even a fresh private look at the inconsistent day-4 marker cannot
+        # turn the real old day-3 event into a completed day-4 warning.
+        seen = {"red_cord": {
+            "day": 4, "hour": 11, "route_caution_event_id": 41,
+            "route_caution_cord_id": 301}}
+        self.assertTrue(observed_caution(
+            seen, day=4, hour=11, source_event_id=41, cord_id=301))
+        self.assertFalse(r.can_dispatch(
+            {"day": 3}, source, dict(marker, day=4), cord_id=301,
+            day=4, hour=11, hound_account_id=101,
+            hound_mask_id=201)[0])
+
+    def test_signed_retying_preserves_day_and_prior_source_chain(self):
+        source, marker, dispatch, token = fixture()
+        renewed = copy.deepcopy(source)
+        renewed["id"] = 44
+        renewed["payload"].update(day=4, prior_caution_event_id=41)
+        renewed["consequence"].update(day=4, prior_caution_event_id=41)
+        tied = dict(marker, event_id=44, day=4, prior_caution_event_id=41)
+        self.assertTrue(r.protection_valid(renewed, tied, 301))
+        self.assertTrue(r.can_dispatch(
+            {"day": 3}, renewed, tied, cord_id=301, day=4, hour=11,
+            hound_account_id=101, hound_mask_id=201)[0])
+
+        # An authentic day-4 dispatch and token must cite the new protection.
+        next_dispatch = copy.deepcopy(dispatch)
+        next_dispatch["id"] = 45
+        next_dispatch["payload"].update(
+            day=4, source_protect_event_id=44)
+        next_dispatch["consequence"]["source_protect_event_id"] = 44
+        next_token = dict(
+            token, day=4, dispatch_event_id=45,
+            source_protect_event_id=44)
+        self.assertTrue(r.dispatch_valid(
+            next_dispatch, next_token, renewed, tied, 301, 401))
+        self.assertFalse(r.dispatch_valid(
+            next_dispatch, next_token, source, marker, 301, 401))
+
+        for bad in (
+            dict(tied, prior_caution_event_id=42),
+            dict(tied, prior_caution_event_id=True),
+            {key: value for key, value in tied.items()
+             if key != "prior_caution_event_id"},
+        ):
+            with self.subTest(bad=bad):
+                self.assertFalse(r.protection_valid(renewed, bad, 301))
+        changed = copy.deepcopy(renewed)
+        changed["consequence"]["day"] = 3
+        self.assertFalse(r.protection_valid(changed, tied, 301))
+        changed = copy.deepcopy(renewed)
+        changed["payload"]["prior_caution_event_id"] = 999
+        self.assertFalse(r.protection_valid(changed, tied, 301))
 
     def test_forged_dispatch_source_or_item_rejected(self):
         source, marker, event, token = fixture()
