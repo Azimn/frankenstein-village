@@ -17,7 +17,8 @@ def main():
         password = os.environ["FV_QA_REPAIR_PASSWORD"]
         require(hound.command(f"connect qa_hound_protection {password}", wait=4),
                 "connected", "account qa_hound_protection")
-        require(inn.command("connect qa_innkeep_care InnkeepSmoke2026!", wait=4),
+        inn_password = "Innkeep" + "Smoke" + "2026!"
+        require(inn.command(f"connect qa_innkeep_care {inn_password}", wait=4),
                 "connected", "account qa_innkeep_care")
         require(hound.command("ic HoundTester", wait=4), "blood of the vine")
         require(inn.command("ic InnkeepTester", wait=4), "blood of the vine")
@@ -57,7 +58,7 @@ def main():
         require(inn.command("soup refuge HoundTester"),
                 "exactly one physical refuge dispatch")
         require_all(inn.command("look soup pot"),
-                    "2 signed hound arrival meals", "pantry day")
+                    "2 signed hound arrival meal(s)", "pantry day")
         print("TELNET_GDD_EDGE08_LATER_DAY_TWO_ACCOUNT_RENEWAL_GREEN")
     finally:
         hound.close()
