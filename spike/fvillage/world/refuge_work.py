@@ -94,7 +94,7 @@ def dispatch(mask):
             fresh_latest = dict(
                 getattr(mask.db, "landmark_latest_view", None) or {})
             if not observed_caution(
-                    fresh_latest.get("red_cord"),
+                    fresh_latest,
                     day=day, hour=hour, source_event_id=source["id"],
                     cord_id=cord.id):
                 raise RuntimeError(
