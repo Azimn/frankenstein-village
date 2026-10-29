@@ -12,7 +12,7 @@ from evennia.utils import search
 from world import route_surveys
 from world.callings import active_calling, record_participation
 from world.discoveries import LANDMARKS, normalize as known_landmarks
-from world.events import publish_world_event
+from world.events import get_event_ledger, publish_world_event
 
 SQUARE = "Village Square"
 SCOUT_ROLES = frozenset({"wanderer", "hound", "detective"})
@@ -61,12 +61,24 @@ def status_lines():
                 f"{spec['key']} and examine it."
             )
     lines.extend(route_surveys.field_lines(state))
+    # Persisted advisory text is not proof that a Chronicler event completed.
+    public_state = state
+    item = state.get("advisory")
+    ledger = get_event_ledger()
+    if item and not route_surveys.verified_advisory_publication(
+        state, ledger.get_event(item["event_id"]), square_id=square.id,
+    ):
+        public_state = dict(state, advisory=None)
+        lines.append("The stored route map edition is unverified; no signed edition is displayed.")
+    lines.extend(route_surveys.advisory_lines(public_state))
     lines.append(
         "At the Northern Treeline, an active Hound can examine the actual "
         "frayed red cord and use |wsurvey protect|n to tie a visible warning. "
         "An active Wanderer can independently use |wsurvey passability|n "
         "there to record whether the warning was present when inspected. "
-        "Neither action proves why the cord was damaged."
+        "Neither action proves why the cord was damaged. After both signed "
+        "actions, the original Wanderer can examine the marker again and "
+        "use |wsurvey corroborate|n to link the two independent sources."
     )
     if route_surveys.complete(state):
         lines.append(
@@ -90,6 +102,21 @@ def status_lines():
             + ("complete" if prior["completed"] else "unfinished")
             + f" ({len(prior['reports'])} of {len(route_surveys.SITES)})."
         )
+        archived = prior.get("advisory")
+        if archived:
+            historical = {
+                "day": prior["day"], "reports": prior.get("reports") or {},
+                "field_decisions": prior.get("field_decisions") or {},
+                "advisory": archived, "history": [],
+            }
+            signed = route_surveys.verified_advisory_publication(
+                historical, ledger.get_event(archived.get("event_id")),
+                square_id=square.id,
+            ) if hasattr(archived, "get") else False
+            lines.append(
+                "The prior day's signed route map is archived, not a live forecast."
+                if signed else "The prior day's stored map is unverified, not a signed edition."
+            )
     return "\n".join(lines)
 
 
@@ -192,7 +219,8 @@ def field_action(mask, action):
         return None, "Use an ordinary logged-in player mask."
     role = active_calling(mask)
     if (role, action) not in {
-        ("hound", "protect"), ("wanderer", "passability")
+        ("hound", "protect"), ("wanderer", "passability"),
+        ("wanderer", "corroborate")
     }:
         return None, "Only a Hound can protect a route and a Wanderer can assess passability."
     site = "red_cord"
@@ -222,6 +250,8 @@ def field_action(mask, action):
     if square is None:
         return None, "The Square's existing public route board is missing."
     marked = bool(getattr(cord.db, "route_caution", None))
+    if action == "corroborate":
+        return _corroborate(mask, room, cord, square, day, hour)
     current, allowed, why = route_surveys.field_decision(
         square.db.daily_route_survey, day, site, role, action,
         marked, mask.account.id, mask.key, 1,
@@ -271,3 +301,175 @@ def field_action(mask, action):
         consequence=consequence,
     )
     return {"event_id": event["id"], "role": role, "action": action}, None
+
+
+def publish_advisory(mask):
+    """Chronicler publishes a dated map from an independent Wanderer source.
+
+    Publication changes the same public Square route record, not physical
+    road conditions. The source event must exist and be complete in the
+    canonical ledger; role labels or unverified prose cannot forge a map.
+    """
+    if not getattr(mask, "account", None):
+        return None, "An ordinary logged-in player mask is required."
+    if active_calling(mask) != "chronicler":
+        return None, "Only an active Chronicler may edit a route map."
+    square = _square()
+    if square is None:
+        return None, "The Square's public route board is missing."
+    if mask.location != square or not square.tags.has("ic", category="side"):
+        return None, "Visit the Village Square to publish at the public route board."
+    day, hour = _day_hour()
+    state = route_surveys.refresh(square.db.daily_route_survey, day)
+    if state["day"] > day:
+        return None, "A later village day is already recorded."
+    source = state["field_decisions"].get("wanderer")
+    if not source:
+        return None, "A Wanderer's signed firsthand route observation is required."
+
+    def valid_source():
+        event = get_event_ledger().get_event(source["event_id"])
+        if not event or event.get("status") != "complete":
+            return False
+        if event.get("kind") != "village.route_passability_observed":
+            return False
+        payload, actor = event.get("payload") or {}, event.get("actor") or {}
+        return (payload.get("site") == "red_cord"
+                and payload.get("day") == day
+                and actor.get("account_id") == source["account_id"])
+
+    if not valid_source():
+        return None, "The Wanderer's canonical signed source could not be verified."
+    # This preflight does not allocate a ledger event. ID 1 is not a
+    # safe placeholder: the first legitimate Wanderer event may itself
+    # be event 1, and a publication must have a distinct event ID.
+    preview_event_id = source["event_id"] + 1
+    _candidate, allowed, reason = route_surveys.publish_advisory(
+        state, day, mask.account.id, mask.key,
+        preview_event_id, source["event_id"],
+    )
+    if not allowed:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            now_day, now_hour = _day_hour()
+            if ((now_day, now_hour) != (day, hour) or mask.location != square
+                    or active_calling(mask) != "chronicler"):
+                raise RuntimeError("The publisher moved, changed Calling, or the village clock advanced.")
+            if not valid_source():
+                raise RuntimeError("The original Wanderer source is no longer valid.")
+            changed, accepted, error = route_surveys.publish_advisory(
+                square.db.daily_route_survey, day, mask.account.id,
+                mask.key, event["id"], source["event_id"],
+            )
+            if not accepted:
+                raise RuntimeError(error)
+            square.db.daily_route_survey = changed
+            record_participation(mask, "route_advisories", calling="chronicler")
+            return {
+                "day": day, "version": 1, "square_room_id": square.id,
+                "source_event_id": source["event_id"],
+                "source_account_id": source["account_id"],
+                "observation": source["observation"],
+            }
+
+    event = publish_world_event(
+        "village.route_map_published",
+        actor=mask,
+        payload={
+            "site": "red_cord", "day": day, "hour": hour,
+            "version": 1, "source_event_id": source["event_id"],
+            "source_account_id": source["account_id"],
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "source_event_id": source["event_id"],
+            "version": 1, "day": day}, None
+
+
+
+
+
+def _corroboration_sources(square, cord, day, hour):
+    """Validate both completed events and the same actual marked object."""
+    state = route_surveys.refresh(square.db.daily_route_survey, day)
+    entries = state["field_decisions"]
+    hound, wanderer = entries.get("hound"), entries.get("wanderer")
+    if not hound or not wanderer:
+        return None, "Both independent professional field records are required."
+    marker = dict(cord.db.route_caution or {})
+    if not route_surveys.verify_caution_marker(marker, hound, day):
+        return None, "The current physical warning has no matching Hound source today."
+    if hound["account_id"] == wanderer["account_id"]:
+        return None, "Two separate ordinary accounts must contribute."
+    ledger = get_event_ledger()
+    for role, entry in (("hound", hound), ("wanderer", wanderer)):
+        signed = ledger.get_event(entry["event_id"])
+        if not route_surveys.verify_signed_field_source(
+            signed, entry, role, day, hour, cord.id, square.id
+        ):
+            return None, "A completed independent field source could not be verified."
+    return state, None
+
+
+def _corroborate(mask, room, cord, square, day, hour):
+    """A later firsthand Wanderer check, bound to signed Hound protection."""
+    state, problem = _corroboration_sources(square, cord, day, hour)
+    if problem:
+        return None, problem
+    hound = state["field_decisions"]["hound"]
+    proposed, ok, reason = route_surveys.corroborate(
+        state, day, "red_cord", hound["event_id"],
+        mask.account.id, mask.key,
+        max(hound["event_id"], state["field_decisions"]["wanderer"]["event_id"]) + 1,
+    )
+    if not ok:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            if mask.location != room or cord.location != room:
+                raise RuntimeError("The firsthand observer left the physical cord.")
+            if active_calling(mask) != "wanderer":
+                raise RuntimeError("The observer is no longer a Wanderer.")
+            if _day_hour() != (day, hour):
+                raise RuntimeError("Village time changed during corroboration.")
+            recent = dict(mask.db.landmark_latest_view or {}).get("red_cord") or {}
+            if int(recent.get("day") or 0) != day:
+                raise RuntimeError("The Wanderer did not inspect the cord today.")
+            latest, source_error = _corroboration_sources(square, cord, day, hour)
+            if source_error:
+                raise RuntimeError(source_error)
+            hound_entry = latest["field_decisions"]["hound"]
+            updated, valid, failure = route_surveys.corroborate(
+                latest, day, "red_cord", hound_entry["event_id"],
+                mask.account.id, mask.key, event["id"],
+            )
+            if not valid:
+                raise RuntimeError(failure)
+            square.db.daily_route_survey = updated
+            record_participation(mask, "field_corroborations", calling="wanderer")
+            return {
+                "site": "red_cord", "day": day,
+                "role": "wanderer", "action": "corroborate",
+                "cord_object_id": cord.id, "square_room_id": square.id,
+                "hound_source_event_id": hound_entry["event_id"],
+                "wanderer_source_event_id": latest["field_decisions"]["wanderer"]["event_id"],
+                "physical_caution_present": True,
+            }
+
+    event = publish_world_event(
+        "village.route_caution_corroborated", actor=mask,
+        payload={
+            "site": "red_cord", "day": day, "hour": hour,
+            "role": "wanderer", "action": "corroborate",
+            "location": room.key, "cord_object_id": cord.id,
+            "hound_source_event_id": hound["event_id"],
+            "wanderer_source_event_id": state["field_decisions"]["wanderer"]["event_id"],
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "hound_source_event_id": hound["event_id"]}, None

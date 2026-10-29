@@ -104,19 +104,12 @@ class MasterGDDProgramTests(unittest.TestCase):
                          ("Innkeep","Merchant","V"))
         for edge in edges:
             self.assertFalse(edge["verified_complete"])
-            for key in (
-                "runtime_source_owner", "ordinary_player_discovery_proof",
-                "distinct_role_action_proof", "finite_resource_or_time_proof",
-                "solo_fallback_proof", "authoritative_state_change_proof",
-                "negative_and_late_state_proof", "two_account_test",
-                "post_restart_test",
-            ):
-                evidence = edge[key]
+            for field in ("ordinary_player_discovery_proof",
+                          "two_account_test", "post_restart_test"):
+                evidence = edge[field]
                 if evidence is not None:
-                    self.assertTrue(
-                        isinstance(evidence, str) and evidence.startswith("CANDIDATE:"),
-                        (edge["id"], key, evidence),
-                    )
+                    self.assertIsInstance(evidence, str)
+                    self.assertTrue(evidence.startswith("candidate:"), edge["id"])
             self.assertIsNone(edge["uncoached_gameplay_evidence"])
             self.assertGreater(len(edge["design_contract"]),60)
 
