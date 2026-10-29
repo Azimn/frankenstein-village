@@ -104,6 +104,25 @@ class RefugeRules(unittest.TestCase):
         self.assertFalse(serve(token=dict(token, source_protect_event_id=999))[2])
         self.assertFalse(serve(protection=dict(source, id=999))[2])
 
+    def test_transaction_rejects_mid_action_account_or_mask_swap(self):
+        # Preview identities must still control each mask when the signed
+        # consequence commits. A role check alone is insufficient.
+        self.assertTrue(r.same_actor(101, 201, 101, 201))
+        self.assertTrue(r.same_actor(102, 202, 102, 202))
+        for changed in (
+            (999, 201, 101, 201),  # Hound account changed
+            (101, 999, 101, 201),  # Hound mask changed
+            (999, 202, 102, 202),  # Innkeep account changed
+            (102, 999, 102, 202),  # Innkeep mask changed
+            (None, 201, 101, 201),  # Hound disconnected
+            (None, 202, 102, 202),  # Innkeep disconnected
+            (True, 201, 101, 201),
+            ("101", 201, 101, 201),
+            (101, "201", 101, 201),
+        ):
+            with self.subTest(changed=changed):
+                self.assertFalse(r.same_actor(*changed))
+
     def test_same_account_role_switch_and_wrong_carrier(self):
         self.assertFalse(serve(innkeep_account_id=101)[2])
         self.assertFalse(serve(hound_account_id=999)[2])
