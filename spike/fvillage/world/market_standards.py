@@ -8,6 +8,7 @@ what actually happened. Old decisions persist. Days do not auto-generate jobs.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping
 
 MAX_HISTORY = 28
 CHOICES = frozenset({"honor", "hold"})
@@ -17,7 +18,7 @@ ROLES = {"review": "merchant", "calibrate": "smith", "attest": "chronicler"}
 def fresh(day=0):
     return {
         "day": day, "review": None, "calibration": None,
-        "release": None, "attestation": None, "history": [],
+        "release": None, "attestation": None, "audit": None, "history": [],
     }
 
 
@@ -46,7 +47,7 @@ def normalize(raw):
     except (ValueError, TypeError, OverflowError):
         d = 0
     result = fresh(d)
-    for name in ("review", "calibration", "release", "attestation"):
+    for name in ("review", "calibration", "release", "attestation", "audit"):
         row = raw.get(name)
         if not hasattr(row, "get"):
             continue
@@ -60,6 +61,20 @@ def normalize(raw):
             if row.get("choice") not in CHOICES:
                 continue
             signed["choice"] = row["choice"]
+        if name == "audit":
+            source_id = row.get("review_event_id")
+            if type(source_id) is not int or source_id < 1:
+                continue
+            if row.get("review_choice") not in CHOICES:
+                continue
+            review = result["review"]
+            if (not review or source_id != review["event_id"]
+                    or row["review_choice"] != review["choice"]
+                    or signed["account_id"] == review["account_id"]
+                    or signed["hour"] < review["hour"]):
+                continue
+            signed["review_event_id"] = source_id
+            signed["review_choice"] = row["review_choice"]
         if name == "attestation":
             try:
                 review_id = int(row.get("review_event_id"))
@@ -94,9 +109,9 @@ def refresh(raw, day):
     if day <= state["day"]:
         return state
     if state["day"] >= 1 and any(state[k] for k in
-                                 ("review", "calibration", "release", "attestation")):
+                                 ("review", "calibration", "release", "attestation", "audit")):
         old = {k: copy.deepcopy(state[k]) for k in
-               ("review", "calibration", "release", "attestation")}
+               ("review", "calibration", "release", "attestation", "audit")}
         old["day"] = state["day"]
         old["unresolved_hold"] = suspended(state, state["day"])
         state["history"].append(old)
@@ -113,6 +128,48 @@ def suspended(raw, day):
         and state["review"] and state["review"]["choice"] == "hold"
         and not state["calibration"]
         and not state["release"]
+    )
+
+
+def verified_merchant_review(review, source):
+    """Check the canonical completed Merchant decision, not a copied receipt."""
+    if not isinstance(review, Mapping) or not isinstance(source, Mapping):
+        return False
+    actor, payload, result = (
+        source.get("actor"), source.get("payload"), source.get("consequence")
+    )
+    if not all(isinstance(row, Mapping) for row in (actor, payload, result)):
+        return False
+    choice = review.get("choice")
+    if choice not in CHOICES:
+        return False
+    if type(source.get("id")) is not int or source["id"] < 1:
+        return False
+    if source.get("status") != "complete" or source.get("kind") != "village.market_" + choice:
+        return False
+    if type(review.get("event_id")) is not int or source["id"] != review["event_id"]:
+        return False
+    if any(type(review.get(k)) is not int or review[k] < 1 for k in
+           ("account_id", "mask_id", "day")):
+        return False
+    if type(review.get("hour")) is not int or not 0 <= review["hour"] < 24:
+        return False
+    if any(type(actor.get(k)) is not int or actor[k] != review[k] for k in
+           ("account_id", "mask_id")):
+        return False
+    if actor.get("mask") != review.get("mask"):
+        return False
+    return (
+        payload.get("action") == choice
+        and payload.get("professional_calling") == "merchant"
+        and payload.get("location") == "Market Lane"
+        and type(payload.get("day")) is int
+        and payload["day"] == review["day"]
+        and type(payload.get("hour")) is int
+        and payload["hour"] == review["hour"]
+        and result.get("action") == choice
+        and type(result.get("review_event_id")) is int
+        and result["review_event_id"] == source["id"]
     )
 
 
@@ -139,6 +196,19 @@ def apply(raw, action, *, day, hour, account_id, mask_id, mask, event_id):
         if not suspended(state, day):
             return state, False, "There is no active market hold to release."
         state["release"] = signed
+    elif action == "audit":
+        review = state["review"]
+        if not review:
+            return state, False, "A completed Merchant decision is needed before an independent audit."
+        if state["audit"]:
+            return state, False, "The Merchant decision has already been audited today."
+        if signed["account_id"] == review["account_id"]:
+            return state, False, "A separate account must audit the Merchant decision."
+        if signed["hour"] < review["hour"]:
+            return state, False, "The audit cannot precede the Merchant decision."
+        signed["review_event_id"] = review["event_id"]
+        signed["review_choice"] = review["choice"]
+        state["audit"] = signed
     elif action == "attest":
         if not state["review"] or not state["calibration"]:
             return state, False, (
@@ -200,6 +270,13 @@ def public_lines(raw, day):
             f"Merchant {row['mask']} released the hold "
             f"(event {row['event_id']})."
         )
+    if state["audit"]:
+        row = state["audit"]
+        lines.append(
+            f"Chronicler {row['mask']} independently audited Merchant "
+            f"{row['review_choice']} (source event {row['review_event_id']}, "
+            f"audit event {row['event_id']})."
+        )
     if state["attestation"]:
         row = state["attestation"]
         lines.append(
@@ -217,8 +294,8 @@ def public_lines(raw, day):
     lines.append(
         "At Market Lane, examine the physical market scale today. "
         "Merchants: |wtrade honor|n, |wtrade hold|n or |wtrade release|n. "
-        "Smiths: |wtrade calibrate|n. Chroniclers: |wtrade attest|n "
-        "after both sources exist. Use |wtrade|n to review the evidence."
+        "Smiths: |wtrade calibrate|n. Chroniclers: |wtrade audit|n "
+        "after a Merchant decision, or |wtrade attest|n after both sources exist. Use |wtrade|n to review the evidence."
     )
     return lines
 
@@ -236,7 +313,7 @@ def personal_agenda(raw, day, mask_id):
 
     own = {
         name: bool(state[name] and state[name]["mask_id"] == mask_id)
-        for name in ("review", "calibration", "release", "attestation")
+        for name in ("review", "calibration", "release", "attestation", "audit")
     }
     lines = []
     if own["review"]:
@@ -277,6 +354,11 @@ def personal_agenda(raw, day, mask_id):
             "Market Lane: your Merchant release of the hold is recorded; "
             "the public material table is open again."
         )
+    if own["audit"]:
+        lines.append(
+            "Market Lane: your independent Chronicler audit of the "
+            "Merchant decision is on the public record today."
+        )
     if own["attestation"]:
         lines.append(
             "Market Lane: your Chronicler attestation of both source events "
@@ -292,7 +374,7 @@ def personal_agenda(raw, day, mask_id):
             continue
         if any(
             old.get(name) and old[name].get("mask_id") == mask_id
-            for name in ("review", "calibration", "release", "attestation")
+            for name in ("review", "calibration", "release", "attestation", "audit")
         ):
             return [
                 "Market Lane: your previous day's standards work is archived. "

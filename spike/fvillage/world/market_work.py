@@ -12,13 +12,13 @@ from evennia.utils import search
 
 from world import market_standards
 from world.callings import active_calling, record_participation
-from world.events import publish_world_event
+from world.events import get_event_ledger, publish_world_event
 
 MARKET = "Market Lane"
 SCALE = "a crooked market scale"
 ACTION_ROLE = {
     "honor": "merchant", "hold": "merchant", "release": "merchant",
-    "calibrate": "smith", "attest": "chronicler",
+    "calibrate": "smith", "attest": "chronicler", "audit": "chronicler",
 }
 
 
@@ -80,7 +80,7 @@ def witnessed_scale_today(mask, day):
 
 def perform(mask, action):
     if action not in ACTION_ROLE:
-        return None, "Use trade | trade honor | trade hold | trade release | trade calibrate | trade attest."
+        return None, "Use trade | trade honor | trade hold | trade release | trade calibrate | trade audit | trade attest."
     account = getattr(mask, "account", None)
     room = market_room()
     if not account or not room or getattr(mask, "location", None) != room:
@@ -103,6 +103,11 @@ def perform(mask, action):
     )
     if not accepted:
         return None, error
+    if action == "audit":
+        review = market_standards.refresh(room.db.market_standards, day)["review"]
+        source = get_event_ledger().get_event(review["event_id"])
+        if not market_standards.verified_merchant_review(review, source):
+            return None, "The Merchant source event is not a verified completed decision."
 
     def consequence(event):
         with transaction.atomic():
@@ -110,6 +115,15 @@ def perform(mask, action):
                 raise RuntimeError("The witness left the market scale.")
             if active_calling(mask) != role:
                 raise RuntimeError("The acting professional changed Calling.")
+            if action == "audit":
+                if clock()[0] != day:
+                    raise RuntimeError("The village day changed before the audit.")
+                current = market_standards.refresh(room.db.market_standards, day)
+                review = current["review"]
+                source = (get_event_ledger().get_event(review["event_id"])
+                          if review else None)
+                if not market_standards.verified_merchant_review(review, source):
+                    raise RuntimeError("The Merchant source is no longer verified.")
             changed, valid, problem = market_standards.apply(
                 room.db.market_standards, action,
                 account_id=account.id, mask_id=mask.id, mask=mask.key,
@@ -129,6 +143,10 @@ def perform(mask, action):
                 "calibration_event_id": (
                     changed["calibration"]["event_id"]
                     if changed["calibration"] else None
+                ),
+                "audit_source_event_id": (
+                    changed["audit"]["review_event_id"]
+                    if action == "audit" else None
                 ),
             }
 

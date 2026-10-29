@@ -11,6 +11,7 @@ class CmdTrade(Command):
         trade hold        (Merchant: suspend disputed material distribution)
         trade release     (Merchant: reopen distribution)
         trade calibrate   (Smith: correct the scale)
+        trade audit       (Chronicler: independently audit a Merchant decision)
         trade attest      (Chronicler: attest both source records)
 
     Examine the physical crooked market scale on the current village day.
