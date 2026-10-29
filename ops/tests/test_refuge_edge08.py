@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "spike/fvillage"))
 
 from world import refuge_state as r, soup_state
+from world.discoveries import observed_caution
 
 
 def fixture():
@@ -148,6 +149,32 @@ class RefugeRules(unittest.TestCase):
         self.assertFalse(serve(pantry_raw=pantry)[2])
         self.assertEqual(soup_state.pantry(None, 3)["stock"]["turnip"], 3)
         self.assertTrue(soup_state.reserve(None, 3, "barley", "thyme")[1])
+
+    def test_pre_marker_same_hour_cannot_authorize_firsthand_dispatch(self):
+        # Two accounts: A looks before B physically signs the original cord.
+        # Clock equality is not event-order evidence. A must look again.
+        a_look = {"red_cord": {"day": 3, "hour": 10}}
+        b_marker = 41
+        self.assertFalse(observed_caution(
+            a_look, day=3, hour=10, source_event_id=b_marker, cord_id=301))
+        a_look["red_cord"].update(
+            route_caution_event_id=b_marker, route_caution_cord_id=301)
+        self.assertTrue(observed_caution(
+            a_look, day=3, hour=10, source_event_id=b_marker, cord_id=301))
+        for altered in (
+            dict(a_look["red_cord"], route_caution_event_id=42),
+            dict(a_look["red_cord"], route_caution_cord_id=302),
+            dict(a_look["red_cord"], day=2),
+            dict(a_look["red_cord"], hour=11),
+            dict(a_look["red_cord"], route_caution_event_id=True),
+        ):
+            self.assertFalse(observed_caution(
+                {"red_cord": altered}, day=3, hour=10,
+                source_event_id=b_marker, cord_id=301))
+        # A's current view must also survive a real persistence encoding.
+        restored = json.loads(json.dumps(a_look))
+        self.assertTrue(observed_caution(
+            restored, day=3, hour=10, source_event_id=b_marker, cord_id=301))
 
     def test_restart_json_roundtrip(self):
         history, food, ok, _ = serve()
