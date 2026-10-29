@@ -277,6 +277,65 @@ class RefugeRules(unittest.TestCase):
             day=4, hour=11, protection=old, dispatch_event=dispatch,
             token=token, marker=selected, event_id=46)[2])
 
+    def test_saver_wrapped_old_dispatch_survives_retying_and_replay_denial(self):
+        # Real Evennia attributes may reload as saver-backed mappings/lists.
+        # The original physical dispatch remains valid after a next-day
+        # signed cord re-tying, but it cannot spend a second pantry serving.
+        old, original, dispatch, token = fixture()
+        old["payload"]["hour"] = 22
+        dispatch["payload"]["hour"] = 23
+        token["hour"] = 23
+        renewed = copy.deepcopy(old)
+        renewed["id"] = 44
+        renewed["payload"].update(day=4, hour=10, prior_caution_event_id=41)
+        renewed["consequence"].update(day=4, prior_caution_event_id=41)
+        current = dict(original, event_id=44, day=4,
+                       prior_caution_event_id=41)
+        restored = json.loads(json.dumps({
+            "old": old, "original": original, "dispatch": dispatch,
+            "token": token, "renewed": renewed, "current": current,
+        }))
+        current_saved = UserDict(restored["current"])
+        archived_saved = UserList([UserDict(restored["original"])])
+        old_saved = UserDict(restored["old"])
+        renewed_saved = UserDict(restored["renewed"])
+        selected = r.dispatch_source_marker(
+            current_saved, archived_saved, old_saved, renewed_saved, 301)
+        self.assertEqual(selected["event_id"], 41)
+        state, food, allowed, why = serve(
+            day=4, hour=11, protection=old_saved,
+            dispatch_event=UserDict(restored["dispatch"]),
+            token=UserDict(restored["token"]), marker=selected)
+        self.assertTrue(allowed, why)
+        self.assertEqual(food["stock"]["turnip"], 2)
+        self.assertEqual(food["stock"]["salt"], 3)
+        self.assertEqual(state["history"][0]["source_protect_event_id"], 41)
+        saved_state = UserDict({
+            "history": UserList([UserDict(state["history"][0])])})
+        saved_food = json.loads(json.dumps(food))
+        replay_state, replay_food, replay_ok, _ = serve(
+            raw=saved_state, pantry_raw=saved_food, day=4, hour=11,
+            protection=old_saved, dispatch_event=restored["dispatch"],
+            token=restored["token"], marker=selected, event_id=46)
+        self.assertFalse(replay_ok)
+        self.assertIsNone(replay_state)
+        self.assertEqual(replay_food, saved_food)
+
+        # A corrupted persisted physical archive must not authorize the
+        # historical dispatch even when today's current marker is signed.
+        bad_archive = UserList([
+            UserDict(dict(restored["original"], event_id=999))])
+        self.assertIsNone(r.dispatch_source_marker(
+            current_saved, bad_archive, old_saved, renewed_saved, 301))
+        before = soup_state.pantry(None, 4)
+        denied_state, denied_food, denied, _ = serve(
+            day=4, hour=11, protection=old_saved,
+            dispatch_event=restored["dispatch"], token=restored["token"],
+            marker=None)
+        self.assertFalse(denied)
+        self.assertIsNone(denied_state)
+        self.assertEqual(denied_food, before)
+
     def test_historical_marker_forgery_and_missing_archive_fail_closed(self):
         old, original, dispatch, token = fixture()
         renewed = copy.deepcopy(old)
