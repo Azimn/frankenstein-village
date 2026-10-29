@@ -1220,6 +1220,11 @@ def main() -> int:
         # later-arriving account with witnessing this actual performance.
         out = h.command("west")
         require(out, "village square")
+        # Chronicler enters before the actual show, not as a late witness.
+        out = c.command("east")
+        require(out, "blood of the vine")
+        out = c.command("stage review praise")
+        require(out, "real performance must exist today")
         out = performer.command("stage perform ballad")
         require_all(out, "actually perform the ballad", "world event")
         out = performer.command("look")
@@ -1237,8 +1242,43 @@ def main() -> int:
         require(out, "blood of the vine")
         out = h.command("stage witness")
         require(out, "only an audience member present for the actual performance")
+        # GDD-EDGE-14: only the separate Chronicler who was present may
+        # review the signed show; the Performer retains a public contest right.
+        out = inn.command("stage review critique")
+        require(out, "active chronicler")
+        out = c.command("stage review praise")
+        require(out, "sign firsthand stage witness")
+        out = c.command("stage witness")
+        require(out, "actually witnessed")
+        out = c.command("stage review praise")
+        require_all(out, "attributed praise review", "world event")
+        review_match = re.search(r"world event (\d+)", out, re.I)
+        assert review_match, "The review must expose its signed source ID"
+        review_event_id = review_match.group(1)
+        out = c.command("stage review critique")
+        require(out, "already reviewed")
+        out = performer.command("stage review praise")
+        require(out, "active chronicler")
+        out = inn.command(f"stage contest {review_event_id}")
+        require(out, "active performer")
+        for invalid_review_id in ("0", "-1", "abc", "103.0", "103x"):
+            out = performer.command(f"stage contest {invalid_review_id}")
+            require(out, "positive numeric review event id")
+        out = performer.command("stage contest 999999")
+        require(out, "no such signed review")
+        out = performer.command(f"stage contest {review_event_id}")
+        require_all(out, "contest the chronicler", "world event")
+        out = performer.command(f"stage contest {review_event_id}")
+        require(out, "already been contested")
+        out = performer.command("stage contest")
+        require(out, "already been contested")
         out = performer.command("stage")
-        require_all(out, "performertester", "1 other player account")
+        require_all(out, "performertester", "2 other player account",
+                    "attributed praise review", "contested by the performer")
+        out = inn.command("stage archive")
+        require_all(out, "signed performance and review archive",
+                    "attributed praise review", "performer contested", "not objective proof")
+        print("TELNET_GDD_EDGE14_SIGNED_CHRONICLER_REVIEW_CONTEST_GREEN")
         print("TELNET_GDD_T06_LATE_ARRIVAL_WITNESS_DENIED_GREEN")
         out = performer.command("agent")
         assert agent_json(out)["commands"]["public_stage"] == "stage"
@@ -1745,7 +1785,8 @@ def main() -> int:
         require(out, "blood of the vine")
         out = smith.command("east")
         require(out, "blood of the vine")
-        out = c.command("east")
+        # The Chronicler stayed in the Tavern after reviewing the stage.
+        out = c.command("look")
         require(out, "blood of the vine")
         out = c.command("roll dice vs MerchantTester")
         require(out, "merchanttester", "dice")
