@@ -66,7 +66,7 @@ def dispatch(mask):
     if not allowed:
         return None, why
     if not observed_caution(
-            seen, day=day, hour=hour, source_event_id=source["id"],
+            latest, day=day, hour=hour, source_event_id=source["id"],
             cord_id=cord.id):
         return None, (
             "Look at the physical signed red cord after the current Hound "
