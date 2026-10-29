@@ -73,6 +73,10 @@ def verify_source(event, parcel, *, item_id, market_id, healer_account_id, day):
             or consequence.get("parcel_id") != item_id
             or consequence.get("market_room_id") != market_id
             or consequence.get("units") != UNITS
+            # One parcel is issued from exactly one daily market slot.
+            # A completed source must attest that the slot was consumed.
+            or type(consequence.get("remaining")) is not int
+            or consequence.get("remaining") != MARKET_DAILY - 1
             or parcel.get("market_room_id") != market_id
             or parcel.get("units") != UNITS
             or parcel.get("material") != "clean_linen"):
