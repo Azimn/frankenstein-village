@@ -164,6 +164,86 @@ class RefugeRules(unittest.TestCase):
         changed["payload"]["prior_caution_event_id"] = 999
         self.assertFalse(r.protection_valid(changed, tied, 301))
 
+    def test_valid_old_dispatch_survives_next_day_signed_retying(self):
+        # Day 3, 23:00: one Hound signs and carries the physical dispatch.
+        # Day 4, 10:00: another valid protection replaces the cord marker.
+        # Day 4, 11:00: a distinct Innkeep can still spend a real meal.
+        old, original, dispatch, token = fixture()
+        old["payload"]["hour"] = 22
+        dispatch["payload"]["hour"] = 23
+        token["hour"] = 23
+        renewed = copy.deepcopy(old)
+        renewed["id"] = 44
+        renewed["payload"].update(day=4, hour=10, prior_caution_event_id=41)
+        renewed["consequence"].update(day=4, prior_caution_event_id=41)
+        current = dict(original, event_id=44, day=4,
+                       prior_caution_event_id=41)
+        history = [copy.deepcopy(original)]
+        selected = r.dispatch_source_marker(
+            current, history, old, renewed, 301)
+        self.assertEqual(selected, original)
+        self.assertTrue(r.dispatch_valid(
+            dispatch, token, old, selected, 301, 401))
+        self.assertFalse(r.dispatch_valid(
+            dispatch, token, old, current, 301, 401))
+        saved = json.loads(json.dumps(dict(
+            current=current, history=history, old=old, renewed=renewed)))
+        selected = r.dispatch_source_marker(
+            saved["current"], saved["history"], saved["old"],
+            saved["renewed"], 301)
+        self.assertEqual(selected, original)
+        state, food, allowed, reason = serve(
+            day=4, hour=11, protection=old, dispatch_event=dispatch,
+            token=token, marker=selected)
+        self.assertTrue(allowed, reason)
+        self.assertEqual(food["stock"]["turnip"], 2)
+        self.assertEqual(food["stock"]["salt"], 3)
+        self.assertEqual(state["history"][0]["source_protect_event_id"], 41)
+        # A restart cannot consume the same signed dispatch a second time.
+        self.assertFalse(serve(
+            raw=json.loads(json.dumps(state)),
+            pantry_raw=json.loads(json.dumps(food)),
+            day=4, hour=11, protection=old, dispatch_event=dispatch,
+            token=token, marker=selected, event_id=46)[2])
+
+    def test_historical_marker_forgery_and_missing_archive_fail_closed(self):
+        old, original, dispatch, token = fixture()
+        renewed = copy.deepcopy(old)
+        renewed["id"] = 44
+        renewed["payload"].update(day=4, prior_caution_event_id=41)
+        renewed["consequence"].update(day=4, prior_caution_event_id=41)
+        current = dict(original, event_id=44, day=4,
+                       prior_caution_event_id=41)
+        bad_cases = [
+            (current, None, renewed),
+            (current, [], renewed),
+            (current, [dict(original, event_id=999)], renewed),
+            (current, [dict(original, day=4)], renewed),
+            (dict(current, prior_caution_event_id=999), [original], renewed),
+            (dict(current, event_id=999), [original], renewed),
+            (dict(current, day=3), [original], renewed),
+            (current, [original], dict(renewed, status="consequence_failed")),
+            (current, [original], dict(renewed, kind="village.route_inspected")),
+            (current, "forged", renewed),
+        ]
+        for marker, history, current_event in bad_cases:
+            with self.subTest(marker=marker, history=history):
+                selected = r.dispatch_source_marker(
+                    marker, history, old, current_event, 301)
+                self.assertIsNone(selected)
+                before = soup_state.pantry(None, 4)
+                state, after, allowed, _ = serve(
+                    day=4, hour=11, protection=old, dispatch_event=dispatch,
+                    token=token, marker=selected)
+                self.assertFalse(allowed)
+                self.assertIsNone(state)
+                self.assertEqual(after, before)
+        self.assertIsNone(r.dispatch_source_marker(
+            current, [original], dict(old, status="consequence_failed"),
+            renewed, 301))
+        self.assertIsNone(r.dispatch_source_marker(
+            current, [original], old, renewed, 302))
+
     def test_forged_dispatch_source_or_item_rejected(self):
         source, marker, event, token = fixture()
         self.assertTrue(r.dispatch_valid(event, token, source, marker, 301, 401))
