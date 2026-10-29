@@ -68,5 +68,5 @@ assert meal["consequence"]["source_protect_event_id"] == marker["event_id"]
 assert not search.search_object("a signed treeline refuge dispatch")
 assert any(obj.id == second["bowl_id"] for obj in hound.contents)
 assert refuge_state.public_lines(tavern.db.route_refuge).startswith(
-    "2 signed Hound arrivals")
+    "2 signed Hound arrival meal(s)")
 print("POST_RESTART_GDD_EDGE08_LATER_DAY_SIGNED_FINITE_REFUGE_GREEN")
