@@ -48,6 +48,7 @@ def dispatch(mask):
     if cord is None:
         return None, "The original frayed red cord is missing."
     day, hour = _clock()
+    dispatch_account_id, dispatch_mask_id = mask.account.id, mask.id
     latest = dict(getattr(mask.db, "landmark_latest_view", None) or {})
     seen = latest.get("red_cord") or {}
     if (not any(row["id"] == "red_cord" for row in
@@ -71,6 +72,10 @@ def dispatch(mask):
         with transaction.atomic():
             if mask.location != room or cord.location != room:
                 raise RuntimeError("The Hound or original cord left the scene.")
+            if not refuge_state.same_actor(
+                    getattr(getattr(mask, "account", None), "id", None),
+                    mask.id, dispatch_account_id, dispatch_mask_id):
+                raise RuntimeError("The signed Hound account or mask changed.")
             if active_calling(mask) != "hound" or _clock() != (day, hour):
                 raise RuntimeError("Hound authority or village time changed.")
             fresh_source = get_event_ledger().get_event(source["id"])
@@ -132,6 +137,8 @@ def serve(mask, hound_name):
         return None, "The traveler must still be an active Hound."
     if hound.account.id == mask.account.id:
         return None, "A second player account must serve the Hound."
+    innkeep_account_id, innkeep_mask_id = mask.account.id, mask.id
+    hound_account_id, hound_mask_id = hound.account.id, hound.id
     tokens = [obj for obj in hound.contents
               if getattr(obj.db, "route_refuge_dispatch", None)]
     if len(tokens) != 1:
@@ -150,9 +157,9 @@ def serve(mask, hound_name):
     def preview(event_id):
         return refuge_state.accept(
             tavern.db.route_refuge, tavern.db.soup_pantry,
-            day=day, hour=hour, innkeep_account_id=mask.account.id,
-            innkeep_mask_id=mask.id, hound_account_id=hound.account.id,
-            hound_mask_id=hound.id, token=token, token_id=item.id,
+            day=day, hour=hour, innkeep_account_id=innkeep_account_id,
+            innkeep_mask_id=innkeep_mask_id, hound_account_id=hound_account_id,
+            hound_mask_id=hound_mask_id, token=token, token_id=item.id,
             dispatch_event=dispatch_event, protection=source_event,
             marker=cord.db.route_caution, cord_id=cord.id,
             tavern_id=tavern.id, event_id=event_id)
@@ -168,14 +175,21 @@ def serve(mask, hound_name):
                     or active_calling(hound) != "hound"
                     or _clock() != (day, hour)):
                 raise RuntimeError("The participants, item or time changed.")
+            if (not refuge_state.same_actor(
+                    getattr(getattr(mask, "account", None), "id", None),
+                    mask.id, innkeep_account_id, innkeep_mask_id)
+                    or not refuge_state.same_actor(
+                        getattr(getattr(hound, "account", None), "id", None),
+                        hound.id, hound_account_id, hound_mask_id)):
+                raise RuntimeError("A signed participant account or mask changed.")
             current = dict(item.db.route_refuge_dispatch or {})
             if current != token:
                 raise RuntimeError("The physical dispatch was changed.")
             refuge, food, ok, reason = refuge_state.accept(
                 tavern.db.route_refuge, tavern.db.soup_pantry,
-                day=day, hour=hour, innkeep_account_id=mask.account.id,
-                innkeep_mask_id=mask.id, hound_account_id=hound.account.id,
-                hound_mask_id=hound.id, token=current, token_id=item.id,
+                day=day, hour=hour, innkeep_account_id=innkeep_account_id,
+                innkeep_mask_id=innkeep_mask_id, hound_account_id=hound_account_id,
+                hound_mask_id=hound_mask_id, token=current, token_id=item.id,
                 dispatch_event=ledger.get_event(token["dispatch_event_id"]),
                 protection=ledger.get_event(token["source_protect_event_id"]),
                 marker=cord.db.route_caution, cord_id=cord.id,
@@ -223,8 +237,8 @@ def serve(mask, hound_name):
     event = publish_world_event(
         "professional.innkeep_refuge_meal", actor=mask,
         payload={"day": day, "hour": hour, "tavern_id": tavern.id,
-                 "hound_account_id": hound.account.id,
-                 "hound_mask_id": hound.id, "dispatch_item_id": item.id,
+                 "hound_account_id": hound_account_id,
+                 "hound_mask_id": hound_mask_id, "dispatch_item_id": item.id,
                  "dispatch_event_id": token["dispatch_event_id"],
                  "professional_calling": "innkeep",
                  "harbinger": False, "chronicle_eligible": False},
