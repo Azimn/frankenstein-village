@@ -8,6 +8,7 @@ a supernatural explanation.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping
 
 MAX_DISCOVERIES = 16
 
@@ -99,6 +100,17 @@ def capture(looker, physical, ident):
     # An old first visit is never sufficient evidence of a NEW day's patrol.
     latest = dict(getattr(looker.db, "landmark_latest_view", None) or {})
     latest[ident] = {"day": day, "hour": hour}
+    if ident == "red_cord":
+        # A look predating the current signed marker is not firsthand
+        # inspection of that marker, even when both happen in one hour.
+        marker = getattr(getattr(physical, "db", None), "route_caution", None)
+        if (isinstance(marker, Mapping)
+                and type(marker.get("event_id")) is int
+                and marker["event_id"] > 0
+                and type(marker.get("day")) is int
+                and marker["day"] == day):
+            latest[ident]["route_caution_event_id"] = marker["event_id"]
+            latest[ident]["route_caution_cord_id"] = getattr(physical, "id", None)
     looker.db.landmark_latest_view = {
         key: value for key, value in latest.items() if key in LANDMARKS
     }
@@ -108,6 +120,31 @@ def capture(looker, physical, ident):
     if changed:
         looker.db.landmark_discoveries = copy.deepcopy(rows)
     return changed
+
+
+
+def observed_caution(raw, *, day, hour, source_event_id, cord_id):
+    """Require this mask's physical look at this signed cord, not an earlier look.
+
+    The observation is mask-private, stamped by capture() on the actual
+    physical object. No date-only or hour-only inference is permitted.
+    """
+    if not isinstance(raw, Mapping):
+        return False
+    seen = raw.get("red_cord")
+    return bool(
+        isinstance(seen, Mapping)
+        and all(type(value) is int for value in (
+            day, hour, source_event_id, cord_id,
+            seen.get("day"), seen.get("hour"),
+            seen.get("route_caution_event_id"),
+            seen.get("route_caution_cord_id")))
+        and day >= 1 and 0 <= hour <= 23
+        and 0 <= seen["hour"] <= hour
+        and seen["day"] == day
+        and source_event_id > 0 and cord_id > 0
+        and seen["route_caution_event_id"] == source_event_id
+        and seen["route_caution_cord_id"] == cord_id)
 
 
 def journal_lines(raw):
