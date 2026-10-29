@@ -1224,6 +1224,30 @@ assert calling_record(_wanderer_field, "wanderer")["participation"]["field_surve
 assert set(_next_survey_day["history"][-1]["field_decisions"]) == {"hound", "wanderer"}
 print("POST_RESTART_GDD_T07_SHARED_CORD_AND_DISTINCT_ACTIONS_GREEN")
 
+# GDD-EDGE-13: the map is a persistent editorial snapshot with two
+# independent real accounts and two completed, causally linked events.
+_map = route_board["advisory"]
+assert _map is not None, "Chronicler public map vanished after server restart"
+assert _map["version"] == 1 and _map["source_day"] == route_board["day"]
+assert _map["site"] == "red_cord"
+assert _map["mask"] == "SmokeTester"
+assert _map["source_mask"] == "WandererTester"
+assert _map["source_event_id"] == _actions["wanderer"]["event_id"]
+assert _map["source_account_id"] == _actions["wanderer"]["account_id"]
+assert _map["account_id"] != _map["source_account_id"]
+assert _map["observation"] == "unmarked", "A later warning rewrote the earlier map"
+_published = warning_ledger.get_event(_map["event_id"])
+assert _published["kind"] == "village.route_map_published"
+assert _published["status"] == "complete"
+assert _published["actor"]["account_id"] == _map["account_id"]
+assert _published["payload"]["source_event_id"] == _map["source_event_id"]
+assert _published["payload"]["source_account_id"] == _map["source_account_id"]
+assert _next_survey_day["history"][-1]["advisory"] == _map
+assert calling_record(smoke, "chronicler")["participation"]["route_advisories"] == 1
+assert any("not a current safety guarantee" in text
+           for text in _daily_survey.advisory_lines(route_board))
+print("POST_RESTART_GDD_EDGE13_SIGNED_INDEPENDENT_MAP_GREEN")
+
 from world.residents import (
     resident_state as _resident_state, relationship_for as _relationship_for
 )

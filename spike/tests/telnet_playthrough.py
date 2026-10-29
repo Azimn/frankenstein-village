@@ -2177,6 +2177,37 @@ def main() -> int:
                     "does not repair the cord")
         print("TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN")
 
+        # GDD-EDGE-13: the Wanderer has signed firsthand evidence; a
+        # DIFFERENT account with the Chronicler Calling must travel to the
+        # public Square board to issue a dated, source-linked map. No one
+        # may publish from a private room or invent a hazard assessment.
+        out = wanderer.command("survey publish")
+        require(out, "only an active chronicler")
+        out = c.command("survey publish")
+        require(out, "visit the village square")
+        for direction, destination in (
+            ("north", "lamp shop"), ("north", "village square"),
+        ):
+            out = c.command(direction)
+            require(out, destination)
+        out = c.command("survey")
+        require_all(out, "no chronicler route map edition", "solo fallback",
+                    "wanderertester", "not an edited map")
+        out = c.command("survey publish")
+        require_all(out, "route map v1", "independent wanderer report",
+                    "source event", "not a safety guarantee")
+        out = c.command("survey publish")
+        require(out, "already published")
+        out = hound.command("survey")
+        require_all(out, "public route map v1", "chronicler",
+                    "wanderertester", "unmarked cord", "not a current safety guarantee")
+        for direction, destination in (
+            ("south", "lamp shop"), ("south", "market lane"),
+        ):
+            out = c.command(direction)
+            require(out, destination)
+        print("TELNET_GDD_EDGE13_WANDERER_CHRONICLER_MAP_GREEN")
+
         print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
         out = c.command("guide")
         require_all(out, "civic material table", "bridgework collect preserve")
