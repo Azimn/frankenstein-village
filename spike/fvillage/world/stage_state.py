@@ -24,6 +24,18 @@ def _ident(value):
     return value if value > 0 else None
 
 
+def parse_review_id(value):
+    """Accept only positive integral review IDs, never lossy coercions."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value > 0 else None
+    if isinstance(value, str) and value and all("0" <= ch <= "9" for ch in value):
+        parsed = int(value)
+        return parsed if parsed > 0 else None
+    return None
+
+
 def _time(day, hour):
     d = _ident(day)
     if isinstance(hour, bool):
