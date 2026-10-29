@@ -106,6 +106,33 @@ class SignedCareSourceTests(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertIsNone(check(changed, e)[0])
 
+    def test_malformed_signed_patient_collection_is_denied_without_exception(self):
+        a, e = sample()
+        malformed = (
+            17, True, False, 3.14, None, "silas_crowe",
+            b"silas_crowe", {"silas_crowe": True}, {"silas_crowe"},
+            [], ["silas_crowe", "other_patient"],
+        )
+        for value in malformed:
+            with self.subTest(value=repr(value)):
+                corrupted = copy.deepcopy(e)
+                corrupted["payload"]["resident_ids"] = value
+                before = copy.deepcopy(corrupted)
+                proof, error = check(a, corrupted)
+                self.assertIsNone(proof)
+                self.assertIn("no meal was spent", error)
+                self.assertEqual(corrupted, before)
+
+    def test_persisted_list_wrapper_keeps_legitimate_patient_source(self):
+        class PersistedList(list):
+            pass
+
+        a, e = sample()
+        e["payload"]["resident_ids"] = PersistedList(["silas_crowe"])
+        proof, error = check(a, e)
+        self.assertIsNone(error)
+        self.assertEqual(proof["event_id"], 104)
+
     def test_malformed_ids_and_time_are_refused(self):
         a, e = sample()
         for key, value in (
