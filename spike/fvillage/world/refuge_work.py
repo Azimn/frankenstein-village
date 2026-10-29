@@ -168,6 +168,17 @@ def serve(mask, hound_name):
     source_event = ledger.get_event(token.get("source_protect_event_id"))
     day, hour = _clock()
 
+    def signed_source_marker(protection):
+        # The carried dispatch cites a historical, completed cord event.
+        # A later legitimate re-tying archives that physical marker, so
+        # verify its original signed source rather than today's replacement.
+        current = cord.db.route_caution
+        current_id = refuge_state.ident(
+            current.get("event_id") if hasattr(current, "get") else None)
+        return refuge_state.dispatch_source_marker(
+            current, cord.db.route_caution_history, protection,
+            ledger.get_event(current_id or -1), cord.id)
+
     def preview(event_id):
         return refuge_state.accept(
             tavern.db.route_refuge, tavern.db.soup_pantry,
@@ -175,7 +186,7 @@ def serve(mask, hound_name):
             innkeep_mask_id=innkeep_mask_id, hound_account_id=hound_account_id,
             hound_mask_id=hound_mask_id, token=token, token_id=item.id,
             dispatch_event=dispatch_event, protection=source_event,
-            marker=cord.db.route_caution, cord_id=cord.id,
+            marker=signed_source_marker(source_event), cord_id=cord.id,
             tavern_id=tavern.id, event_id=event_id)
 
     _state, _food, allowed, why = preview(1)
@@ -207,7 +218,9 @@ def serve(mask, hound_name):
                 hound_mask_id=hound_mask_id, token=current, token_id=item.id,
                 dispatch_event=ledger.get_event(token["dispatch_event_id"]),
                 protection=ledger.get_event(token["source_protect_event_id"]),
-                marker=cord.db.route_caution, cord_id=cord.id,
+                marker=signed_source_marker(
+                    ledger.get_event(token["source_protect_event_id"])),
+                cord_id=cord.id,
                 tavern_id=tavern.id, event_id=event["id"])
             if not ok:
                 raise RuntimeError(reason)
