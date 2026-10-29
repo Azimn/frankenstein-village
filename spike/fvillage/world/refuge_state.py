@@ -32,6 +32,15 @@ def mapping(value):
     return value if hasattr(value, "get") else {}
 
 
+def same_actor(current_account_id, current_mask_id, expected_account_id, expected_mask_id):
+    """Fail closed if a logged-in mask changes its controlling account mid-action."""
+    values = (current_account_id, current_mask_id,
+              expected_account_id, expected_mask_id)
+    return (all(type(value) is int and value > 0 for value in values)
+            and current_account_id == expected_account_id
+            and current_mask_id == expected_mask_id)
+
+
 def protection_valid(event, marker, cord_id):
     """Only a completed ledger event matching the ORIGINAL marked cord."""
     event, marker = mapping(event), mapping(marker)
