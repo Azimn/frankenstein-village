@@ -44,7 +44,6 @@ assert source["consequence"]["prior_caution_event_id"] == old["event_id"]
 assert source["actor"]["account_id"] == hound_account.id
 last = dict(cord.db.refuge_dispatch_last or {})
 assert last["day"] == marker["day"]
-assert last["source_protect_event_id"] == marker["event_id"]
 # The clock can advance after the fixture sets its initial hour. Compare the
 # private firsthand inspection with the actual signed dispatch time, not the
 # setup's requested hour, and retain a useful failure diagnostic.
@@ -54,6 +53,11 @@ assert renewal_dispatch["status"] == "complete"
 assert renewal_dispatch["payload"]["day"] == marker["day"]
 assert renewal_dispatch["payload"]["cord_id"] == cord.id
 assert renewal_dispatch["payload"]["source_protect_event_id"] == marker["event_id"]
+assert renewal_dispatch["consequence"]["source_protect_event_id"] == marker["event_id"]
+assert renewal_dispatch["consequence"]["cord_id"] == cord.id
+assert renewal_dispatch["consequence"]["item_id"] == last["item_id"]
+assert renewal_dispatch["actor"]["account_id"] == hound_account.id
+assert last["account_id"] == hound_account.id
 assert observed_caution(
     hound.db.landmark_latest_view,
     day=marker["day"], hour=renewal_dispatch["payload"]["hour"],
