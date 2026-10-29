@@ -19,7 +19,8 @@ WORK = {
     ),
     "chronicler": (
         "At Market Lane: inspect the crooked market scale, use trade, and "
-        "trade attest after an actual Merchant decision and Smith calibration.",
+        "trade audit after a signed Merchant decision, or trade attest "
+        "after a Merchant decision and Smith calibration.",
         "In the village: read chronicle and rumors; investigate conflicting "
         "testimony before making a documented entry.",
     ),
@@ -30,6 +31,9 @@ WORK = {
         "one-time and may already have been finished by a neighbor.",
     ),
     "healer": (
+        "At St. Lazarus Church, clinic receive inspects and accepts a "
+        "real Merchant-sourced linen parcel, adding two finite dressings "
+        "to the shared cabinet. A separate Merchant must supply it.",
         "At St. Lazarus Church a patient comes to the staffed clinic every "
         "village day. Use clinic assess to record a firsthand finding; "
         "clinic prepare makes real transferable linen dressings, and "
@@ -43,6 +47,10 @@ WORK = {
         "can change through actual help or through delay.",
     ),
     "merchant": (
+        "At Market Lane, clinic procure withdraws one finite sealed linen "
+        "parcel per village day. Carry it to St. Lazarus Church for a "
+        "different Healer to use clinic receive; the shared cabinet gains "
+        "stock only after clinical acceptance.",
         "At Market Lane use soup procure for a real crate of roots; "
         "carry it to the Blood of the Vine for soup deliver, or give it "
         "to a different Innkeep account for a signed soup accept receipt. "

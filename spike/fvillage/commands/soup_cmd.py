@@ -10,9 +10,12 @@ class CmdSoup(Command):
         soup prep <turnip|barley> <thyme|salt|pepper>
         soup simmer
         soup notebook
+        soup receipt [cooking event ID]   (Innkeep discloses house batch)
+        soup publish [cooking event ID]   (independent Chronicler)
+        soup receipts                    (public, no private guest data)
         soup procure             (Merchant, Market Lane)
         soup deliver             (solo/courier fallback with signed crate)
-        soup accept              (Innkeep accepts another account's Merchant crate)
+        soup accept              (Innkeep verifies a separate Merchant crate)
 
     The kitchen has finite pantry supplies, a renewing daily baseline,
     a permanent work log and individual recipe notebooks. Prepared packets
@@ -73,6 +76,44 @@ class CmdSoup(Command):
                 f"{caller.key} finishes a fresh bowl of homemade soup.",
                 exclude=[caller])
             return
+        if raw == "receipts":
+            caller.msg(soup_kitchen.receipt_lines(caller))
+            return
+        if raw == "receipt" or raw.startswith("receipt "):
+            parts = raw.split()
+            if len(parts) > 2:
+                caller.msg("Use soup receipt [cooking event ID].")
+                return
+            result, error = soup_kitchen.authorize_house_receipt(
+                caller, parts[1] if len(parts) == 2 else None
+            )
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"You authorize public kitchen batch facts only for cooking "
+                f"event {result['cook_event_id']}; signed disclosure event "
+                f"{result['event_id']}. No guest identity is released."
+            )
+            return
+        if raw == "publish" or raw.startswith("publish "):
+            parts = raw.split()
+            if len(parts) > 2:
+                caller.msg("Use soup publish [cooking event ID].")
+                return
+            result, error = soup_kitchen.publish_house_receipt(
+                caller, parts[1] if len(parts) == 2 else None
+            )
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"Independent Chronicler publication event {result['event_id']} "
+                f"links cooking event {result['cook_event_id']} and signed "
+                f"consent event {result['consent_event_id']}. "
+                "The public receipt certifies no guest behavior."
+            )
+            return
         if raw == "procure":
             result, error = soup_kitchen.procure(caller)
             if error:
@@ -120,5 +161,6 @@ class CmdSoup(Command):
             return
         caller.msg(
             "Use soup | soup prep <base> <seasoning> | soup simmer | "
-            "soup notebook | soup procure | soup deliver | soup accept."
+            "soup notebook | soup receipt [event] | soup publish [event] | "
+            "soup receipts | soup procure | soup deliver | soup accept."
         )

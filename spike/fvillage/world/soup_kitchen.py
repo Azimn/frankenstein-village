@@ -75,8 +75,8 @@ def pot_description():
         f"The main hearth is {'warm' if fire else 'low'}."
         + last +
         " Use soup prep <turnip|barley> <thyme|salt|pepper>, soup simmer, "
-        "soup notebook, soup accept after a Merchant handoff, or coordinate "
-        "a signed solo soup deliver."
+        "soup notebook, soup receipt/publish/receipts for consented records, "
+        "soup accept after a Merchant handoff, or use signed solo soup deliver."
     )
 
 
@@ -383,3 +383,172 @@ def accept(mask):
 def deliver(mask):
     """Ordinary solo/courier fallback with the same signed-source safeguards."""
     return _complete_delivery(mask, professional=False)
+
+
+def _receipt_sources(batch_id, tavern, day):
+    from world.events import get_event_ledger
+    state = soup_state.pantry(tavern.db.soup_pantry, day)
+    row = next(
+        (item for item in state["history"]
+         if item.get("cook_event_id") == batch_id), None
+    )
+    if row is None:
+        return state, None, None, None, None
+    ledger = get_event_ledger()
+    cooked = ledger.get_event(batch_id)
+    prepared = ledger.get_event(row["prep_event_id"])
+    consent = row.get("consent") or {}
+    consent_event = ledger.get_event(consent["event_id"]) if consent else None
+    return state, row, cooked, prepared, consent_event
+
+
+def _receipt_batch_id(tavern, day, requested):
+    state = soup_state.pantry(tavern.db.soup_pantry, day)
+    if requested is not None:
+        try:
+            value = int(requested)
+        except (TypeError, ValueError):
+            return None
+        return value if value > 0 else None
+    return state["history"][-1]["cook_event_id"] if state["history"] else None
+
+
+def receipt_lines(mask):
+    tavern, error = _access(mask, TAVERN)
+    if error:
+        return error
+    from world.soup_receipts import public_lines
+    day, _hour = _clock()
+    return public_lines(tavern.db.soup_pantry, day)
+
+
+def authorize_house_receipt(mask, requested=None):
+    """The actual cooking Innkeep explicitly releases only batch facts."""
+    tavern, error = _access(mask, TAVERN)
+    if error:
+        return None, error
+    if active_calling(mask) != "innkeep":
+        return None, "An active Innkeep must authorize the house receipt."
+    from world import soup_receipts
+    from world.events import get_event_ledger
+    from django.db import transaction
+    day, hour = _clock()
+    batch_id = _receipt_batch_id(tavern, day, requested)
+    if batch_id is None:
+        return None, "Cook a real batch first or supply its cooking event ID."
+    state, row, cooked, prepared, _consent = _receipt_sources(
+        batch_id, tavern, day
+    )
+    if row is None:
+        return None, "No such cooked batch is in the tavern pantry."
+    actor = {
+        "account_id": mask.account.id, "mask_id": mask.id, "mask": mask.key,
+    }
+    trial_id = max(batch_id + 1, int(get_event_ledger().db.next_event_id or 1))
+    _trial, _receipt, problem = soup_receipts.authorize(
+        state, batch_id=batch_id, actor=actor, day=day, hour=hour,
+        event_id=trial_id, cooked=cooked, prepared=prepared,
+    )
+    if problem:
+        return None, problem
+
+    def consequence(event):
+        with transaction.atomic():
+            refreshed, current, actual_cooked, actual_prepared, _ = (
+                _receipt_sources(batch_id, tavern, day)
+            )
+            if mask.location != tavern or active_calling(mask) != "innkeep":
+                raise RuntimeError("The authorizing Innkeep left the kitchen.")
+            changed, receipt, reason = soup_receipts.authorize(
+                refreshed, batch_id=batch_id, actor=actor, day=day,
+                hour=hour, event_id=event["id"], cooked=actual_cooked,
+                prepared=actual_prepared,
+            )
+            if reason:
+                raise RuntimeError(reason)
+            tavern.db.soup_pantry = changed
+            return {"cook_event_id": batch_id, "scope": receipt["scope"]}
+
+    event = publish_world_event(
+        "professional.innkeep_house_receipt_disclosed", actor=mask,
+        payload={
+            "cook_event_id": batch_id, "day": day, "hour": hour,
+            "scope": "public_kitchen_batch_only",
+            "chronicle_eligible": False, "harbinger": False,
+        },
+        consequence=consequence,
+    )
+    record_participation(mask, "house_receipts_disclosed", calling="innkeep")
+    return {"event_id": event["id"], "cook_event_id": batch_id}, None
+
+
+def publish_house_receipt(mask, requested=None):
+    """An independent Chronicler signs a bounded public kitchen account."""
+    tavern, error = _access(mask, TAVERN)
+    if error:
+        return None, error
+    if active_calling(mask) != "chronicler":
+        return None, "An active Chronicler must publish a house receipt."
+    from world import soup_receipts
+    from world.events import get_event_ledger
+    from django.db import transaction
+    day, hour = _clock()
+    batch_id = _receipt_batch_id(tavern, day, requested)
+    if batch_id is None:
+        return None, "No cooked batch is available for publication."
+    state, row, cooked, prepared, consent_event = _receipt_sources(
+        batch_id, tavern, day
+    )
+    if row is None:
+        return None, "No such cooked batch is in the tavern pantry."
+    actor = {
+        "account_id": mask.account.id, "mask_id": mask.id, "mask": mask.key,
+    }
+    trial_id = max(
+        batch_id + 1, int(get_event_ledger().db.next_event_id or 1)
+    )
+    _trial, _published, problem = soup_receipts.publish(
+        state, batch_id=batch_id, actor=actor, day=day, hour=hour,
+        event_id=trial_id, cooked=cooked, prepared=prepared,
+        consent_event=consent_event,
+    )
+    if problem:
+        return None, problem
+
+    def consequence(event):
+        with transaction.atomic():
+            refreshed, current, actual_cooked, actual_prepared, actual_consent = (
+                _receipt_sources(batch_id, tavern, day)
+            )
+            if mask.location != tavern or active_calling(mask) != "chronicler":
+                raise RuntimeError("The publishing Chronicler left the tavern.")
+            changed, published, reason = soup_receipts.publish(
+                refreshed, batch_id=batch_id, actor=actor, day=day,
+                hour=hour, event_id=event["id"], cooked=actual_cooked,
+                prepared=actual_prepared, consent_event=actual_consent,
+            )
+            if reason:
+                raise RuntimeError(reason)
+            tavern.db.soup_pantry = changed
+            return {
+                "cook_event_id": batch_id,
+                "consent_event_id": published["consent_event_id"],
+                "scope": published["scope"],
+            }
+
+    event = publish_world_event(
+        "professional.chronicler_house_receipt_published", actor=mask,
+        payload={
+            "cook_event_id": batch_id,
+            "consent_event_id": row["consent"]["event_id"],
+            "day": day, "hour": hour,
+            "scope": "public_kitchen_batch_only",
+            "chronicle_eligible": False, "harbinger": False,
+        },
+        consequence=consequence,
+    )
+    record_participation(mask, "house_receipts_published", calling="chronicler")
+    return {
+        "event_id": event["id"], "cook_event_id": batch_id,
+        "consent_event_id": row["consent"]["event_id"],
+    }, None
