@@ -13,6 +13,8 @@ class CmdClinic(Command):
         clinic treat compress
         clinic request records
         clinic records
+        clinic procure  (Merchant at Market Lane)
+        clinic receive  (Healer at St. Lazarus)
 
     A fresh prepared dressing can be carried or handed to a different
     Healer. Only actual signed treatment changes the clinic's public record.
@@ -28,6 +30,22 @@ class CmdClinic(Command):
         if raw in ([], ["status"], ["help"]):
             self.caller.msg(clinic_work.status(self.caller))
             return
+        if raw == ["procure"]:
+            result, error = clinic_work.procure(self.caller)
+            self.caller.msg(error or (
+                f"You withdraw a real sealed clinic linen parcel from finite "
+                f"market stock (signed Merchant event {result['event_id']}). "
+                "Carry it to St. Lazarus for a separate Healer to accept."
+            ))
+            return
+        if raw == ["receive"]:
+            result, error = clinic_work.receive(self.caller)
+            self.caller.msg(error or (
+                f"You inspect and accept two clean linen dressings into the "
+                f"shared clinic cabinet (signed Healer event {result['event_id']}, "
+                f"Merchant source event {result['source_event_id']})."
+            ))
+            return
         if raw == ["records"]:
             self.caller.msg(clinic_work.confidential_records(self.caller))
             return
@@ -40,7 +58,7 @@ class CmdClinic(Command):
         else:
             self.caller.msg(
                 "Use clinic | clinic assess | clinic prepare | "
-                "clinic treat rest|compress | clinic request records | clinic records."
+                "clinic treat rest or clinic treat compress | clinic request records | clinic records | clinic procure | clinic receive."
             )
             return
         if error:

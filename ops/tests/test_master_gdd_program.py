@@ -104,13 +104,12 @@ class MasterGDDProgramTests(unittest.TestCase):
                          ("Innkeep","Merchant","V"))
         for edge in edges:
             self.assertFalse(edge["verified_complete"])
-            # Candidate references are permitted, but they cannot certify an
-            # edge without independent acceptance and exact-main verification.
-            for key in ("ordinary_player_discovery_proof", "two_account_test",
-                        "post_restart_test"):
-                proof = edge[key]
-                self.assertTrue(proof is None or
-                                (isinstance(proof, str) and proof.startswith("CANDIDATE:")))
+            for field in ("ordinary_player_discovery_proof",
+                          "two_account_test", "post_restart_test"):
+                evidence = edge[field]
+                if evidence is not None:
+                    self.assertIsInstance(evidence, str)
+                    self.assertTrue(evidence.startswith("candidate:"), edge["id"])
             self.assertIsNone(edge["uncoached_gameplay_evidence"])
             self.assertGreater(len(edge["design_contract"]),60)
 
