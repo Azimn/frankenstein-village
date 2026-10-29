@@ -61,7 +61,16 @@ def status_lines():
                 f"{spec['key']} and examine it."
             )
     lines.extend(route_surveys.field_lines(state))
-    lines.extend(route_surveys.advisory_lines(state))
+    # Persisted advisory text is not proof that a Chronicler event completed.
+    public_state = state
+    item = state.get("advisory")
+    ledger = get_event_ledger()
+    if item and not route_surveys.verified_advisory_publication(
+        state, ledger.get_event(item["event_id"]), square_id=square.id,
+    ):
+        public_state = dict(state, advisory=None)
+        lines.append("The stored route map edition is unverified; no signed edition is displayed.")
+    lines.extend(route_surveys.advisory_lines(public_state))
     lines.append(
         "At the Northern Treeline, an active Hound can examine the actual "
         "frayed red cord and use |wsurvey protect|n to tie a visible warning. "
@@ -91,8 +100,21 @@ def status_lines():
             + ("complete" if prior["completed"] else "unfinished")
             + f" ({len(prior['reports'])} of {len(route_surveys.SITES)})."
         )
-        if prior.get("advisory"):
-            lines.append("The prior day\'s signed route map is archived, not a live forecast.")
+        archived = prior.get("advisory")
+        if archived:
+            historical = {
+                "day": prior["day"], "reports": prior.get("reports") or {},
+                "field_decisions": prior.get("field_decisions") or {},
+                "advisory": archived, "history": [],
+            }
+            signed = route_surveys.verified_advisory_publication(
+                historical, ledger.get_event(archived.get("event_id")),
+                square_id=square.id,
+            ) if hasattr(archived, "get") else False
+            lines.append(
+                "The prior day's signed route map is archived, not a live forecast."
+                if signed else "The prior day's stored map is unverified, not a signed edition."
+            )
     return "\n".join(lines)
 
 
