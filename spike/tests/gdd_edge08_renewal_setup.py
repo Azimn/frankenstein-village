@@ -15,9 +15,16 @@ innkeep = one("InnkeepTester")
 prior = dict(cord.db.route_caution or {})
 assert type(prior.get("event_id")) is int and prior["event_id"] > 0
 assert type(prior.get("day")) is int and prior["day"] >= 1
-assert hound.location is not None, "Hound mask must still be in the physical world"
+from evennia.accounts.models import AccountDB
+hound_account = AccountDB.objects.get(username="qa_hound_protection")
+assert any(character.id == hound.id for character in hound_account.characters.all()), (
+    "Original signed Hound mask is no longer owned by its account"
+)
+# A disconnected mask may be unplaced after prior regression/restart steps.
+# Do not teleport it in a privileged shell. Re-entry and legal travel are
+# tested through the original authenticated player client below.
 assert innkeep.location == tavern, ("Innkeep not at Tavern", getattr(innkeep.location, "key", None))
-print("EDGE08_RENEWAL_START_ROOMS", hound.location.key, innkeep.location.key)
+print("EDGE08_RENEWAL_START_ROOMS", getattr(hound.location, "key", "UNPLACED"), innkeep.location.key)
 receipts = list((tavern.db.route_refuge or {}).get("history") or [])
 assert len(receipts) == 1, "Initial-day signed meal must exist before renewal"
 assert receipts[0]["source_protect_event_id"] == prior["event_id"]
