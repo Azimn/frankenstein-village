@@ -20,13 +20,31 @@ def main():
         inn_password = "Innkeep" + "Smoke" + "2026!"
         require(inn.command(f"connect qa_innkeep_care {inn_password}", wait=4),
                 "connected", "account qa_innkeep_care")
-        require(hound.command("ic HoundTester", wait=4), "blood of the vine")
+        entry = hound.command("ic HoundTester", wait=4)
         require(inn.command("ic InnkeepTester", wait=4), "blood of the vine")
-        # Actual travel, no privileged movement or fabricated observation.
-        for move, destination in (
-            ("west", "village square"), ("west", "st. lazarus church"),
-            ("west", "churchyard"), ("north", "northern treeline"),
-        ):
+        # Respect the actual persisted Hound location after prior independent
+        # regressions. All travel uses ordinary room exits, never shell moves.
+        if "blood of the vine" in entry.lower():
+            steps = (
+                ("west", "village square"), ("west", "st. lazarus church"),
+                ("west", "churchyard"), ("north", "northern treeline"),
+            )
+        elif "private room" in entry.lower():
+            steps = (
+                ("down", "inn common room"), ("east", "inn hallway"),
+                ("south", "village square"), ("west", "st. lazarus church"),
+                ("west", "churchyard"), ("north", "northern treeline"),
+            )
+        elif "village square" in entry.lower():
+            steps = (
+                ("west", "st. lazarus church"), ("west", "churchyard"),
+                ("north", "northern treeline"),
+            )
+        elif "northern treeline" in entry.lower():
+            steps = ()
+        else:
+            raise AssertionError("Unexpected Hound starting room: " + entry[-600:])
+        for move, destination in steps:
             require(hound.command(move), destination)
         require(hound.command("survey protect"), "examine the physical red cord")
         require_all(hound.command("look cord"), "scarlet cord", "caution marker")
