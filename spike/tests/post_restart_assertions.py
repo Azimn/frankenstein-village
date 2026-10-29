@@ -1152,15 +1152,17 @@ _cords = [x for x in _treeline.contents if x.key == "a frayed red cord"]
 assert len(_cords) == 1, "Treeline physical evidence missing or duplicated"
 _cord = _cords[0]
 _hound_protect = one("HoundTester")
+_marker_hound = one("MarkerHound")
 _wanderer_field = one("WandererTester")
 assert active_calling(_hound_protect) == "hound"
+assert active_calling(_marker_hound) == "hound"
 assert active_calling(_wanderer_field) == "wanderer"
-assert _cord.db.route_caution["mask"] == "HoundTester"
+assert _cord.db.route_caution["mask"] == "MarkerHound"
 assert _cord.db.route_caution["event_id"] > 0
 assert "clear caution marker" in _cord.get_display_desc(looker=_wanderer_field)
 _actions = route_board["field_decisions"]
 assert set(_actions) == {"hound", "wanderer"}
-assert _actions["hound"]["mask"] == "HoundTester"
+assert _actions["hound"]["mask"] == "MarkerHound"
 assert _actions["wanderer"]["mask"] == "WandererTester"
 assert _actions["wanderer"]["observation"] == "unmarked", (
     "Later protection overwrote the original Wanderer's observation"
@@ -1171,7 +1173,7 @@ for _role, _kind in (("hound", "village.route_protected"),
     _signed = warning_ledger.get_event(_actions[_role]["event_id"])
     assert _signed["kind"] == _kind
     assert _signed["status"] == "complete"
-assert calling_record(_hound_protect, "hound")["participation"]["field_surveys"] == 1
+assert calling_record(_marker_hound, "hound")["participation"]["field_surveys"] == 1
 assert calling_record(_wanderer_field, "wanderer")["participation"]["field_surveys"] == 1
 assert set(_next_survey_day["history"][-1]["field_decisions"]) == {"hound", "wanderer"}
 print("POST_RESTART_GDD_T07_SHARED_CORD_AND_DISTINCT_ACTIONS_GREEN")
@@ -1205,6 +1207,16 @@ assert _dispatch_event["kind"] == "professional.hound_refuge_dispatch"
 assert _dispatch_event["status"] == "complete"
 assert _refuge_rules.protection_valid(
     _source_event, _cord.db.route_caution, _cord.id)
+from world.discoveries import observed_caution as _observed_caution
+assert _observed_caution(
+    _hound_protect.db.landmark_latest_view,
+    day=_dispatch_event["payload"]["day"],
+    hour=_dispatch_event["payload"]["hour"],
+    source_event_id=_source_event["id"], cord_id=_cord.id), (
+    "The dispatching Hound's physical signed-marker inspection did not persist"
+)
+assert _dispatch_event["actor"]["mask_id"] != _source_event["actor"]["mask_id"]
+assert _dispatch_event["actor"]["account_id"] != _source_event["actor"]["account_id"]
 assert _dispatch_event["consequence"]["item_id"] == _refuge_row["item_id"]
 assert _dispatch_event["actor"]["account_id"] == _hound_account.id
 _meal_event = warning_ledger.get_event(_refuge_row["event_id"])
