@@ -2050,8 +2050,25 @@ def main() -> int:
         # using its own Hound mask, now signs the warning in the same hour.
         # Reuse the Smith account's second mask so the Wanderer's separate
         # signed field observation remains an independent third account.
-        out = smith.command("ooc")
+        # The IC "ooc" shortcut is deliberately blocked. Return through
+        # the actual front door before ending this session; reconnecting
+        # then exposes the account's ordinary OOC mask-selection commands.
+        for move, destination in (
+            ("west", "village square"),
+            ("north", "inn hallway"),
+        ):
+            out = smith.command(move)
+            require(out, destination)
+        require(out, "mask comes off")
+        smith.close()
+        smith = Client(args.host, args.port)
+        require(smith.sync_login_screen(), "frankenstein village")
+        out = smith.command(
+            f"connect qa_smith_repair {repair_password}", wait=4.0
+        )
+        require(out, "connected", "account qa_smith_repair")
         out = smith.command("charcreate MarkerHound", wait=3.0)
+        require(out, "markerhound")
         out = smith.command("ic MarkerHound", wait=4.0)
         require(out, "private room")
         out = smith.command("calling choose hound")
