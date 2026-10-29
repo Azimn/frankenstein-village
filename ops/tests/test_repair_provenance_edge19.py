@@ -41,6 +41,8 @@ def receipts():
                     "source_smith_event_id": 31, "resource_object_id": 72,
                     "required_part": PART, "units_before": 4,
                     "units_after": 3, "unit_worth": 7},
+        "consequence": {"resource_object_id": 72, "units_before": 4,
+                        "units_after": 3, "source_smith_event_id": 31},
     }
     return diagnosis, d_event, procurement, p_event
 
@@ -110,6 +112,36 @@ class RepairSourceTests(unittest.TestCase):
         bad = copy.deepcopy(pe)
         bad["payload"]["units_after"] = 4
         self.assertFalse(valid(d, de, p, bad))
+
+    def test_missing_or_malformed_signed_stock_consequence_denied(self):
+        original = receipts()
+        for value in (None, {}, [], "complete", 3, True,
+                      {"error": "not committed"}):
+            d, de, p, pe = copy.deepcopy(original)
+            pe["consequence"] = value
+            snapshot = copy.deepcopy((d, de, p, pe))
+            self.assertFalse(valid(d, de, p, pe), repr(value))
+            self.assertEqual((d, de, p, pe), snapshot)
+        d, de, p, pe = copy.deepcopy(original)
+        del pe["consequence"]
+        self.assertFalse(valid(d, de, p, pe))
+        self.assertTrue(valid(*original))
+
+    def test_signed_stock_consequence_must_match_actual_one_unit_change(self):
+        original = receipts()
+        for field, values in {
+            "resource_object_id": (73, 0, True, "72", None),
+            "units_before": (0, 3, 5, True, "4", None),
+            "units_after": (4, 2, -1, False, 3.0, None),
+            "source_smith_event_id": (32, 0, True, "31", None),
+        }.items():
+            for value in values:
+                d, de, p, pe = copy.deepcopy(original)
+                pe["consequence"][field] = value
+                snapshot = copy.deepcopy((d, de, p, pe))
+                self.assertFalse(valid(d, de, p, pe), (field, value))
+                self.assertEqual((d, de, p, pe), snapshot)
+        self.assertTrue(valid(*original))
 
     def test_corrupted_actor_and_late_state_fail_closed(self):
         d, de, p, pe = receipts()
