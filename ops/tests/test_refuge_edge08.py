@@ -99,6 +99,39 @@ class RefugeRules(unittest.TestCase):
                 pantry_day = max(1, r.ident(changes.get("day", 3)) or 1)
                 self.assertEqual(food, soup_state.pantry(None, pantry_day))
 
+    def test_missing_paired_signed_protection_fields_cannot_spend_food(self):
+        # Two absent values must not authenticate each other merely because
+        # ident(None) == ident(None). This is corrupted-source integrity, not
+        # a claim that an ordinary player can edit the canonical event ledger.
+        source, marker, _dispatch, _token = fixture()
+        cases = (
+            ("event ID absent", "id", "event_id", None),
+            ("event ID boolean", "id", "event_id", True),
+            ("actor account absent", "account_id", "account_id", None),
+            ("actor account boolean", "account_id", "account_id", True),
+            ("actor mask name absent", "mask", "mask", None),
+        )
+        for label, event_key, marker_key, value in cases:
+            with self.subTest(case=label):
+                bad_source = copy.deepcopy(source)
+                bad_marker = copy.deepcopy(marker)
+                if event_key in ("account_id", "mask"):
+                    bad_source["actor"][event_key] = value
+                else:
+                    bad_source[event_key] = value
+                bad_marker[marker_key] = value
+                self.assertFalse(r.protection_valid(
+                    bad_source, bad_marker, 301))
+                self.assertFalse(r.can_dispatch(
+                    None, bad_source, bad_marker, cord_id=301,
+                    day=3, hour=11, hound_account_id=101,
+                    hound_mask_id=201)[0])
+                state, food, served, _reason = serve(
+                    protection=bad_source, marker=bad_marker)
+                self.assertFalse(served)
+                self.assertIsNone(state)
+                self.assertEqual(food, soup_state.pantry(None, 3))
+
     def test_signed_original_cord_required(self):
         source, marker, _, _ = fixture()
         self.assertTrue(r.protection_valid(source, marker, 301))
