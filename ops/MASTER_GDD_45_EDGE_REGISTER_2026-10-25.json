@@ -347,7 +347,30 @@
       "post_restart_test": null,
       "uncoached_gameplay_evidence": null,
       "verified_complete": false,
-      "review_state": "requires_live_code_and_gameplay_review"
+      "review_state": "requires_live_code_and_gameplay_review",
+      "candidate_evidence": {
+        "status": "implemented_candidate_unreviewed",
+        "implementation_paths": [
+          "spike/fvillage/world/route_surveys.py",
+          "spike/fvillage/world/route_work.py",
+          "spike/fvillage/commands/survey_cmd.py",
+          "spike/fvillage/world/calling_opportunities.py"
+        ],
+        "player_sequence": "Hound inspects the actual Northern Treeline cord and signs survey assess; a separate Chronicler inspects the cord and signs survey notice at Village Square.",
+        "authoritative_state": "Existing Square daily_route_survey field_decisions.hound_assessment and safety_notice; canonical world_event_ledger source and notice IDs; physical cord remains authoritative.",
+        "behavior_tests": [
+          "ops/tests/test_route_safety_notice.py",
+          "spike/tests/telnet_playthrough.py",
+          "spike/tests/post_restart_assertions.py"
+        ],
+        "negative_cases": "wrong Calling, absent firsthand observation, failed or forged ledger source, same-account role swap, duplicate notice, backdating, source/physical mismatch",
+        "solo_fallback": "survey report remains available to ordinary players without either Calling; the source-limited public board shows incomplete records",
+        "independent_review": false,
+        "uncoached_gameplay": false,
+        "authorized_main_integration": false,
+        "exact_main_verification": false,
+        "note": "Candidate only. No acceptance criteria or verified_complete flags changed; no Mystic B1-B4 rulings."
+      }
     },
     {
       "id": "GDD-EDGE-17",

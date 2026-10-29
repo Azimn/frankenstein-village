@@ -18,6 +18,8 @@ WORK = {
     "chronicler": (
         "At Market Lane: inspect the crooked market scale, use trade, and "
         "trade attest after an actual Merchant decision and Smith calibration.",
+        "At Village Square use survey notice after personally examining the " 
+        "Northern Treeline cord today and a separate Hound has signed survey assess.",
         "In the village: read chronicle and rumors; investigate conflicting "
         "testimony before making a documented entry.",
     ),
@@ -91,6 +93,9 @@ WORK = {
         "survey protect to tie its loose end into a real caution marker. "
         "The physical change is one-time; it cannot be repeated after "
         "someone else has already protected the route.",
+        "At the Northern Treeline, use survey assess after inspecting the cord " 
+        "to sign a daily Hound observation. A separate Chronicler may publish a " 
+        "qualified public safety notice, but neither role proves an unseen threat.",
         "Use survey and perform signed firsthand inspections in the "
         "churchyard, treeline, market and riverside districts.",
         "Talk to residents you physically encounter during their "

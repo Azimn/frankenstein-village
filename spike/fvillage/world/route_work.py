@@ -12,7 +12,7 @@ from evennia.utils import search
 from world import route_surveys
 from world.callings import active_calling, record_participation
 from world.discoveries import LANDMARKS, normalize as known_landmarks
-from world.events import publish_world_event
+from world.events import get_event_ledger, publish_world_event
 
 SQUARE = "Village Square"
 SCOUT_ROLES = frozenset({"wanderer", "hound", "detective"})
@@ -67,6 +67,12 @@ def status_lines():
         "An active Wanderer can independently use |wsurvey passability|n "
         "there to record whether the warning was present when inspected. "
         "Neither action proves why the cord was damaged."
+    )
+    lines.append(
+        "A Hound may use |wsurvey assess|n after examining the red cord "
+        "each village day. A separate Chronicler who also examined it "
+        "may use |wsurvey notice|n at Village Square to publish a qualified "
+        "source-linked safety notice. No unseen danger is certified."
     )
     if route_surveys.complete(state):
         lines.append(
@@ -192,9 +198,10 @@ def field_action(mask, action):
         return None, "Use an ordinary logged-in player mask."
     role = active_calling(mask)
     if (role, action) not in {
-        ("hound", "protect"), ("wanderer", "passability")
+        ("hound", "protect"), ("hound", "assess"),
+        ("wanderer", "passability")
     }:
-        return None, "Only a Hound can protect a route and a Wanderer can assess passability."
+        return None, "Only a Hound can protect or assess a route and a Wanderer can assess passability."
     site = "red_cord"
     room = getattr(mask, "location", None)
     if (not room or room.key != LANDMARKS[site]["room"]
@@ -233,6 +240,8 @@ def field_action(mask, action):
         with transaction.atomic():
             if mask.location != room or cord.location != room:
                 raise RuntimeError("The real observer or cord moved away.")
+            if active_calling(mask) != role:
+                raise RuntimeError("The professional changed Calling before the action.")
             now_day, now_hour = _day_hour()
             if (now_day, now_hour) != (day, hour):
                 raise RuntimeError("Village time advanced before this route action.")
@@ -252,18 +261,20 @@ def field_action(mask, action):
                 }
             square.db.daily_route_survey = updated
             record_participation(mask, "field_surveys", calling=role)
+            slot = ("hound_assessment" if action == "assess" else role)
             return {
                 "cord_object_id": cord.id, "square_room_id": square.id,
                 "site": site, "day": day, "role": role, "action": action,
                 "caution_marked": bool(cord.db.route_caution),
                 "interpretation": (
-                    updated["field_decisions"].get("wanderer") or {}
+                    updated["field_decisions"].get(slot) or {}
                 ).get("observation"),
             }
 
     event = publish_world_event(
-        "village.route_protected" if role == "hound"
-        else "village.route_passability_observed",
+        ("village.route_protected" if action == "protect"
+         else "village.route_hazard_assessed" if action == "assess"
+         else "village.route_passability_observed"),
         actor=mask,
         payload={"site": site, "day": day, "hour": hour,
                  "role": role, "action": action, "location": room.key,
@@ -271,3 +282,94 @@ def field_action(mask, action):
         consequence=consequence,
     )
     return {"event_id": event["id"], "role": role, "action": action}, None
+
+
+def publish_safety_notice(mask):
+    """Chronicler publishes a source-limited warning at the existing Square board."""
+    account = getattr(mask, "account", None)
+    square = _square()
+    if not account or not square or getattr(mask, "location", None) != square:
+        return None, "Publish the public route notice at Village Square."
+    if active_calling(mask) != "chronicler":
+        return None, "An active Chronicler must publish a route safety notice."
+    day, hour = _day_hour()
+    try:
+        latest = dict(mask.db.landmark_latest_view or {}).get("red_cord") or {}
+        seen_today = int(latest.get("day") or 0) == day
+    except (ValueError, TypeError, OverflowError):
+        seen_today = False
+    if (not seen_today or not any(
+            row["id"] == "red_cord"
+            for row in known_landmarks(mask.db.landmark_discoveries))):
+        return None, "First examine the physical red cord at Northern Treeline today."
+    treeline = next(
+        (obj for obj in search.search_object(LANDMARKS["red_cord"]["room"])
+         if obj.key == LANDMARKS["red_cord"]["room"] and obj.location is None),
+        None,
+    )
+    cord = next(
+        (obj for obj in treeline.contents
+         if obj.key == LANDMARKS["red_cord"]["key"]
+         and getattr(obj.db, "landmark_id", None) == "red_cord"),
+        None,
+    ) if treeline else None
+    if cord is None:
+        return None, "The original physical cord is missing; no notice can be certified."
+
+    def source_for(state):
+        hound = state["field_decisions"].get("hound_assessment") or {}
+        event_id = hound.get("event_id")
+        source = get_event_ledger().get_event(event_id) if event_id else None
+        if (not route_surveys.verified_hound_assessment(hound, source, day)
+                or source["consequence"]["cord_object_id"] != cord.id
+                or source["consequence"]["square_room_id"] != square.id):
+            return None
+        return source
+
+    current = route_surveys.refresh(square.db.daily_route_survey, day)
+    source = source_for(current)
+    _candidate, accepted, reason = route_surveys.publish_safety_notice(
+        current, day=day, hour=hour, account_id=account.id,
+        mask_id=mask.id, mask=mask.key, event_id=1, source=source,
+    )
+    if not accepted:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            if mask.location != square or cord.location != treeline:
+                raise RuntimeError("The editor or physical evidence moved.")
+            if active_calling(mask) != "chronicler":
+                raise RuntimeError("The editor changed Calling.")
+            if _day_hour() != (day, hour):
+                raise RuntimeError("Village time changed before publication.")
+            updated_state = route_surveys.refresh(square.db.daily_route_survey, day)
+            verified_source = source_for(updated_state)
+            changed, valid, error = route_surveys.publish_safety_notice(
+                updated_state, day=day, hour=hour, account_id=account.id,
+                mask_id=mask.id, mask=mask.key, event_id=event["id"],
+                source=verified_source,
+            )
+            if not valid:
+                raise RuntimeError(error)
+            square.db.daily_route_survey = changed
+            record_participation(mask, "route_safety_notices", calling="chronicler")
+            return {
+                "source_event_id": verified_source["id"],
+                "source_account_id": verified_source["actor"]["account_id"],
+                "source_observation": changed["safety_notice"]["observation"],
+                "square_room_id": square.id, "cord_object_id": cord.id,
+                "day": day,
+            }
+
+    event = publish_world_event(
+        "village.route_safety_notice", actor=mask,
+        payload={
+            "site": "red_cord", "day": day, "hour": hour,
+            "location": SQUARE, "professional_calling": "chronicler",
+            "source_event_id": source["id"],
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "source_event_id": source["id"]}, None

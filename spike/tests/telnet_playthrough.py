@@ -2164,6 +2164,55 @@ def main() -> int:
                     "does not repair the cord")
         print("TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN")
 
+        # EDGE-16: a renewable Hound assessment, not a fabricated monster,
+        # becomes an independent Chronicler's sourced Square safety notice.
+        out = hound.command("survey assess")
+        require_all(out, "firsthand Hound assessment", "signed event")
+        out = hound.command("survey assess")
+        require(out, "already signed today")
+        out = wanderer.command("survey assess")
+        require(out, "only a hound")
+        # The Chronicler previously inspected the cord during the ordinary
+        # daily survey. Publication still requires the Square and a signed
+        # independent Hound source; remembered travel alone is not enough.
+        out = c.command("survey notice")
+        require(out, "at village square")
+        for move, destination in (
+            ("north", "lamp shop"), ("north", "village square"),
+        ):
+            out = c.command(move)
+            require(out, destination)
+        for move, destination in (
+            ("west", "st. lazarus church"), ("west", "churchyard"),
+            ("north", "northern treeline"),
+        ):
+            out = c.command(move)
+            require(out, destination)
+        out = c.command("look cord")
+        require_all(out, "scarlet cord", "clear caution marker")
+        out = c.command("survey notice")
+        require(out, "at village square")
+        for move, destination in (
+            ("south", "churchyard"), ("east", "st. lazarus church"),
+            ("east", "village square"),
+        ):
+            out = c.command(move)
+            require(out, destination)
+        out = c.command("survey notice")
+        require_all(out, "qualified public route safety notice",
+                    "source Hound event")
+        out = c.command("survey notice")
+        require(out, "already been published")
+        out = c.command("survey")
+        require_all(out, "houndtester", "smoketester",
+                    "notice event", "No injury or monster is established")
+        for move, destination in (
+            ("south", "lamp shop"), ("south", "market lane"),
+        ):
+            out = c.command(move)
+            require(out, destination)
+        print("TELNET_GDD_EDGE16_HOUND_CHRONICLER_SIGNED_NOTICE_GREEN")
+
         print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
         out = c.command("guide")
         require_all(out, "civic material table", "bridgework collect preserve")
