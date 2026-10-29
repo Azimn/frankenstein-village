@@ -71,6 +71,11 @@ def verify_procurement(row, event, diagnosis, diagnosis_event, *,
         != diagnosis_event["actor"].get("account_id")
     ):
         return False
+    # The payload describes intent. Only the committed consequence proves that
+    # the finite physical tray was actually decremented by the signed event.
+    consequence = event.get("consequence")
+    if not hasattr(consequence, "get"):
+        return False
     before, after = row.get("units_before"), row.get("units_after")
     return (
         type(before) is int and type(after) is int
@@ -78,4 +83,12 @@ def verify_procurement(row, event, diagnosis, diagnosis_event, *,
         and event["payload"].get("units_before") == before
         and event["payload"].get("units_after") == after
         and row.get("unit_worth") == event["payload"].get("unit_worth")
+        and _positive(consequence.get("resource_object_id"))
+        and consequence.get("resource_object_id") == stock_id
+        and type(consequence.get("units_before")) is int
+        and type(consequence.get("units_after")) is int
+        and consequence.get("units_before") == before
+        and consequence.get("units_after") == after
+        and _positive(consequence.get("source_smith_event_id"))
+        and consequence.get("source_smith_event_id") == diagnosis["event_id"]
     )
