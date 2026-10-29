@@ -45,6 +45,15 @@ def review(state, **overrides):
 
 
 class StageReviewTests(unittest.TestCase):
+    def test_contest_review_id_parser_is_strict_and_canonical(self):
+        for supplied, expected in ((103, 103), ("103", 103), ("00103", 103)):
+            self.assertEqual(s.parse_review_id(supplied), expected)
+            self.assertIsInstance(s.parse_review_id(supplied), int)
+        for invalid in (None, False, True, 0, -1, "0", "-1", "+103",
+                        "103.0", "103x", " 103", "103 ", 103.5,
+                        [], {}, ""):
+            self.assertIsNone(s.parse_review_id(invalid), repr(invalid))
+
     def test_signed_review_and_contest_survive_json_and_rollover(self):
         state, sources = setup()
         self.assertTrue(s.verify_review_sources(state["performance"], state["witnesses"][0], sources, day=1))
