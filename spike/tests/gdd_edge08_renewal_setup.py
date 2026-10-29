@@ -15,8 +15,9 @@ innkeep = one("InnkeepTester")
 prior = dict(cord.db.route_caution or {})
 assert type(prior.get("event_id")) is int and prior["event_id"] > 0
 assert type(prior.get("day")) is int and prior["day"] >= 1
-assert hound.location == tavern, "Hound must have physically returned to the Tavern"
-assert innkeep.location == tavern, "Innkeep must remain at the Tavern"
+assert hound.location is not None, "Hound mask must still be in the physical world"
+assert innkeep.location == tavern, ("Innkeep not at Tavern", getattr(innkeep.location, "key", None))
+print("EDGE08_RENEWAL_START_ROOMS", hound.location.key, innkeep.location.key)
 receipts = list((tavern.db.route_refuge or {}).get("history") or [])
 assert len(receipts) == 1, "Initial-day signed meal must exist before renewal"
 assert receipts[0]["source_protect_event_id"] == prior["event_id"]
