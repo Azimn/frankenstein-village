@@ -10,24 +10,30 @@ import copy
 MAX_CASES = 24
 
 
-def _id(value):
+def _whole_number(value):
+    """Reject lossy numeric coercion of signed IDs and village hours."""
     if isinstance(value, bool):
         return None
-    try:
-        number = int(value)
-    except (ValueError, TypeError, OverflowError):
-        return None
-    return number if number > 0 else None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if text and text.isascii() and text.isdecimal():
+            try:
+                return int(text, 10)
+            except ValueError:
+                return None
+    return None
+
+
+def _id(value):
+    number = _whole_number(value)
+    return number if number is not None and number > 0 else None
 
 
 def _hour(value):
-    if isinstance(value, bool):
-        return None
-    try:
-        number = int(value)
-    except (ValueError, TypeError, OverflowError):
-        return None
-    return number if 0 <= number <= 23 else None
+    number = _whole_number(value)
+    return number if number is not None and 0 <= number <= 23 else None
 
 
 def normalize(raw):
