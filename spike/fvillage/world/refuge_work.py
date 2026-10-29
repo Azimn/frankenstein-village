@@ -171,7 +171,8 @@ def serve(mask, hound_name):
     def consequence(event):
         with transaction.atomic():
             if (mask.location != tavern or hound.location != tavern
-                    or item.location != hound or active_calling(mask) != "innkeep"
+                    or item.location != hound or cord.location != cord_room
+                    or active_calling(mask) != "innkeep"
                     or active_calling(hound) != "hound"
                     or _clock() != (day, hour)):
                 raise RuntimeError("The participants, item or time changed.")
