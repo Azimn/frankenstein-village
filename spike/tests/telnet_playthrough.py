@@ -1254,9 +1254,16 @@ def main() -> int:
         require(out, "active chronicler")
         out = inn.command(f"stage contest {review_event_id}")
         require(out, "active performer")
+        for invalid_review_id in ("0", "-1", "abc", "103.0", "103x"):
+            out = performer.command(f"stage contest {invalid_review_id}")
+            require(out, "positive numeric review event id")
+        out = performer.command("stage contest 999999")
+        require(out, "no such signed review")
         out = performer.command(f"stage contest {review_event_id}")
         require_all(out, "contest the chronicler", "world event")
         out = performer.command(f"stage contest {review_event_id}")
+        require(out, "already been contested")
+        out = performer.command("stage contest")
         require(out, "already been contested")
         out = performer.command("stage")
         require_all(out, "performertester", "2 other player account",
