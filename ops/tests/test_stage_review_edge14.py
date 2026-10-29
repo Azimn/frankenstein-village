@@ -51,7 +51,7 @@ class StageReviewTests(unittest.TestCase):
             self.assertIsInstance(s.parse_review_id(supplied), int)
         for invalid in (None, False, True, 0, -1, "0", "-1", "+103",
                         "103.0", "103x", " 103", "103 ", 103.5,
-                        [], {}, ""):
+                        [], {}, "", "9" * 5000, "9" * 20, 1 << 70):
             self.assertIsNone(s.parse_review_id(invalid), repr(invalid))
 
     def test_signed_review_and_contest_survive_json_and_rollover(self):
