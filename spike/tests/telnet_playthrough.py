@@ -2048,26 +2048,26 @@ def main() -> int:
         require(out, "only a hound")
         # Account A has already inspected the unmarked cord. Account B,
         # using its own Hound mask, now signs the warning in the same hour.
-        # Reuse the Wanderer account's separate mask, never the same mask
-        # or a second backend-only actor.
-        out = wanderer.command("ooc")
-        out = wanderer.command("charcreate MarkerHound", wait=3.0)
-        out = wanderer.command("ic MarkerHound", wait=4.0)
+        # Reuse the Smith account's second mask so the Wanderer's separate
+        # signed field observation remains an independent third account.
+        out = smith.command("ooc")
+        out = smith.command("charcreate MarkerHound", wait=3.0)
+        out = smith.command("ic MarkerHound", wait=4.0)
         require(out, "private room")
-        out = wanderer.command("calling choose hound")
+        out = smith.command("calling choose hound")
         require(out, "hound is now your active calling")
         for move, destination in (
             ("down", "inn common room"), ("east", "inn hallway"),
             ("south", "village square"), ("west", "st. lazarus church"),
             ("west", "churchyard"), ("north", "northern treeline"),
         ):
-            out = wanderer.command(move)
+            out = smith.command(move)
             require(out, destination)
-        out = wanderer.command("look cord")
+        out = smith.command("look cord")
         require(out, "scarlet cord")
-        out = wanderer.command("survey protect")
+        out = smith.command("survey protect")
         require_all(out, "tie the original frayed cord", "visible warning", "signed event")
-        out = wanderer.command("survey protect")
+        out = smith.command("survey protect")
         require(out, "already signed today")
         out = hound.command("survey protect")
         require(out, "already signed today")
