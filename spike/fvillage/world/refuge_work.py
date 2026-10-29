@@ -8,7 +8,7 @@ from evennia.utils import search
 
 from world import refuge_state, soup_state
 from world.callings import active_calling, record_participation
-from world.discoveries import LANDMARKS, normalize as known_landmarks
+from world.discoveries import LANDMARKS, normalize as known_landmarks, observed_caution
 from world.events import get_event_ledger, publish_world_event
 
 TAVERN = "The Blood of the Vine"
@@ -65,6 +65,12 @@ def dispatch(mask):
         hound_account_id=mask.account.id, hound_mask_id=mask.id)
     if not allowed:
         return None, why
+    if not observed_caution(
+            seen, day=day, hour=hour, source_event_id=source["id"],
+            cord_id=cord.id):
+        return None, (
+            "Look at the physical signed red cord after the current Hound "
+            "warning before issuing a refuge dispatch.")
     if any(getattr(obj.db, "route_refuge_dispatch", None) for obj in mask.contents):
         return None, "Carry your existing refuge dispatch to the Tavern first."
 
@@ -85,6 +91,14 @@ def dispatch(mask):
                 hound_account_id=mask.account.id, hound_mask_id=mask.id)
             if not ok:
                 raise RuntimeError(reason)
+            fresh_latest = dict(
+                getattr(mask.db, "landmark_latest_view", None) or {})
+            if not observed_caution(
+                    fresh_latest.get("red_cord"),
+                    day=day, hour=hour, source_event_id=source["id"],
+                    cord_id=cord.id):
+                raise RuntimeError(
+                    "The Hound's firsthand signed cord inspection changed.")
             item = create_object(
                 "typeclasses.objects.Object", key=DISPATCH, location=mask,
                 aliases=["refuge dispatch", "treeline dispatch"])
