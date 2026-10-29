@@ -259,10 +259,14 @@ warning_mutations = dict(warning_case["objective_mutations"])
 warning_finding = dict(warning_mutations["healer_finding"])
 warning_record = dict(warning_mutations["chronicler_record"])
 assert warning_finding["mask_id"] == healer_tester.id
+assert type(warning_finding["account_id"]) is int
 assert warning_finding["mask"] == "HealerTester"
 assert warning_finding["property"] == "toxin"
 assert warning_finding["value"] == 25
 assert warning_record["mask_id"] == smoke.id
+assert type(warning_record["account_id"]) is int
+assert warning_record["account_id"] != warning_finding["account_id"]
+assert warning_record["source_healer_event_id"] == warning_finding["event_id"]
 assert warning_record["mask"] == "SmokeTester"
 
 warning_entry = next(
@@ -289,15 +293,25 @@ warning_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
 finding_event = warning_ledger.get_event(warning_finding["event_id"])
 warning_event = warning_ledger.get_event(warning_record["event_id"])
 assert finding_event["kind"] == "professional.healer_finding_submitted"
+assert finding_event["status"] == "complete"
+assert finding_event["actor"]["account_id"] == warning_finding["account_id"]
+assert finding_event["actor"]["mask_id"] == healer_tester.id
+assert finding_event["payload"]["day"] == warning_finding["day"]
+assert finding_event["payload"]["hour"] == warning_finding["hour"]
 assert finding_event["payload"]["mechanical_value"] == 25
 assert finding_event["payload"]["harbinger"] is False
 assert finding_event["payload"]["chronicle_eligible"] is False
 assert warning_event["kind"] == "professional.public_health_warning"
+assert warning_event["status"] == "complete"
+assert warning_event["actor"]["account_id"] == warning_record["account_id"]
+assert warning_event["payload"]["source_healer_account_id"] == warning_finding["account_id"]
+assert warning_event["payload"]["source_healer_event_id"] == finding_event["id"]
 assert warning_event["payload"]["source_healer_mask_id"] == healer_tester.id
 assert warning_event["publications"]["chronicle_entry_id"] == warning_entry["id"]
 assert warning_event["publications"]["harbinger_story_id"] == warning_story["id"]
 assert hidden_mechanical_properties(mushrooms) == {"toxin": 25}
 assert mechanical_properties(mushrooms) == {}
+print("POST_RESTART_GDD_EDGE11_SIGNED_DISTINCT_HEALTH_WARNING_GREEN")
 
 # Resident care interdependence survives restart as Resident Life state plus a
 # provenance record. The current stew stock may have been restocked by Bram,
@@ -1272,6 +1286,10 @@ from world.market_standards import (
 _market_live = _market_work_state(one("Market Lane").db.market_standards)
 assert _market_live["review"] and _market_live["review"]["choice"] == "hold"
 assert _market_live["calibration"] and _market_live["attestation"]
+assert _market_live["audit"] and _market_live["audit"]["review_event_id"] == _market_live["review"]["event_id"]
+assert _market_live["audit"]["review_choice"] == "hold"
+assert _market_live["audit"]["mask_id"] == smoke.id
+assert _market_live["audit"]["account_id"] != _market_live["review"]["account_id"]
 assert _market_live["review"]["mask_id"] == merchant_tester.id
 assert _market_live["calibration"]["mask_id"] == smith_tester.id
 assert _market_live["attestation"]["mask_id"] == smoke.id
@@ -1282,6 +1300,7 @@ for _record, _event_kind in (
     ("review", "village.market_hold"),
     ("calibration", "village.market_calibrate"),
     ("attestation", "village.market_attest"),
+    ("audit", "village.market_audit"),
 ):
     _event = warning_ledger.get_event(_market_live[_record]["event_id"])
     assert _event["kind"] == _event_kind
@@ -1290,6 +1309,15 @@ for _record, _event_kind in (
 assert calling_record(merchant_tester, "merchant")["participation"]["market_hold"] == 1
 assert calling_record(smith_tester, "smith")["participation"]["market_calibrate"] == 1
 assert calling_record(smoke, "chronicler")["participation"]["market_attest"] == 1
+assert calling_record(smoke, "chronicler")["participation"]["market_audit"] == 1
+from world.market_standards import verified_merchant_review as _verified_market_review
+assert _verified_market_review(
+    _market_live["review"], warning_ledger.get_event(_market_live["review"]["event_id"])
+)
+_market_audit_event = warning_ledger.get_event(_market_live["audit"]["event_id"])
+assert _market_audit_event["consequence"]["audit_source_event_id"] == _market_live["review"]["event_id"]
+assert _market_audit_event["actor"]["account_id"] != _market_live["review"]["account_id"]
+print("POST_RESTART_GDD_EDGE12_DISTINCT_SIGNED_MARKET_AUDIT_GREEN")
 from world.market_work import clock as _market_live_clock
 _market_now, _market_hour = _market_live_clock()
 _market_visible = one("Market Lane").get_display_desc(smoke).lower()

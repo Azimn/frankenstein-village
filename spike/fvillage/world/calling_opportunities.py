@@ -17,7 +17,8 @@ WORK = {
     ),
     "chronicler": (
         "At Market Lane: inspect the crooked market scale, use trade, and "
-        "trade attest after an actual Merchant decision and Smith calibration.",
+        "trade audit after a signed Merchant decision, or trade attest "
+        "after a Merchant decision and Smith calibration.",
         "In the village: read chronicle and rumors; investigate conflicting "
         "testimony before making a documented entry.",
     ),

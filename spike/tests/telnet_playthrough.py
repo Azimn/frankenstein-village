@@ -1045,6 +1045,10 @@ def main() -> int:
         require(out, "assessments 1")
         require(out, "public health findings 1")
 
+        # A Healer cannot publish their own source by changing the story.
+        out = h.command("chronicle health publish")
+        require(out, "active chronicler")
+
         out = c.command("chronicle health")
         require(out, "healertester")
         require(out, "can be toxic")
@@ -1060,6 +1064,7 @@ def main() -> int:
             )
         warning_chronicle_id = warning_c.group(1)
         warning_story_id = warning_h.group(1)
+        print("TELNET_GDD_EDGE11_DISTINCT_SIGNED_HEALTH_WARNING_GREEN")
 
         out = c.command(f"chronicle C{warning_chronicle_id}")
         require(out, "health warning issued for well mushrooms")
@@ -1937,6 +1942,8 @@ def main() -> int:
         require_all(out, "Market Lane", "crooked", "trade calibrate")
         out = c.command("trade attest")
         require(out, "documented Merchant decision and Smith calibration")
+        out = c.command("trade audit")
+        require(out, "completed Merchant decision")
 
         # Three distinct active Callings intervene in the same recurring
         # physical market dispute. A held distribution blocks REAL stock,
@@ -1956,6 +1963,12 @@ def main() -> int:
         require(out, "two prices")
         out = merchant.command("trade hold")
         require_all(out, "signed", "temporarily on hold")
+        require(merchant.command("trade audit"), "Chronicler Calling")
+        out = c.command("trade audit")
+        require_all(out, "signed", "independently audited Merchant hold", "source event")
+        require(c.command("trade audit"), "already been audited")
+        require_all(c.command("agenda"), "independent Chronicler audit", "Merchant decision")
+        print("TELNET_GDD_EDGE12_DISTINCT_SIGNED_MARKET_AUDIT_GREEN")
         require_all(merchant.command("agenda"),
                     "your merchant market hold remains active", "trade release")
         out = merchant.command("soup procure")
