@@ -1116,6 +1116,13 @@ def main() -> int:
         out = h.command("calling")
         require(out, "resident assessments 1")
 
+        # The completed signed Healer assessment is not a license to provide
+        # Innkeep hospitality or consume the finite stew under the same role.
+        out = h.command("care serve Silas Crowe")
+        require(out, "active innkeep calling")
+        out = h.command("care")
+        require(out, "hospitality is still needed")
+
         # A third independent account proves the Innkeep contribution cannot
         # be replaced by the Healer or the existing Chronicler mask.
         inn = Client(args.host, args.port)
@@ -1303,6 +1310,7 @@ def main() -> int:
         require(out, "healer assessed him")
         require(out, "innkeep spent a real tavern meal")
 
+        print("TELNET_GDD_EDGE03_TWO_ACCOUNT_FINITE_CARE_GREEN")
         out = inn.command("care serve Silas Crowe")
         require(out, "tavern care is already complete")
         out = inn.command("calling")
@@ -1467,6 +1475,61 @@ def main() -> int:
         require(out, "inn hallway")
         out = merchant.command("south")
         require(out, "village square")
+
+        # GDD-EDGE-25: a Merchant withdraws finite physical clinic stock,
+        # carries it across the real village, and a different Healer accepts
+        # it at the actual cot. No inventory or case record is invented.
+        out = merchant.command("clinic procure")
+        require(out, "market lane")
+        out = merchant.command("south")
+        require(out, "lamp shop")
+        out = merchant.command("south")
+        require(out, "market lane")
+        out = merchant.command("calling work")
+        require(out, "clinic procure")
+        out = merchant.command("clinic procure")
+        require_all(out, "real sealed clinic linen parcel", "signed merchant event")
+        out = merchant.command("clinic procure")
+        require(out, "already carry a sealed clinic linen parcel")
+        out = merchant.command("north")
+        require(out, "lamp shop")
+        out = merchant.command("north")
+        require(out, "village square")
+        out = merchant.command("west")
+        require(out, "st. lazarus church")
+        out = merchant.command("clinic receive")
+        require(out, "active healer")
+        out = merchant.command("drop clinic linen parcel")
+        require(out, "drop")
+        h.read_quiet()
+        out = h.command("west")
+        require(out, "village square")
+        out = h.command("west")
+        require(out, "st. lazarus church")
+        out = h.command("clinic receive")
+        require_all(out, "inspect and accept two clean linen dressings",
+                    "merchant source event")
+        out = h.command("clinic")
+        require_all(out, "3 of 4", "merchant parcel", "source event")
+        out = h.command("clinic receive")
+        require(out, "bring a physical sealed clinic linen parcel")
+        out = merchant.command("east")
+        require(out, "village square")
+        out = merchant.command("south")
+        require(out, "lamp shop")
+        out = merchant.command("south")
+        require(out, "market lane")
+        out = merchant.command("clinic procure")
+        require(out, "supply is exhausted")
+        out = merchant.command("north")
+        require(out, "lamp shop")
+        out = merchant.command("north")
+        require(out, "village square")
+        out = h.command("east")
+        require(out, "village square")
+        out = h.command("east")
+        require(out, "blood of the vine")
+        print("TELNET_GDD_EDGE25_MERCHANT_HEALER_FINITE_LINEN_GREEN")
 
         out = merchant.command("repair diagnose north-square gas lamp")
         require(out, "active smith calling")
