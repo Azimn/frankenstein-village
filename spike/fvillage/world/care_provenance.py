@@ -6,7 +6,7 @@ This module deliberately has no Evennia imports so forged-record cases can
 be exercised without a running server.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 
 def _positive_id(value):
@@ -60,6 +60,14 @@ def validate_healer_source(assessment, event, *, innkeep_account_id,
     payload = event.get("payload")
     if not isinstance(actor, Mapping) or not isinstance(payload, Mapping):
         return None, error
+    # Signed resident IDs must be an actual ordered patient collection.
+    # Do not iterate scalar, string or mapping values from malformed persisted
+    # events. The validation runs before the Innkeep spends finite stew.
+    resident_ids = payload.get("resident_ids")
+    if not isinstance(resident_ids, Sequence) or isinstance(
+        resident_ids, (str, bytes, bytearray)
+    ):
+        return None, error + " Source mismatch: event patient."
     checks = (
         ("event completion", event.get("status") == "complete"),
         ("event kind", event.get("kind") == "professional.healer_cold_assessment"),
@@ -71,7 +79,7 @@ def validate_healer_source(assessment, event, *, innkeep_account_id,
         ("assessment patient", assessment.get("resident_id") == resident_id),
         ("event role", payload.get("professional_calling") == "healer"),
         ("event case", payload.get("situation_id") == situation_id),
-        ("event patient", list(payload.get("resident_ids") or []) == [resident_id]),
+        ("event patient", list(resident_ids) == [resident_id]),
         ("event finding", payload.get("finding") == "cold exposure"),
         ("event day", _clock_part(payload.get("day"), 1, 1000000) == day),
         ("event hour", _clock_part(payload.get("hour"), 0, 23) == hour),
