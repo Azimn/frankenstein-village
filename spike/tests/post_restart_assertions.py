@@ -188,6 +188,35 @@ assert _soup_bowl.db.servings == 0, "Consumed bowl refilled across restart"
 assert one("a communal soup pot").location == _tavern_soup
 print("POST_RESTART_SHARED_SOUP_WORKPLACE_GREEN")
 
+# EDGE-01: the same physical batch and existing pantry history survive an
+# actual Evennia stop/start with consent and independent publication intact.
+from world import soup_receipts
+_consent = dict(_batch.get("consent") or {})
+_publication = dict(_batch.get("publication") or {})
+assert _consent["cook_event_id"] == _batch["cook_event_id"]
+assert _publication["cook_event_id"] == _batch["cook_event_id"]
+assert _publication["consent_event_id"] == _consent["event_id"]
+assert _consent["mask_id"] == innkeep_tester.id
+assert _publication["mask_id"] == smoke.id
+assert _consent["account_id"] != _publication["account_id"]
+_receipt_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+_disclosed = _receipt_ledger.get_event(_consent["event_id"])
+_published = _receipt_ledger.get_event(_publication["event_id"])
+assert _disclosed["status"] == _published["status"] == "complete"
+assert _disclosed["kind"] == "professional.innkeep_house_receipt_disclosed"
+assert _published["kind"] == "professional.chronicler_house_receipt_published"
+assert _disclosed["actor"]["account_id"] == _consent["account_id"]
+assert _published["actor"]["account_id"] == _publication["account_id"]
+assert _disclosed["payload"]["cook_event_id"] == _batch["cook_event_id"]
+assert _published["payload"]["consent_event_id"] == _consent["event_id"]
+assert _published["consequence"]["scope"] == "public_kitchen_batch_only"
+_public_receipts = soup_receipts.public_lines(_tavern_soup.db.soup_pantry, 2)
+assert "Chronicler SmokeTester" in _public_receipts
+assert "not a guest list" in _public_receipts
+assert "guest_name" not in str(_batch)
+print("POST_RESTART_GDD_EDGE01_CONSENTED_HOUSE_RECEIPT_GREEN")
+
+
 
 population = list(search.search_tag("resident", category="system"))
 from world.resident_data import RESIDENTS
