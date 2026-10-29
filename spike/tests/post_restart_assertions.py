@@ -1189,6 +1189,42 @@ for _role, _kind in (("hound", "village.route_protected"),
 assert calling_record(_hound_protect, "hound")["participation"]["field_surveys"] == 1
 assert calling_record(_wanderer_field, "wanderer")["participation"]["field_surveys"] == 1
 assert set(_next_survey_day["history"][-1]["field_decisions"]) == {"hound", "wanderer"}
+# GDD-EDGE-43: independent signed Detective custody survives real process restart.
+from world.route_trace_custody import normalize as _trace_normalize
+_trace = _trace_normalize(_cord.db.route_trace_custody)
+assert _trace is not None, "Signed Detective trace record missing after restart"
+_trace_detective = one("TraceDetectiveTester")
+assert active_calling(_trace_detective) == "detective"
+assert _trace["cord_id"] == _cord.id
+assert _trace["source_event_id"] == _cord.db.route_caution["event_id"]
+assert _trace["detective_mask_id"] == _trace_detective.id
+assert _trace["hound_mask_id"] == _hound_protect.id
+assert _trace["hound_account_id"] != _trace["detective_account_id"]
+assert AccountDB.objects.filter(id=_trace["hound_account_id"]).exists()
+assert AccountDB.objects.filter(id=_trace["detective_account_id"]).exists()
+assert _trace["observed_condition"] == "tied_caution"
+assert _trace["late_arrival"] is False
+for _kind, _eid, _account, _mask in (
+    ("village.route_protected", _trace["source_event_id"],
+     _trace["hound_account_id"], _hound_protect.id),
+    ("village.route_trace_preserved", _trace["event_id"],
+     _trace["detective_account_id"], _trace_detective.id),
+):
+    _signed = warning_ledger.get_event(_eid)
+    assert _signed and _signed["status"] == "complete"
+    assert _signed["kind"] == _kind
+    assert _signed["actor"]["account_id"] == _account
+    assert _signed["actor"]["mask_id"] == _mask
+_trace_signed = warning_ledger.get_event(_trace["event_id"])
+assert _trace_signed["payload"]["hound_source_event_id"] == _trace["source_event_id"]
+assert _trace_signed["consequence"]["cord_object_id"] == _cord.id
+assert _trace_signed["consequence"]["observed_condition"] == "tied_caution"
+assert calling_record(_trace_detective, "detective")["participation"][
+    "route_trace_preserved"] == 1
+from world.route_trace_custody import public_lines as _trace_lines
+assert "neither tracks nor a culprit" in _trace_lines(_trace)
+print("POST_RESTART_GDD_EDGE43_SIGNED_INDEPENDENT_TRACE_CUSTODY_GREEN")
+
 print("POST_RESTART_GDD_T07_SHARED_CORD_AND_DISTINCT_ACTIONS_GREEN")
 
 from world.residents import (

@@ -74,6 +74,10 @@ WORK = {
         "gathering through commons rather than claiming one occurred.",
     ),
     "detective": (
+        "At the Northern Treeline, look at the original red cord after a "
+        "Hound has signed survey protect. Use survey preserve to sign a "
+        "separate physical trace-custody record; survey custody shows its "
+        "limits. A tied warning is not proof of a culprit.",
         "At the Old Stone Bridge: look plaque, inspect the river gauge "
         "on Riverside Path, and consider a provisional theory bridge.",
         "Use mystery bridge or mystery manor to compare public evidence. "
