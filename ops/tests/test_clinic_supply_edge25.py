@@ -25,7 +25,8 @@ def receipt(item=31, source=15, merchant=7, mask=70, market=88, day=1):
             "professional_calling": "merchant", "day": day,
             "hour": 12, "market_room_id": market,
         },
-        "consequence": {"parcel_id": item, "market_room_id": market, "units": 2},
+        "consequence": {"parcel_id": item, "market_room_id": market, "units": 2,
+                        "remaining": 0},
     }
 
 
@@ -85,6 +86,34 @@ class ClinicSupplyEdge25(unittest.TestCase):
             self.assertFalse(clinic_supply.verify_source(
                 altered, parcel(), item_id=31, market_id=88,
                 healer_account_id=8, day=1)[0], path)
+
+    def test_rejects_unsigned_or_contradictory_market_stock_consequence(self):
+        # MARKET_DAILY is one: a signed completed withdrawal must leave zero.
+        # These are pure admission controls, not a substitute for live-client tests.
+        for remaining in ("missing", 1, -1, True, False, None, "0", 0.0, {}, [0]):
+            signed = receipt()
+            if remaining == "missing":
+                del signed["consequence"]["remaining"]
+            else:
+                signed["consequence"]["remaining"] = remaining
+            physical_parcel = parcel()
+            cabinet = clinic_state.refresh(None, 1)
+            before = json.dumps((signed, physical_parcel, cabinet), sort_keys=True)
+            accepted, reason = clinic_supply.verify_source(
+                signed, physical_parcel, item_id=31, market_id=88,
+                healer_account_id=8, day=1,
+            )
+            self.assertFalse(accepted, remaining)
+            self.assertIn("no valid completed Merchant source", reason)
+            # Admission fails before clinic_supply.accept or item deletion.
+            self.assertEqual(json.dumps(
+                (signed, physical_parcel, cabinet), sort_keys=True), before)
+            self.assertEqual(cabinet["linen"], clinic_state.refresh(None, 1)["linen"])
+        accepted, reason = clinic_supply.verify_source(
+            receipt(), parcel(), item_id=31, market_id=88,
+            healer_account_id=8, day=1,
+        )
+        self.assertTrue(accepted, reason)
 
     def test_rejects_malformed_source_and_same_account(self):
         for source in (None, {}, {"status": "complete"}):
