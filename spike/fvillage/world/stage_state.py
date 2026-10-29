@@ -28,11 +28,15 @@ def parse_review_id(value):
     """Accept only positive integral review IDs, never lossy coercions."""
     if isinstance(value, bool):
         return None
+    # Event IDs are positive signed 64-bit database identifiers.
+    # Bound input before int() so a hostile enormous decimal cannot raise.
+    limit = (1 << 63) - 1
     if isinstance(value, int):
-        return value if value > 0 else None
-    if isinstance(value, str) and value and all("0" <= ch <= "9" for ch in value):
+        return value if 0 < value <= limit else None
+    if (isinstance(value, str) and 0 < len(value) <= 20
+            and all("0" <= ch <= "9" for ch in value)):
         parsed = int(value)
-        return parsed if parsed > 0 else None
+        return parsed if 0 < parsed <= limit else None
     return None
 
 
