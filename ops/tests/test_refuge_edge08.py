@@ -61,6 +61,44 @@ class RefugeRules(unittest.TestCase):
         self.assertEqual(history["history"][0]["hound_account_id"], 101)
         self.assertEqual(history["history"][0]["innkeep_account_id"], 102)
 
+    def test_fractional_signed_ids_and_clock_never_spend_refuge_food(self):
+        # int(41.9) == 41 is not proof of a signed event, player or item.
+        self.assertEqual(r.ident(41), 41)
+        self.assertEqual(r.ident("41"), 41)
+        self.assertIsNone(r.ident(41.9))
+        self.assertIsNone(r.ident("41.9"))
+        self.assertIsNone(r.ident(True))
+        self.assertEqual(r.stamp("3", "11"), r.stamp(3, 11))
+        for day, hour in ((3.9, 11), (3, 11.9), (3, True),
+                          ("3.9", 11), (3, "11.9")):
+            self.assertIsNone(r.stamp(day, hour))
+
+        source, marker, dispatch, token = fixture()
+        bad_cases = (
+            {"token": dict(token, dispatch_event_id=42.9)},
+            {"token": dict(token, source_protect_event_id=41.9)},
+            {"token": dict(token, cord_id=301.9)},
+            {"token": dict(token, hound_account_id=101.9)},
+            {"token": dict(token, hound_mask_id=201.9)},
+            {"dispatch_event": dict(dispatch, id=42.9)},
+            {"protection": dict(source, id=41.9)},
+            {"marker": dict(marker, event_id=41.9)},
+            {"marker": dict(marker, account_id=101.9)},
+            {"dispatch_event": dict(
+                dispatch, payload=dict(dispatch["payload"], hour=11.9))},
+            {"token": dict(token, hour=11.9)},
+            {"token": dict(token, day=3.9)},
+            {"day": 3.9},
+            {"hour": 12.9},
+        )
+        for changes in bad_cases:
+            with self.subTest(changes=changes):
+                state, food, allowed, _reason = serve(**changes)
+                self.assertFalse(allowed)
+                self.assertIsNone(state)
+                pantry_day = max(1, r.ident(changes.get("day", 3)) or 1)
+                self.assertEqual(food, soup_state.pantry(None, pantry_day))
+
     def test_signed_original_cord_required(self):
         source, marker, _, _ = fixture()
         self.assertTrue(r.protection_valid(source, marker, 301))
