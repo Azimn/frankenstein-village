@@ -154,7 +154,23 @@ class SpikeCharacter(Character):
     """
 
     def at_post_puppet(self, **kwargs):
+        # A disconnected mask can retain its account and signed history but
+        # lose its room after a restart or migration. Never place it directly
+        # in the IC world: recover into that account's private OOC room, so
+        # the front door remains the only path back into the village.
+        recovered = False
+        if self.location is None and self.account is not None:
+            from typeclasses.accounts import ensure_private_room
+
+            room = ensure_private_room(self.account)
+            recovered = bool(self.move_to(room, quiet=True, move_type="recovery"))
         super().at_post_puppet(**kwargs)
+        if recovered:
+            self.msg(
+                "Your mask had no saved room. You have returned to your own "
+                "private room at the Inn Between. Follow the front door to "
+                "enter the village again."
+            )
         if self.db.new_arrival:
             self.db.new_arrival = False
             self.msg(
