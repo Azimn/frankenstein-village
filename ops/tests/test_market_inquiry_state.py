@@ -58,6 +58,65 @@ class MarketInquiryTests(unittest.TestCase):
                 self.assertFalse(okay)
                 self.assertEqual(rows, [])
 
+    def test_fractional_or_coerced_signed_fields_fail_closed(self):
+        # int(40.9) silently becomes a different canonical event ID.
+        # The same truncation must never rewrite an account, day, or hour.
+        invalid_open = (
+            ("source_event_id", 40.9),
+            ("source_account_id", 10.5),
+            ("source_mask_id", 100.5),
+            ("detective_account_id", 20.5),
+            ("detective_mask_id", 200.5),
+            ("scale_id", 300.5),
+            ("case_event_id", 41.5),
+            ("day", 3.9),
+            ("source_day", 3.9),
+            ("hour", 12.9),
+            ("source_hour", 11.9),
+            ("source_event_id", "40.0"),
+            ("source_event_id", "4e1"),
+            ("source_event_id", ["40"]),
+            ("hour", {"hour": 12}),
+        )
+        for field, value in invalid_open:
+            with self.subTest(operation="open", field=field, value=value):
+                result, accepted, _ = open_one(**{field: value})
+                self.assertFalse(accepted)
+                self.assertEqual(result, [])
+
+        rows, accepted, reason = open_one()
+        self.assertTrue(accepted, reason)
+        for field, value in (
+            ("source_event_id", 40.9),
+            ("merchant_account_id", 10.9),
+            ("merchant_mask_id", 100.9),
+            ("event_id", 42.9),
+            ("day", 3.9),
+            ("hour", 13.9),
+        ):
+            with self.subTest(operation="rebut", field=field):
+                result, accepted, _ = rebut_one(rows, **{field: value})
+                self.assertFalse(accepted)
+                self.assertEqual(result, rows)
+                self.assertIsNone(result[0]["rebuttal_event_id"])
+
+        for field, value in (
+            ("source_event_id", 40.9),
+            ("detective_account_id", 20.9),
+            ("source_hour", 11.9),
+            ("hour", 12.9),
+            ("day", 3.9),
+        ):
+            with self.subTest(operation="restore", field=field):
+                self.assertEqual(inquiry.normalize([{**rows[0], field: value}]), [])
+
+        restored, accepted, reason = open_one(
+            day=" 3 ", source_day="3", hour="12", source_hour="11",
+            source_event_id="40", detective_account_id="20",
+        )
+        self.assertTrue(accepted, reason)
+        self.assertEqual(inquiry.normalize(json.loads(json.dumps(restored))), restored)
+
     def test_future_hold_and_wrong_day_denied(self):
         for changes in ({"source_day": 2}, {"source_day": 4},
                         {"source_hour": 14}, {"hour": 9}):
