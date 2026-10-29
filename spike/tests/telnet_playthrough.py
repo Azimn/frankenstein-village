@@ -2046,18 +2046,41 @@ def main() -> int:
         require(out, "scarlet cord")
         out = hound.command("survey passability")
         require(out, "only a hound")
-        out = hound.command("survey protect")
+        # Account A has already inspected the unmarked cord. Account B,
+        # using its own Hound mask, now signs the warning in the same hour.
+        # Reuse the Wanderer account's separate mask, never the same mask
+        # or a second backend-only actor.
+        out = wanderer.command("ooc")
+        out = wanderer.command("charcreate MarkerHound", wait=3.0)
+        out = wanderer.command("ic MarkerHound", wait=4.0)
+        require(out, "private room")
+        out = wanderer.command("calling choose hound")
+        require(out, "hound is now your active calling")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("west", "st. lazarus church"),
+            ("west", "churchyard"), ("north", "northern treeline"),
+        ):
+            out = wanderer.command(move)
+            require(out, destination)
+        out = wanderer.command("look cord")
+        require(out, "scarlet cord")
+        out = wanderer.command("survey protect")
         require_all(out, "tie the original frayed cord", "visible warning", "signed event")
+        out = wanderer.command("survey protect")
+        require(out, "already signed today")
         out = hound.command("survey protect")
         require(out, "already signed today")
-        # The Hound's movement and action notified the nearby Wanderer.
-        # Drain unsolicited room broadcasts before testing object look.
-        wanderer.read_quiet()
-        out = wanderer.command("look cord")
-        require_all(out, "cut cleanly", "clear caution marker")
-        out = wanderer.command("survey")
-        require_all(out, "houndtester", "wanderertester", "unmarked cord",
+        out = hound.command("survey")
+        require_all(out, "markerhound", "wanderertester", "unmarked cord",
                     "does not repair the cord")
+        # The old date/hour-only check falsely accepted this pre-marker
+        # inspection. It must be rejected despite a matching village hour.
+        out = hound.command("survey dispatch")
+        require(out, "look at the physical signed red cord after")
+        out = hound.command("look cord")
+        require_all(out, "cut cleanly", "clear caution marker")
+        print("TELNET_GDD_EDGE08_TWO_ACCOUNT_PREMARKER_DENIED_UNTIL_RELOOK_GREEN")
         print("TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN")
         # EDGE-08: the Hound is the actual traveler, not an invented NPC.
         # A distinct Innkeep spends the original Tavern's finite pantry.
