@@ -238,5 +238,100 @@ class ChroniclerWandererAdvisoryTests(unittest.TestCase):
         self.assertIsNone(tomorrow["history"][-1]["advisory"])
 
 
+    def test_signed_publication_readback_requires_completed_canonical_event(self):
+        state = wanderer()
+        published, ok, reason = r.publish_advisory(
+            state, 4, 22, "ChroniclerTester", 102, 101,
+        )
+        self.assertTrue(ok, reason)
+        signed = {
+            "id": 102, "kind": "village.route_map_published",
+            "status": "complete",
+            "actor": {"account_id": 22, "mask": "ChroniclerTester"},
+            "payload": {"site": "red_cord", "day": 4, "version": 1,
+                        "source_event_id": 101, "source_account_id": 21},
+            "consequence": {"square_room_id": 42, "day": 4, "version": 1,
+                            "source_event_id": 101, "source_account_id": 21,
+                            "observation": "unmarked"},
+        }
+        check = lambda event: r.verified_advisory_publication(
+            published, event, square_id=42,
+        )
+        self.assertTrue(check(signed))
+        self.assertTrue(check(json.loads(json.dumps(signed))))
+        self.assertFalse(check(None))
+        self.assertFalse(check({}))
+        for field, invalid in (
+            ("id", 999), ("status", "failed"),
+            ("kind", "village.route_inspected"),
+        ):
+            changed = copy.deepcopy(signed)
+            changed[field] = invalid
+            self.assertFalse(check(changed), field)
+        for section, key, invalid in (
+            ("actor", "account_id", 999),
+            ("actor", "account_id", True),
+            ("actor", "mask", "ForgedChronicler"),
+            ("payload", "site", "market_scale"),
+            ("payload", "day", 5),
+            ("payload", "version", 2),
+            ("payload", "source_event_id", 999),
+            ("payload", "source_account_id", 999),
+            ("consequence", "square_room_id", 999),
+            ("consequence", "day", 5),
+            ("consequence", "version", 2),
+            ("consequence", "source_event_id", 999),
+            ("consequence", "source_account_id", 999),
+            ("consequence", "observation", "marked_caution"),
+        ):
+            changed = copy.deepcopy(signed)
+            changed[section][key] = invalid
+            self.assertFalse(check(changed), (section, key))
+        self.assertFalse(r.verified_advisory_publication(
+            published, signed, square_id=True,
+        ))
+        self.assertTrue(check(signed), "Hostile probes must not mutate evidence")
+        self.assertEqual(published["advisory"]["event_id"], 102)
+
+    def test_public_readback_never_labels_ghost_publications_signed(self):
+        # Execute the real Evennia adapter's public readback body with isolated
+        # ledger and Square fixtures, without making a model or network call.
+        import ast
+        from types import SimpleNamespace
+        path = (Path(__file__).resolve().parents[2] /
+                "spike/fvillage/world/route_work.py")
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        function = next(node for node in tree.body
+                        if isinstance(node, ast.FunctionDef) and
+                        node.name == "status_lines")
+        scope = {}
+        exec(compile(ast.fix_missing_locations(
+            ast.Module(body=[function], type_ignores=[])),
+            str(path), "exec"), scope)
+        published, ok, reason = r.publish_advisory(
+            wanderer(), 4, 22, "ChroniclerTester", 102, 101,
+        )
+        self.assertTrue(ok, reason)
+        # A prior day with no advisory remains a normal archived route.
+        square = SimpleNamespace(id=42, db=SimpleNamespace(
+            daily_route_survey=published,
+        ))
+        scope.update({
+            "_square": lambda: square, "_day_hour": lambda: (4, 21),
+            "route_surveys": r, "LANDMARKS": {
+                site: {"room": "Test Room", "key": site} for site in r.SITES
+            },
+            "get_event_ledger": lambda: SimpleNamespace(
+                get_event=lambda ident: None),
+        })
+        untrusted = scope["status_lines"]()
+        self.assertIn("unverified", untrusted)
+        self.assertNotIn("Public route map v1", untrusted)
+        self.assertNotIn("Chronicler ChroniclerTester (signed event 102)", untrusted)
+        self.assertIn("Solo fallback", untrusted)
+        self.assertEqual(square.db.daily_route_survey, published)
+
+
+
 if __name__ == "__main__":
     unittest.main()
