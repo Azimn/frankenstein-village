@@ -8,22 +8,24 @@ MAX_RECEIPTS = 24
 
 
 def ident(value):
-    if isinstance(value, bool):
+    """Accept only lossless positive IDs, never truncating fractional evidence."""
+    if type(value) is int:
+        return value if value > 0 else None
+    if not (isinstance(value, str) and value.isascii()
+            and value.isdecimal() and len(value) <= 32):
         return None
-    try:
-        number = int(value)
-    except (ValueError, TypeError, OverflowError):
-        return None
+    number = int(value)
     return number if number > 0 else None
 
 
 def stamp(day, hour):
     d = ident(day)
-    if isinstance(hour, bool):
-        return None
-    try:
+    if type(hour) is int:
+        h = hour
+    elif (isinstance(hour, str) and hour.isascii()
+          and hour.isdecimal() and len(hour) <= 4):
         h = int(hour)
-    except (ValueError, TypeError, OverflowError):
+    else:
         return None
     return (d - 1) * 24 + h if d and 0 <= h <= 23 else None
 
