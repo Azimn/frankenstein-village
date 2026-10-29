@@ -69,9 +69,15 @@ def protection_valid(event, marker, cord_id):
         and ident(cord_id)
         and event.get("kind") == "village.route_protected"
         and event.get("status") == "complete"
+        # Two absent or malformed values must not authenticate each other.
+        # A completed source must identify its own event and actor first.
+        and ident(event.get("id")) is not None
+        and ident(actor.get("account_id")) is not None
+        and ident(actor.get("mask_id")) is not None
+        and isinstance(actor.get("mask"), str)
+        and bool(actor["mask"].strip())
         and ident(event.get("id")) == ident(marker.get("event_id"))
         and ident(actor.get("account_id")) == ident(marker.get("account_id"))
-        and ident(actor.get("mask_id"))
         and actor.get("mask") == marker.get("mask")
         and payload.get("site") == "red_cord"
         and payload.get("role") == "hound"
