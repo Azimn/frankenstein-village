@@ -100,6 +100,40 @@ def can_dispatch(last, protection, marker, *, cord_id, day, hour,
     return True, None
 
 
+
+def dispatch_source_marker(current, history, protection, current_protection, cord_id):
+    """Resolve a carried dispatch's signed marker without requiring it to stay current.
+
+    A legitimate next-day re-tying archives the previous physical marker.
+    The signed historical event, immediate replacement chain and original
+    cord must all agree. Unverifiable archives fail closed.
+    """
+    source_id = ident(mapping(protection).get("id"))
+    current = mapping(current)
+    if source_id is None:
+        return None
+    if ident(current.get("event_id")) == source_id:
+        return current if protection_valid(protection, current, cord_id) else None
+    if not protection_valid(current_protection, current, cord_id):
+        return None
+    if (not isinstance(history, (list, tuple))
+            and not (hasattr(history, "__iter__") and hasattr(history, "__len__")
+                     and not isinstance(history, (str, bytes, dict)))):
+        return None
+    try:
+        previous = history[-1]
+    except (IndexError, KeyError, TypeError, ValueError):
+        return None
+    previous = mapping(previous)
+    if (ident(previous.get("event_id")) != source_id
+            or type(previous.get("day")) is not int
+            or type(current.get("day")) is not int
+            or current["day"] <= previous["day"]
+            or ident(current.get("prior_caution_event_id")) != source_id):
+        return None
+    return previous if protection_valid(protection, previous, cord_id) else None
+
+
 def dispatch_valid(event, token, protection, marker, cord_id, item_id):
     event, token = mapping(event), mapping(token)
     actor, payload, consequence = (
