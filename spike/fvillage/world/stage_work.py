@@ -68,6 +68,21 @@ def act(mask, action, tune=None):
     if action in {"rehearse", "perform"} and tune not in stage_state.TUNES:
         return None, "Choose ballad or reel."
     day, hour = _clock()
+    contest_review_id = None
+    if action == "contest":
+        if tune is not None:
+            contest_review_id = stage_state.parse_review_id(tune)
+            if contest_review_id is None:
+                return None, "Choose a positive numeric review event ID."
+        else:
+            current = stage_state.refresh(tavern.db.village_stage, day)
+            show = current["performance"]
+            latest = (show.get("reviews") or [])[-1] if show and show.get("reviews") else None
+            contest_review_id = stage_state.parse_review_id(
+                latest.get("event_id") if latest else None
+            )
+            if contest_review_id is None:
+                return None, "No signed review exists for this performance."
     kwargs = {
         "day": day, "hour": hour,
         "account_id": mask.account.id, "mask_id": mask.id,
@@ -106,10 +121,9 @@ def act(mask, action, tune=None):
                 "witness_event_id": witness["event_id"] if witness else None,
             }
         elif action == "contest":
-            current = stage_state.refresh(tavern.db.village_stage, day)
-            show = current["performance"]
-            latest = (show.get("reviews") or [])[-1] if show and show.get("reviews") else None
-            context = {"review_event_id": tune or (latest["event_id"] if latest else None)}
+            # Fixed at command admission: signed payload and consequence use
+            # exactly the same positive integer, including the no-arg path.
+            context = {"review_event_id": contest_review_id}
         return context
 
     def source_error(context):
@@ -188,7 +202,8 @@ def act(mask, action, tune=None):
             tavern.db.village_stage = current
             return {
                 "tavern_room_id": tavern.id, "day": day, "hour": hour,
-                "tune": tune, "witnesses": len(current["witnesses"]),
+                "tune": None if action == "contest" else tune,
+                "witnesses": len(current["witnesses"]),
                 "performance_event_id": (
                     current["performance"]["event_id"]
                     if current["performance"] else None
@@ -200,7 +215,8 @@ def act(mask, action, tune=None):
 
     event = publish_world_event(
         "village.stage_" + action, actor=mask,
-        payload={"day": day, "hour": hour, "tune": tune,
+        payload={"day": day, "hour": hour,
+                 "tune": None if action == "contest" else tune,
                  "source_performance_event_id": context.get("performance_event_id"),
                  "source_witness_event_id": context.get("witness_event_id"),
                  "review_event_id": context.get("review_event_id"),
