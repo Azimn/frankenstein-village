@@ -21,7 +21,27 @@ def main():
         require(inn.command(f"connect qa_innkeep_care {inn_password}", wait=4),
                 "connected", "account qa_innkeep_care")
         entry = hound.command("ic HoundTester", wait=4)
-        require(inn.command("ic InnkeepTester", wait=4), "blood of the vine")
+        inn_entry = inn.command("ic InnkeepTester", wait=4)
+        # An unplaced returning mask must recover backstage and walk through
+        # the same public front door as every other player.
+        if "private room" in inn_entry.lower():
+            inn_steps = (
+                ("down", "inn common room"), ("east", "inn hallway"),
+                ("south", "village square"), ("east", "blood of the vine"),
+            )
+        elif "inn common room" in inn_entry.lower():
+            inn_steps = (
+                ("east", "inn hallway"), ("south", "village square"),
+                ("east", "blood of the vine"),
+            )
+        elif "village square" in inn_entry.lower():
+            inn_steps = (("east", "blood of the vine"),)
+        elif "blood of the vine" in inn_entry.lower():
+            inn_steps = ()
+        else:
+            raise AssertionError("Unexpected Innkeep starting room: " + inn_entry[-600:])
+        for move, destination in inn_steps:
+            require(inn.command(move), destination)
         # Respect the actual persisted Hound location after prior independent
         # regressions. All travel uses ordinary room exits, never shell moves.
         if "blood of the vine" in entry.lower():
