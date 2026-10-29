@@ -1116,6 +1116,13 @@ def main() -> int:
         out = h.command("calling")
         require(out, "resident assessments 1")
 
+        # The completed signed Healer assessment is not a license to provide
+        # Innkeep hospitality or consume the finite stew under the same role.
+        out = h.command("care serve Silas Crowe")
+        require(out, "active innkeep calling")
+        out = h.command("care")
+        require(out, "hospitality is still needed")
+
         # A third independent account proves the Innkeep contribution cannot
         # be replaced by the Healer or the existing Chronicler mask.
         inn = Client(args.host, args.port)
@@ -1263,6 +1270,7 @@ def main() -> int:
         require(out, "healer assessed him")
         require(out, "innkeep spent a real tavern meal")
 
+        print("TELNET_GDD_EDGE03_TWO_ACCOUNT_FINITE_CARE_GREEN")
         out = inn.command("care serve Silas Crowe")
         require(out, "tavern care is already complete")
         out = inn.command("calling")

@@ -346,6 +346,25 @@ assert hospitality_event["payload"]["servings_before"] - (
     hospitality_event["payload"]["servings_after"]
 ) == 1
 
+# GDD-EDGE-03: two actual accounts and an independently completed Healer
+# event, not merely a situation row, survive the real Evennia restart.
+assert assessment_event["status"] == "complete"
+assert hospitality_event["status"] == "complete"
+assert cold_assessment["account_id"] == assessment_event["actor"]["account_id"]
+assert cold_hospitality["account_id"] == hospitality_event["actor"]["account_id"]
+assert cold_assessment["account_id"] != cold_hospitality["account_id"]
+assert cold_hospitality["source_healer_account_id"] == cold_assessment["account_id"]
+assert cold_hospitality["source_healer_mask_id"] == cold_assessment["mask_id"]
+assert hospitality_event["payload"]["source_healer_account_id"] == cold_assessment["account_id"]
+assert hospitality_event["payload"]["source_healer_mask_id"] == cold_assessment["mask_id"]
+assert assessment_event["actor"]["mask_id"] == cold_assessment["mask_id"]
+assert assessment_event["payload"]["situation_id"] == TAVERN_COLD_CARE_ID
+assert assessment_event["payload"]["resident_ids"] == ["silas_crowe"]
+assert assessment_event["payload"]["professional_calling"] == "healer"
+assert assessment_event["payload"]["day"] == cold_assessment["day"]
+assert assessment_event["payload"]["hour"] == cold_assessment["hour"]
+print("POST_RESTART_GDD_EDGE03_SIGNED_DISTINCT_CARE_GREEN")
+
 # Smith and Merchant repair work survives restart as professional history,
 # finite stock depletion, linked provenance, and transformed object state.
 assert active_calling(smith_tester) == "smith"
