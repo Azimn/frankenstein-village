@@ -47,8 +47,24 @@ def protection_valid(event, marker, cord_id):
     actor, payload, consequence = (
         mapping(event.get("actor")), mapping(event.get("payload")),
         mapping(event.get("consequence")))
+    marker_day = marker.get("day")
+    source_day = payload.get("day")
+    effect_day = consequence.get("day")
+    prior_marker = marker.get("prior_caution_event_id")
+    prior_source = payload.get("prior_caution_event_id")
+    prior_effect = consequence.get("prior_caution_event_id")
     return bool(
-        ident(cord_id)
+        # A persisted marker is physical evidence only for its own signed
+        # protection day. Never coerce booleans, strings or missing dates.
+        type(marker_day) is int and marker_day > 0
+        and type(source_day) is int and type(effect_day) is int
+        and marker_day == source_day == effect_day
+        and (
+            (prior_marker is None and prior_source is None and prior_effect is None)
+            or (type(prior_marker) is int and prior_marker > 0
+                and prior_marker == prior_source == prior_effect)
+        )
+        and ident(cord_id)
         and event.get("kind") == "village.route_protected"
         and event.get("status") == "complete"
         and ident(event.get("id")) == ident(marker.get("event_id"))
@@ -61,8 +77,7 @@ def protection_valid(event, marker, cord_id):
         and payload.get("location") == TREELINE
         and stamp(payload.get("day"), payload.get("hour")) is not None
         and ident(consequence.get("cord_object_id")) == ident(cord_id)
-        and consequence.get("caution_marked") is True
-        and ident(consequence.get("day")) == ident(payload.get("day")))
+        and consequence.get("caution_marked") is True)
 
 
 def can_dispatch(last, protection, marker, *, cord_id, day, hour,
@@ -73,6 +88,8 @@ def can_dispatch(last, protection, marker, *, cord_id, day, hour,
     if not protection_valid(protection, marker, cord_id):
         return False, "The original cord has no completed signed Hound warning."
     source = mapping(protection.get("payload"))
+    if source.get("day") != day:
+        return False, "A fresh signed Hound warning is required today."
     if stamp(source.get("day"), source.get("hour")) > now:
         return False, "The source warning lies in the future."
     if last is not None:
@@ -110,6 +127,9 @@ def dispatch_valid(event, token, protection, marker, cord_id, item_id):
         and ident(consequence.get("item_id")) == ident(item_id)
         and ident(consequence.get("source_protect_event_id"))
             == ident(mapping(protection).get("id"))
+        # The dispatch itself must be issued on the signed marker day.
+        # A later Tavern meal may still be served within its 24-hour window.
+        and payload.get("day") == mapping(protection.get("payload")).get("day")
         and stamp(payload.get("day"), payload.get("hour"))
             == stamp(token.get("day"), token.get("hour"))):
         return False
