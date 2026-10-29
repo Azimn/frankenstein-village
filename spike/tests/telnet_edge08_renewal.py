@@ -91,7 +91,7 @@ def main():
         require(hound.command("survey protect"), "examine the physical red cord")
         require_all(hound.command("look cord"), "scarlet cord", "caution marker")
         # Old marker cannot be passed off as a current-day signed inspection.
-        require(hound.command("survey dispatch"), "look at the physical signed red cord after")
+        require(hound.command("survey dispatch"), "A fresh signed Hound warning is required today")
         require_all(hound.command("survey protect"),
                     "tie the original frayed cord", "visible warning", "signed event")
         require(hound.command("survey protect"), "already signed today")
