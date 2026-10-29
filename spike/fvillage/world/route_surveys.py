@@ -252,6 +252,45 @@ def publish_advisory(raw, day, account_id, mask, event_id, source_event_id):
     return state, True, None
 
 
+
+def verified_advisory_publication(raw, event, *, square_id):
+    """A saved editorial claim is not signed without its completed ledger act.
+
+    Stay pure: the Evennia adapter fetches the canonical event, and this
+    predicate refuses mismatched actor, source, day, room or consequence.
+    """
+    state = normalize(raw)
+    item = state["advisory"]
+    if not item or not hasattr(event, "get"):
+        return False
+    actor, payload, consequence = (
+        event.get("actor"), event.get("payload"), event.get("consequence")
+    )
+    if not all(hasattr(value, "get") for value in (actor, payload, consequence)):
+        return False
+    def same_positive(actual, expected):
+        return type(actual) is int and actual > 0 and actual == expected
+    return (
+        same_positive(square_id, consequence.get("square_room_id"))
+        and same_positive(event.get("id"), item["event_id"])
+        and event.get("status") == "complete"
+        and event.get("kind") == "village.route_map_published"
+        and same_positive(actor.get("account_id"), item["account_id"])
+        and actor.get("mask") == item["mask"]
+        and payload.get("site") == item["site"] == "red_cord"
+        and same_positive(payload.get("day"), item["source_day"])
+        and item["source_day"] == state["day"]
+        and same_positive(payload.get("version"), item["version"])
+        and same_positive(payload.get("source_event_id"), item["source_event_id"])
+        and same_positive(payload.get("source_account_id"), item["source_account_id"])
+        and same_positive(consequence.get("day"), item["source_day"])
+        and same_positive(consequence.get("version"), item["version"])
+        and same_positive(consequence.get("source_event_id"), item["source_event_id"])
+        and same_positive(consequence.get("source_account_id"), item["source_account_id"])
+        and consequence.get("observation") == item["observation"]
+    )
+
+
 def advisory_lines(raw):
     state = normalize(raw)
     item = state["advisory"]
