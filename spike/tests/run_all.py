@@ -80,6 +80,26 @@ def dump_logs(game: Path) -> None:
             print("\n".join(content.splitlines()[-160:]))
 
 
+
+def stop_evennia_after_phase(evennia: Path, *, game: Path, env: dict,
+                             phase_failed: bool) -> None:
+    """Keep the original gameplay failure if server cleanup also fails.
+
+    A failed stop on an otherwise successful phase is still a test failure.
+    This helper never reports a green phase after either failure.
+    """
+    try:
+        run([evennia, "stop"], cwd=game, env=env, timeout=60)
+    except Exception as stop_error:
+        if not phase_failed:
+            raise
+        print(
+            f"Evennia stop also failed; original gameplay failure retained: "
+            f"{stop_error}",
+            file=sys.stderr,
+        )
+
+
 def main() -> int:
     if sys.version_info[:2] != (3, 12):
         print(
@@ -463,7 +483,10 @@ def main() -> int:
                 # A name-only inventory response plus a final Square location
                 # cannot distinguish authentic growth from a forged decoy.
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             migrated_repick_proof = (
                 "from evennia.utils import search\n"
                 "from world import clinic_inquiry_state as rules\n"
@@ -508,7 +531,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=90,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             migrated_post_client_proof = (
                 "from evennia.utils import search\n"
                 "from world import clinic_inquiry_state as rules\n"
