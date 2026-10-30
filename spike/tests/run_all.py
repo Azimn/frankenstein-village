@@ -179,10 +179,15 @@ def main() -> int:
                 "fact = assign_fact(lark, class_hint='ordinary')\n"
                 "lark.db.qa_fact_id = fact['fact_id']\n"
                 "set_location_availability('schoolhouse', False, reason='school_destroyed')\n"
-                # Regression: simulate a legacy well mushroom present without
-                # hidden toxin and with stale public aliases/configuration.
+                # Mutate the registered physical growth, never a same-name
+                # legacy decoy selected by an arbitrary global search order.
                 "from world.object_properties import configure_mechanical_properties\n"
-                "shroom = [o for o in search.search_object('a cluster of mushrooms') if o.key == 'a cluster of mushrooms'][0]\n"
+                "from commands.village_cmds import _preferred_well_growth_pickup\n"
+                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\n"
+                "shroom = _preferred_well_growth_pickup([o for o in square.contents if o.key == 'a cluster of mushrooms'], square)\n"
+                "assert shroom is not None, 'registered growth missing before rebuild'\n"
+                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\n"
+                "well.db.qa_expected_growth_id = shroom.id\n"
                 "configure_mechanical_properties(shroom, {}, hidden_properties={})\n"
                 "shroom.db.desc = 'stale mushroom description'\n"
                 "shroom.db.consume = {'toxic': 25, 'nourish': 5}\n"
@@ -194,6 +199,22 @@ def main() -> int:
 
             build = (game / "world" / "build_spike.py").read_text(encoding="utf-8")
             run([evennia, "shell"], cwd=game, env=env, input_text=build)
+
+            # Rebuilding the world must restore the SAME registered specimen
+            # without creating a duplicate or losing its physical identity.
+            rebuild_proof = (
+                "from evennia.utils import search\n"
+                "from commands.village_cmds import ensure_well_mushrooms\n"
+                "from world.object_properties import hidden_mechanical_properties\n"
+                "well = [o for o in search.search_object('village well') if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\n"
+                "before = tuple(well.db.well_mushroom_spawn_ids or [])\n"
+                "grown = ensure_well_mushrooms()\n"
+                "assert grown is not None and grown.id == well.db.qa_expected_growth_id\n"
+                "assert tuple(well.db.well_mushroom_spawn_ids or []) == before\n"
+                "assert hidden_mechanical_properties(grown) == {'toxin': 25}\n"
+                "print('WELL_CANONICAL_REBUILD_IDEMPOTENT_GREEN')\n"
+            )
+            run([evennia, "shell"], cwd=game, env=env, input_text=rebuild_proof)
 
             assertions = (checkout / "spike" / "tests" / "world_assertions.py").read_text(
                 encoding="utf-8"
@@ -359,6 +380,34 @@ def main() -> int:
                         text=True,
                         timeout=60,
                     )
+
+            # Seed a hostile same-name legacy decoy only AFTER ordinary-client
+            # health/inquiry play, so those existing scenarios remain intact.
+            # This persists through the real process restart below and checks
+            # that a copied source ID and hidden toxin never become registry proof.
+            migrated_well_fixture = (
+                "from evennia.utils import search, create\n"
+                "from commands.village_cmds import ensure_well_mushrooms, _preferred_well_growth_pickup\n"
+                "from world import clinic_inquiry_state\n"
+                "from world.object_properties import configure_mechanical_properties\n"
+                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\n"
+                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\n"
+                "legacy = create.create_object('typeclasses.objects.Object', key='a cluster of mushrooms', location=square, aliases=['mushrooms', 'cluster', 'toadstools'])\n"
+                "legacy.db.qa_legacy_mushroom_decoy = True\n"
+                "legacy.db.well_mushroom_source_id = well.id\n"
+                "configure_mechanical_properties(legacy, {}, hidden_properties={'toxin': 25})\n"
+                "grown = ensure_well_mushrooms()\n"
+                "assert grown is not None and grown.id != legacy.id\n"
+                "before = list(well.db.well_mushroom_spawn_ids or [])\n"
+                "assert not clinic_inquiry_state.registered_well_growth(legacy.id, before)\n"
+                "assert clinic_inquiry_state.registered_well_growth(grown.id, before)\n"
+                "assert _preferred_well_growth_pickup([legacy, grown], square) is grown\n"
+                "assert ensure_well_mushrooms() is grown\n"
+                "assert list(well.db.well_mushroom_spawn_ids or []) == before\n"
+                "print('WELL_MIGRATED_LEGACY_COEXISTENCE_PRE_RESTART_GREEN')\n"
+            )
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=migrated_well_fixture)
 
             # Restart the actual server once after player-created resident state
             # exists, then inspect the database through a fresh process.
