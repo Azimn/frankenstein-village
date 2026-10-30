@@ -91,25 +91,35 @@ def source_valid(event, assessment, room_id):
 
 def investigate(raw, *, day, hour, account_id, mask_id, mask, event_id,
                 source_event_id, source_account_id, source_mask_id,
-                source_day, source_hour, cot_id, room_id):
-    """One independent, same-patient-day procedural record per village day."""
+                source_day, source_hour, cot_id, room_id, preview=False):
+    """Validate a player attempt; only a real ledger ID can sign a record.
+
+    Preview checks the same physical, account, clock and duplicate gates,
+    but does not invent an event ID or mutate even the returned state.
+    """
     state = normalize(raw)
     now, earlier = stamp(day, hour), stamp(source_day, source_hour)
-    ids = (account_id, mask_id, event_id, source_event_id,
+    ids = (account_id, mask_id, source_event_id,
            source_account_id, source_mask_id, cot_id, room_id)
-    if now is None or earlier is None or any(positive(i) is None for i in ids):
+    if (type(preview) is not bool or now is None or earlier is None
+            or any(positive(i) is None for i in ids)
+            or (preview and event_id is not None)
+            or (not preview and positive(event_id) is None)):
         return state, False, "A real account, original cot and valid village clock are required."
     if day != source_day or now < earlier:
         return state, False, "The source is not from the present patient or lies in the future."
     if account_id == source_account_id:
         return state, False, "One account cannot sign both professional roles."
-    if event_id == source_event_id:
+    if not preview and event_id == source_event_id:
         return state, False, "The inquiry requires its own independent signed event."
     if state["records"] and now < max(stamp(r["day"], r["hour"]) for r in state["records"]):
         return state, False, "The clock cannot rewind behind recorded clinic inquiries."
     if any(r["day"] == day or r["source_event_id"] == source_event_id
-           or r["event_id"] == event_id for r in state["records"]):
+           or (not preview and r["event_id"] == event_id)
+           for r in state["records"]):
         return state, False, "This patient-day already has an independent inquiry."
+    if preview:
+        return copy.deepcopy(state), True, None
     state["records"].append({
         "day": day, "hour": hour, "account_id": account_id,
         "mask_id": mask_id, "mask": str(mask or "")[:70],
