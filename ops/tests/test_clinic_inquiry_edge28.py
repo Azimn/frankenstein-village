@@ -310,6 +310,50 @@ class ClinicInquiryRules(unittest.TestCase):
                 self.assertFalse(rules.well_case_source_valid(
                     origin, well, toxin))
 
+    def test_multiple_real_case_specimens_select_stably(self):
+        from itertools import permutations
+        from types import SimpleNamespace
+
+        room, detective = object(), object()
+        def specimen(object_id, location, origin=601, toxin=25):
+            return SimpleNamespace(id=object_id, location=location,
+                                   origin=origin, toxin=toxin)
+
+        floor_old = specimen(701, room)
+        floor_new = specimen(702, room)
+        carried = specimen(703, detective)
+        decoy = specimen(1, detective, origin=602)
+        no_toxin = specimen(2, detective, toxin=0)
+        bad_id = specimen(True, detective)
+
+        def real_clusters(objects):
+            return [obj for obj in objects
+                    if rules.well_case_source_valid(obj.origin, 601, obj.toxin)]
+
+        # Two authentic clusters on the floor must no longer block inquiry.
+        self.assertIs(rules.choose_case_item(
+            real_clusters([floor_new, floor_old]), detective), floor_old)
+        # An authentic carried specimen wins over room.contents order.
+        for ordered in permutations((floor_new, carried, floor_old, decoy)):
+            self.assertIs(rules.choose_case_item(
+                real_clusters(ordered), detective), carried)
+        # Among two carried specimens the lower stable physical ID wins.
+        carried_old = specimen(699, detective)
+        self.assertIs(rules.choose_case_item(
+            real_clusters([carried, carried_old, floor_old]), detective),
+            carried_old)
+        # Forged origin, absent toxin and malformed IDs never win selection.
+        self.assertIs(rules.choose_case_item(
+            real_clusters([decoy, no_toxin, bad_id, floor_old]), detective),
+            floor_old)
+        self.assertIsNone(rules.choose_case_item(
+            real_clusters([decoy, no_toxin, bad_id]), detective))
+        self.assertIsNone(rules.choose_case_item([], detective))
+        # A changed selection between preview and commit must be observable
+        # by the adapter's existing atomic _case_item identity recheck.
+        self.assertIsNot(rules.choose_case_item([carried], detective),
+                         rules.choose_case_item([carried_old, carried], detective))
+
     def test_corrupt_public_records_fail_closed_without_crashing(self):
         for records in (17, True, "forged", {"event_id": 202}, object()):
             with self.subTest(records_type=type(records).__name__):
