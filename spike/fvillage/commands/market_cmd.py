@@ -11,6 +11,7 @@ class CmdTrade(Command):
         trade hold        (Merchant: suspend disputed material distribution)
         trade release     (Merchant: reopen distribution)
         trade calibrate   (Smith: correct the scale)
+        trade audit       (Chronicler: independently audit a Merchant decision)
         trade attest      (Chronicler: attest both source records)
         trade investigate (Detective: inspect a signed Merchant hold)
         trade rebut       (Merchant: answer an independent inquiry)
@@ -35,7 +36,8 @@ class CmdTrade(Command):
             from world.market_inquiry_work import status as inquiry_status
             caller.msg(market_work.state_lines() + "\n" + inquiry_status() + "\n" +
                        "Detectives: look market scale, then trade investigate " +
-                       "after a signed Merchant hold. Original Merchant: trade rebut.")
+                       "after a signed Merchant hold. Original Merchant: trade rebut. " +
+                       "Chroniclers: trade audit a signed Merchant decision.")
             return
         if action in {"investigate", "rebut"}:
             from world.market_inquiry_work import perform as inquiry_action
