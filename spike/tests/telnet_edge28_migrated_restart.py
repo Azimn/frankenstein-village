@@ -32,6 +32,10 @@ def main():
             "DetectiveClinicTester", "St. Lazarus Church",
         )
 
+        if args.phase == "before":
+            require(healer.command("west"), "village square")
+            require(healer.command("west"), "st. lazarus church")
+
         # Two independently signed roles see the same public record. Neither
         # role can substitute for the other's permission or create a second
         # signed inquiry for an already completed cot.
@@ -53,7 +57,7 @@ def main():
         require(detective.command("calling"), "clinic inquiry 1")
 
         if args.phase == "before":
-            require(healer.command("west"), "village square")
+            require(healer.command("east"), "village square")
             # The square contains the deliberately forged same-name, copied-
             # source/toxin decoy AND genuine registered well growth. Ordinary
             # unnumbered pickup must prefer the latter, verified by the
