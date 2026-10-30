@@ -1461,7 +1461,7 @@ def main() -> int:
         # A witnessed cot alone is insufficient: the Detective must bring
         # a real source-world case item, not a narrative clue token.
         out = detective.command("clinic investigate exposure")
-        require(out, "bring one real cluster of mushrooms")
+        require(out, "bring a real cluster of mushrooms")
         out = detective.command("east")
         require(out, "village square")
         out = detective.command("get mushrooms")
