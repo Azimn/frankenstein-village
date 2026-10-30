@@ -33,6 +33,21 @@ def well_case_source_valid(origin_well_id, actual_well_id, toxin_value):
             and type(toxin_value) is int and toxin_value > 0)
 
 
+def choose_case_item(candidates, carrier):
+    """Choose a real, already-validated specimen without arbitrary list order.
+
+    Prefer a physically carried cluster over one left in the clinic room.
+    Within either location use the stable Evennia object ID, not room.contents
+    order. The adapter validates origin, toxin and location before this step;
+    it rechecks the exact chosen object inside the signed consequence.
+    """
+    eligible = [obj for obj in candidates
+                if positive(getattr(obj, "id", None)) is not None]
+    return min(eligible,
+               key=lambda obj: (obj.location is not carrier, obj.id),
+               default=None)
+
+
 def stamp(day, hour):
     if positive(day) is None or type(hour) is not int or not 0 <= hour <= 23:
         return None
