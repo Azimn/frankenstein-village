@@ -48,6 +48,8 @@ def _case_item(mask, room):
                   and o.location in (room, mask)
                   and o.is_typeclass("typeclasses.objects.Object", exact=True)
                   and is_hidden_mechanical_property(o, "toxin")
+                  and clinic_inquiry_state.registered_well_growth(
+                      o.id, getattr(well.db, "well_mushroom_spawn_ids", None))
                   and clinic_inquiry_state.well_case_source_valid(
                       getattr(o.db, "well_mushroom_source_id", None),
                       well.id, mechanical_value(o, "toxin", None))]
