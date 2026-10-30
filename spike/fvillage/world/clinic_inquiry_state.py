@@ -235,8 +235,10 @@ def public_lines(raw, day, event_lookup=None):
     current = next((r for r in reversed(records) if r["day"] == day), None)
     if not current:
         return ("No independent Detective inquiry has been signed for today's "
-                "clinic cot. A Detective can look at the cot and use clinic investigate "
-                "after a Healer's signed assessment.")
+                "clinic cot. A Detective can look at the cot, bring a real well-mushroom "
+                "cluster to St. Lazarus, and use clinic investigate illness or "
+                "clinic investigate exposure after a Healer's signed assessment. "
+                "Neither hypothesis is a proven cause.")
     if event_lookup is None:
         try:
             from world.events import get_event_ledger
