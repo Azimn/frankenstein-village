@@ -23,7 +23,8 @@ def fixture():
     args = dict(day=1, hour=21, account_id=22, mask_id=222,
                 mask="DetectiveTester", event_id=202, source_event_id=101,
                 source_account_id=11, source_mask_id=111,
-                source_day=1, source_hour=21, cot_id=401, room_id=301)
+                source_day=1, source_hour=21, cot_id=401, room_id=301,
+                case_item_id=501, interpretation="unrelated_illness")
     return assessment, event, args
 
 
@@ -35,6 +36,8 @@ class ClinicInquiryRules(unittest.TestCase):
         self.assertTrue(good, reason)
         self.assertEqual(state["records"][0]["source_event_id"], 101)
         self.assertEqual(state["records"][0]["cot_id"], 401)
+        self.assertEqual(state["records"][0]["case_item_id"], 501)
+        self.assertEqual(state["records"][0]["alternative"], "possible_exposure")
         self.assertNotIn("cold", rules.public_lines(state, 1))
         self.assertNotIn("HealerTester", rules.public_lines(state, 1))
 
@@ -135,6 +138,9 @@ class ClinicInquiryRules(unittest.TestCase):
         for field, value in (("account_id", 11), ("account_id", True),
                              ("mask_id", 0), ("event_id", True),
                              ("source_event_id", -1), ("cot_id", 0),
+                             ("room_id", "301"), ("case_item_id", None),
+                             ("case_item_id", True), ("case_item_id", 501.5),
+                             ("interpretation", "confirmed_poisoning"),
                              ("room_id", "301"), ("day", True),
                              ("hour", 24), ("hour", -1)):
             with self.subTest(field=field, value=value):
@@ -186,10 +192,17 @@ class ClinicInquiryRules(unittest.TestCase):
             "actor": {"account_id": 22, "mask_id": 222, "mask": "DetectiveTester"},
             "payload": {"day": 1, "hour": 21, "professional_calling": "detective",
                         "cot_id": 401, "room_id": 301,
+                        "case_item_id": 501, "case_item_key": rules.CASE_ITEM_KEY,
+                        "interpretation": "unrelated_illness",
+                        "alternative": "possible_exposure",
                         "source_healer_event_id": 101, "source_healer_account_id": 11},
             "consequence": {"cot_id": 401, "room_id": 301,
+                            "case_item_id": 501,
+                            "interpretation": "unrelated_illness",
+                            "alternative": "possible_exposure",
+                            "causal_status": "unproven",
                             "source_healer_event_id": 101,
-                            "finding": "qualified_clinic_timeline",
+                            "finding": "contested_clinic_cause",
                             "day": 1, "hour": 21},
         }
         events = {101: source, 202: inquiry}
@@ -197,6 +210,9 @@ class ClinicInquiryRules(unittest.TestCase):
         line = rules.public_lines(state, 1, lookup)
         self.assertIn("signed as event 202", line)
         self.assertIn("Healer assessment event 101", line)
+        self.assertIn("Competing interpretations", line)
+        self.assertIn("physical specimen 501", line)
+        self.assertIn("neither causal explanation is proven", line)
         self.assertNotIn("HealerTester", line)
         self.assertNotIn("cold", line)
 
@@ -210,6 +226,14 @@ class ClinicInquiryRules(unittest.TestCase):
             (202, ("kind",), "village.clinic_assess"),
             (202, ("actor", "account_id"), 11),
             (202, ("payload", "cot_id"), 999),
+            (202, ("payload", "case_item_id"), 999),
+            (202, ("payload", "case_item_key"), "invented clue"),
+            (202, ("payload", "interpretation"), "confirmed_poisoning"),
+            (202, ("payload", "alternative"), "confirmed_poisoning"),
+            (202, ("consequence", "case_item_id"), 999),
+            (202, ("consequence", "interpretation"), "confirmed_poisoning"),
+            (202, ("consequence", "alternative"), "confirmed_poisoning"),
+            (202, ("consequence", "causal_status"), "confirmed"),
             (202, ("payload", "source_healer_event_id"), 999991),
             (202, ("consequence", "source_healer_event_id"), 999992),
             (202, ("consequence", "finding"), "diagnosis"),
@@ -232,6 +256,27 @@ class ClinicInquiryRules(unittest.TestCase):
                 self.assertIn("requires signed source inspection",
                               rules.public_lines(state, 1, forged.get))
         self.assertEqual(state["records"][0]["event_id"], 202)
+
+    def test_case_item_and_rival_hypotheses_are_required(self):
+        _assessment, _event, args = fixture()
+        for field, bad in (("case_item_id", None), ("case_item_id", 0),
+                           ("case_item_id", 501.25), ("interpretation", None),
+                           ("interpretation", "proven_toxin")):
+            with self.subTest(field=field, bad=bad):
+                state, okay, _ = rules.investigate(None, **dict(args, **{field: bad}))
+                self.assertFalse(okay)
+                self.assertEqual(state["records"], [])
+        alternate, okay, reason = rules.investigate(
+            None, **dict(args, interpretation="possible_exposure"))
+        self.assertTrue(okay, reason)
+        self.assertEqual(alternate["records"][0]["alternative"], "unrelated_illness")
+        self.assertEqual(rules.normalize(json.loads(json.dumps(alternate))), alternate)
+        for field, bad in (("case_item_id", None), ("case_item_id", 999.1),
+                           ("alternative", "possible_exposure"),
+                           ("interpretation", "proven_toxin")):
+            forged = copy.deepcopy(alternate)
+            forged["records"][0][field] = bad
+            self.assertEqual(rules.normalize(forged)["records"], [])
 
     def test_corrupt_public_records_fail_closed_without_crashing(self):
         for records in (17, True, "forged", {"event_id": 202}, object()):
