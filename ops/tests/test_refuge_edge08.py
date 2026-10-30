@@ -604,6 +604,10 @@ class RefugeRules(unittest.TestCase):
         corruptions = (
             (41, "consequence", "cord_object_id", 999),
             (41, "consequence", "caution_marked", False),
+            (41, "consequence", "day", 4),
+            (41, "actor", "mask", ""),
+            (42, "actor", "mask", ""),
+            (43, "actor", "mask", ""),
             (41, "payload", "location", "The Village Square"),
             (42, "actor", "account_id", 999),
             (42, "consequence", "item_id", 999),
@@ -630,6 +634,10 @@ class RefugeRules(unittest.TestCase):
         fake = {"history": [dict(row, event_id=999991)]}
         self.assertIn("requires signed source inspection",
                       r.public_lines(fake, canonical.get))
+        def broken_ledger(_event_id):
+            raise RuntimeError("ledger unavailable")
+        self.assertIn("requires signed source inspection",
+                      r.public_lines(persisted, broken_ledger))
         self.assertEqual(pantry["stock"]["turnip"], 2)
 
     def test_public_readback_accepts_historical_dispatch_after_retying(self):
