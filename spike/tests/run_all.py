@@ -402,7 +402,7 @@ def main() -> int:
                 "assert not clinic_inquiry_state.registered_well_growth(legacy.id, before)\n"
                 "assert clinic_inquiry_state.registered_well_growth(grown.id, before)\n"
                 "assert _preferred_well_growth_pickup([legacy, grown], square) is grown\n"
-                "assert ensure_well_mushrooms() is grown\n"
+                "assert ensure_well_mushrooms().id == grown.id\n"
                 "assert list(well.db.well_mushroom_spawn_ids or []) == before\n"
                 "print('WELL_MIGRATED_LEGACY_COEXISTENCE_PRE_RESTART_GREEN')\n"
             )
