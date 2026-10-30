@@ -36,7 +36,10 @@ def main():
         require_all(after, "repair complete", "north-square gas lamp is working again")
         require(smith.command("calling"), "repair completions 1")
         smith_agenda = smith.command("agenda")
-        require(smith_agenda, "completed by another account")
+        # The original Smith actually completed the repair. The agenda must
+        # acknowledge this mask's signed contribution, not misattribute it
+        # to another account. The case must still remain closed after restart.
+        require(smith_agenda, "Your contribution is recorded")
         require_all(smith_agenda, "north-square gas lamp is repaired",
                     "no repeat repair is needed")
         print("TELNET_GDD_T16_POST_RESTART_COMMISSION_OUTCOME_GREEN")
