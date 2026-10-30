@@ -6,6 +6,7 @@ from django.db import transaction
 from world import clinic_inquiry_state, clinic_state, clinic_work
 from world.callings import active_calling, record_participation
 from world.events import get_event_ledger, publish_world_event
+from world.object_properties import is_hidden_mechanical_property
 
 
 def _cot(room):
@@ -23,7 +24,20 @@ def _seen(mask, cot, day):
             and observation.get("day") == day)
 
 
-def investigate(mask):
+def _case_item(mask, room):
+    """Only a real, present well-mushroom object can anchor the inquiry.
+
+    Its hidden toxin mechanic is checked by the engine, never revealed as a
+    patient exposure or an established cause. No synthetic evidence is minted.
+    """
+    candidates = [o for o in list(room.contents) + list(mask.contents)
+                  if o.key == clinic_inquiry_state.CASE_ITEM_KEY
+                  and o.location in (room, mask)
+                  and is_hidden_mechanical_property(o, "toxin")]
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def investigate(mask, interpretation="unrelated_illness"):
     room, error = clinic_work._guard(mask)
     if error:
         return None, error
@@ -37,6 +51,12 @@ def investigate(mask):
         return None, "The village clock is invalid."
     if not _seen(mask, cot, day):
         return None, "Look at the original clinic cot before investigating."
+    if interpretation not in clinic_inquiry_state.INTERPRETATIONS:
+        return None, "Choose clinic investigate illness or clinic investigate exposure."
+    specimen = _case_item(mask, room)
+    if specimen is None:
+        return None, ("Bring one real cluster of mushrooms from the village well "
+                      "to the original clinic cot as a physical case item.")
     clinic = clinic_state.refresh(room.db.village_clinic, day)
     if clinic["day"] != day or not clinic["assessment"]:
         return None, "A Healer must sign today's actual patient assessment first."
@@ -51,7 +71,8 @@ def investigate(mask):
         source_account_id=source["account_id"],
         source_mask_id=source["mask_id"],
         source_day=source["day"], source_hour=source["hour"],
-        cot_id=cot.id, room_id=room.id,
+        cot_id=cot.id, room_id=room.id, case_item_id=specimen.id,
+        interpretation=interpretation,
     )
     # No event exists at preflight time. The real ledger ID is checked
     # separately inside the atomic consequence before signing the cot.
@@ -66,7 +87,8 @@ def investigate(mask):
                     or mask.location != room or cot.location != room
                     or active_calling(mask) != "detective"
                     or not _seen(mask, cot, day)
-                    or mask.account.id != common["account_id"]):
+                    or mask.account.id != common["account_id"]
+                    or _case_item(mask, room) != specimen):
                 raise RuntimeError("The Detective, physical cot or village hour changed.")
             current = clinic_state.refresh(room.db.village_clinic, day)
             if (current["day"] != day or current["assessment"] != source
@@ -81,7 +103,11 @@ def investigate(mask):
             return {
                 "cot_id": cot.id, "room_id": room.id,
                 "source_healer_event_id": source["event_id"],
-                "finding": "qualified_clinic_timeline",
+                "case_item_id": specimen.id,
+                "interpretation": interpretation,
+                "alternative": clinic_inquiry_state.alternative(interpretation),
+                "causal_status": "unproven",
+                "finding": "contested_clinic_cause",
                 "day": day, "hour": hour,
             }
 
@@ -90,6 +116,10 @@ def investigate(mask):
         payload={
             "day": day, "hour": hour, "professional_calling": "detective",
             "cot_id": cot.id, "room_id": room.id,
+            "case_item_id": specimen.id,
+            "case_item_key": clinic_inquiry_state.CASE_ITEM_KEY,
+            "interpretation": interpretation,
+            "alternative": clinic_inquiry_state.alternative(interpretation),
             "source_healer_event_id": source["event_id"],
             "source_healer_account_id": source["account_id"],
             "harbinger": False, "chronicle_eligible": False,
@@ -97,5 +127,7 @@ def investigate(mask):
         consequence=consequence,
     )
     record_participation(mask, "clinic_inquiry", calling="detective")
-    return {"event_id": event["id"],
+    return {"event_id": event["id"], "case_item_id": specimen.id,
+            "interpretation": interpretation,
+            "alternative": clinic_inquiry_state.alternative(interpretation),
             "source_event_id": source["event_id"]}, None
