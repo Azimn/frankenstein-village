@@ -3,7 +3,10 @@
 `python ops/launch_gate.py /private/evidence/launch-manifest.json`
 checks the **form** of a human operator's release attestation. The check
 is deliberately stricter than a GitHub CI green badge: a fresh clean-checkout
-game test is not equivalent to a running multiplayer server.
+game test is not equivalent to a running multiplayer server. **A local
+language model or AI-controlled player is never required.** The required
+`ordinary_account_access` and `ordinary_client_reconnect` checks concern
+conventional non-staff MUD sessions, not model clients.
 
 The manifest must contain:
 
@@ -16,6 +19,8 @@ The manifest must contain:
   individually inspectable path. Plain HTTP, loopback/private IPs, fake
   `example.*` hosts, usernames in URLs, expired dates, date-only strings,
   missing entries and SHA mismatches keep the result **NO-GO**.
+- Verified conventional browser/terminal account access and reconnection,
+  without agent-only commands or model inference.
 - Verified continuous connection soak under the chosen hosted conditions,
   event tick behavior under actual multiplayer load, independent review of
   game-breaking problems found during uncoached normal-interface playtests,

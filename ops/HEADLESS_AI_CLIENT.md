@@ -5,10 +5,12 @@ in-game NPCs. It speaks the same ordinary text commands that human players
 use, including `agentlogin` and `agent`. No privileged fast path, HTTP
 admin access, database queries, or gameplay test hooks are involved.
 
-**Do not run a multiplayer soak yet.** Calibos is auditing the AI-first
-access layer. The client is a tool to use only after the audit and an
-explicit operational green light. Its current automated tests use a fake
-external protocol peer, not a server load test.
+**Do not run an AI-client load soak without the independent safety review
+and explicit operational green light.** Calibos is auditing this optional
+AI-client access layer. These restrictions do not prevent ordinary human-client
+multiplayer testing or release of the model-free game. The optional client's
+current automated tests use a fake external protocol peer, not a server load
+test.
 
 ## Account file and secrets
 
@@ -123,5 +125,6 @@ memory, connections, database I/O, scheduler lag, and session concurrency.
 There is currently no claim that a novice human or a genuinely naive AI has
 completed this route and found it enjoyable within minutes. The executable
 route and quotable text capture are scaffolding for that acceptance test.
-Human qualitative evaluation and independent AI observations are still
-required before approving the public alpha.
+Uncoached human playtests, normal-client multiplayer/restart verification,
+and deployment evidence are required for public release. Independent AI
+observations are optional integration research, not a model-free release gate.

@@ -2,7 +2,8 @@
 
 This is an operator-controlled decision record, not a certification that the
 production server has been deployed. The CI suite and the release preflight
-each provide evidence for different layers of readiness.
+each provide evidence for different layers of readiness. **No local model,
+LLM API, AI-controlled client, or agent environment is a prerequisite.**
 
 ## Release evidence
 
@@ -19,8 +20,8 @@ Record these values for each deployment before inviting external players:
 | Alpha transport preflight | `ALPHA_TRANSPORT_RECOVERY_GREEN` from actual endpoints | Not yet run |
 | Public HTTPS transport | Trusted TLS certificate and no downgrade | Not yet verified |
 | Browser WSS transport | Verified HTTP 101 and valid Sec-WebSocket-Accept on public TLS endpoint | Not yet verified |
-| AI-client usability | External AI client logs in, accepts compact, uses agentlogin/agent and plays/reconnects | Not yet verified |
-| No bot blocking | Registered AI accounts can connect; abuse throttles remain effective | Not yet verified |
+| Ordinary client usability | External standard browser or telnet client logs in, accepts compact, enters IC, plays and reconnects without model tools | Not yet verified |
+| Ordinary account access | Registered non-staff accounts can connect, play and reconnect; abuse throttles remain effective | Not yet verified |
 | Telnet transport policy | Loopback-only/plain or public TLS front end; no public plaintext credentials | Not yet verified |
 | Fresh external account | Login, compact disclosure, consent choice | Not yet verified |
 | Player mask and door | Creation, selection, OOC to IC transition, re-entry | Not yet verified |
@@ -40,8 +41,9 @@ Record these values for each deployment before inviting external players:
    inspect account, mask, resident, case, ledger, and clock state.
 4. Run `ops/alpha_preflight.py` against the candidate host and actual HTTPS
    endpoint, with a local or TLS-protected telnet banner check.
-5. Use a dedicated external test account to exercise the compact, first
-   character creation, travel, and one action in each persistent system.
+5. Use a dedicated external ordinary, non-staff browser or terminal account
+   with no AI service to exercise the compact, character creation, travel,
+   and one action in each persistent system.
    Check data before and after a clean server restart. Do not run the
    development telnet fixture against production since it creates accounts
    and alters world state.
@@ -70,7 +72,7 @@ a public service is already running or recoverable.
 
 Invited-alpha host and recovery plan:
 [deploy/INVITED_ALPHA_GATES_A_B.md](deploy/INVITED_ALPHA_GATES_A_B.md).
-This is a costed selection, not an established environment or proof that
+This is a historical, declined hosting proposal, not an established environment or proof that
 off-host storage, restoration, human alert delivery or server monitoring work.
 The off-host restoration script prints `host_drill_certified=false` even
 after its isolated rehearsal succeeds. No Gate A/B checkbox should be checked
