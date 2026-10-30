@@ -141,7 +141,7 @@ class ClinicInquiryRules(unittest.TestCase):
                              ("room_id", "301"), ("case_item_id", None),
                              ("case_item_id", True), ("case_item_id", 501.5),
                              ("interpretation", "confirmed_poisoning"),
-                             ("room_id", "301"), ("day", True),
+                             ("day", True),
                              ("hour", 24), ("hour", -1)):
             with self.subTest(field=field, value=value):
                 bad = dict(args, **{field: value})
