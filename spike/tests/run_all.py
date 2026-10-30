@@ -409,10 +409,53 @@ def main() -> int:
             run([evennia, "shell"], cwd=game, env=env,
                 input_text=migrated_well_fixture)
 
-            # Restart the actual server once after player-created resident state
-            # exists, then inspect the database through a fresh process.
+            # After the hostile decoy is seeded, use actual authenticated
+            # Healer and Detective sockets BEFORE restart. The Healer's
+            # ordinary unnumbered get must pick registered growth, not the
+            # same-name decoy. The shell below checks exact physical custody.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge28_migrated_restart.py",
+                     "--host", "127.0.0.1", "--port", "4000",
+                     "--phase", "before"],
+                    cwd=checkout, env=env, timeout=100,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+
+            migrated_player_proof = (
+                "from evennia.utils import search\\n"
+                "from world import clinic_inquiry_state as rules\\n"
+                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\\n"
+                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\\n"
+                "healer = [o for o in search.search_object('HealerTester') if o.key == 'HealerTester'][0]\\n"
+                "ids = rules.well_growth_ids(well.db.well_mushroom_spawn_ids)\\n"
+                "carried = [o for o in healer.contents if o.key == 'a cluster of mushrooms' and rules.registered_well_growth(o.id, ids)]\\n"
+                "legacy = [o for o in square.contents if getattr(o.db, 'qa_legacy_mushroom_decoy', False) is True]\\n"
+                "assert len(carried) == len(legacy) == 1, 'ordinary client picked legacy or lost genuine growth'\\n"
+                "assert carried[0].db.well_mushroom_source_id == well.id\\n"
+                "assert legacy[0].id not in ids\\n"
+                "well.db.qa_migrated_held_id = carried[0].id\\n"
+                "print('WELL_MIGRATED_AUTHENTICATED_PLAYER_CUSTODY_PRE_RESTART_GREEN')\\n"
+            )
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=migrated_player_proof)
+
+            # Restart the real server process and reconnect BOTH original
+            # accounts. Check signed readback, role/privacy denials and
+            # ordinary physical drop/get with the persisted legacy decoy.
             run([evennia, "start"], cwd=game, env=env, timeout=120)
             wait_for_port("127.0.0.1", 4000)
+            run(
+                [vpython, checkout / "spike" / "tests" /
+                 "telnet_edge28_migrated_restart.py",
+                 "--host", "127.0.0.1", "--port", "4000",
+                 "--phase", "after"],
+                cwd=checkout, env=env, timeout=100,
+            )
             # GDD T-03: retry the already completed physical lamp repair through
             # the original Smith's authenticated client after a real restart.
             # A read-only post-restart shell then verifies the objective record.
@@ -425,6 +468,23 @@ def main() -> int:
                 cwd=checkout, env=env, timeout=90,
             )
             run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            migrated_post_client_proof = (
+                "from evennia.utils import search\\n"
+                "from world import clinic_inquiry_state as rules\\n"
+                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\\n"
+                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\\n"
+                "healer = [o for o in search.search_object('HealerTester') if o.key == 'HealerTester'][0]\\n"
+                "held_id = well.db.qa_migrated_held_id\\n"
+                "ids = rules.well_growth_ids(well.db.well_mushroom_spawn_ids)\\n"
+                "growth = [o for o in square.contents if o.id == held_id and rules.registered_well_growth(o.id, ids)]\\n"
+                "legacy = [o for o in square.contents if getattr(o.db, 'qa_legacy_mushroom_decoy', False) is True]\\n"
+                "assert len(growth) == len(legacy) == 1 and legacy[0].id not in ids\\n"
+                "assert growth[0].db.well_mushroom_source_id == well.id\\n"
+                "assert not [o for o in healer.contents if o.id == held_id]\\n"
+                "print('WELL_MIGRATED_AUTHENTICATED_PLAYER_CUSTODY_POST_RESTART_GREEN')\\n"
+            )
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=migrated_post_client_proof)
             post_restart = (
                 checkout / "spike" / "tests" / "post_restart_assertions.py"
             ).read_text(encoding="utf-8")
