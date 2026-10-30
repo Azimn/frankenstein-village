@@ -363,5 +363,110 @@ class ClinicInquiryRules(unittest.TestCase):
                               rules.public_lines(raw, 1, lambda _id: None))
 
 
+class WellCreationProvenance(unittest.TestCase):
+    def test_registry_rejects_foreign_names_and_malformed_persistence(self):
+        from collections import UserList
+        self.assertTrue(rules.registered_well_growth(702, [702, 703]))
+        self.assertTrue(rules.registered_well_growth(
+            702, UserList(json.loads(json.dumps([702, 703])))))
+        for raw in (None, "702", {"id": 702}, [True, "702"], [703],
+                    [702.0], [0, -1], object()):
+            with self.subTest(raw=repr(raw)):
+                self.assertFalse(rules.registered_well_growth(702, raw))
+        self.assertEqual(rules.well_growth_ids([703, 703, True, 0, 702]),
+                         (703, 702))
+
+    def test_actual_well_builder_never_promotes_same_key_foreign_object(self):
+        # Compile the actual command helper, without importing the full
+        # Evennia command module into the model-free rules test process.
+        import ast
+        import types
+        from unittest.mock import patch
+
+        source = (Path(__file__).resolve().parents[2]
+                  / "spike/fvillage/commands/village_cmds.py").read_text()
+        function = next(node for node in ast.parse(source).body
+                        if isinstance(node, ast.FunctionDef)
+                        and node.name == "ensure_well_mushrooms")
+        code = compile(ast.Module(body=[function], type_ignores=[]),
+                       "<actual ensure_well_mushrooms>", "exec")
+
+        class Item:
+            def __init__(self, number, key, location, tc):
+                self.id, self.key, self.location, self.tc = (
+                    number, key, location, tc)
+                self.db = types.SimpleNamespace()
+                self.alias_values = []
+                self.aliases = types.SimpleNamespace(
+                    all=lambda: list(self.alias_values),
+                    add=lambda alias: self.alias_values.append(alias))
+                self.tags = types.SimpleNamespace(add=lambda *_: None)
+            def is_typeclass(self, path, exact=False):
+                return exact and self.tc == path
+
+        square = types.SimpleNamespace(key="Village Square", contents=[])
+        well = Item(601, "well", square, "typeclasses.objects.VillageWell")
+        foreign = Item(700, rules.CASE_ITEM_KEY, square,
+                       "typeclasses.objects.Object")
+        foreign.db.well_mushroom_source_id = 601  # Old vulnerable marker.
+        foreign.db.mechanic_values = {"toxin": 25}
+        square.contents.append(foreign)
+        made = []
+        def create_object(tc, key, location, aliases):
+            item = Item(701 + len(made), key, location, tc)
+            location.contents.append(item)
+            made.append(item)
+            return item
+        def configure(obj, _visible, hidden_properties):
+            obj.db.mechanic_values = dict(hidden_properties)
+
+        utils = types.ModuleType("evennia.utils")
+        utils.create = types.SimpleNamespace(create_object=create_object)
+        utils.search = types.SimpleNamespace(
+            search_object=lambda _name: [well])
+        evennia = types.ModuleType("evennia")
+        evennia.utils = utils
+        namespace = {
+            "WELL_MUSHROOMS_DESC": "Well growth",
+            "WELL_MUSHROOMS_CONSUME": {"nourish": 1, "toxic": 25},
+            "configure_mechanical_properties": configure,
+        }
+        with patch.dict(sys.modules, {"evennia": evennia,
+                                      "evennia.utils": utils}):
+            exec(code, namespace)
+            ensure = namespace["ensure_well_mushrooms"]
+            grown = ensure()
+            self.assertIs(grown, made[0])
+            self.assertIsNot(grown, foreign)
+            self.assertEqual(foreign.db.well_mushroom_source_id, 601)
+            self.assertFalse(rules.registered_well_growth(
+                foreign.id, well.db.well_mushroom_spawn_ids))
+            self.assertTrue(rules.registered_well_growth(
+                grown.id, well.db.well_mushroom_spawn_ids))
+            self.assertIs(ensure(), grown)  # No duplicate on rebuild.
+            self.assertEqual(len(made), 1)
+
+            # Physically carried first growth remains signed after regrowth.
+            square.contents.remove(grown)
+            grown.location = object()
+            second = ensure()
+            self.assertIs(second, made[1])
+            self.assertEqual(well.db.well_mushroom_spawn_ids, [701, 702])
+            self.assertTrue(rules.registered_well_growth(
+                grown.id, well.db.well_mushroom_spawn_ids))
+            self.assertIs(ensure(), second)
+
+            # Restart-like JSON persistence retains registry and same item.
+            well.db.well_mushroom_spawn_ids = json.loads(json.dumps(
+                well.db.well_mushroom_spawn_ids))
+            self.assertIs(ensure(), second)
+            self.assertEqual(len(made), 2)
+
+            # Ambiguous canonical wells fail closed, not a name fallback.
+            utils.search.search_object = lambda _name: [well, well]
+            self.assertIsNone(ensure())
+            self.assertEqual(len(made), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
