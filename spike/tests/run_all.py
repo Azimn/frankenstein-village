@@ -447,21 +447,23 @@ def main() -> int:
             # Restart the real server process and reconnect BOTH original
             # accounts. Check signed readback, role/privacy denials and
             # ordinary physical drop/get with the persisted legacy decoy.
-            run([evennia, "start"], cwd=game, env=env, timeout=120)
-            wait_for_port("127.0.0.1", 4000)
-            run(
-                [vpython, checkout / "spike" / "tests" /
-                 "telnet_edge28_migrated_restart.py",
-                 "--host", "127.0.0.1", "--port", "4000",
-                 "--phase", "after"],
-                cwd=checkout, env=env, timeout=100,
-            )
-            # The telnet after-phase intentionally leaves the newly re-picked
-            # item IN the Healer's inventory. Stop Evennia and verify physical
-            # exact-ID custody before allowing any final ordinary-client drop.
-            # A name-only inventory response plus a final Square location
-            # cannot distinguish authentic growth from a forged decoy.
-            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            try:
+                run([evennia, "start"], cwd=game, env=env, timeout=120)
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge28_migrated_restart.py",
+                     "--host", "127.0.0.1", "--port", "4000",
+                     "--phase", "after"],
+                    cwd=checkout, env=env, timeout=100,
+                )
+                # The telnet after-phase intentionally leaves the newly re-picked
+                # item IN the Healer's inventory. Stop Evennia and verify physical
+                # exact-ID custody before allowing any final ordinary-client drop.
+                # A name-only inventory response plus a final Square location
+                # cannot distinguish authentic growth from a forged decoy.
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
             migrated_repick_proof = (
                 "from evennia.utils import search\n"
                 "from world import clinic_inquiry_state as rules\n"
@@ -484,27 +486,29 @@ def main() -> int:
             # Reconnect the same ordinary Healer after the independent
             # stopped-server oracle, release the original item onto Square,
             # and retain the existing final Square/decoy negative assertion.
-            run([evennia, "start"], cwd=game, env=env, timeout=120)
-            wait_for_port("127.0.0.1", 4000)
-            run(
-                [vpython, checkout / "spike" / "tests" /
-                 "telnet_edge28_migrated_restart.py",
-                 "--host", "127.0.0.1", "--port", "4000",
-                 "--phase", "release"],
-                cwd=checkout, env=env, timeout=100,
-            )
-            # GDD T-03: retry the already completed physical lamp repair through
-            # the original Smith's authenticated client after a real restart.
-            # A read-only post-restart shell then verifies the objective record.
-            run(
-                [
-                    vpython,
-                    checkout / "spike" / "tests" / "telnet_t03_restart_retry.py",
-                    "--host", "127.0.0.1", "--port", "4000",
-                ],
-                cwd=checkout, env=env, timeout=90,
-            )
-            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            try:
+                run([evennia, "start"], cwd=game, env=env, timeout=120)
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge28_migrated_restart.py",
+                     "--host", "127.0.0.1", "--port", "4000",
+                     "--phase", "release"],
+                    cwd=checkout, env=env, timeout=100,
+                )
+                # GDD T-03: retry the already completed physical lamp repair through
+                # the original Smith's authenticated client after a real restart.
+                # A read-only post-restart shell then verifies the objective record.
+                run(
+                    [
+                        vpython,
+                        checkout / "spike" / "tests" / "telnet_t03_restart_retry.py",
+                        "--host", "127.0.0.1", "--port", "4000",
+                    ],
+                    cwd=checkout, env=env, timeout=90,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
             migrated_post_client_proof = (
                 "from evennia.utils import search\n"
                 "from world import clinic_inquiry_state as rules\n"
