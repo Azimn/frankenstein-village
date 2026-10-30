@@ -1450,12 +1450,6 @@ def main() -> int:
         ):
             out = detective.command(move)
             require(out, place)
-            if place == "village square":
-                # Real well mushroom, carried as the case item. No clue token.
-                out = detective.command("get mushrooms")
-                require(out, "mushrooms")
-                out = detective.command("inventory")
-                require(out, "cluster of mushrooms")
         out = detective.command("clinic investigate")
         require(out, "look at the original clinic cot")
         out = h.command("clinic investigate")
@@ -1464,6 +1458,18 @@ def main() -> int:
         require_all(out, "visiting patient", "clinic investigate")
         assert "healertester" not in out.lower()
         assert "cold" not in out.lower()
+        # A witnessed cot alone is insufficient: the Detective must bring
+        # a real source-world case item, not a narrative clue token.
+        out = detective.command("clinic investigate exposure")
+        require(out, "bring one real cluster of mushrooms")
+        out = detective.command("east")
+        require(out, "village square")
+        out = detective.command("get mushrooms")
+        require(out, "mushrooms")
+        out = detective.command("inventory")
+        require(out, "cluster of mushrooms")
+        out = detective.command("west")
+        require(out, "st. lazarus church")
         out = detective.command("clinic investigate exposure")
         require_all(out, "independent procedural clinic inquiry",
                     "verified healer source", "world event",
