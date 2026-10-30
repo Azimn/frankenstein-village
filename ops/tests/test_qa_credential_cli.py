@@ -64,13 +64,28 @@ class TestEvenniaReplayCleanup(unittest.TestCase):
             )
         stop.assert_called_once()
 
-    def test_both_migrated_replay_phases_use_failure_preserving_cleanup(self):
-        # Guard actual runner wiring, not merely the helper's unit behavior.
+    def test_all_three_migrated_replay_phases_preserve_original_failure(self):
+        # Include the pre-restart normal-client phase as well as after/release.
+        # A second stop error must not replace the first gameplay exception.
         source = RUNNER.read_text(encoding="utf-8")
-        replay = source.split("            # Restart the real server process", 1)[1]
+        replay = source.split("            # After the hostile decoy is seeded", 1)[1]
         replay = replay.split("            migrated_post_client_proof =", 1)[0]
-        self.assertEqual(replay.count("stop_evennia_after_phase("), 2)
-        self.assertEqual(replay.count("phase_failed=sys.exc_info()[0] is not None"), 2)
+        self.assertEqual(replay.count("stop_evennia_after_phase("), 3)
+        self.assertEqual(replay.count("phase_failed=sys.exc_info()[0] is not None"), 3)
+        self.assertNotIn('run([evennia, "stop"]', replay)
+
+    def test_pre_restart_failure_and_stop_failure_keep_player_exception(self):
+        # Exercise the exact finally expression used by the before phase.
+        with patch.object(runner, "run", side_effect=RuntimeError("stop failed")):
+            with redirect_stderr(io.StringIO()):
+                with self.assertRaisesRegex(ValueError, "before-phase player failure"):
+                    try:
+                        raise ValueError("before-phase player failure")
+                    finally:
+                        runner.stop_evennia_after_phase(
+                            Path("evennia"), game=Path("game"), env={},
+                            phase_failed=sys.exc_info()[0] is not None,
+                        )
 
 
 if __name__ == "__main__":
