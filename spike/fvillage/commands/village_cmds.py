@@ -5234,66 +5234,57 @@ WELL_MUSHROOMS_CONSUME = {
 
 
 def ensure_well_mushrooms():
-    """The well's damp stones always grow mushrooms — re-sync the stand-in.
-
-    Creates the cluster on the square if none is there; never duplicates.
-    Used by the build script and by CmdSell (a sale leaves the square
-    bare, and the well regrows). Returns the object.
-
-    The spike's Object typeclass (typeclasses.objects.Object) carries the
-    stacked-name grammar fix (build-loop #16: "two clusters of
-    mushrooms", not "two a clusters of mushrooms"); legacy DefaultObject
-    clusters are migrated in place.
-    """
+    """Grow a real well cluster, never adopting a same-key foreign object."""
     from evennia.utils import create, search
+    from world import clinic_inquiry_state
 
     SPIKE_ITEM = "typeclasses.objects.Object"
-    wells = search.search_object("village well")
-    square = wells[0].location if wells else None
+    wells = [
+        o for o in search.search_object("village well")
+        if o.key == "well"
+        and o.is_typeclass("typeclasses.objects.VillageWell", exact=True)
+        and getattr(o.location, "key", None) == "Village Square"
+    ]
+    if len(wells) != 1:
+        return None
+    well = wells[0]
+    square = well.location
+    registered = clinic_inquiry_state.well_growth_ids(
+        getattr(well.db, "well_mushroom_spawn_ids", None))
     found = [
-        o for o in square.contents if o.key == "a cluster of mushrooms"
-    ] if square else []
+        o for o in square.contents
+        if o.key == "a cluster of mushrooms"
+        and clinic_inquiry_state.registered_well_growth(o.id, registered)
+        and getattr(o.db, "well_mushroom_source_id", None) == well.id
+        and o.is_typeclass(SPIKE_ITEM, exact=True)
+    ]
     if found:
-        mushrooms = found[0]
-        if mushrooms.typeclass_path != SPIKE_ITEM:
-            mushrooms.swap_typeclass(SPIKE_ITEM, clean_attributes=False)
+        mushrooms = min(found, key=lambda obj: obj.id)
+        created = False
     else:
         mushrooms = create.create_object(
             SPIKE_ITEM,
             key="a cluster of mushrooms", location=square,
             aliases=["mushrooms", "cluster", "toadstools"],
         )
-    # Apply to BOTH new and existing objects. Rebuilds and post-sale regrowth
-    # must converge on the same hidden-property source of truth.
+        created = True
     mushrooms.db.desc = WELL_MUSHROOMS_DESC
     for alias in ("mushrooms", "cluster", "toadstools"):
         if alias not in (mushrooms.aliases.all() or []):
             mushrooms.aliases.add(alias)
     mushrooms.tags.add("consumable")
-    mushrooms.tags.add("food")  # the eat gate
-    # The well stand is the first hidden-property production object: some
-    # caps are unkind. Preserved from the inline build_spike version this
-    # helper replaced — the toxin stays authoritative simulation truth.
+    mushrooms.tags.add("food")
     configure_mechanical_properties(
-        mushrooms,
-        {},
-        hidden_properties={"toxin": 25},
-    )
-    # Durable provenance for physically carried specimens. Only the actual
-    # canonical well regrowth path stamps this marker; the Detective cannot.
-    # Existing square growth is migrated on an ordinary build/resync.
-    if (wells and square is not None and square.key == "Village Square"
-            and wells[0].key == "well"
-            and wells[0].is_typeclass(
-                "typeclasses.objects.VillageWell", exact=True)):
-        mushrooms.db.well_mushroom_source_id = wells[0].id
-    # Legacy "toxic" belonged to the old consumption dict. The hidden toxin
-    # property is authoritative, so even a previously built cluster must not
-    # retain a conflicting legacy key.
+        mushrooms, {}, hidden_properties={"toxin": 25})
     mushrooms.db.consume = {
         key: value for key, value in WELL_MUSHROOMS_CONSUME.items()
         if key != "toxic"
     }
+    mushrooms.db.well_mushroom_source_id = well.id
+    if created:
+        if clinic_inquiry_state.positive(mushrooms.id) is None:
+            raise RuntimeError("Well growth has no valid physical object ID.")
+        well.db.well_mushroom_spawn_ids = list(registered) + [mushrooms.id]
     return mushrooms
 
 
