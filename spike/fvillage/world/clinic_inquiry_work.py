@@ -53,8 +53,10 @@ def investigate(mask):
         source_day=source["day"], source_hour=source["hour"],
         cot_id=cot.id, room_id=room.id,
     )
+    # No event exists at preflight time. The real ledger ID is checked
+    # separately inside the atomic consequence before signing the cot.
     _preview, valid, reason = clinic_inquiry_state.investigate(
-        cot.db.clinic_inquiry, event_id=1, **common)
+        cot.db.clinic_inquiry, event_id=None, preview=True, **common)
     if not valid:
         return None, reason
 
