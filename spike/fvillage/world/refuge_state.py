@@ -167,6 +167,9 @@ def dispatch_valid(event, token, protection, marker, cord_id, item_id):
             == ident(token.get("source_protect_event_id"))
             == ident(mapping(protection).get("id"))
         and ident(consequence.get("item_id")) == ident(item_id)
+        # A completed dispatch must sign the same physical cord in its
+        # outcome, not only in its requested payload and carried token.
+        and ident(consequence.get("cord_id")) == ident(cord_id)
         and ident(consequence.get("source_protect_event_id"))
             == ident(mapping(protection).get("id"))
         # The dispatch itself must be issued on the signed marker day.
