@@ -775,7 +775,8 @@ def _singularize(arg):
 
 
 def _quiet_stack_search(caller, arg, location=None, nofound_string=None,
-                        multimatch_string=None, stacked=0):
+                        multimatch_string=None, stacked=0,
+                        preferred_stack_item=None):
     """Search quietly first; resolve identical stacks to one, quietly.
 
     Build-loop #16c: Evennia's search wall ("You carry more than one
@@ -821,7 +822,12 @@ def _quiet_stack_search(caller, arg, location=None, nofound_string=None,
     if len(objs) == 1:
         return objs
     if objs and all(o.key == objs[0].key for o in objs[1:]):
-        # Identical stack: take the first one, quietly (the #15 pattern).
+        # Keep ordinary identical-stack behavior. The get command alone may
+        # supply a source-validated preference for legacy-coexistence cases.
+        if preferred_stack_item is not None:
+            preferred = preferred_stack_item(objs, location)
+            if preferred is not None and preferred in objs:
+                return [preferred]
         return [objs[0]]
     # Nothing found, or genuinely different objects: re-run the search
     # non-quietly so the player gets the normal not-found line or the
@@ -829,6 +835,38 @@ def _quiet_stack_search(caller, arg, location=None, nofound_string=None,
     caller.search(arg, location=location, nofound_string=nofound_string,
                   multimatch_string=multimatch_string, stacked=stacked)
     return None
+
+
+def _preferred_well_growth_pickup(objects, location):
+    """Choose real well growth before a same-key legacy cluster on pickup.
+
+    A legacy or foreign object must never gain provenance by name alone.
+    Only the Village Square get path is specialized; numbered selections,
+    drop/give and unrelated stacks retain their original semantics.
+    """
+    from world import clinic_inquiry_state
+
+    if (getattr(location, "key", None) != "Village Square"
+            or not objects
+            or any(obj.key != clinic_inquiry_state.CASE_ITEM_KEY
+                   for obj in objects)):
+        return None
+    wells = [obj for obj in location.contents
+             if obj.key == "well"
+             and obj.is_typeclass("typeclasses.objects.VillageWell", exact=True)]
+    if len(wells) != 1:
+        return None
+    well = wells[0]
+    registered = getattr(well.db, "well_mushroom_spawn_ids", None)
+    valid = [obj for obj in objects
+             if obj.location is location
+             and obj.is_typeclass("typeclasses.objects.Object", exact=True)
+             and clinic_inquiry_state.registered_well_growth(obj.id, registered)
+             and is_hidden_mechanical_property(obj, "toxin")
+             and clinic_inquiry_state.well_case_source_valid(
+                 getattr(obj.db, "well_mushroom_source_id", None),
+                 well.id, mechanical_value(obj, "toxin", None))]
+    return min(valid, key=lambda obj: obj.id, default=None)
 
 
 class CmdVillageGet(CmdGet):
@@ -858,7 +896,8 @@ class CmdVillageGet(CmdGet):
             return
         objs = _quiet_stack_search(caller, self.args,
                                    location=caller.location,
-                                   stacked=self.number)
+                                   stacked=self.number,
+                                   preferred_stack_item=_preferred_well_growth_pickup)
         if not objs:
             return
 
