@@ -61,7 +61,7 @@ def main():
                 # canonical ledger (verified by post_restart_assertions.py),
                 # but must NEVER be presented as today's patient inquiry.
                 assert args.phase == "after", clinic_report
-                match = re.search(r"village day (\\d+)", clinic_report)
+                match = re.search(r"village day (\d+)", clinic_report)
                 assert match and int(match.group(1)) > 1, clinic_report
                 require_all(clinic_report,
                             "no examination has been completed yet",
