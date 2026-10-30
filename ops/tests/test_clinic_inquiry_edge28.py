@@ -511,18 +511,21 @@ class WellCreationProvenance(unittest.TestCase):
         square = types.SimpleNamespace(key="Village Square", contents=[],
                                        msg_contents=lambda *_a, **_kw: None)
         well = Item(601, "well", square, "typeclasses.objects.VillageWell")
-        well.db.well_mushroom_spawn_ids = [702]
+        well.db.well_mushroom_spawn_ids = [702, 703]
         # The legacy object comes FIRST, even with a copied source marker.
         legacy = Item(700, rules.CASE_ITEM_KEY, square,
                       "typeclasses.objects.Object", source=601, toxin=25)
         grown = Item(702, rules.CASE_ITEM_KEY, square,
                      "typeclasses.objects.Object", source=601, toxin=25)
-        square.contents[:] = [well, legacy, grown]
+        grown_second = Item(703, rules.CASE_ITEM_KEY, square,
+                            "typeclasses.objects.Object", source=601, toxin=25)
+        square.contents[:] = [well, legacy, grown_second, grown]
         messages = []
         caller = types.SimpleNamespace(location=square, contents=[],
                                        msg=lambda line: messages.append(line))
         def search(_arg, **kwargs):
-            return [legacy] if kwargs.get("stacked") else [legacy, grown]
+            return ([legacy] if kwargs.get("stacked")
+                    else [legacy, grown_second, grown])
         caller.search = search
 
         utils = types.ModuleType("evennia.utils")
@@ -543,6 +546,11 @@ class WellCreationProvenance(unittest.TestCase):
             prefer = namespace["_preferred_well_growth_pickup"]
             quiet = namespace["_quiet_stack_search"]
             self.assertIs(prefer([legacy, grown], square), grown)
+            # Migration preserves old property and may have two real clusters.
+            # Both the world assertion and ordinary get must choose signed
+            # growth independent of physical search ordering.
+            self.assertIs(prefer([legacy, grown_second, grown], square), grown)
+            self.assertIs(prefer([grown_second, legacy, grown], square), grown)
             self.assertIsNone(prefer([legacy], square))
             self.assertEqual(quiet(caller, "mushrooms", location=square,
                                    stacked=2, preferred_stack_item=prefer),
@@ -555,6 +563,7 @@ class WellCreationProvenance(unittest.TestCase):
 
         self.assertIs(grown.location, caller)
         self.assertIs(legacy.location, square)
+        self.assertIs(grown_second.location, square)
         self.assertEqual(caller.contents, [grown])
         self.assertFalse(rules.registered_well_growth(
             legacy.id, well.db.well_mushroom_spawn_ids))
@@ -563,6 +572,8 @@ class WellCreationProvenance(unittest.TestCase):
             well.db.well_mushroom_spawn_ids))
         self.assertTrue(rules.registered_well_growth(
             grown.id, well.db.well_mushroom_spawn_ids))
+        self.assertTrue(rules.registered_well_growth(
+            grown_second.id, well.db.well_mushroom_spawn_ids))
         self.assertFalse(rules.registered_well_growth(
             legacy.id, well.db.well_mushroom_spawn_ids))
 
