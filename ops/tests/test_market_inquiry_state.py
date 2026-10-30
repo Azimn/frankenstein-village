@@ -1,4 +1,5 @@
 """Pure behavioral and negative tests for GDD-EDGE-33 market inquiry."""
+import copy
 import json
 import sys
 import unittest
@@ -277,7 +278,7 @@ class MarketInquiryTests(unittest.TestCase):
         )
         for event_id, mutation in mutations:
             with self.subTest(event_id=event_id, mutation=mutation):
-                events = json.loads(json.dumps(original))
+                events = copy.deepcopy(original)
                 if mutation is None:
                     del events[event_id]
                 else:
@@ -301,7 +302,7 @@ class MarketInquiryTests(unittest.TestCase):
             (42, ("consequence", {**events[42]["consequence"], "rebuttal_event_id": 999})),
         ):
             with self.subTest(event_id=event_id, change=change):
-                corrupted = json.loads(json.dumps(events))
+                corrupted = copy.deepcopy(events)
                 if change is None:
                     del corrupted[event_id]
                 else:
