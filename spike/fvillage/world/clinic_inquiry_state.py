@@ -9,6 +9,13 @@ from collections.abc import Mapping
 import copy
 
 MAX_RECORDS = 36
+# Two bounded, competing procedural interpretations. Neither is a diagnosis.
+INTERPRETATIONS = ("possible_exposure", "unrelated_illness")
+CASE_ITEM_KEY = "a cluster of mushrooms"
+
+
+def alternative(interpretation):
+    return next((name for name in INTERPRETATIONS if name != interpretation), None)
 
 
 def positive(value):
@@ -39,17 +46,21 @@ def normalize(raw):
         if not isinstance(candidate, Mapping):
             continue
         fields = ("account_id", "mask_id", "event_id", "source_event_id",
-                  "source_account_id", "source_mask_id", "cot_id", "room_id")
+                  "source_account_id", "source_mask_id", "cot_id", "room_id", "case_item_id")
         values = {name: positive(candidate.get(name)) for name in fields}
         day, hour = candidate.get("day"), candidate.get("hour")
         if (stamp(day, hour) is None or not all(values.values())
                 or day in seen_days or values["event_id"] in seen_events
                 or values["event_id"] == values["source_event_id"]
-                or values["account_id"] == values["source_account_id"]):
+                or values["account_id"] == values["source_account_id"]
+                or candidate.get("interpretation") not in INTERPRETATIONS
+                or candidate.get("alternative") != alternative(candidate.get("interpretation"))):
             continue
         row = {**values, "day": day, "hour": hour,
                "mask": str(candidate.get("mask") or "")[:70],
-               "finding": "qualified_clinic_timeline"}
+               "finding": "contested_clinic_cause",
+               "interpretation": candidate["interpretation"],
+               "alternative": candidate["alternative"]}
         result["records"].append(row)
         seen_days.add(day)
         seen_events.add(values["event_id"])
@@ -91,7 +102,8 @@ def source_valid(event, assessment, room_id):
 
 def investigate(raw, *, day, hour, account_id, mask_id, mask, event_id,
                 source_event_id, source_account_id, source_mask_id,
-                source_day, source_hour, cot_id, room_id, preview=False):
+                source_day, source_hour, cot_id, room_id, case_item_id=None,
+                interpretation=None, preview=False):
     """Validate a player attempt; only a real ledger ID can sign a record.
 
     Preview checks the same physical, account, clock and duplicate gates,
@@ -100,9 +112,10 @@ def investigate(raw, *, day, hour, account_id, mask_id, mask, event_id,
     state = normalize(raw)
     now, earlier = stamp(day, hour), stamp(source_day, source_hour)
     ids = (account_id, mask_id, source_event_id,
-           source_account_id, source_mask_id, cot_id, room_id)
+           source_account_id, source_mask_id, cot_id, room_id, case_item_id)
     if (type(preview) is not bool or now is None or earlier is None
             or any(positive(i) is None for i in ids)
+            or interpretation not in INTERPRETATIONS
             or (preview and event_id is not None)
             or (not preview and positive(event_id) is None)):
         return state, False, "A real account, original cot and valid village clock are required."
@@ -127,7 +140,10 @@ def investigate(raw, *, day, hour, account_id, mask_id, mask, event_id,
         "source_account_id": source_account_id,
         "source_mask_id": source_mask_id,
         "cot_id": cot_id, "room_id": room_id,
-        "finding": "qualified_clinic_timeline",
+        "case_item_id": case_item_id,
+        "interpretation": interpretation,
+        "alternative": alternative(interpretation),
+        "finding": "contested_clinic_cause",
     })
     state["records"] = state["records"][-MAX_RECORDS:]
     return copy.deepcopy(state), True, None
@@ -138,11 +154,13 @@ def signed_inquiry(row, event_lookup):
     if not isinstance(row, Mapping) or not callable(event_lookup):
         return False
     fields = ("event_id", "source_event_id", "account_id", "mask_id",
-              "source_account_id", "source_mask_id", "cot_id", "room_id")
+              "source_account_id", "source_mask_id", "cot_id", "room_id", "case_item_id")
     if any(positive(row.get(key)) is None for key in fields):
         return False
     if (row["account_id"] == row["source_account_id"]
-            or stamp(row.get("day"), row.get("hour")) is None):
+            or stamp(row.get("day"), row.get("hour")) is None
+            or row.get("interpretation") not in INTERPRETATIONS
+            or row.get("alternative") != alternative(row.get("interpretation"))):
         return False
     try:
         inquiry = event_lookup(row["event_id"])
@@ -183,13 +201,21 @@ def signed_inquiry(row, event_lookup):
         and payload.get("hour") == row["hour"]
         and source_payload.get("day") == row["day"]
         and positive(payload.get("cot_id")) == row["cot_id"]
+        and positive(payload.get("case_item_id")) == row["case_item_id"]
+        and payload.get("case_item_key") == CASE_ITEM_KEY
+        and payload.get("interpretation") == row["interpretation"]
+        and payload.get("alternative") == row["alternative"]
         and positive(payload.get("room_id")) == row["room_id"]
         and positive(payload.get("source_healer_event_id")) == row["source_event_id"]
         and positive(payload.get("source_healer_account_id")) == row["source_account_id"]
         and positive(consequence.get("cot_id")) == row["cot_id"]
+        and positive(consequence.get("case_item_id")) == row["case_item_id"]
+        and consequence.get("interpretation") == row["interpretation"]
+        and consequence.get("alternative") == row["alternative"]
+        and consequence.get("causal_status") == "unproven"
         and positive(consequence.get("room_id")) == row["room_id"]
         and positive(consequence.get("source_healer_event_id")) == row["source_event_id"]
-        and consequence.get("finding") == "qualified_clinic_timeline"
+        and consequence.get("finding") == "contested_clinic_cause"
         and consequence.get("day") == row["day"]
         and consequence.get("hour") == row["hour"]
         and positive(source_result.get("room_id")) == row["room_id"]
@@ -219,7 +245,13 @@ def public_lines(raw, day, event_lookup=None):
             return "The clinic inquiry register requires signed source inspection."
     if not signed_inquiry(current, event_lookup):
         return "The clinic inquiry register requires signed source inspection."
+    labels = {"possible_exposure": "possible environmental exposure",
+              "unrelated_illness": "an unrelated illness"}
     return ("Independent procedural clinic inquiry signed as event %s, "
-            "linked to Healer assessment event %s. It records only the "
-            "witnessed timeline, not private medical notes or a diagnosis."
-            % (current["event_id"], current["source_event_id"]))
+            "linked to Healer assessment event %s and physical specimen %s. "
+            "Competing interpretations: %s versus %s. The source and timing "
+            "are documented, but neither causal explanation is proven. "
+            "No private medical notes or diagnosis are disclosed."
+            % (current["event_id"], current["source_event_id"],
+               current["case_item_id"], labels[current["interpretation"]],
+               labels[current["alternative"]]))
