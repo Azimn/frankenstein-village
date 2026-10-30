@@ -260,12 +260,120 @@ def accept(raw, pantry_raw, *, day, hour, innkeep_account_id,
     return {"history": receipts[-MAX_RECEIPTS:]}, food, True, None
 
 
-def public_lines(raw):
+def signed_receipt(row, event_lookup):
+    """Verify persisted refuge readback against three completed canonical events.
+
+    A shape-valid Tavern attribute is not a signed world event. The original
+    physical dispatch may already have been consumed and its cord re-tied, so
+    verify the immutable event chain rather than requiring today's cord marker.
+    """
+    if not hasattr(row, "get") or not callable(event_lookup):
+        return False
+    try:
+        meal = mapping(event_lookup(row.get("event_id")))
+        dispatch = mapping(event_lookup(row.get("dispatch_event_id")))
+        source = mapping(event_lookup(row.get("source_protect_event_id")))
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return False
+    meal_actor, meal_payload, meal_result = (
+        mapping(meal.get("actor")), mapping(meal.get("payload")),
+        mapping(meal.get("consequence")))
+    dispatch_actor, dispatch_payload, dispatch_result = (
+        mapping(dispatch.get("actor")), mapping(dispatch.get("payload")),
+        mapping(dispatch.get("consequence")))
+    source_actor, source_payload, source_result = (
+        mapping(source.get("actor")), mapping(source.get("payload")),
+        mapping(source.get("consequence")))
+    cord_id = ident(source_result.get("cord_object_id"))
+    source_time = stamp(source_payload.get("day"), source_payload.get("hour"))
+    sent_time = stamp(dispatch_payload.get("day"), dispatch_payload.get("hour"))
+    served_time = stamp(meal_payload.get("day"), meal_payload.get("hour"))
+    if (not cord_id or source_time is None or sent_time is None
+            or served_time is None or not source_time <= sent_time <= served_time
+            or served_time - sent_time > 24):
+        return False
+    # Every persisted identity and physical object must be present, positive,
+    # and tied to its corresponding event. Paired absent IDs are not evidence.
+    ids = (
+        ("event_id", meal.get("id")),
+        ("dispatch_event_id", dispatch.get("id")),
+        ("source_protect_event_id", source.get("id")),
+        ("hound_account_id", dispatch_actor.get("account_id")),
+        ("hound_mask_id", dispatch_actor.get("mask_id")),
+        ("innkeep_account_id", meal_actor.get("account_id")),
+        ("innkeep_mask_id", meal_actor.get("mask_id")),
+        ("item_id", dispatch_result.get("item_id")),
+        ("tavern_id", meal_payload.get("tavern_id")),
+        ("bowl_id", meal_result.get("bowl_id")),
+    )
+    if any(ident(row.get(key)) is None or ident(row.get(key)) != ident(value)
+           for key, value in ids):
+        return False
+    if ident(row.get("hound_account_id")) == ident(row.get("innkeep_account_id")):
+        return False
+    return bool(
+        meal.get("kind") == "professional.innkeep_refuge_meal"
+        and meal.get("status") == "complete"
+        and dispatch.get("kind") == "professional.hound_refuge_dispatch"
+        and dispatch.get("status") == "complete"
+        and source.get("kind") == "village.route_protected"
+        and source.get("status") == "complete"
+        and ident(source_actor.get("account_id"))
+        and ident(source_actor.get("mask_id"))
+        and source_payload.get("site") == "red_cord"
+        and source_payload.get("role") == "hound"
+        and source_payload.get("action") == "protect"
+        and source_payload.get("location") == TREELINE
+        and source_result.get("caution_marked") is True
+        and dispatch_payload.get("professional_calling") == "hound"
+        and dispatch_payload.get("location") == TREELINE
+        and ident(dispatch_payload.get("cord_id")) == cord_id
+        and ident(dispatch_result.get("cord_id")) == cord_id
+        and ident(dispatch_payload.get("source_protect_event_id"))
+            == ident(source.get("id"))
+        and ident(dispatch_result.get("source_protect_event_id"))
+            == ident(source.get("id"))
+        and dispatch_payload.get("day") == source_payload.get("day")
+        and meal_payload.get("professional_calling") == "innkeep"
+        and ident(meal_payload.get("hound_account_id"))
+            == ident(row.get("hound_account_id"))
+        and ident(meal_payload.get("hound_mask_id"))
+            == ident(row.get("hound_mask_id"))
+        and ident(meal_payload.get("dispatch_item_id"))
+            == ident(row.get("item_id"))
+        and ident(meal_payload.get("dispatch_event_id"))
+            == ident(dispatch.get("id"))
+        and ident(meal_result.get("consumed_dispatch_id"))
+            == ident(row.get("item_id"))
+        and ident(meal_result.get("dispatch_event_id"))
+            == ident(dispatch.get("id"))
+        and ident(meal_result.get("source_protect_event_id"))
+            == ident(source.get("id"))
+        and ident(meal_result.get("tavern_id"))
+            == ident(row.get("tavern_id"))
+        and type(row.get("day")) is int
+        and type(row.get("hour")) is int
+        and row["day"] == meal_payload.get("day")
+        and row["hour"] == meal_payload.get("hour")
+        and served_time == stamp(row["day"], row["hour"])
+    )
+
+
+def public_lines(raw, event_lookup=None):
+    """Only call an arrival signed after canonical ledger verification."""
     receipts = history(raw)
     if receipts is None:
         return "The refuge register requires inspection."
     if not receipts:
         return "No witnessed Hound refuge meals have been served."
+    if event_lookup is None:
+        try:
+            from world.events import get_event_ledger
+            event_lookup = get_event_ledger().get_event
+        except Exception:
+            return "The refuge register requires signed source inspection."
+    if not all(signed_receipt(row, event_lookup) for row in receipts):
+        return "The refuge register requires signed source inspection."
     return (
         f"{len(receipts)} signed Hound arrival meal(s) in the Tavern refuge "
         f"register; latest event {receipts[-1]['event_id']}. "
