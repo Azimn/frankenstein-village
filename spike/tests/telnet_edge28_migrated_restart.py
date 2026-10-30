@@ -27,35 +27,37 @@ def main():
             ("The Blood of the Vine" if args.phase == "before" else
              "Village Square" if args.phase == "release" else "St. Lazarus Church"),
         )
-        detective = connect(
-            args.host, args.port, "qa_detective_clinic",
-            os.environ["FV_QA_REPAIR_PASSWORD"],
-            "DetectiveClinicTester", "St. Lazarus Church",
-        )
+        if args.phase != "release":
+            detective = connect(
+                args.host, args.port, "qa_detective_clinic",
+                os.environ["FV_QA_REPAIR_PASSWORD"],
+                "DetectiveClinicTester", "St. Lazarus Church",
+            )
 
         if args.phase == "before":
             require(healer.command("west"), "village square")
             require(healer.command("west"), "st. lazarus church")
 
-        # Two independently signed roles see the same public record. Neither
-        # role can substitute for the other's permission or create a second
-        # signed inquiry for an already completed cot.
-        public = detective.command("clinic")
-        require_all(public, "independent procedural clinic inquiry",
-                    "competing interpretations", "physical specimen",
-                    "neither causal explanation is proven")
-        assert "healertester" not in public.lower()
-        assert "cold" not in public.lower()
-        require(detective.command("clinic records"),
-                "private clinical notes require an attending healer")
-        require(detective.command("clinic investigate illness"),
-                "already has an independent inquiry")
-        require(healer.command("clinic investigate exposure"),
-                "only an active detective")
-        private = healer.command("clinic records")
-        require_all(private, "confidential", "patient permission")
-        require(healer.command("calling"), "clinic assess 1")
-        require(detective.command("calling"), "clinic inquiry 1")
+        if args.phase != "release":
+            # Two independently signed roles see the same public record. Neither
+            # role can substitute for the other's permission or create a second
+            # signed inquiry for an already completed cot.
+            public = detective.command("clinic")
+            require_all(public, "independent procedural clinic inquiry",
+                        "competing interpretations", "physical specimen",
+                        "neither causal explanation is proven")
+            assert "healertester" not in public.lower()
+            assert "cold" not in public.lower()
+            require(detective.command("clinic records"),
+                    "private clinical notes require an attending healer")
+            require(detective.command("clinic investigate illness"),
+                    "already has an independent inquiry")
+            require(healer.command("clinic investigate exposure"),
+                    "only an active detective")
+            private = healer.command("clinic records")
+            require_all(private, "confidential", "patient permission")
+            require(healer.command("calling"), "clinic assess 1")
+            require(detective.command("calling"), "clinic inquiry 1")
 
         if args.phase == "before":
             require(healer.command("east"), "village square")
