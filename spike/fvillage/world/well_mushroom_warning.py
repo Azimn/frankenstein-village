@@ -78,14 +78,14 @@ def submit_healer_finding(mask, obj):
             "village well, not that object.",
         )
 
+    assessment, error = assess_hidden_object(mask, obj)
+    if error:
+        return None, error
+
     # Public signed evidence requires an attributable player account; private
     # toxicity assessment remains available to unauthenticated test masks.
     if not getattr(mask, "account", None):
         return None, "A logged-in Healer account is required to file a public-health finding."
-
-    assessment, error = assess_hidden_object(mask, obj)
-    if error:
-        return None, error
 
     toxin = next(
         (
