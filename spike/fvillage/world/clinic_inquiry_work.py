@@ -51,7 +51,8 @@ def _case_item(mask, room):
                   and clinic_inquiry_state.well_case_source_valid(
                       getattr(o.db, "well_mushroom_source_id", None),
                       well.id, mechanical_value(o, "toxin", None))]
-    return (candidates[0], well) if len(candidates) == 1 else None
+    specimen = clinic_inquiry_state.choose_case_item(candidates, mask)
+    return (specimen, well) if specimen is not None else None
 
 
 def investigate(mask, interpretation="unrelated_illness"):
@@ -72,7 +73,7 @@ def investigate(mask, interpretation="unrelated_illness"):
         return None, "Choose clinic investigate illness or clinic investigate exposure."
     case_item = _case_item(mask, room)
     if case_item is None:
-        return None, ("Bring one real cluster of mushrooms from the village well "
+        return None, ("Bring a real cluster of mushrooms from the village well "
                       "to the original clinic cot as a physical case item.")
     specimen, well = case_item
     toxin_value = mechanical_value(specimen, "toxin", None)
