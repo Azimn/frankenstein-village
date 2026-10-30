@@ -273,7 +273,9 @@ def signed_receipt(row, event_lookup):
         meal = mapping(event_lookup(row.get("event_id")))
         dispatch = mapping(event_lookup(row.get("dispatch_event_id")))
         source = mapping(event_lookup(row.get("source_protect_event_id")))
-    except (KeyError, TypeError, ValueError, AttributeError):
+    except Exception:
+        # A broken or unavailable ledger must never make soup status crash
+        # or turn an unverified persisted row into public signed evidence.
         return False
     meal_actor, meal_payload, meal_result = (
         mapping(meal.get("actor")), mapping(meal.get("payload")),
@@ -320,6 +322,9 @@ def signed_receipt(row, event_lookup):
         and source.get("status") == "complete"
         and ident(source_actor.get("account_id"))
         and ident(source_actor.get("mask_id"))
+        and all(isinstance(actor.get("mask"), str) and actor["mask"].strip()
+                for actor in (source_actor, dispatch_actor, meal_actor))
+        and source_result.get("day") == source_payload.get("day")
         and source_payload.get("site") == "red_cord"
         and source_payload.get("role") == "hound"
         and source_payload.get("action") == "protect"
