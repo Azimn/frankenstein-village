@@ -1485,7 +1485,10 @@ assert calling_record(_detective, "detective")["participation"][
 assert calling_record(merchant_tester, "merchant")["participation"][
     "market_inquiry_rebut"] == 1
 from world.market_inquiry_state import public_lines as _inquiry_lines
-assert "remains contested" in _inquiry_lines(_market_cases)
+assert "remains contested" in _inquiry_lines(
+    _market_cases, event_lookup=warning_ledger.get_event,
+    room_id=one("Market Lane").id,
+)
 print("POST_RESTART_GDD_EDGE33_SIGNED_INDEPENDENT_MARKET_INQUIRY_GREEN")
 
 print("POST_RESTART_MARKET_CALLINGS_ASSERTIONS_GREEN")
