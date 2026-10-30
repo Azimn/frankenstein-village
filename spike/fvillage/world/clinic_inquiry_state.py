@@ -33,6 +33,29 @@ def well_case_source_valid(origin_well_id, actual_well_id, toxin_value):
             and type(toxin_value) is int and toxin_value > 0)
 
 
+
+def well_growth_ids(raw_ids):
+    """Only object IDs registered by the well's actual creation path count.
+
+    A key, toxin tag or legacy source marker alone cannot authenticate a
+    preexisting object. Saver-backed iterable lists survive Evennia restart.
+    """
+    if (isinstance(raw_ids, (str, bytes, Mapping))
+            or not hasattr(raw_ids, "__iter__")):
+        return ()
+    try:
+        return tuple(dict.fromkeys(
+            value for value in raw_ids if positive(value) is not None))
+    except (TypeError, ValueError):
+        return ()
+
+
+def registered_well_growth(specimen_id, raw_ids):
+    """Require a real physical ID in the well-owned creation registry."""
+    return (positive(specimen_id) is not None
+            and specimen_id in well_growth_ids(raw_ids))
+
+
 def choose_case_item(candidates, carrier):
     """Choose a real, already-validated specimen without arbitrary list order.
 
