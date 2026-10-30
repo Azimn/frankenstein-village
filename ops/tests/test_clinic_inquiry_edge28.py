@@ -468,5 +468,104 @@ class WellCreationProvenance(unittest.TestCase):
             self.assertEqual(len(made), 2)
 
 
+    def test_actual_get_prefers_registered_growth_among_legacy_same_key(self):
+        """Exercise the actual get command's mixed-stack choice model-free."""
+        import ast
+        import types
+        from unittest.mock import patch
+
+        path = (Path(__file__).resolve().parents[2]
+                / "spike/fvillage/commands/village_cmds.py")
+        nodes = ast.parse(path.read_text()).body
+        names = {"_quiet_stack_search", "_preferred_well_growth_pickup",
+                 "CmdVillageGet"}
+        selected = [node for node in nodes
+                    if isinstance(node, (ast.FunctionDef, ast.ClassDef))
+                    and node.name in names]
+        self.assertEqual({node.name for node in selected}, names)
+        module = compile(ast.Module(body=selected, type_ignores=[]),
+                         "<actual village get>", "exec")
+
+        class Item:
+            def __init__(self, number, key, room, tc, source=None, toxin=None):
+                self.id, self.key, self.location, self.tc = number, key, room, tc
+                self.db = types.SimpleNamespace(
+                    well_mushroom_source_id=source,
+                    mechanics={"toxin": toxin} if toxin is not None else {})
+            def is_typeclass(self, path, exact=False):
+                return exact and self.tc == path
+            def access(self, _caller, _access):
+                return True
+            def at_pre_get(self, _caller):
+                return True
+            def move_to(self, target, **_kwargs):
+                self.location.contents.remove(self)
+                self.location = target
+                target.contents.append(self)
+                return True
+            def at_get(self, _caller):
+                pass
+            def get_numbered_name(self, _count, _caller, **_kwargs):
+                return self.key
+
+        square = types.SimpleNamespace(key="Village Square", contents=[],
+                                       msg_contents=lambda *_a, **_kw: None)
+        well = Item(601, "well", square, "typeclasses.objects.VillageWell")
+        well.db.well_mushroom_spawn_ids = [702]
+        # The legacy object comes FIRST, even with a copied source marker.
+        legacy = Item(700, rules.CASE_ITEM_KEY, square,
+                      "typeclasses.objects.Object", source=601, toxin=25)
+        grown = Item(702, rules.CASE_ITEM_KEY, square,
+                     "typeclasses.objects.Object", source=601, toxin=25)
+        square.contents[:] = [well, legacy, grown]
+        messages = []
+        caller = types.SimpleNamespace(location=square, contents=[],
+                                       msg=lambda line: messages.append(line))
+        def search(_arg, **kwargs):
+            return [legacy] if kwargs.get("stacked") else [legacy, grown]
+        caller.search = search
+
+        utils = types.ModuleType("evennia.utils")
+        utils.utils = types.SimpleNamespace(make_iter=lambda value: value)
+        evennia = types.ModuleType("evennia")
+        evennia.utils = utils
+        namespace = {
+            "CmdGet": object,
+            "_singularize": lambda arg: arg,
+            "is_hidden_mechanical_property":
+                lambda obj, name: name in obj.db.mechanics,
+            "mechanical_value":
+                lambda obj, name, default=None: obj.db.mechanics.get(name, default),
+        }
+        with patch.dict(sys.modules, {"evennia": evennia,
+                                      "evennia.utils": utils}):
+            exec(module, namespace)
+            prefer = namespace["_preferred_well_growth_pickup"]
+            quiet = namespace["_quiet_stack_search"]
+            self.assertIs(prefer([legacy, grown], square), grown)
+            self.assertIsNone(prefer([legacy], square))
+            self.assertEqual(quiet(caller, "mushrooms", location=square,
+                                   stacked=2, preferred_stack_item=prefer),
+                             [legacy])  # Explicit numbered choice is honored.
+            command = namespace["CmdVillageGet"]()
+            command.caller, command.args, command.number = (
+                caller, "mushrooms", 0)
+            command.msg = messages.append
+            command.func()
+
+        self.assertIs(grown.location, caller)
+        self.assertIs(legacy.location, square)
+        self.assertEqual(caller.contents, [grown])
+        self.assertFalse(rules.registered_well_growth(
+            legacy.id, well.db.well_mushroom_spawn_ids))
+        # Registry round-trip cannot silently authenticate the foreign item.
+        well.db.well_mushroom_spawn_ids = json.loads(json.dumps(
+            well.db.well_mushroom_spawn_ids))
+        self.assertTrue(rules.registered_well_growth(
+            grown.id, well.db.well_mushroom_spawn_ids))
+        self.assertFalse(rules.registered_well_growth(
+            legacy.id, well.db.well_mushroom_spawn_ids))
+
+
 if __name__ == "__main__":
     unittest.main()
