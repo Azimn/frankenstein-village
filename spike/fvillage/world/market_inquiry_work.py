@@ -75,7 +75,10 @@ def status():
     room = _market()
     if room is None:
         return "The market inquiry desk is unavailable."
-    return market_inquiry_state.public_lines(room.db.market_inquiries)
+    return market_inquiry_state.public_lines(
+        room.db.market_inquiries,
+        event_lookup=get_event_ledger().get_event, room_id=room.id,
+    )
 
 
 def perform(mask, action):
