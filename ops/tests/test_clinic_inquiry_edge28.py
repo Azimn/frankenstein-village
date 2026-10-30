@@ -65,6 +65,23 @@ class ClinicInquiryRules(unittest.TestCase):
         self.assertFalse(rules.source_valid(event, None, 301))
         self.assertFalse(rules.source_valid(event, assessment, True))
 
+    def test_missing_paired_healer_source_ids_are_not_signed(self):
+        assessment, event, _args = fixture()
+        for actor_key, assessment_key in (
+            ("id", "event_id"), ("account_id", "account_id"),
+            ("mask_id", "mask_id"), ("mask", "mask"),
+        ):
+            with self.subTest(missing=actor_key):
+                corrupted_event = copy.deepcopy(event)
+                corrupted_assessment = copy.deepcopy(assessment)
+                if actor_key == "id":
+                    corrupted_event["id"] = None
+                else:
+                    corrupted_event["actor"][actor_key] = None
+                corrupted_assessment[assessment_key] = None
+                self.assertFalse(rules.source_valid(
+                    corrupted_event, corrupted_assessment, 301))
+
     def test_role_switching_and_forged_ids(self):
         _, _, args = fixture()
         for field, value in (("account_id", 11), ("account_id", True),
