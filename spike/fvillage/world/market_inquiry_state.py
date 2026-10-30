@@ -6,6 +6,7 @@ The ordinary Merchant, Smith and Chronicler market workflow stays available.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping
 
 MAX_CASES = 24
 
@@ -134,11 +135,101 @@ def rebut_case(raw, *, day, hour, source_event_id, merchant_account_id,
     return rows, True, None
 
 
-def public_lines(raw):
+def _signed_event(event_lookup, event_id, kind, actor_account, actor_mask,
+                  action, calling, day, hour, source_id=None, scale_id=None,
+                  room_id=None, actor_name=None):
+    """Require a completed canonical event matching its persisted identity."""
+    try:
+        event = event_lookup(event_id)
+    except (LookupError, TypeError, ValueError, AttributeError):
+        return None
+    if not isinstance(event, Mapping):
+        return None
+    actor, payload, effect = (
+        event.get("actor"), event.get("payload"), event.get("consequence")
+    )
+    if not all(isinstance(part, Mapping) for part in (actor, payload, effect)):
+        return None
+    if (event.get("id") != event_id
+            or event.get("kind") != kind or event.get("status") != "complete"
+            or actor.get("account_id") != actor_account
+            or actor.get("mask_id") != actor_mask
+            or payload.get("action") != action
+            or payload.get("professional_calling") != calling
+            or payload.get("day") != day or payload.get("hour") != hour):
+        return None
+    if actor_name is not None and actor.get("mask") != actor_name:
+        return None
+    if source_id is not None and payload.get("source_event_id") != source_id:
+        return None
+    if scale_id is not None and payload.get("scale_id") != scale_id:
+        return None
+    if room_id is not None and payload.get("market_room_id") != room_id:
+        return None
+    return effect
+
+
+def verified_case(row, *, event_lookup, room_id):
+    """Read historic ledger events, never trust an unsigned saved case row."""
+    if _id(room_id) is None or not callable(event_lookup):
+        return False
+    source = _signed_event(
+        event_lookup, row["source_event_id"], "village.market_hold",
+        row["source_account_id"], row["source_mask_id"], "hold", "merchant",
+        row["day"], row["source_hour"],
+    )
+    if (source is None
+            or source.get("action") != "hold"
+            or source.get("review_event_id") != row["source_event_id"]
+            or source.get("market_distribution_held") is not True):
+        return False
+    # The source is a historic market hold, not necessarily today's hold.
+    try:
+        held = event_lookup(row["source_event_id"])
+    except (LookupError, TypeError, ValueError, AttributeError):
+        return False
+    if held["payload"].get("location") != "Market Lane":
+        return False
+    opened = _signed_event(
+        event_lookup, row["case_event_id"], "village.market_inquiry_opened",
+        row["detective_account_id"], row["detective_mask_id"],
+        "investigate", "detective", row["day"], row["hour"],
+        source_id=row["source_event_id"], scale_id=row["scale_id"],
+        room_id=room_id, actor_name=row["detective_mask"],
+    )
+    if (opened is None
+            or opened.get("source_event_id") != row["source_event_id"]
+            or opened.get("scale_id") != row["scale_id"]
+            or opened.get("market_room_id") != room_id
+            or opened.get("case_event_id") != row["case_event_id"]
+            or opened.get("rebuttal_event_id") is not None):
+        return False
+    if row["rebuttal_event_id"] is None:
+        return True
+    rebutted = _signed_event(
+        event_lookup, row["rebuttal_event_id"], "village.market_inquiry_rebutted",
+        row["source_account_id"], row["source_mask_id"],
+        "rebut", "merchant", row["day"], row["rebuttal_hour"],
+        source_id=row["source_event_id"], scale_id=row["scale_id"],
+        room_id=room_id,
+    )
+    return bool(
+        rebutted is not None
+        and rebutted.get("source_event_id") == row["source_event_id"]
+        and rebutted.get("scale_id") == row["scale_id"]
+        and rebutted.get("market_room_id") == room_id
+        and rebutted.get("case_event_id") == row["case_event_id"]
+        and rebutted.get("rebuttal_event_id") == row["rebuttal_event_id"]
+    )
+
+
+def public_lines(raw, *, event_lookup=None, room_id=None):
     rows = normalize(raw)
     if not rows:
         return "No independent Detective market inquiry has been filed."
     latest = rows[-1]
+    if not verified_case(latest, event_lookup=event_lookup, room_id=room_id):
+        return "The market inquiry record could not be verified against signed village events."
     reply = (
         f"Merchant decision event {latest['source_event_id']} was independently "
         f"examined by {latest['detective_mask']} (Detective event "
