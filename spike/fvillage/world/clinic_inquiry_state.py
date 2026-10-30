@@ -69,6 +69,12 @@ def source_valid(event, assessment, room_id):
         event.get("kind") == "village.clinic_assess"
         and event.get("status") == "complete"
         and positive(room_id) is not None
+        # Two missing or malformed IDs must not authenticate one another.
+        and positive(event.get("id")) is not None
+        and positive(actor.get("account_id")) is not None
+        and positive(actor.get("mask_id")) is not None
+        and isinstance(actor.get("mask"), str)
+        and bool(actor["mask"].strip())
         and positive(event.get("id")) == positive(assessment.get("event_id"))
         and positive(actor.get("account_id")) == positive(assessment.get("account_id"))
         and positive(actor.get("mask_id")) == positive(assessment.get("mask_id"))
