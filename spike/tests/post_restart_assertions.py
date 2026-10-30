@@ -264,7 +264,54 @@ assert len(population) == len(RESIDENTS) >= 36, "resident population changed acr
 # capacity rather than the pre-restock count.
 bread = one("a loaf of bread")
 water = one("a cup of water")
-mushrooms = one("a cluster of mushrooms")
+# A real restart may retain a legacy same-name cluster, original carried
+# growth and new registered growth. Select the original signed physical
+# specimen by its pre-rebuild ID, never by a global first-name match.
+from world import clinic_inquiry_state as _well_rules
+from commands.village_cmds import (
+    _preferred_well_growth_pickup as _well_pickup,
+    ensure_well_mushrooms as _ensure_well_growth,
+)
+_square = one("Village Square")
+_wells = [o for o in _square.contents
+          if o.key == "well"
+          and o.is_typeclass("typeclasses.objects.VillageWell", exact=True)]
+assert len(_wells) == 1, "canonical village well lost or duplicated"
+_well = _wells[0]
+_registered_before = tuple(_well_rules.well_growth_ids(
+    getattr(_well.db, "well_mushroom_spawn_ids", None)))
+assert _registered_before, "registered growth provenance did not survive restart"
+_all_clusters = [o for o in search.search_object("a cluster of mushrooms")
+                 if o.key == "a cluster of mushrooms"]
+_original_id = getattr(_well.db, "qa_expected_growth_id", None)
+_originals = [o for o in _all_clusters
+              if o.id == _original_id
+              and _well_rules.registered_well_growth(o.id, _registered_before)
+              and getattr(o.db, "well_mushroom_source_id", None) == _well.id]
+assert len(_originals) == 1, "original registered specimen lost across restart"
+mushrooms = _originals[0]
+_legacy = [o for o in _all_clusters
+           if getattr(o.db, "qa_legacy_mushroom_decoy", False) is True]
+assert len(_legacy) == 1, "hostile legacy coexistence fixture did not persist"
+assert _legacy[0].location == _square
+assert _legacy[0].id not in _registered_before
+assert not _well_rules.registered_well_growth(
+    _legacy[0].id, _registered_before)
+assert getattr(_legacy[0].db, "well_mushroom_source_id", None) == _well.id
+assert hidden_mechanical_properties(_legacy[0]) == {"toxin": 25}
+_floor_growth = _well_pickup(
+    [o for o in _square.contents if o.key == "a cluster of mushrooms"],
+    _square,
+)
+assert _floor_growth is not None and _floor_growth.id in _registered_before
+assert _well_pickup([_legacy[0], _floor_growth], _square) is _floor_growth
+assert _well_pickup([_floor_growth, _legacy[0]], _square) is _floor_growth
+assert _ensure_well_growth() is _floor_growth, (
+    "post-restart rebuild changed the physical registered well specimen")
+assert tuple(_well.db.well_mushroom_spawn_ids or ()) == _registered_before, (
+    "post-restart idempotent rebuild created or erased well provenance")
+assert _legacy[0].id not in _well.db.well_mushroom_spawn_ids
+print("POST_RESTART_GDD_EDGE28_MIGRATED_WELL_PROVENANCE_GREEN")
 assert mechanical_properties(bread) == {"uses": 6, "worth": 4}
 assert mechanical_properties(water) == {"worth": 0}
 assert mechanical_properties(mushrooms) == {}
