@@ -28,17 +28,71 @@ def rebut_one(raw, **changes):
     return inquiry.rebut_case(raw, **args)
 
 
+def signed_events():
+    """Canonical event fixture matching the actual market inquiry publisher."""
+    return {
+        40: {
+            "id": 40, "kind": "village.market_hold", "status": "complete",
+            "actor": {"account_id": 10, "mask_id": 100, "mask": "Merchant"},
+            "payload": {
+                "action": "hold", "professional_calling": "merchant",
+                "day": 3, "hour": 11, "location": "Market Lane",
+            },
+            "consequence": {
+                "action": "hold", "review_event_id": 40,
+                "market_distribution_held": True,
+            },
+        },
+        41: {
+            "id": 41, "kind": "village.market_inquiry_opened",
+            "status": "complete",
+            "actor": {"account_id": 20, "mask_id": 200, "mask": "Detective"},
+            "payload": {
+                "action": "investigate", "professional_calling": "detective",
+                "day": 3, "hour": 12, "source_event_id": 40,
+                "scale_id": 300, "market_room_id": 301,
+            },
+            "consequence": {
+                "source_event_id": 40, "scale_id": 300,
+                "market_room_id": 301, "case_event_id": 41,
+                "rebuttal_event_id": None,
+            },
+        },
+        42: {
+            "id": 42, "kind": "village.market_inquiry_rebutted",
+            "status": "complete",
+            "actor": {"account_id": 10, "mask_id": 100, "mask": "Merchant"},
+            "payload": {
+                "action": "rebut", "professional_calling": "merchant",
+                "day": 3, "hour": 13, "source_event_id": 40,
+                "scale_id": 300, "market_room_id": 301,
+            },
+            "consequence": {
+                "source_event_id": 40, "scale_id": 300,
+                "market_room_id": 301, "case_event_id": 41,
+                "rebuttal_event_id": 42,
+            },
+        },
+    }
+
+
+def signed_lines(rows, events=None):
+    events = signed_events() if events is None else events
+    return inquiry.public_lines(rows, event_lookup=events.get, room_id=301)
+
+
+
 class MarketInquiryTests(unittest.TestCase):
     def test_independent_signed_case_and_attributed_rebuttal(self):
         rows, okay, why = open_one()
         self.assertTrue(okay, why)
         self.assertEqual(rows[0]["source_event_id"], 40)
         self.assertEqual(rows[0]["detective_account_id"], 20)
-        self.assertIn("not a finding of fraud", inquiry.public_lines(rows))
+        self.assertIn("not a finding of fraud", signed_lines(rows))
         rows, okay, why = rebut_one(rows)
         self.assertTrue(okay, why)
         self.assertEqual(rows[0]["rebuttal_event_id"], 42)
-        self.assertIn("remains contested", inquiry.public_lines(rows))
+        self.assertIn("remains contested", signed_lines(rows))
 
     def test_same_account_role_switch_denied(self):
         rows, okay, why = open_one(detective_account_id=10)
@@ -200,6 +254,69 @@ class MarketInquiryTests(unittest.TestCase):
         rows, okay, why = rebut_one(SaverSequence(rows), event_id="42")
         self.assertTrue(okay, why)
         self.assertEqual(rows[0]["rebuttal_event_id"], 42)
+
+
+    def test_public_readback_requires_real_completed_event_chain(self):
+        rows, okay, why = open_one()
+        self.assertTrue(okay, why)
+        self.assertIn("not verified", inquiry.public_lines(rows))
+        self.assertIn("independently examined", signed_lines(rows))
+        original = signed_events()
+        mutations = (
+            (41, None),
+            (41, ("kind", "village.market_inquiry_rebutted")),
+            (41, ("status", "consequence_failed")),
+            (41, ("actor", {"account_id": 10, "mask_id": 200, "mask": "Detective"})),
+            (41, ("payload", {**original[41]["payload"], "source_event_id": 999})),
+            (41, ("payload", {**original[41]["payload"], "scale_id": 999})),
+            (41, ("payload", {**original[41]["payload"], "market_room_id": 999})),
+            (41, ("consequence", {**original[41]["consequence"], "case_event_id": 999})),
+            (40, ("status", "consequence_failed")),
+            (40, ("payload", {**original[40]["payload"], "day": 4})),
+            (40, ("consequence", {**original[40]["consequence"], "review_event_id": 999})),
+        )
+        for event_id, mutation in mutations:
+            with self.subTest(event_id=event_id, mutation=mutation):
+                events = json.loads(json.dumps(original))
+                if mutation is None:
+                    del events[event_id]
+                else:
+                    field, value = mutation
+                    events[event_id][field] = value
+                self.assertIn("not verified", signed_lines(rows, events))
+                self.assertNotIn("independently examined", signed_lines(rows, events))
+
+    def test_forged_rebuttal_fails_closed_but_historic_signed_reply_survives(self):
+        rows, okay, _ = open_one()
+        self.assertTrue(okay)
+        rows, okay, _ = rebut_one(rows)
+        self.assertTrue(okay)
+        events = signed_events()
+        self.assertIn("remains contested", signed_lines(rows, events))
+        for event_id, change in (
+            (42, None),
+            (42, ("kind", "village.market_inquiry_opened")),
+            (42, ("actor", {"account_id": 20, "mask_id": 100, "mask": "Merchant"})),
+            (42, ("payload", {**events[42]["payload"], "scale_id": 999})),
+            (42, ("consequence", {**events[42]["consequence"], "rebuttal_event_id": 999})),
+        ):
+            with self.subTest(event_id=event_id, change=change):
+                corrupted = json.loads(json.dumps(events))
+                if change is None:
+                    del corrupted[event_id]
+                else:
+                    field, value = change
+                    corrupted[event_id][field] = value
+                text = signed_lines(rows, corrupted)
+                self.assertIn("not verified", text)
+                self.assertNotIn("remains contested", text)
+        forged = json.loads(json.dumps(rows))
+        forged[0]["rebuttal_event_id"] = 999991
+        self.assertIn("not verified", signed_lines(forged, events))
+        restored = inquiry.normalize(json.loads(json.dumps(rows)))
+        self.assertEqual(restored, rows)
+        self.assertIn("remains contested", signed_lines(restored, events))
+        self.assertIn("not verified", inquiry.public_lines(restored, event_lookup=events.get, room_id=999))
 
     def test_no_inquiry_is_valid_solo_market_fallback(self):
         self.assertIn("No independent", inquiry.public_lines(None))
