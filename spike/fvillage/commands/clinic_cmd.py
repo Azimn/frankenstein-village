@@ -13,7 +13,9 @@ class CmdClinic(Command):
         clinic treat compress
         clinic request records
         clinic records
-        clinic investigate     (independent Detective, after looking at cot)
+        clinic procure  (Merchant at Market Lane)
+        clinic receive  (Healer at St. Lazarus)
+        clinic investigate  (Detective at the original cot after a Healer assessment)
 
     A fresh prepared dressing can be carried or handed to a different
     Healer. Only actual signed treatment changes the clinic's public record.
@@ -29,8 +31,21 @@ class CmdClinic(Command):
         if raw in ([], ["status"], ["help"]):
             self.caller.msg(clinic_work.status(self.caller))
             return
-        if raw == ["records"]:
-            self.caller.msg(clinic_work.confidential_records(self.caller))
+        if raw == ["procure"]:
+            result, error = clinic_work.procure(self.caller)
+            self.caller.msg(error or (
+                f"You withdraw a real sealed clinic linen parcel from finite "
+                f"market stock (signed Merchant event {result['event_id']}). "
+                "Carry it to St. Lazarus for a separate Healer to accept."
+            ))
+            return
+        if raw == ["receive"]:
+            result, error = clinic_work.receive(self.caller)
+            self.caller.msg(error or (
+                f"You inspect and accept two clean linen dressings into the "
+                f"shared clinic cabinet (signed Healer event {result['event_id']}, "
+                f"Merchant source event {result['source_event_id']})."
+            ))
             return
         if raw == ["investigate"]:
             from world.clinic_inquiry_work import investigate
@@ -45,6 +60,9 @@ class CmdClinic(Command):
                     "the timeline without revealing private case notes."
                 )
             return
+        if raw == ["records"]:
+            self.caller.msg(clinic_work.confidential_records(self.caller))
+            return
         if raw == ["request", "records"]:
             result, error = clinic_work.act(self.caller, "request_records")
         elif raw in (["assess"], ["prepare"]):
@@ -54,7 +72,7 @@ class CmdClinic(Command):
         else:
             self.caller.msg(
                 "Use clinic | clinic assess | clinic prepare | "
-                "clinic treat rest|compress | clinic request records | clinic records | clinic investigate."
+                "clinic treat rest or clinic treat compress | clinic request records | clinic records | clinic procure | clinic receive | clinic investigate."
             )
             return
         if error:
