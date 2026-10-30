@@ -7,6 +7,7 @@ The runner's independent shell checks validate which physical object moved.
 """
 import argparse
 import os
+import re
 
 from telnet_playthrough import require, require_all
 from telnet_t13_cancel import connect
@@ -43,23 +44,42 @@ def main():
             # role can substitute for the other's permission or create a second
             # signed inquiry for an already completed cot.
             public = detective.command("clinic")
-            require_all(public, "independent procedural clinic inquiry",
-                        "competing interpretations", "physical specimen",
-                        "neither causal explanation is proven")
             # Room-arrival broadcasts may precede the command reply on telnet.
             # Privacy applies to the actual clinic report, not public movement.
             require(public, "St. Lazarus village clinic")
             clinic_report = public.lower().split("st. lazarus village clinic", 1)[1]
             assert "healertester" not in clinic_report
             assert "cold" not in clinic_report
+            signed_today = "independent procedural clinic inquiry signed" in clinic_report
+            if signed_today:
+                require_all(clinic_report, "competing interpretations",
+                            "physical specimen",
+                            "neither causal explanation is proven")
+            else:
+                # Real elapsed-time restart can advance the village clock.
+                # Yesterday's signed inquiry remains in the persistent cot and
+                # canonical ledger (verified by post_restart_assertions.py),
+                # but must NEVER be presented as today's patient inquiry.
+                assert args.phase == "after", clinic_report
+                match = re.search(r"village day (\\d+)", clinic_report)
+                assert match and int(match.group(1)) > 1, clinic_report
+                require_all(clinic_report,
+                            "no examination has been completed yet",
+                            "no independent detective inquiry has been signed for today's")
             require(detective.command("clinic records"),
                     "private clinical notes require an attending healer")
-            require(detective.command("clinic investigate illness"),
-                    "already has an independent inquiry")
+            attempted = detective.command("clinic investigate illness")
+            require(attempted, "already has an independent inquiry" if signed_today
+                    else "look at the original clinic cot before investigating")
             require(healer.command("clinic investigate exposure"),
                     "only an active detective")
             private = healer.command("clinic records")
-            require_all(private, "confidential", "patient permission")
+            if signed_today:
+                require_all(private, "confidential", "patient permission")
+            else:
+                require(private, "signed permission")
+                assert "healertester" not in private.lower()
+                assert "cold" not in private.lower()
             require(healer.command("calling"), "clinic assess 1")
             require(detective.command("calling"), "clinic inquiry 1")
 
