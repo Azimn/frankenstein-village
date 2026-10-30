@@ -65,7 +65,7 @@ class CmdClinic(Command):
                     f"(world event {result['event_id']}, verified Healer source "
                     f"{result['source_event_id']}). The original cot records "
                     f"the physical specimen {result['case_item_id']} and two "
-                    "competing explanations ({result['interpretation']} versus "
+                    f"competing explanations ({result['interpretation']} versus "
                     f"{result['alternative']}). Neither cause is proven; "
                     "private case notes remain confidential."
                 )
