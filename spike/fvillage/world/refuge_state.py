@@ -101,9 +101,16 @@ def can_dispatch(last, protection, marker, *, cord_id, day, hour,
     if stamp(source.get("day"), source.get("hour")) > now:
         return False, "The source warning lies in the future."
     if last is not None:
-        if not hasattr(last, "get") or not ident(last.get("day")):
+        # A stored last-dispatch consequence is not authenticated by its
+        # day alone. Corrupted or partial event, actor and item IDs must
+        # block a new dispatch instead of silently clearing the prior work.
+        if (not hasattr(last, "get")
+                or type(last.get("day")) is not int
+                or last["day"] < 1
+                or any(ident(last.get(key)) is None for key in (
+                    "event_id", "account_id", "item_id"))):
             return False, "The cord's dispatch record is malformed."
-        if int(last["day"]) >= int(day):
+        if last["day"] >= int(day):
             return False, "A refuge dispatch already left this cord today."
     return True, None
 
