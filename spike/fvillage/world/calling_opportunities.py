@@ -9,7 +9,9 @@ WORK = {
         "Work at the shared Tavern soup pot: soup prep turnip thyme "
         "reserves real pantry stock, soup simmer cooks a transferable edible "
         "bowl, soup notebook preserves experiments. Soup quality changes "
-        "when a neighbor has tended the hearth.",
+        "when a neighbor has tended the hearth. A Merchant can give you a "
+        "physical kitchen roots crate; soup accept verifies its signed source "
+        "and receives it into the pantry. soup deliver remains a solo fallback.",
         "At the Blood of the Vine: inspect the hearth, then use hearth "
         "tend when the fire has settled and delivered stock is available.",
         "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
@@ -17,7 +19,8 @@ WORK = {
     ),
     "chronicler": (
         "At Market Lane: inspect the crooked market scale, use trade, and "
-        "trade attest after an actual Merchant decision and Smith calibration.",
+        "trade audit after a signed Merchant decision, or trade attest "
+        "after a Merchant decision and Smith calibration.",
         "In the village: read chronicle and rumors; investigate conflicting "
         "testimony before making a documented entry.",
     ),
@@ -28,6 +31,9 @@ WORK = {
         "one-time and may already have been finished by a neighbor.",
     ),
     "healer": (
+        "At St. Lazarus Church, clinic receive inspects and accepts a "
+        "real Merchant-sourced linen parcel, adding two finite dressings "
+        "to the shared cabinet. A separate Merchant must supply it.",
         "At St. Lazarus Church a patient comes to the staffed clinic every "
         "village day. Use clinic assess to record a firsthand finding; "
         "clinic prepare makes real transferable linen dressings, and "
@@ -44,9 +50,14 @@ WORK = {
         "record a qualified timeline without reading private case notes.",
     ),
     "merchant": (
+        "At Market Lane, clinic procure withdraws one finite sealed linen "
+        "parcel per village day. Carry it to St. Lazarus Church for a "
+        "different Healer to use clinic receive; the shared cabinet gains "
+        "stock only after clinical acceptance.",
         "At Market Lane use soup procure for a real crate of roots; "
-        "carry or transfer it to the Blood of the Vine, then soup deliver "
-        "to restock the working kitchen's finite pantry.",
+        "carry it to the Blood of the Vine for soup deliver, or give it "
+        "to a different Innkeep account for a signed soup accept receipt. "
+        "Both routes consume the physical crate and restock finite pantry.",
         "At Market Lane: look market scale, then trade honor to keep "
         "goods moving or trade hold to suspend disputed distributions. "
         "A Smith can calibrate, and a Merchant can trade release.",
