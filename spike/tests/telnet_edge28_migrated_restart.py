@@ -16,7 +16,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=4000)
-    parser.add_argument("--phase", choices=("before", "after"), required=True)
+    parser.add_argument("--phase", choices=("before", "after", "release"), required=True)
     args = parser.parse_args()
 
     healer = detective = None
@@ -24,7 +24,8 @@ def main():
         healer = connect(
             args.host, args.port, "qa_healer_assessor", "HealerSmoke2026!",
             "HealerTester",
-            "The Blood of the Vine" if args.phase == "before" else "St. Lazarus Church",
+            ("The Blood of the Vine" if args.phase == "before" else
+             "Village Square" if args.phase == "release" else "St. Lazarus Church"),
         )
         detective = connect(
             args.host, args.port, "qa_detective_clinic",
@@ -66,13 +67,19 @@ def main():
             require(healer.command("inventory"), "cluster of mushrooms")
             require(healer.command("west"), "st. lazarus church")
             print("TELNET_GDD_EDGE28_MIGRATED_PRE_RESTART_TWO_ACCOUNT_GREEN")
-        else:
-            # The same Healer account still physically carries the registered
-            # specimen after the server process has stopped and restarted.
+        elif args.phase == "after":
+            # Stop with the re-picked specimen still in custody. The runner
+            # must inspect the exact persistent ID and reject the forged decoy
+            # BEFORE allowing the final ordinary-client drop.
             require(healer.command("inventory"), "cluster of mushrooms")
             require(healer.command("east"), "village square")
             require(healer.command("drop mushrooms"), "drop")
             require(healer.command("get mushrooms"), "pick up")
+            require(healer.command("inventory"), "cluster of mushrooms")
+            print("TELNET_GDD_EDGE28_MIGRATED_REPICK_PENDING_ID_PROOF_GREEN")
+        else:
+            # Reconnect the same account after the independent stopped-server
+            # custody oracle and return the genuine item through normal play.
             require(healer.command("inventory"), "cluster of mushrooms")
             require(healer.command("drop mushrooms"), "drop")
             require(healer.command("west"), "st. lazarus church")
