@@ -456,6 +456,43 @@ def main() -> int:
                  "--phase", "after"],
                 cwd=checkout, env=env, timeout=100,
             )
+            # The telnet after-phase intentionally leaves the newly re-picked
+            # item IN the Healer's inventory. Stop Evennia and verify physical
+            # exact-ID custody before allowing any final ordinary-client drop.
+            # A name-only inventory response plus a final Square location
+            # cannot distinguish authentic growth from a forged decoy.
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            migrated_repick_proof = (
+                "from evennia.utils import search\n"
+                "from world import clinic_inquiry_state as rules\n"
+                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\n"
+                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\n"
+                "healer = [o for o in search.search_object('HealerTester') if o.key == 'HealerTester'][0]\n"
+                "held_id = well.db.qa_migrated_held_id\n"
+                "ids = rules.well_growth_ids(well.db.well_mushroom_spawn_ids)\n"
+                "held = [o for o in healer.contents if o.id == held_id and rules.registered_well_growth(o.id, ids)]\n"
+                "decoys = [o for o in square.contents if getattr(o.db, 'qa_legacy_mushroom_decoy', False) is True]\n"
+                "assert len(held) == len(decoys) == 1, 'post-restart re-pick must hold the original registered specimen, not a decoy'\n"
+                "assert held[0].db.well_mushroom_source_id == well.id\n"
+                "assert decoys[0].id not in ids and decoys[0].id != held_id\n"
+                "assert not [o for o in healer.contents if getattr(o.db, 'qa_legacy_mushroom_decoy', False) is True], 'forged decoy entered player custody'\n"
+                "assert not [o for o in square.contents if o.id == held_id], 'original growth remained on Square after re-pick'\n"
+                "print('WELL_MIGRATED_AUTHENTICATED_REPICK_EXACT_ID_POST_RESTART_GREEN')\n"
+            )
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=migrated_repick_proof)
+            # Reconnect the same ordinary Healer after the independent
+            # stopped-server oracle, release the original item onto Square,
+            # and retain the existing final Square/decoy negative assertion.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run(
+                [vpython, checkout / "spike" / "tests" /
+                 "telnet_edge28_migrated_restart.py",
+                 "--host", "127.0.0.1", "--port", "4000",
+                 "--phase", "release"],
+                cwd=checkout, env=env, timeout=100,
+            )
             # GDD T-03: retry the already completed physical lamp repair through
             # the original Smith's authenticated client after a real restart.
             # A read-only post-restart shell then verifies the objective record.
