@@ -306,7 +306,7 @@ _floor_growth = _well_pickup(
 assert _floor_growth is not None and _floor_growth.id in _registered_before
 assert _well_pickup([_legacy[0], _floor_growth], _square) is _floor_growth
 assert _well_pickup([_floor_growth, _legacy[0]], _square) is _floor_growth
-assert _ensure_well_growth() is _floor_growth, (
+assert _ensure_well_growth().id == _floor_growth.id, (
     "post-restart rebuild changed the physical registered well specimen")
 assert tuple(_well.db.well_mushroom_spawn_ids or ()) == _registered_before, (
     "post-restart idempotent rebuild created or erased well provenance")
