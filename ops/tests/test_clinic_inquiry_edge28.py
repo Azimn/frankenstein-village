@@ -38,6 +38,54 @@ class ClinicInquiryRules(unittest.TestCase):
         self.assertNotIn("cold", rules.public_lines(state, 1))
         self.assertNotIn("HealerTester", rules.public_lines(state, 1))
 
+    def test_first_ledger_event_preview_then_distinct_detective_receipt(self):
+        # A fresh WorldEventLedger gives the Healer event 1 and the
+        # independent Detective event 2. Preflight must not pretend it is 1.
+        _assessment, _source, args = fixture()
+        args.update(source_event_id=1, event_id=None)
+        original = {"records": []}
+        before = copy.deepcopy(original)
+        preview, good, reason = rules.investigate(
+            original, preview=True, **args)
+        self.assertTrue(good, reason)
+        self.assertEqual(preview, before)
+        self.assertEqual(original, before)
+
+        # An unsigned preview must never be admitted as a signed record.
+        _state, good, _reason = rules.investigate(original, **args)
+        self.assertFalse(good)
+        _state, good, _reason = rules.investigate(
+            original, preview=True, **dict(args, event_id=2))
+        self.assertFalse(good)
+        _state, good, _reason = rules.investigate(
+            original, **dict(args, event_id=1))
+        self.assertFalse(good)
+
+        committed, good, reason = rules.investigate(
+            original, **dict(args, event_id=2))
+        self.assertTrue(good, reason)
+        self.assertEqual(committed["records"][0]["event_id"], 2)
+        self.assertEqual(committed["records"][0]["source_event_id"], 1)
+        self.assertEqual(original, before)
+
+        # Duplicate patient-day and same-account signatures remain denied
+        # even when the caller only requests an unsigned preview.
+        _state, good, _reason = rules.investigate(
+            committed, preview=True, **args)
+        self.assertFalse(good)
+        _state, good, _reason = rules.investigate(
+            original, preview=True,
+            **dict(args, account_id=args["source_account_id"]))
+        self.assertFalse(good)
+        _state, good, _reason = rules.investigate(
+            original, preview=True,
+            **dict(args, hour=20, source_hour=21))
+        self.assertFalse(good)
+        _state, good, _reason = rules.investigate(
+            original, preview=True,
+            **dict(args, source_event_id=0))
+        self.assertFalse(good)
+
     def test_forged_or_failed_ledger_source_is_rejected(self):
         assessment, event, _ = fixture()
         for path, value in (
