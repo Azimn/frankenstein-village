@@ -21,6 +21,7 @@ from world.object_properties import (
     is_hidden_mechanical_property,
     mechanical_value,
 )
+from world.warning_provenance import verify_healer_source
 from world.situations import (
     WELL_MUSHROOM_WARNING_ID,
     ensure_situations,
@@ -78,13 +79,17 @@ def submit_healer_finding(mask, obj):
             "village well, not that object.",
         )
 
+    if active_calling(mask) != "healer":
+        return None, "An active Healer Calling is required to file the professional assessment."
+
     assessment, error = assess_hidden_object(mask, obj)
     if error:
         return None, error
 
     # Public signed evidence requires an attributable player account; private
     # toxicity assessment remains available to unauthenticated test masks.
-    if not getattr(mask, "account", None):
+    account = getattr(mask, "account", None)
+    if account is None or type(getattr(account, "id", None)) is not int or account.id <= 0:
         return None, "A logged-in Healer account is required to file a public-health finding."
 
     toxin = next(
@@ -128,11 +133,14 @@ def submit_healer_finding(mask, obj):
             "mechanical_property": TARGET_PROPERTY,
             "mechanical_value": mechanical_value(obj, TARGET_PROPERTY),
             "professional_calling": "healer",
+            "day": int(day),
+            "hour": int(hour),
         },
     )
 
     finding = {
         "calling": "healer",
+        "account_id": account.id,
         "mask_id": getattr(mask, "id", None),
         "mask": getattr(mask, "key", None),
         "object_id": getattr(obj, "id", None),
@@ -198,7 +206,20 @@ def publish_public_warning(mask):
             "created": False,
         }, None
 
-    from world.events import publish_world_event
+    from world.events import get_event_ledger, publish_world_event
+
+    account = getattr(mask, "account", None)
+    account_id = getattr(account, "id", None)
+    day, hour = _clock()
+    source_id = finding.get("event_id")
+    source = (get_event_ledger().get_event(source_id)
+              if type(source_id) is int and source_id > 0 else None)
+    valid, reason = verify_healer_source(
+        finding, source, chronicler_account_id=account_id,
+        day=day, hour=hour, situation_id=WELL_MUSHROOM_WARNING_ID,
+    )
+    if not valid:
+        return None, reason
 
     healer_name = finding.get("mask") or "a village Healer"
     summary = (
@@ -217,6 +238,7 @@ def publish_public_warning(mask):
             "public_summary": summary,
             "chronicle_summary": summary,
             "situation_id": WELL_MUSHROOM_WARNING_ID,
+            "source_healer_account_id": finding.get("account_id"),
             "source_healer_mask_id": finding.get("mask_id"),
             "source_healer_mask": finding.get("mask"),
             "source_healer_event_id": finding.get("event_id"),
@@ -237,6 +259,8 @@ def publish_public_warning(mask):
     day, hour = _clock()
     record = {
         "calling": "chronicler",
+        "account_id": account_id,
+        "source_healer_event_id": source_id,
         "mask_id": getattr(mask, "id", None),
         "mask": getattr(mask, "key", None),
         "event_id": event["id"],
