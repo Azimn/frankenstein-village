@@ -150,7 +150,7 @@ def _signed_event(event_lookup, event_id, kind, actor_account, actor_mask,
     )
     if not all(isinstance(part, Mapping) for part in (actor, payload, effect)):
         return None
-    if (event.get("id") != event_id
+    if (type(event.get("id")) is not int or event.get("id") != event_id
             or event.get("kind") != kind or event.get("status") != "complete"
             or actor.get("account_id") != actor_account
             or actor.get("mask_id") != actor_mask
@@ -229,7 +229,7 @@ def public_lines(raw, *, event_lookup=None, room_id=None):
         return "No independent Detective market inquiry has been filed."
     latest = rows[-1]
     if not verified_case(latest, event_lookup=event_lookup, room_id=room_id):
-        return "The market inquiry record could not be verified against signed village events."
+        return "The market inquiry record is not verified against signed village events."
     reply = (
         f"Merchant decision event {latest['source_event_id']} was independently "
         f"examined by {latest['detective_mask']} (Detective event "
