@@ -15,7 +15,11 @@ class CmdClinic(Command):
         clinic records
         clinic procure  (Merchant at Market Lane)
         clinic receive  (Healer at St. Lazarus)
-        clinic investigate  (Detective at the original cot after a Healer assessment)
+        clinic investigate illness  (Detective: unrelated illness interpretation)
+        clinic investigate exposure  (Detective: possible exposure interpretation)
+
+    The Detective must first look at the cot and bring a real cluster of
+    mushrooms from the village well. Competing explanations remain unproven.
 
     A fresh prepared dressing can be carried or handed to a different
     Healer. Only actual signed treatment changes the clinic's public record.
@@ -47,9 +51,12 @@ class CmdClinic(Command):
                 f"Merchant source event {result['source_event_id']})."
             ))
             return
-        if raw == ["investigate"]:
+        if raw in (["investigate"], ["investigate", "illness"],
+                   ["investigate", "exposure"]):
             from world.clinic_inquiry_work import investigate
-            result, error = investigate(self.caller)
+            interpretation = ("possible_exposure" if raw[-1] == "exposure"
+                              else "unrelated_illness")
+            result, error = investigate(self.caller, interpretation)
             if error:
                 self.caller.msg(error)
             else:
@@ -57,7 +64,10 @@ class CmdClinic(Command):
                     f"You sign an independent procedural clinic inquiry "
                     f"(world event {result['event_id']}, verified Healer source "
                     f"{result['source_event_id']}). The original cot records "
-                    "the timeline without revealing private case notes."
+                    f"the physical specimen {result['case_item_id']} and two "
+                    "competing explanations ({result['interpretation']} versus "
+                    f"{result['alternative']}). Neither cause is proven; "
+                    "private case notes remain confidential."
                 )
             return
         if raw == ["records"]:
@@ -72,7 +82,8 @@ class CmdClinic(Command):
         else:
             self.caller.msg(
                 "Use clinic | clinic assess | clinic prepare | "
-                "clinic treat rest or clinic treat compress | clinic request records | clinic records | clinic procure | clinic receive | clinic investigate."
+                "clinic treat rest or clinic treat compress | clinic request records | clinic records | clinic procure | clinic receive | clinic investigate illness|exposure. "
+                "Bring a real well-mushroom specimen and look at the clinic cot first."
             )
             return
         if error:
