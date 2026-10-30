@@ -1450,6 +1450,12 @@ def main() -> int:
         ):
             out = detective.command(move)
             require(out, place)
+            if place == "village square":
+                # Real well mushroom, carried as the case item. No clue token.
+                out = detective.command("get mushrooms")
+                require(out, "mushrooms")
+                out = detective.command("inventory")
+                require(out, "cluster of mushrooms")
         out = detective.command("clinic investigate")
         require(out, "look at the original clinic cot")
         out = h.command("clinic investigate")
@@ -1458,14 +1464,17 @@ def main() -> int:
         require_all(out, "visiting patient", "clinic investigate")
         assert "healertester" not in out.lower()
         assert "cold" not in out.lower()
-        out = detective.command("clinic investigate")
+        out = detective.command("clinic investigate exposure")
         require_all(out, "independent procedural clinic inquiry",
-                    "verified healer source", "world event")
-        out = detective.command("clinic investigate")
+                    "verified healer source", "world event",
+                    "physical specimen", "possible_exposure", "unrelated_illness",
+                    "neither cause is proven")
+        out = detective.command("clinic investigate illness")
         require(out, "already has an independent inquiry")
         out = detective.command("clinic")
         require_all(out, "independent procedural clinic inquiry",
-                    "visiting patient")
+                    "visiting patient", "competing interpretations",
+                    "physical specimen", "neither causal explanation is proven")
         assert "healertester" not in out.lower()
         assert "cold" not in out.lower()
         out = detective.command("clinic records")
