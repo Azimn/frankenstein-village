@@ -390,6 +390,37 @@ class RefugeRules(unittest.TestCase):
         self.assertFalse(serve(token=dict(token, source_protect_event_id=999))[2])
         self.assertFalse(serve(protection=dict(source, id=999))[2])
 
+    def test_dispatch_completed_consequence_must_name_original_cord(self):
+        # A valid request and physical token cannot authenticate an event
+        # whose completed consequence cites another or no physical cord.
+        source, marker, dispatch, token = fixture()
+        self.assertTrue(r.dispatch_valid(
+            dispatch, token, source, marker, 301, 401))
+        for bad_id in (None, False, True, 0, 302, 301.9, "301.9"):
+            with self.subTest(consequence_cord_id=bad_id):
+                corrupt = copy.deepcopy(dispatch)
+                corrupt["consequence"]["cord_id"] = bad_id
+                self.assertFalse(r.dispatch_valid(
+                    corrupt, token, source, marker, 301, 401))
+                state, food, allowed, _ = serve(dispatch_event=corrupt)
+                self.assertFalse(allowed)
+                self.assertIsNone(state)
+                self.assertEqual(food, soup_state.pantry(None, 3))
+        missing = copy.deepcopy(dispatch)
+        del missing["consequence"]["cord_id"]
+        self.assertFalse(serve(dispatch_event=missing)[2])
+
+        # The rule still permits a real signed dispatch served next day.
+        source["payload"]["hour"] = 22
+        dispatch["payload"]["hour"] = 23
+        token["hour"] = 23
+        state, food, allowed, why = serve(
+            day=4, hour=11, protection=source, marker=marker,
+            dispatch_event=dispatch, token=token)
+        self.assertTrue(allowed, why)
+        self.assertEqual(state["history"][0]["source_protect_event_id"], 41)
+        self.assertEqual(food["stock"]["turnip"], 2)
+
     def test_transaction_rejects_mid_action_account_or_mask_swap(self):
         # Preview identities must still control each mask when the signed
         # consequence commits. A role check alone is insufficient.
