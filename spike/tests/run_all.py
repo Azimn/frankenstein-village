@@ -444,7 +444,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=100,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
 
             migrated_player_proof = (
                 "from evennia.utils import search\n"
