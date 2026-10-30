@@ -46,8 +46,12 @@ def main():
             require_all(public, "independent procedural clinic inquiry",
                         "competing interpretations", "physical specimen",
                         "neither causal explanation is proven")
-            assert "healertester" not in public.lower()
-            assert "cold" not in public.lower()
+            # Room-arrival broadcasts may precede the command reply on telnet.
+            # Privacy applies to the actual clinic report, not public movement.
+            require(public, "St. Lazarus village clinic")
+            clinic_report = public.lower().split("st. lazarus village clinic", 1)[1]
+            assert "healertester" not in clinic_report
+            assert "cold" not in clinic_report
             require(detective.command("clinic records"),
                     "private clinical notes require an attending healer")
             require(detective.command("clinic investigate illness"),
