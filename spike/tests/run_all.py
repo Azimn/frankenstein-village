@@ -427,19 +427,19 @@ def main() -> int:
                 run([evennia, "stop"], cwd=game, env=env, timeout=60)
 
             migrated_player_proof = (
-                "from evennia.utils import search\\n"
-                "from world import clinic_inquiry_state as rules\\n"
-                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\\n"
-                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\\n"
-                "healer = [o for o in search.search_object('HealerTester') if o.key == 'HealerTester'][0]\\n"
-                "ids = rules.well_growth_ids(well.db.well_mushroom_spawn_ids)\\n"
-                "carried = [o for o in healer.contents if o.key == 'a cluster of mushrooms' and rules.registered_well_growth(o.id, ids)]\\n"
-                "legacy = [o for o in square.contents if getattr(o.db, 'qa_legacy_mushroom_decoy', False) is True]\\n"
-                "assert len(carried) == len(legacy) == 1, 'ordinary client picked legacy or lost genuine growth'\\n"
-                "assert carried[0].db.well_mushroom_source_id == well.id\\n"
-                "assert legacy[0].id not in ids\\n"
-                "well.db.qa_migrated_held_id = carried[0].id\\n"
-                "print('WELL_MIGRATED_AUTHENTICATED_PLAYER_CUSTODY_PRE_RESTART_GREEN')\\n"
+                "from evennia.utils import search\n"
+                "from world import clinic_inquiry_state as rules\n"
+                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\n"
+                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\n"
+                "healer = [o for o in search.search_object('HealerTester') if o.key == 'HealerTester'][0]\n"
+                "ids = rules.well_growth_ids(well.db.well_mushroom_spawn_ids)\n"
+                "carried = [o for o in healer.contents if o.key == 'a cluster of mushrooms' and rules.registered_well_growth(o.id, ids)]\n"
+                "legacy = [o for o in square.contents if getattr(o.db, 'qa_legacy_mushroom_decoy', False) is True]\n"
+                "assert len(carried) == len(legacy) == 1, 'ordinary client picked legacy or lost genuine growth'\n"
+                "assert carried[0].db.well_mushroom_source_id == well.id\n"
+                "assert legacy[0].id not in ids\n"
+                "well.db.qa_migrated_held_id = carried[0].id\n"
+                "print('WELL_MIGRATED_AUTHENTICATED_PLAYER_CUSTODY_PRE_RESTART_GREEN')\n"
             )
             run([evennia, "shell"], cwd=game, env=env,
                 input_text=migrated_player_proof)
@@ -469,19 +469,19 @@ def main() -> int:
             )
             run([evennia, "stop"], cwd=game, env=env, timeout=60)
             migrated_post_client_proof = (
-                "from evennia.utils import search\\n"
-                "from world import clinic_inquiry_state as rules\\n"
-                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\\n"
-                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\\n"
-                "healer = [o for o in search.search_object('HealerTester') if o.key == 'HealerTester'][0]\\n"
-                "held_id = well.db.qa_migrated_held_id\\n"
-                "ids = rules.well_growth_ids(well.db.well_mushroom_spawn_ids)\\n"
-                "growth = [o for o in square.contents if o.id == held_id and rules.registered_well_growth(o.id, ids)]\\n"
-                "legacy = [o for o in square.contents if getattr(o.db, 'qa_legacy_mushroom_decoy', False) is True]\\n"
-                "assert len(growth) == len(legacy) == 1 and legacy[0].id not in ids\\n"
-                "assert growth[0].db.well_mushroom_source_id == well.id\\n"
-                "assert not [o for o in healer.contents if o.id == held_id]\\n"
-                "print('WELL_MIGRATED_AUTHENTICATED_PLAYER_CUSTODY_POST_RESTART_GREEN')\\n"
+                "from evennia.utils import search\n"
+                "from world import clinic_inquiry_state as rules\n"
+                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\n"
+                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\n"
+                "healer = [o for o in search.search_object('HealerTester') if o.key == 'HealerTester'][0]\n"
+                "held_id = well.db.qa_migrated_held_id\n"
+                "ids = rules.well_growth_ids(well.db.well_mushroom_spawn_ids)\n"
+                "growth = [o for o in square.contents if o.id == held_id and rules.registered_well_growth(o.id, ids)]\n"
+                "legacy = [o for o in square.contents if getattr(o.db, 'qa_legacy_mushroom_decoy', False) is True]\n"
+                "assert len(growth) == len(legacy) == 1 and legacy[0].id not in ids\n"
+                "assert growth[0].db.well_mushroom_source_id == well.id\n"
+                "assert not [o for o in healer.contents if o.id == held_id]\n"
+                "print('WELL_MIGRATED_AUTHENTICATED_PLAYER_CUSTODY_POST_RESTART_GREEN')\n"
             )
             run([evennia, "shell"], cwd=game, env=env,
                 input_text=migrated_post_client_proof)
