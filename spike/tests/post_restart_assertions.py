@@ -1279,6 +1279,21 @@ assert _actions["wanderer"]["observation"] == "unmarked", (
     "Later protection overwrote the original Wanderer's observation"
 )
 assert _actions["hound"]["event_id"] == _cord.db.route_caution["event_id"]
+_joint = _actions["wanderer"]["corroboration"]
+assert _joint["hound_event_id"] == _actions["hound"]["event_id"]
+assert _joint["account_id"] == _actions["wanderer"]["account_id"]
+assert _joint["account_id"] != _actions["hound"]["account_id"]
+assert _joint["observation"] == "marked_caution"
+_signed_joint = warning_ledger.get_event(_joint["event_id"])
+assert _signed_joint["kind"] == "village.route_caution_corroborated"
+assert _signed_joint["status"] == "complete"
+assert _signed_joint["actor"]["account_id"] == _joint["account_id"]
+assert _signed_joint["payload"]["hound_source_event_id"] == _joint["hound_event_id"]
+assert _signed_joint["consequence"]["hound_source_event_id"] == _joint["hound_event_id"]
+assert _signed_joint["consequence"]["physical_caution_present"] is True
+assert _next_survey_day["history"][-1]["field_decisions"]["wanderer"]["corroboration"] == _joint
+assert calling_record(_wanderer_field, "wanderer")["participation"]["field_corroborations"] == 1
+print("POST_RESTART_GDD_EDGE38_SIGNED_INDEPENDENT_ROUTE_CORROBORATION_GREEN")
 for _role, _kind in (("hound", "village.route_protected"),
                      ("wanderer", "village.route_passability_observed")):
     _signed = warning_ledger.get_event(_actions[_role]["event_id"])

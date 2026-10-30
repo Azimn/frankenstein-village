@@ -67,8 +67,10 @@ WORK = {
         "The limited daily supply and signed ferry manifest persist.",
         "At the Northern Treeline, examine the frayed red cord and use "
         "survey passability to record whether a real caution marker was "
-        "present when you visited. This is a dated route judgment, not "
-        "a guarantee of safety.",
+        "present when you visited. If a separate Hound has since used "
+        "survey protect, examine the cord again and use survey corroborate "
+        "to sign an independently sourced follow-up. Neither observation "
+        "guarantees safety.",
         "Use survey to see the four current district checkpoints. "
         "Travel there, look at each actual clue, and use survey report.",
         "Examine the Riverside Path, churchyard, treeline, and market "
