@@ -22,6 +22,17 @@ def positive(value):
     return value if type(value) is int and value > 0 else None
 
 
+def well_case_source_valid(origin_well_id, actual_well_id, toxin_value):
+    """Validate the well-grown object's persisted origin and hidden magnitude.
+
+    The origin marker is set by ensure_well_mushrooms, never by the Detective.
+    """
+    return (positive(origin_well_id) is not None
+            and positive(actual_well_id) is not None
+            and origin_well_id == actual_well_id
+            and type(toxin_value) is int and toxin_value > 0)
+
+
 def stamp(day, hour):
     if positive(day) is None or type(hour) is not int or not 0 <= hour <= 23:
         return None
@@ -46,7 +57,8 @@ def normalize(raw):
         if not isinstance(candidate, Mapping):
             continue
         fields = ("account_id", "mask_id", "event_id", "source_event_id",
-                  "source_account_id", "source_mask_id", "cot_id", "room_id", "case_item_id")
+                  "source_account_id", "source_mask_id", "cot_id", "room_id",
+                  "case_item_id", "case_well_id")
         values = {name: positive(candidate.get(name)) for name in fields}
         day, hour = candidate.get("day"), candidate.get("hour")
         if (stamp(day, hour) is None or not all(values.values())
@@ -103,7 +115,7 @@ def source_valid(event, assessment, room_id):
 def investigate(raw, *, day, hour, account_id, mask_id, mask, event_id,
                 source_event_id, source_account_id, source_mask_id,
                 source_day, source_hour, cot_id, room_id, case_item_id=None,
-                interpretation=None, preview=False):
+                case_well_id=None, interpretation=None, preview=False):
     """Validate a player attempt; only a real ledger ID can sign a record.
 
     Preview checks the same physical, account, clock and duplicate gates,
@@ -112,7 +124,8 @@ def investigate(raw, *, day, hour, account_id, mask_id, mask, event_id,
     state = normalize(raw)
     now, earlier = stamp(day, hour), stamp(source_day, source_hour)
     ids = (account_id, mask_id, source_event_id,
-           source_account_id, source_mask_id, cot_id, room_id, case_item_id)
+           source_account_id, source_mask_id, cot_id, room_id, case_item_id,
+           case_well_id)
     if (type(preview) is not bool or now is None or earlier is None
             or any(positive(i) is None for i in ids)
             or interpretation not in INTERPRETATIONS
@@ -140,7 +153,7 @@ def investigate(raw, *, day, hour, account_id, mask_id, mask, event_id,
         "source_account_id": source_account_id,
         "source_mask_id": source_mask_id,
         "cot_id": cot_id, "room_id": room_id,
-        "case_item_id": case_item_id,
+        "case_item_id": case_item_id, "case_well_id": case_well_id,
         "interpretation": interpretation,
         "alternative": alternative(interpretation),
         "finding": "contested_clinic_cause",
@@ -154,7 +167,8 @@ def signed_inquiry(row, event_lookup):
     if not isinstance(row, Mapping) or not callable(event_lookup):
         return False
     fields = ("event_id", "source_event_id", "account_id", "mask_id",
-              "source_account_id", "source_mask_id", "cot_id", "room_id", "case_item_id")
+              "source_account_id", "source_mask_id", "cot_id", "room_id",
+              "case_item_id", "case_well_id")
     if any(positive(row.get(key)) is None for key in fields):
         return False
     if (row["account_id"] == row["source_account_id"]
@@ -202,6 +216,10 @@ def signed_inquiry(row, event_lookup):
         and source_payload.get("day") == row["day"]
         and positive(payload.get("cot_id")) == row["cot_id"]
         and positive(payload.get("case_item_id")) == row["case_item_id"]
+        and positive(payload.get("case_well_id")) == row["case_well_id"]
+        and well_case_source_valid(
+            payload.get("case_well_id"), row["case_well_id"],
+            payload.get("case_item_toxin"))
         and payload.get("case_item_key") == CASE_ITEM_KEY
         and payload.get("interpretation") == row["interpretation"]
         and payload.get("alternative") == row["alternative"]
@@ -210,6 +228,8 @@ def signed_inquiry(row, event_lookup):
         and positive(payload.get("source_healer_account_id")) == row["source_account_id"]
         and positive(consequence.get("cot_id")) == row["cot_id"]
         and positive(consequence.get("case_item_id")) == row["case_item_id"]
+        and positive(consequence.get("case_well_id")) == row["case_well_id"]
+        and consequence.get("case_item_toxin") == payload.get("case_item_toxin")
         and consequence.get("interpretation") == row["interpretation"]
         and consequence.get("alternative") == row["alternative"]
         and consequence.get("causal_status") == "unproven"
