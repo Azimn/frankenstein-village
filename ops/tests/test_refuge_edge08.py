@@ -51,6 +51,36 @@ def serve(**changes):
     return r.accept(**args)
 
 
+def signed_events(row, *, source=None, dispatch=None):
+    """Build canonical event-ledger records for a completed physical meal."""
+    default_source, _marker, default_dispatch, _token = fixture()
+    source = copy.deepcopy(source if source is not None else default_source)
+    dispatch = copy.deepcopy(dispatch if dispatch is not None else default_dispatch)
+    meal = {
+        "id": row["event_id"], "kind": "professional.innkeep_refuge_meal",
+        "status": "complete",
+        "actor": {"account_id": row["innkeep_account_id"],
+                  "mask_id": row["innkeep_mask_id"], "mask": "InnkeepTester"},
+        "payload": {
+            "day": row["day"], "hour": row["hour"],
+            "tavern_id": row["tavern_id"],
+            "hound_account_id": row["hound_account_id"],
+            "hound_mask_id": row["hound_mask_id"],
+            "dispatch_item_id": row["item_id"],
+            "dispatch_event_id": row["dispatch_event_id"],
+            "professional_calling": "innkeep",
+        },
+        "consequence": {
+            "bowl_id": row["bowl_id"],
+            "consumed_dispatch_id": row["item_id"],
+            "dispatch_event_id": row["dispatch_event_id"],
+            "source_protect_event_id": row["source_protect_event_id"],
+            "tavern_id": row["tavern_id"],
+        },
+    }
+    return {source["id"]: source, dispatch["id"]: dispatch, meal["id"]: meal}
+
+
 class RefugeRules(unittest.TestCase):
     def test_real_two_account_arrival_spends_finite_food(self):
         history, food, ok, reason = serve()
@@ -530,7 +560,11 @@ class RefugeRules(unittest.TestCase):
         history = json.loads(json.dumps(history))
         food = json.loads(json.dumps(food))
         self.assertFalse(serve(raw=history, pantry_raw=food, event_id=44)[2])
-        self.assertIn("1 signed Hound arrival", r.public_lines(history))
+        signed = copy.deepcopy(history)
+        signed["history"][0]["bowl_id"] = 601  # Real consequence creates bowl.
+        events = signed_events(signed["history"][0])
+        self.assertIn("1 signed Hound arrival",
+                      r.public_lines(signed, events.get))
         self.assertIn("No witnessed", r.public_lines(None))
 
     def test_evennia_style_mutable_sequence_and_mapping_survive(self):
@@ -538,8 +572,87 @@ class RefugeRules(unittest.TestCase):
         self.assertTrue(ok)
         saved = UserDict({"history": UserList([UserDict(history["history"][0])])})
         self.assertEqual(len(r.history(saved)), 1)
-        self.assertIn("1 signed Hound arrival", r.public_lines(saved))
+        # The pure accept() preview has not yet created the physical bowl.
+        # A completed signed event must bind the actual persisted bowl ID.
+        signed_row = dict(history["history"][0], bowl_id=601)
+        signed_saved = UserDict({"history": UserList([UserDict(signed_row)])})
+        events = signed_events(signed_row)
+        self.assertIn("1 signed Hound arrival",
+                      r.public_lines(signed_saved, events.get))
         self.assertFalse(serve(raw=saved, pantry_raw=food, event_id=44)[2])
+
+    def test_public_refuge_status_requires_canonical_signed_event_chain(self):
+        # Integrator's recurring public-readback P2: persisted positive IDs
+        # alone cannot make a completed professional act appear signed.
+        state, pantry, ok, why = serve()
+        self.assertTrue(ok, why)
+        row = dict(state["history"][0], bowl_id=601)
+        persisted = {"history": [row]}
+        canonical = signed_events(row)
+        self.assertIn("1 signed Hound arrival",
+                      r.public_lines(persisted, canonical.get))
+        self.assertEqual(pantry["stock"]["turnip"], 2)
+
+        for missing_id in (41, 42, 43):
+            with self.subTest(missing_ledger_event=missing_id):
+                events = copy.deepcopy(canonical)
+                del events[missing_id]
+                self.assertIn("requires signed source inspection",
+                              r.public_lines(persisted, events.get))
+
+        # Each hostile variant keeps superficially plausible positive IDs.
+        corruptions = (
+            (41, "consequence", "cord_object_id", 999),
+            (41, "consequence", "caution_marked", False),
+            (41, "payload", "location", "The Village Square"),
+            (42, "actor", "account_id", 999),
+            (42, "consequence", "item_id", 999),
+            (42, "payload", "source_protect_event_id", 999),
+            (42, "payload", "day", 4),
+            (43, "actor", "account_id", 999),
+            (43, "payload", "hound_account_id", 999),
+            (43, "payload", "day", 4),
+            (43, "consequence", "bowl_id", 999),
+            (43, "consequence", "consumed_dispatch_id", 999),
+        )
+        for event_id, section, key, value in corruptions:
+            with self.subTest(event_id=event_id, field=key):
+                events = copy.deepcopy(canonical)
+                events[event_id][section][key] = value
+                self.assertIn("requires signed source inspection",
+                              r.public_lines(persisted, events.get))
+        for event_id in (41, 42, 43):
+            with self.subTest(incomplete_event=event_id):
+                events = copy.deepcopy(canonical)
+                events[event_id]["status"] = "consequence_failed"
+                self.assertIn("requires signed source inspection",
+                              r.public_lines(persisted, events.get))
+        fake = {"history": [dict(row, event_id=999991)]}
+        self.assertIn("requires signed source inspection",
+                      r.public_lines(fake, canonical.get))
+        self.assertEqual(pantry["stock"]["turnip"], 2)
+
+    def test_public_readback_accepts_historical_dispatch_after_retying(self):
+        # Ledger provenance must survive legitimate next-day cord re-tying.
+        source, _marker, dispatch, token = fixture()
+        source["payload"]["hour"] = 22
+        dispatch["payload"]["hour"] = 23
+        token["hour"] = 23
+        state, food, ok, why = serve(
+            day=4, hour=11, protection=source,
+            dispatch_event=dispatch, token=token)
+        self.assertTrue(ok, why)
+        row = dict(state["history"][0], bowl_id=601)
+        events = signed_events(row, source=source, dispatch=dispatch)
+        saved = UserDict({"history": UserList([UserDict(row)])})
+        self.assertIn("1 signed Hound arrival",
+                      r.public_lines(saved, events.get))
+        self.assertEqual(food["stock"]["turnip"], 2)
+        # The status readback is strictly read-only, including on denial.
+        events[41]["status"] = "consequence_failed"
+        self.assertIn("requires signed source inspection",
+                      r.public_lines(saved, events.get))
+        self.assertEqual(food["stock"]["turnip"], 2)
 
     def test_corrupt_persisted_history_fails_closed(self):
         self.assertFalse(serve(raw={"history": [{"event_id": True}]})[2])
