@@ -203,7 +203,8 @@ class RefugeRules(unittest.TestCase):
         tied = dict(marker, event_id=44, day=4, prior_caution_event_id=41)
         self.assertTrue(r.protection_valid(renewed, tied, 301))
         self.assertTrue(r.can_dispatch(
-            {"day": 3}, renewed, tied, cord_id=301, day=4, hour=11,
+            {"day": 3, "event_id": 42, "account_id": 101, "item_id": 401},
+            renewed, tied, cord_id=301, day=4, hour=11,
             hound_account_id=101, hound_mask_id=201)[0])
 
         # An authentic day-4 dispatch and token must cite the new protection.
@@ -234,6 +235,37 @@ class RefugeRules(unittest.TestCase):
         changed = copy.deepcopy(renewed)
         changed["payload"]["prior_caution_event_id"] = 999
         self.assertFalse(r.protection_valid(changed, tied, 301))
+
+    def test_malformed_prior_dispatch_record_cannot_authorize_new_work(self):
+        # A persisted last-dispatch record is a signed physical consequence.
+        # A day alone is not proof that a valid earlier dispatch existed.
+        source, marker, _dispatch, _token = fixture()
+        renewed = copy.deepcopy(source)
+        renewed["id"] = 44
+        renewed["payload"].update(day=4, prior_caution_event_id=41)
+        renewed["consequence"].update(day=4, prior_caution_event_id=41)
+        current = dict(marker, day=4, event_id=44,
+                       prior_caution_event_id=41)
+        args = dict(cord_id=301, day=4, hour=11,
+                    hound_account_id=101, hound_mask_id=201)
+        prior = {"day": 3, "event_id": 42,
+                 "account_id": 101, "item_id": 401}
+        self.assertTrue(r.can_dispatch(prior, renewed, current, **args)[0])
+        self.assertFalse(r.can_dispatch(dict(prior, day=4),
+                                        renewed, current, **args)[0])
+        for key in ("day", "event_id", "account_id", "item_id"):
+            missing = dict(prior)
+            del missing[key]
+            with self.subTest(missing=key):
+                self.assertFalse(r.can_dispatch(
+                    missing, renewed, current, **args)[0])
+            for value in (None, False, True, 0, -1, 3.5, "3.5"):
+                with self.subTest(field=key, value=value):
+                    corrupted = dict(prior, **{key: value})
+                    self.assertFalse(r.can_dispatch(
+                        corrupted, renewed, current, **args)[0])
+        # The gate does not allocate a physical token or spend soup stock.
+        self.assertEqual(soup_state.pantry(None, 4)["stock"]["turnip"], 3)
 
     def test_valid_old_dispatch_survives_next_day_signed_retying(self):
         # Day 3, 23:00: one Hound signs and carries the physical dispatch.
