@@ -5279,6 +5279,14 @@ def ensure_well_mushrooms():
         {},
         hidden_properties={"toxin": 25},
     )
+    # Durable provenance for physically carried specimens. Only the actual
+    # canonical well regrowth path stamps this marker; the Detective cannot.
+    # Existing square growth is migrated on an ordinary build/resync.
+    if (wells and square is not None and square.key == "Village Square"
+            and wells[0].key == "well"
+            and wells[0].is_typeclass(
+                "typeclasses.objects.VillageWell", exact=True)):
+        mushrooms.db.well_mushroom_source_id = wells[0].id
     # Legacy "toxic" belonged to the old consumption dict. The hidden toxin
     # property is authoritative, so even a previously built cluster must not
     # retain a conflicting legacy key.
