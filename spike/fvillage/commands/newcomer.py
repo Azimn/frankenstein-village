@@ -112,6 +112,35 @@ class CmdGuide(Command):
                 )
             else:
                 open_sites = None
+            from world import square_brazier
+            carried_bundle = bool(community_hearth._carried(caller))
+            usable_bundle = square_brazier._usable_bundle(
+                caller, square_brazier._clock()[0]
+            )
+            if usable_bundle is not None:
+                brazier_tip = (
+                    "You already carry a free firewood bundle. Use "
+                    "|wbrazier light|n when cold or |wbrazier feed|n "
+                    "while it burns to warm everyone physically here."
+                )
+            elif carried_bundle:
+                brazier_tip = (
+                    "Your firewood is pledged to a civic commission, so "
+                    "keep it for delivery or cancel the pledge before "
+                    "trying to fuel this public fire."
+                )
+            elif source is not None and source["remaining"] > 0:
+                brazier_tip = (
+                    "The woodpile has finite stock. Use |whearth gather|n "
+                    "to carry one real bundle, then |wbrazier light|n "
+                    "when cold or |wbrazier feed|n while burning."
+                )
+            else:
+                brazier_tip = (
+                    "No unclaimed firewood is available at the woodpile "
+                    "right now. A neighbor may share a carried bundle, "
+                    "or you can return when the daily supply renews."
+                )
             caller.msg(render_square(
                 wood_remaining=(
                     source["remaining"] if source is not None else None
@@ -123,6 +152,11 @@ class CmdGuide(Command):
                 unreported_sites=open_sites,
                 lamp_status=lamp_lead(caller),
                 lamp_case_state=(lamp_case or {}).get("state"),
+            ) + (
+                "\n|wAnother shared village project|n: "
+                + square_brazier.public_line()
+                + " Examine the |wpublic brazier|n here and use |wbrazier|n "
+                "for its real needs. " + brazier_tip
             ))
         elif place == "The Lamp Shop":
             caller.msg(

@@ -1352,7 +1352,13 @@ class WarmthWatch(SpikeScript):
         if w is None:
             w = 1.0
         if room_key == "Village Square":
-            if weather == "rain":
+            from world.square_brazier import is_active as brazier_burning
+            if brazier_burning():
+                # Fuel consumed by players changes the *same* existing
+                # body warmth state for every character physically here.
+                # Rain diminishes but does not erase real nearby heat.
+                w += 0.04 if weather == "rain" else 0.08
+            elif weather == "rain":
                 w -= 0.08
             elif weather == "fog":
                 w -= 0.03
@@ -1426,6 +1432,13 @@ class VillageTime(SpikeScript):
         self.db.hour = hour
         if hour == 0:
             self.db.day = (self.db.day or 1) + 1
+
+        # The public Square fire remembers canonical elapsed hours. It has
+        # NO independent ticker or fuel source; clock advancement records
+        # expiry even while the Square is empty. Clock rewinds then cannot
+        # revive already-burned wood.
+        from world.square_brazier import advance_clock as checkpoint_brazier
+        checkpoint_brazier(day=self.db.day or 1, hour=hour)
 
         # Seasonal chapters are slow modifiers over the existing world. They
         # share this clock and own no separate ticker.
