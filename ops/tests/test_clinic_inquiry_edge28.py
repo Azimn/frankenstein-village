@@ -112,5 +112,70 @@ class ClinicInquiryRules(unittest.TestCase):
         self.assertEqual(state["records"][0]["source_event_id"], 101)
 
 
+    def test_public_inquiry_requires_two_real_signed_events(self):
+        _assessment, source, args = fixture()
+        state, good, reason = rules.investigate(None, **args)
+        self.assertTrue(good, reason)
+        inquiry = {
+            "id": 202, "kind": "village.clinic_inquiry", "status": "complete",
+            "actor": {"account_id": 22, "mask_id": 222, "mask": "DetectiveTester"},
+            "payload": {"day": 1, "hour": 21, "professional_calling": "detective",
+                        "cot_id": 401, "room_id": 301,
+                        "source_healer_event_id": 101, "source_healer_account_id": 11},
+            "consequence": {"cot_id": 401, "room_id": 301,
+                            "source_healer_event_id": 101,
+                            "finding": "qualified_clinic_timeline",
+                            "day": 1, "hour": 21},
+        }
+        events = {101: source, 202: inquiry}
+        lookup = events.get
+        line = rules.public_lines(state, 1, lookup)
+        self.assertIn("signed as event 202", line)
+        self.assertIn("Healer assessment event 101", line)
+        self.assertNotIn("HealerTester", line)
+        self.assertNotIn("cold", line)
+
+        # Shape-valid persisted IDs are not signed without canonical events.
+        self.assertIn("requires signed source inspection",
+                      rules.public_lines(state, 1, lambda _id: None))
+        self.assertIn("requires signed source inspection",
+                      rules.public_lines(state, 1, lambda _id: (_ for _ in ()).throw(ValueError())))
+        for event_id, field_path, value in (
+            (202, ("status",), "consequence_failed"),
+            (202, ("kind",), "village.clinic_assess"),
+            (202, ("actor", "account_id"), 11),
+            (202, ("payload", "cot_id"), 999),
+            (202, ("payload", "source_healer_event_id"), 999991),
+            (202, ("consequence", "source_healer_event_id"), 999992),
+            (202, ("consequence", "finding"), "diagnosis"),
+            (202, ("consequence", "day"), 2),
+            (101, ("status",), "consequence_failed"),
+            (101, ("kind",), "village.clinic_treat"),
+            (101, ("actor", "mask_id"), 999),
+            (101, ("payload", "day"), 2),
+            (101, ("consequence", "assessment_event_id"), 999993),
+            (101, ("consequence", "room_id"), 999),
+        ):
+            with self.subTest(event_id=event_id, field_path=field_path):
+                forged = copy.deepcopy(events)
+                target = forged[event_id]
+                for part in field_path[:-1]:
+                    target = target[part]
+                target[field_path[-1]] = value
+                self.assertFalse(rules.signed_inquiry(
+                    state["records"][0], forged.get))
+                self.assertIn("requires signed source inspection",
+                              rules.public_lines(state, 1, forged.get))
+        self.assertEqual(state["records"][0]["event_id"], 202)
+
+    def test_corrupt_public_records_fail_closed_without_crashing(self):
+        for records in (17, True, "forged", {"event_id": 202}, object()):
+            with self.subTest(records_type=type(records).__name__):
+                raw = {"records": records}
+                self.assertEqual(rules.normalize(raw)["records"], [])
+                self.assertIn("requires signed source inspection",
+                              rules.public_lines(raw, 1, lambda _id: None))
+
+
 if __name__ == "__main__":
     unittest.main()
