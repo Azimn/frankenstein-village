@@ -1591,6 +1591,11 @@ _music_state = _clinic_music.normalize(_music_cot.db.clinic_comfort)
 _music_invitation = _music_state["invitation"]
 _music_offer = _music_state["music"]
 assert _music_invitation is not None and _music_offer is not None
+# The signed acceptance must match the anonymous visitor's independent
+# authored daily choice, not merely the treating Healer's request.
+assert _music_invitation["visitor_choice"] == "accepts"
+assert _clinic_music.clinic_state.music_preference(_music_state["day"]) == "accepts"
+assert _clinic_music.clinic_state.music_preference(_music_state["day"] + 1) == "declines"
 assert _music_invitation["cot_id"] == _music_cot.id
 assert _music_invitation["room_id"] == _church.id
 assert _music_invitation["source_event_id"] == _clinic["treatment"]["event_id"]
@@ -1615,6 +1620,9 @@ assert _music_event["status"] == "complete"
 assert _music_event["actor"]["account_id"] == _music_offer["account_id"]
 assert _music_event["consequence"]["source_event_id"] == _music_invitation["event_id"]
 assert _music_event["consequence"]["cot_id"] == _music_cot.id
+_invitation_event = warning_ledger.get_event(_music_invitation["event_id"])
+assert _invitation_event["payload"]["visitor_choice"] == "accepts"
+assert _invitation_event["consequence"]["visitor_choice"] == "accepts"
 assert "cold" not in _clinic_music.public_lines(_music_state, _music_state["day"]).lower()
 assert _clinic_music.refresh(_music_state, _music_state["day"] + 1)["music"] is None
 print("POST_RESTART_GDD_EDGE27_SIGNED_CONSENTED_CLINIC_MUSIC_GREEN")
