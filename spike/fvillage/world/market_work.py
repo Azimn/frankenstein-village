@@ -50,7 +50,17 @@ def state_lines():
     scale = next((o for o in room.contents if o.key == SCALE
                   and o.db.landmark_id == "market_scale"), None)
     if scale:
-        lines.append(forensic_scale.public_lines(scale.db.forensic_inspections, day))
+        # Public readback must never create a missing ledger or trust a stored
+        # row without the original completed Smith and Detective events.
+        try:
+            ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+        except ScriptDB.DoesNotExist:
+            ledger = None
+        lines.append(forensic_scale.public_lines(
+            scale.db.forensic_inspections, day,
+            event_lookup=ledger.get_event if ledger else None,
+            scale_id=scale.id, market_id=room.id,
+        ))
     return "\n".join(lines)
 
 
