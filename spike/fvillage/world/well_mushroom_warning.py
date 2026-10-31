@@ -72,21 +72,25 @@ def _is_target(obj):
 
 def submit_healer_finding(mask, obj):
     """File the Healer half of the warning without making it public yet."""
-    if active_calling(mask) != "healer":
-        return None, "An active Healer Calling is required to file the professional assessment."
     if not _is_target(obj):
         return (
             None,
             "This public-health case concerns the pale mushrooms beside the "
             "village well, not that object.",
         )
-    account = getattr(mask, "account", None)
-    if account is None or type(getattr(account, "id", None)) is not int:
-        return None, "A logged-in Healer account is required."
+
+    if active_calling(mask) != "healer":
+        return None, "An active Healer Calling is required to file the professional assessment."
 
     assessment, error = assess_hidden_object(mask, obj)
     if error:
         return None, error
+
+    # Public signed evidence requires an attributable player account; private
+    # toxicity assessment remains available to unauthenticated test masks.
+    account = getattr(mask, "account", None)
+    if account is None or type(getattr(account, "id", None)) is not int or account.id <= 0:
+        return None, "A logged-in Healer account is required to file a public-health finding."
 
     toxin = next(
         (

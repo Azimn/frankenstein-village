@@ -6,6 +6,7 @@ previous day's terminal order must not block today's legitimate work.
 """
 import argparse
 import os
+import re
 
 from telnet_playthrough import require, require_all
 from telnet_t13_cancel import connect
@@ -23,18 +24,23 @@ def main():
             os.environ["FV_QA_REPAIR_PASSWORD"],
             "SmithTester", "Village Square",
         )
-        require_all(supplier.command("commission"), "day 4", "civic-4", "open")
+        status = supplier.command("commission")
+        match = re.search(r"day\s+(\d+),\s+hour\s+\d+\.\s+commission\s+(civic-\d+):\s+open\.", status, re.I)
+        assert match is not None, ("Expected an open signed daily commission", status)
+        recovery_day = int(match.group(1))
+        commission_id = match.group(2)
+        assert recovery_day >= 4 and commission_id == f"civic-{recovery_day}", status
         require(supplier.command("hearth gather"), "bundles remain today")
         require_all(
             supplier.command("commission pledge"),
             "pledge your physical", "another player",
         )
-        require_all(supplier.command("commission"), "civic-4", "pledged")
+        require_all(supplier.command("commission"), commission_id, "pledged")
         require_all(
             supplier.command("commission cancel"),
             "signed firewood pledge is cancelled", "remains",
         )
-        require_all(supplier.command("commission"), "civic-4", "cancelled")
+        require_all(supplier.command("commission"), commission_id, "cancelled")
         require(supplier.command("commission cancel"), "only an outstanding commission")
         print("TELNET_GDD_T13_NEXT_DAY_RECOVERY_GREEN")
     finally:

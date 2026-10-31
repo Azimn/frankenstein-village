@@ -264,7 +264,54 @@ assert len(population) == len(RESIDENTS) >= 36, "resident population changed acr
 # capacity rather than the pre-restock count.
 bread = one("a loaf of bread")
 water = one("a cup of water")
-mushrooms = one("a cluster of mushrooms")
+# A real restart may retain a legacy same-name cluster, original carried
+# growth and new registered growth. Select the original signed physical
+# specimen by its pre-rebuild ID, never by a global first-name match.
+from world import clinic_inquiry_state as _well_rules
+from commands.village_cmds import (
+    _preferred_well_growth_pickup as _well_pickup,
+    ensure_well_mushrooms as _ensure_well_growth,
+)
+_square = one("Village Square")
+_wells = [o for o in _square.contents
+          if o.key == "well"
+          and o.is_typeclass("typeclasses.objects.VillageWell", exact=True)]
+assert len(_wells) == 1, "canonical village well lost or duplicated"
+_well = _wells[0]
+_registered_before = tuple(_well_rules.well_growth_ids(
+    getattr(_well.db, "well_mushroom_spawn_ids", None)))
+assert _registered_before, "registered growth provenance did not survive restart"
+_all_clusters = [o for o in search.search_object("a cluster of mushrooms")
+                 if o.key == "a cluster of mushrooms"]
+_original_id = getattr(_well.db, "qa_expected_growth_id", None)
+_originals = [o for o in _all_clusters
+              if o.id == _original_id
+              and _well_rules.registered_well_growth(o.id, _registered_before)
+              and getattr(o.db, "well_mushroom_source_id", None) == _well.id]
+assert len(_originals) == 1, "original registered specimen lost across restart"
+mushrooms = _originals[0]
+_legacy = [o for o in _all_clusters
+           if getattr(o.db, "qa_legacy_mushroom_decoy", False) is True]
+assert len(_legacy) == 1, "hostile legacy coexistence fixture did not persist"
+assert _legacy[0].location == _square
+assert _legacy[0].id not in _registered_before
+assert not _well_rules.registered_well_growth(
+    _legacy[0].id, _registered_before)
+assert getattr(_legacy[0].db, "well_mushroom_source_id", None) == _well.id
+assert hidden_mechanical_properties(_legacy[0]) == {"toxin": 25}
+_floor_growth = _well_pickup(
+    [o for o in _square.contents if o.key == "a cluster of mushrooms"],
+    _square,
+)
+assert _floor_growth is not None and _floor_growth.id in _registered_before
+assert _well_pickup([_legacy[0], _floor_growth], _square) is _floor_growth
+assert _well_pickup([_floor_growth, _legacy[0]], _square) is _floor_growth
+assert _ensure_well_growth().id == _floor_growth.id, (
+    "post-restart rebuild changed the physical registered well specimen")
+assert tuple(_well.db.well_mushroom_spawn_ids or ()) == _registered_before, (
+    "post-restart idempotent rebuild created or erased well provenance")
+assert _legacy[0].id not in _well.db.well_mushroom_spawn_ids
+print("POST_RESTART_GDD_EDGE28_MIGRATED_WELL_PROVENANCE_GREEN")
 assert mechanical_properties(bread) == {"uses": 6, "worth": 4}
 assert mechanical_properties(water) == {"worth": 0}
 assert mechanical_properties(mushrooms) == {}
@@ -1582,6 +1629,58 @@ print("POST_RESTART_GDD_EDGE25_SIGNED_DISTINCT_CLINIC_SUPPLY_GREEN")
 print("POST_RESTART_PHYSICAL_CLINIC_CARE_GREEN")
 print("POST_RESTART_GDD_T08_PRIVATE_CLINIC_PERMISSION_GREEN")
 
+# EDGE-28: original cot, independently authenticated Detective and source
+# Healer assessment retain the same verified timeline after a real restart.
+from world import clinic_inquiry_state as _clinic_inquiry
+_cot = one("a clinic treatment cot")
+_detective_clinic = one("DetectiveClinicTester")
+assert active_calling(_detective_clinic) == "detective"
+_inquiry_records = _clinic_inquiry.normalize(_cot.db.clinic_inquiry)["records"]
+assert len(_inquiry_records) == 1, _inquiry_records
+_inquiry = _inquiry_records[0]
+assert _inquiry["mask_id"] == _detective_clinic.id
+assert _inquiry["source_mask_id"] == healer_tester.id
+assert _inquiry["account_id"] != _inquiry["source_account_id"]
+assert _inquiry["cot_id"] == _cot.id and _inquiry["room_id"] == _church.id
+assert _inquiry["source_event_id"] == _clinic["assessment"]["event_id"]
+assert _inquiry["interpretation"] == "possible_exposure"
+assert _inquiry["alternative"] == "unrelated_illness"
+from world.object_properties import is_hidden_mechanical_property as _is_hidden_property
+_case_items = [o for o in list(_church.contents) + list(_detective_clinic.contents)
+               if o.id == _inquiry["case_item_id"]]
+assert len(_case_items) == 1 and _case_items[0].key == "a cluster of mushrooms"
+assert _is_hidden_property(_case_items[0], "toxin")
+assert _clinic_inquiry.signed_inquiry(_inquiry, warning_ledger.get_event)
+_source = warning_ledger.get_event(_inquiry["source_event_id"])
+assert _clinic_inquiry.source_valid(_source, _clinic["assessment"], _church.id)
+_inquiry_event = warning_ledger.get_event(_inquiry["event_id"])
+assert _inquiry_event["kind"] == "village.clinic_inquiry"
+assert _inquiry_event["status"] == "complete"
+assert _inquiry_event["actor"]["mask_id"] == _detective_clinic.id
+assert _inquiry_event["actor"]["account_id"] == _inquiry["account_id"]
+assert _inquiry_event["payload"]["source_healer_event_id"] == _source["id"]
+assert _inquiry_event["payload"]["case_item_id"] == _inquiry["case_item_id"]
+assert _inquiry_event["payload"]["interpretation"] == "possible_exposure"
+assert _inquiry_event["payload"]["alternative"] == "unrelated_illness"
+assert _inquiry_event["consequence"]["case_item_id"] == _inquiry["case_item_id"]
+assert _inquiry_event["consequence"]["causal_status"] == "unproven"
+assert _inquiry_event["consequence"]["cot_id"] == _cot.id
+assert calling_record(_detective_clinic, "detective")["participation"]["clinic_inquiry"] == 1
+_public_inquiry = _clinic_inquiry.public_lines(
+    _cot.db.clinic_inquiry, _clinic["day"], event_lookup=warning_ledger.get_event
+).lower()
+assert "procedural clinic inquiry" in _public_inquiry
+assert "competing interpretations" in _public_inquiry
+assert "neither causal explanation is proven" in _public_inquiry
+assert "cold" not in _public_inquiry and "healertester" not in _public_inquiry
+# A missing or forged canonical event cannot be promoted by persisted cot data.
+_unverified_inquiry = _clinic_inquiry.public_lines(
+    _cot.db.clinic_inquiry, _clinic["day"], event_lookup=lambda _event_id: None
+).lower()
+assert "requires signed source inspection" in _unverified_inquiry
+print("POST_RESTART_GDD_EDGE28_INDEPENDENT_SIGNED_CLINIC_INQUIRY_GREEN")
+
+
 
 # Physical courier parcel is consumed only by real Riverside delivery.
 from world.courier_state import manifest as _ferry_manifest
@@ -1646,7 +1745,20 @@ assert calling_record(one("MerchantTester"), "merchant")["participation"][
     "market_hinges_installed"
 ] == 1
 assert "MerchantTester" in one("a market fittings board").get_display_desc()
-assert "1 of 2 iron offcuts" in one("a public smithing bench").get_display_desc()
+# The physical repair remains signed on its original day. The public bench,
+# however, reports stock for the *current* village day, which can advance
+# during the real authenticated gameplay and restart sequence.
+_workshop_live_day = int(ScriptDB.objects.get(db_key="village_time").db.day or 1)
+assert _workshop_live_day >= _work_docket["day"]
+_workshop_visible = _workshop_rules.refresh(_work_docket, _workshop_live_day)
+assert _workshop_visible["offcuts"] == (
+    1 if _workshop_live_day == _work_docket["day"]
+    else _workshop_rules.DAILY_OFFCUTS
+)
+assert (
+    f"Village day {_workshop_live_day}: "
+    f"{_workshop_visible['offcuts']} of {_workshop_rules.DAILY_OFFCUTS} iron offcuts"
+) in one("a public smithing bench").get_display_desc()
 assert _public_market in [e.destination for e in _workroom.exits]
 _next_repair = _workshop_rules.refresh(_work_docket, _work_docket["day"] + 1)
 assert _next_repair["offcuts"] == _workshop_rules.DAILY_OFFCUTS

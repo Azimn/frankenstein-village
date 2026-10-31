@@ -775,7 +775,8 @@ def _singularize(arg):
 
 
 def _quiet_stack_search(caller, arg, location=None, nofound_string=None,
-                        multimatch_string=None, stacked=0):
+                        multimatch_string=None, stacked=0,
+                        preferred_stack_item=None):
     """Search quietly first; resolve identical stacks to one, quietly.
 
     Build-loop #16c: Evennia's search wall ("You carry more than one
@@ -821,7 +822,12 @@ def _quiet_stack_search(caller, arg, location=None, nofound_string=None,
     if len(objs) == 1:
         return objs
     if objs and all(o.key == objs[0].key for o in objs[1:]):
-        # Identical stack: take the first one, quietly (the #15 pattern).
+        # Keep ordinary identical-stack behavior. The get command alone may
+        # supply a source-validated preference for legacy-coexistence cases.
+        if preferred_stack_item is not None:
+            preferred = preferred_stack_item(objs, location)
+            if preferred is not None and preferred in objs:
+                return [preferred]
         return [objs[0]]
     # Nothing found, or genuinely different objects: re-run the search
     # non-quietly so the player gets the normal not-found line or the
@@ -829,6 +835,38 @@ def _quiet_stack_search(caller, arg, location=None, nofound_string=None,
     caller.search(arg, location=location, nofound_string=nofound_string,
                   multimatch_string=multimatch_string, stacked=stacked)
     return None
+
+
+def _preferred_well_growth_pickup(objects, location):
+    """Choose real well growth before a same-key legacy cluster on pickup.
+
+    A legacy or foreign object must never gain provenance by name alone.
+    Only the Village Square get path is specialized; numbered selections,
+    drop/give and unrelated stacks retain their original semantics.
+    """
+    from world import clinic_inquiry_state
+
+    if (getattr(location, "key", None) != "Village Square"
+            or not objects
+            or any(obj.key != clinic_inquiry_state.CASE_ITEM_KEY
+                   for obj in objects)):
+        return None
+    wells = [obj for obj in location.contents
+             if obj.key == "well"
+             and obj.is_typeclass("typeclasses.objects.VillageWell", exact=True)]
+    if len(wells) != 1:
+        return None
+    well = wells[0]
+    registered = getattr(well.db, "well_mushroom_spawn_ids", None)
+    valid = [obj for obj in objects
+             if obj.location is location
+             and obj.is_typeclass("typeclasses.objects.Object", exact=True)
+             and clinic_inquiry_state.registered_well_growth(obj.id, registered)
+             and is_hidden_mechanical_property(obj, "toxin")
+             and clinic_inquiry_state.well_case_source_valid(
+                 getattr(obj.db, "well_mushroom_source_id", None),
+                 well.id, mechanical_value(obj, "toxin", None))]
+    return min(valid, key=lambda obj: obj.id, default=None)
 
 
 class CmdVillageGet(CmdGet):
@@ -858,7 +896,8 @@ class CmdVillageGet(CmdGet):
             return
         objs = _quiet_stack_search(caller, self.args,
                                    location=caller.location,
-                                   stacked=self.number)
+                                   stacked=self.number,
+                                   preferred_stack_item=_preferred_well_growth_pickup)
         if not objs:
             return
 
@@ -5234,58 +5273,57 @@ WELL_MUSHROOMS_CONSUME = {
 
 
 def ensure_well_mushrooms():
-    """The well's damp stones always grow mushrooms — re-sync the stand-in.
-
-    Creates the cluster on the square if none is there; never duplicates.
-    Used by the build script and by CmdSell (a sale leaves the square
-    bare, and the well regrows). Returns the object.
-
-    The spike's Object typeclass (typeclasses.objects.Object) carries the
-    stacked-name grammar fix (build-loop #16: "two clusters of
-    mushrooms", not "two a clusters of mushrooms"); legacy DefaultObject
-    clusters are migrated in place.
-    """
+    """Grow a real well cluster, never adopting a same-key foreign object."""
     from evennia.utils import create, search
+    from world import clinic_inquiry_state
 
     SPIKE_ITEM = "typeclasses.objects.Object"
-    wells = search.search_object("village well")
-    square = wells[0].location if wells else None
+    wells = [
+        o for o in search.search_object("village well")
+        if o.key == "well"
+        and o.is_typeclass("typeclasses.objects.VillageWell", exact=True)
+        and getattr(o.location, "key", None) == "Village Square"
+    ]
+    if len(wells) != 1:
+        return None
+    well = wells[0]
+    square = well.location
+    registered = clinic_inquiry_state.well_growth_ids(
+        getattr(well.db, "well_mushroom_spawn_ids", None))
     found = [
-        o for o in square.contents if o.key == "a cluster of mushrooms"
-    ] if square else []
+        o for o in square.contents
+        if o.key == "a cluster of mushrooms"
+        and clinic_inquiry_state.registered_well_growth(o.id, registered)
+        and getattr(o.db, "well_mushroom_source_id", None) == well.id
+        and o.is_typeclass(SPIKE_ITEM, exact=True)
+    ]
     if found:
-        mushrooms = found[0]
-        if mushrooms.typeclass_path != SPIKE_ITEM:
-            mushrooms.swap_typeclass(SPIKE_ITEM, clean_attributes=False)
+        mushrooms = min(found, key=lambda obj: obj.id)
+        created = False
     else:
         mushrooms = create.create_object(
             SPIKE_ITEM,
             key="a cluster of mushrooms", location=square,
             aliases=["mushrooms", "cluster", "toadstools"],
         )
-    # Apply to BOTH new and existing objects. Rebuilds and post-sale regrowth
-    # must converge on the same hidden-property source of truth.
+        created = True
     mushrooms.db.desc = WELL_MUSHROOMS_DESC
     for alias in ("mushrooms", "cluster", "toadstools"):
         if alias not in (mushrooms.aliases.all() or []):
             mushrooms.aliases.add(alias)
     mushrooms.tags.add("consumable")
-    mushrooms.tags.add("food")  # the eat gate
-    # The well stand is the first hidden-property production object: some
-    # caps are unkind. Preserved from the inline build_spike version this
-    # helper replaced — the toxin stays authoritative simulation truth.
+    mushrooms.tags.add("food")
     configure_mechanical_properties(
-        mushrooms,
-        {},
-        hidden_properties={"toxin": 25},
-    )
-    # Legacy "toxic" belonged to the old consumption dict. The hidden toxin
-    # property is authoritative, so even a previously built cluster must not
-    # retain a conflicting legacy key.
+        mushrooms, {}, hidden_properties={"toxin": 25})
     mushrooms.db.consume = {
         key: value for key, value in WELL_MUSHROOMS_CONSUME.items()
         if key != "toxic"
     }
+    mushrooms.db.well_mushroom_source_id = well.id
+    if created:
+        if clinic_inquiry_state.positive(mushrooms.id) is None:
+            raise RuntimeError("Well growth has no valid physical object ID.")
+        well.db.well_mushroom_spawn_ids = list(registered) + [mushrooms.id]
     return mushrooms
 
 

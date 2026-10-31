@@ -45,6 +45,9 @@ WORK = {
         "on the real object, rather than trusting the public appearance.",
         "At the Tavern: inspect care needs; the Cold Hunter at Supper "
         "can change through actual help or through delay.",
+        "After your signed assessment at St. Lazarus, a different Detective "
+        "may inspect the original clinic cot and use clinic investigate to "
+        "record a qualified timeline without reading private case notes.",
     ),
     "merchant": (
         "At Market Lane, clinic procure withdraws one finite sealed linen "
@@ -89,6 +92,9 @@ WORK = {
         "on Riverside Path, and consider a provisional theory bridge.",
         "Use mystery bridge or mystery manor to compare public evidence. "
         "Claims and suspicions do not become facts just by being published.",
+        "At St. Lazarus Church, look at the original clinic cot after a "
+        "Healer has signed today's assessment. Use clinic investigate for "
+        "an independent procedural timeline, not a diagnosis or patient record.",
     ),
     "hound": (
         "At the Northern Treeline, examine the frayed red cord and use "

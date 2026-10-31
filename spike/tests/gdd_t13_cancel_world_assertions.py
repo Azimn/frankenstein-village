@@ -21,12 +21,14 @@ assert supplier.id != carrier.id
 ledger = ScriptDB.objects.get(db_key="world_event_ledger")
 state = civic_commissions.normalize(tavern.db.civic_commission)
 item = state["commission"]
-assert state["day"] == 2 and item["id"] == "civic-2"
+scenario_day = tavern.db.qa_t13_scenario_day
+assert isinstance(scenario_day, int) and scenario_day >= 2
+assert state["day"] == scenario_day and item["id"] == f"civic-{scenario_day}"
 assert item["status"] == "cancelled", item
 assert item["supplier_account"] == supplier.id
 assert item["finisher_account"] is None
 assert len(item["event_ids"]) == 2
-assert len([h for h in state["history"] if h["id"] == "civic-2"]) == 1
+assert len([h for h in state["history"] if h["id"] == f"civic-{scenario_day}"]) == 1
 assert not ObjectDB.objects.filter(id=item["bundle_id"]).exists()
 before = tavern.db.qa_t13_initial_reserve
 assert isinstance(before, int)

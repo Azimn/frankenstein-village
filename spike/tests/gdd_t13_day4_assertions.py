@@ -1,6 +1,6 @@
 """Read-only T-13 next-day recovery and real restart conservation checks.
 
-The day-four pledge and cancellation are made by a logged-in player over
+The next-day pledge and cancellation are made by a logged-in player over
 telnet, never by this shell. Run again after an actual Evennia restart.
 """
 import os
@@ -20,8 +20,13 @@ def one(key):
 
 assert not any(account.is_connected for account in AccountDB.objects.all())
 clock = ScriptDB.objects.get(db_key="village_time")
-assert int(clock.db.day or 1) == 4
 tavern = one("The Blood of the Vine")
+scenario_day = tavern.db.qa_t13_scenario_day
+race_day = tavern.db.qa_t13_race_day
+recovery_day = tavern.db.qa_t13_recovery_day
+assert all(type(day) is int for day in (scenario_day, race_day, recovery_day))
+assert 2 <= scenario_day < race_day < recovery_day
+assert int(clock.db.day or 1) == recovery_day
 ledger = ScriptDB.objects.get(db_key="world_event_ledger")
 supplier = AccountDB.objects.get(username="qa_smith_repair")
 carrier = AccountDB.objects.get(username="qa_merchant_repair")
@@ -29,19 +34,19 @@ assert supplier.id != carrier.id
 
 state = civic_commissions.normalize(tavern.db.civic_commission)
 item = state["commission"]
-assert state["day"] == 4 and item["id"] == "civic-4"
+assert state["day"] == recovery_day and item["id"] == f"civic-{recovery_day}"
 assert item["status"] == "cancelled", item
 assert item["supplier_account"] == supplier.id
 assert item["finisher_account"] is None
 assert len(item["event_ids"]) == 2
-assert civic_commissions.refresh(state, 4) == state
-for day in (2, 3, 4):
+assert civic_commissions.refresh(state, recovery_day) == state
+for day in (scenario_day, race_day, recovery_day):
     matches = [record for record in state["history"] if record["id"] == f"civic-{day}"]
     assert len(matches) == 1, (day, matches)
     assert matches[0]["status"] in {"cancelled", "complete"}
-assert [record for record in state["history"] if record["id"] == "civic-4"][0] == item
+assert [record for record in state["history"] if record["id"] == f"civic-{recovery_day}"][0] == item
 
-previous = [record for record in state["history"] if record["id"] == "civic-3"][0]
+previous = [record for record in state["history"] if record["id"] == f"civic-{race_day}"][0]
 assert previous["bundle_id"] != item["bundle_id"]
 assert previous["status"] in {"cancelled", "complete"}
 assert len(previous["event_ids"]) == 2
@@ -79,7 +84,7 @@ physical = ObjectDB.objects.filter(id=item["bundle_id"]).first()
 assert physical is not None and physical.location is not None
 assert physical.location.key == "SmithTester"
 assert physical.db.civic_firewood is True
-assert int(physical.db.source_day) == 4
+assert int(physical.db.source_day) == recovery_day
 reserve = hearth_state.hearth(tavern.db.civic_hearth)["reserve"]
 assert reserve == tavern.db.qa_t13_day4_initial_reserve
 

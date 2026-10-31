@@ -1,4 +1,4 @@
-"""Prepare a real two-socket cancel-versus-deliver race on day three.
+"""Prepare a real two-socket cancel-versus-deliver race on a later day.
 
 This touches only the disposable clean-checkout QA database. The server is
 stopped. No gameplay call is made on a mask without an authenticated session.
@@ -19,17 +19,24 @@ carrier = one("MerchantTester")
 square = one("Village Square")
 tavern = one("The Blood of the Vine")
 clock = ScriptDB.objects.get(db_key="village_time")
-assert int(clock.db.day or 1) == 2
+scenario_day = tavern.db.qa_t13_scenario_day
+assert type(scenario_day) is int and scenario_day >= 2
+current_day = int(clock.db.day or 1)
+assert current_day >= scenario_day, (current_day, scenario_day)
 previous = civic_commissions.normalize(tavern.db.civic_commission)
 assert previous["commission"]["status"] == "cancelled"
-assert previous["commission"]["id"] == "civic-2"
+assert previous["day"] == scenario_day
+assert previous["commission"]["id"] == f"civic-{scenario_day}"
 assert not any(
     obj.key == community_hearth.FIREWOOD_KEY and obj.db.civic_firewood is True
     for obj in supplier.contents + carrier.contents
 )
 reserve = hearth_state.hearth(tavern.db.civic_hearth)["reserve"]
 assert reserve < hearth_state.MAX_RESERVE, reserve
-clock.db.day = 3
+race_day = max(current_day, scenario_day) + 1
+assert race_day > current_day and race_day > scenario_day
+tavern.db.qa_t13_race_day = race_day
+clock.db.day = race_day
 clock.db.hour = 21
 assert supplier.move_to(square, quiet=True)
 assert carrier.move_to(tavern, quiet=True)

@@ -855,12 +855,22 @@ class ClinicCot(DefaultObject):
         self.locks.add("get:false()")
 
     def get_display_desc(self, looker=None, **kwargs):
-        from world.clinic_work import status
+        from world.clinic_work import status, _clock
+        # The observation is earned only by looking at this original cot
+        # while physically present, never by reading a remote status report.
+        if (looker is not None and getattr(looker, "account", None)
+                and looker.location == self.location):
+            day, _hour = _clock()
+            looker.db.clinic_cot_seen = {
+                "cot_id": self.id, "room_id": self.location.id, "day": day,
+            }
         return (
             "A real cot shelters the day's visiting patient in the "
             "Church dispensary. The patient is visible, but confidential "
             "case notes are not public. Only an active Healer can file care, "
-            "and the patient's permission is needed for private notes.\n"
+            "and the patient's permission is needed for private notes. "
+            "A Detective may examine this cot and use clinic investigate "
+            "after a signed Healer assessment, preserving only a procedural timeline.\n"
             + status(looker)
         )
 
