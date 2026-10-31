@@ -71,6 +71,17 @@ def normalize(raw):
                 or check is None
                 or (p["day"], p["hour"]) < (f["day"], f["hour"])):
             return invalid()
+        # The latest soundcheck is retained in the physical Attribute. A set
+        # on that same day must belong to that exact signed Performer event;
+        # earlier days have separate historical checks in the world ledger.
+        if (p["day"] > check["day"]
+                or (p["day"] == check["day"] and (
+                    p["soundcheck_event_id"] != check["event_id"]
+                    or p["account_id"] != check["account_id"]
+                    or p["mask_id"] != check["mask_id"]
+                    or p["hour"] < check["hour"]))
+                or p["event_id"] in (f["event_id"], p["soundcheck_event_id"])):
+            return invalid()
         if (clean and (p["day"], p["hour"]) < (clean[-1]["day"], clean[-1]["hour"])):
             return invalid()
         if any(q["day"] == p["day"] or q["event_id"] == p["event_id"] for q in clean):
