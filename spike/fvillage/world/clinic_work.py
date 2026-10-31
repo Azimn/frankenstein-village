@@ -13,7 +13,7 @@ from evennia.utils import search
 
 from world import clinic_state
 from world.callings import active_calling, record_participation
-from world.events import publish_world_event
+from world.events import get_event_ledger, publish_world_event
 
 CHURCH = "St. Lazarus Church"
 COT = "a clinic treatment cot"
@@ -58,7 +58,23 @@ def status(mask=None):
     cot = next((o for o in room.contents if o.key == COT), None)
     if cot:
         from world.clinic_comfort_edge27 import public_lines
-        lines += "\n" + public_lines(cot.db.clinic_comfort, day)
+        ledger = None
+        treatment = None
+        source = None
+        try:
+            ledger = get_event_ledger()
+            treatment = clinic_state.refresh(room.db.village_clinic, day).get("treatment")
+            if treatment:
+                source = ledger.get_event(treatment["event_id"])
+        except Exception:
+            # A missing ledger is not permission to advertise signed consent.
+            ledger = None
+        lines += "\n" + public_lines(
+            cot.db.clinic_comfort, day,
+            event_lookup=ledger.get_event if ledger is not None else None,
+            treatment=treatment, treatment_event=source,
+            room_id=room.id, cot_id=cot.id,
+        )
     return lines
 
 
