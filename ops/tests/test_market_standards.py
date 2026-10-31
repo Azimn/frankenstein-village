@@ -140,6 +140,41 @@ class MarketStandardsTests(unittest.TestCase):
         self.assertIn("decision to honor the disputed prices",
                       " ".join(market.personal_agenda(honored, 1, 105)))
 
+    def test_independent_chronicler_audit_survives_edge33_inquiry_branch(self):
+        import json
+
+        held, ok, error = sign(None, "hold", actor=5, event=10)
+        self.assertTrue(ok, error)
+        self.assertTrue(market.suspended(held, 1))
+
+        refused, ok, error = sign(held, "audit", actor=5, event=11)
+        self.assertFalse(ok)
+        self.assertIn("separate account", error)
+        self.assertEqual(refused, held)
+
+        audited, ok, error = sign(held, "audit", actor=11, event=12)
+        self.assertTrue(ok, error)
+        self.assertEqual(audited["audit"]["review_event_id"], 10)
+        self.assertEqual(audited["audit"]["review_choice"], "hold")
+        self.assertIn("independently audited Merchant",
+                      " ".join(market.public_lines(audited, 1)))
+        self.assertIn("independent Chronicler audit",
+                      " ".join(market.personal_agenda(audited, 1, 111)))
+
+        duplicate, ok, error = sign(audited, "audit", actor=12, event=13)
+        self.assertFalse(ok)
+        self.assertIn("already been audited", error)
+        self.assertEqual(duplicate, audited)
+
+        restored = market.refresh(json.loads(json.dumps(audited)), 1)
+        self.assertEqual(restored["audit"]["review_event_id"], 10)
+        self.assertEqual(restored["audit"]["event_id"], 12)
+        next_day = market.refresh(restored, 2)
+        self.assertEqual(next_day["history"][-1]["audit"]["event_id"], 12)
+        self.assertIsNone(next_day["audit"])
+        self.assertTrue(market.suspended(held, 1),
+                        "Audit must not silently release held physical stock")
+
     def test_bad_actor_does_not_create_public_event_record(self):
         state, ok, error = market.apply(
             None, "hold", day=1, hour=13, account_id=True,

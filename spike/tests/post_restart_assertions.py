@@ -1646,7 +1646,20 @@ assert calling_record(one("MerchantTester"), "merchant")["participation"][
     "market_hinges_installed"
 ] == 1
 assert "MerchantTester" in one("a market fittings board").get_display_desc()
-assert "1 of 2 iron offcuts" in one("a public smithing bench").get_display_desc()
+# The physical repair remains signed on its original day. The public bench,
+# however, reports stock for the *current* village day, which can advance
+# during the real authenticated gameplay and restart sequence.
+_workshop_live_day = int(ScriptDB.objects.get(db_key="village_time").db.day or 1)
+assert _workshop_live_day >= _work_docket["day"]
+_workshop_visible = _workshop_rules.refresh(_work_docket, _workshop_live_day)
+assert _workshop_visible["offcuts"] == (
+    1 if _workshop_live_day == _work_docket["day"]
+    else _workshop_rules.DAILY_OFFCUTS
+)
+assert (
+    f"Village day {_workshop_live_day}: "
+    f"{_workshop_visible['offcuts']} of {_workshop_rules.DAILY_OFFCUTS} iron offcuts"
+) in one("a public smithing bench").get_display_desc()
 assert _public_market in [e.destination for e in _workroom.exits]
 _next_repair = _workshop_rules.refresh(_work_docket, _work_docket["day"] + 1)
 assert _next_repair["offcuts"] == _workshop_rules.DAILY_OFFCUTS
@@ -1655,6 +1668,56 @@ assert _next_repair["history"][-1]["installation"]["mask"] == "MerchantTester"
 print("POST_RESTART_TWO_ACCOUNT_MARKET_WORKSHOP_GREEN")
 
 
+
+# GDD-EDGE-33: the real Merchant hold, separate Detective examination and
+# attributable Merchant rebuttal survive an actual Evennia process restart.
+from world.market_inquiry_state import normalize as _inquiry_normalize
+_market_cases = _inquiry_normalize(one("Market Lane").db.market_inquiries)
+assert len(_market_cases) == 1, "Market inquiry was lost or duplicated"
+_market_case = _market_cases[0]
+_detective = one("DetectiveTester")
+# Evennia may normalize account db_key casing. The signed actor IDs are
+# durable across unpuppeting and are verified against actual AccountDB rows.
+_merchant_account_id = _market_case["source_account_id"]
+_detective_account_id = _market_case["detective_account_id"]
+assert type(_merchant_account_id) is int and type(_detective_account_id) is int
+assert AccountDB.objects.filter(id=_merchant_account_id).exists()
+assert AccountDB.objects.filter(id=_detective_account_id).exists()
+assert active_calling(_detective) == "detective"
+assert _market_case["source_event_id"] == _market_live["review"]["event_id"]
+assert _market_case["source_account_id"] == _merchant_account_id
+assert _market_case["source_mask_id"] == merchant_tester.id
+assert _market_case["detective_account_id"] == _detective_account_id
+assert _market_case["detective_mask_id"] == _detective.id
+assert _market_case["source_account_id"] != _market_case["detective_account_id"]
+assert _market_case["scale_id"] == one("a crooked market scale").id
+for _kind, _eid, _actor in (
+    ("village.market_hold", _market_case["source_event_id"], merchant_tester),
+    ("village.market_inquiry_opened", _market_case["case_event_id"], _detective),
+    ("village.market_inquiry_rebutted", _market_case["rebuttal_event_id"],
+     merchant_tester),
+):
+    _e = warning_ledger.get_event(_eid)
+    assert _e and _e["status"] == "complete" and _e["kind"] == _kind
+    assert _e["actor"]["account_id"] == (
+        _merchant_account_id if _actor.id == merchant_tester.id
+        else _detective_account_id
+    )
+    assert _e["actor"]["mask_id"] == _actor.id
+assert warning_ledger.get_event(_market_case["case_event_id"])["payload"][
+    "source_event_id"] == _market_case["source_event_id"]
+assert warning_ledger.get_event(_market_case["rebuttal_event_id"])[
+    "consequence"]["case_event_id"] == _market_case["case_event_id"]
+assert calling_record(_detective, "detective")["participation"][
+    "market_inquiry_investigate"] == 1
+assert calling_record(merchant_tester, "merchant")["participation"][
+    "market_inquiry_rebut"] == 1
+from world.market_inquiry_state import public_lines as _inquiry_lines
+assert "remains contested" in _inquiry_lines(
+    _market_cases, event_lookup=warning_ledger.get_event,
+    room_id=one("Market Lane").id,
+)
+print("POST_RESTART_GDD_EDGE33_SIGNED_INDEPENDENT_MARKET_INQUIRY_GREEN")
 
 print("POST_RESTART_MARKET_CALLINGS_ASSERTIONS_GREEN")
 
