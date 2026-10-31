@@ -114,6 +114,21 @@ class Edge10SourceVerification(unittest.TestCase):
         self.assertEqual(signed_state["attestation"]["review_event_id"], 13)
         self.assertEqual(signed_state["attestation"]["calibration_event_id"], 12)
 
+    def test_merchant_honor_then_smith_calibration_preserves_source_order(self):
+        first, ok, error = signed(None, "honor", 5, 10)
+        self.assertTrue(ok, error)
+        state, ok, error = signed(first, "calibrate", 9, 12)
+        self.assertTrue(ok, error)
+        ledger = {
+            10: ledger_event(state["review"], "honor", "merchant",
+                             review_id=10),
+            12: ledger_event(state["calibration"], "calibrate", "smith",
+                             review_id=10, calibration_id=12),
+        }
+        self.assertTrue(market.verified_sources(state, 1, ledger.get))
+        self.assertTrue(market.verified_sources(
+            json.loads(json.dumps(state)), 1, ledger.get))
+
     def test_actual_commit_gate_does_not_publish_invalid_source(self):
         # Execute the actual market_work.perform function AST, without
         # importing Django/Evennia. This checks preflight and consequence
