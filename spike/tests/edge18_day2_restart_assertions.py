@@ -4,10 +4,12 @@ The T-13 QA scene begins on day two but the live clock may advance during
 additional authenticated negative tests and genuine process restarts.
 Validate the actual signed later-day patient instead of rewinding the clock.
 """
+from copy import deepcopy
+
 from evennia.accounts.models import AccountDB
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
-from world import clinic_state, clinic_cot_edge18
+from world import clinic_state, clinic_cot_edge18, clinic_cot_work
 
 
 def one(key):
@@ -86,6 +88,30 @@ assert treat_event["consequence"]["room_id"] == church.id
 assert len([row for row in ledger.db.events
             if row.get("kind") == "village.clinic_treat"
             and row.get("payload", {}).get("day") == patient_day]) == 1
+# Signed physical history must survive mutable Attribute rollback, and
+# public readback must never endorse forged brace or approval event IDs.
+saved_equipment = deepcopy(dict(cot.db.clinic_equipment))
+try:
+    assert "clinically approved" in clinic_cot_work.public_status(cot).lower()
+    cot.db.clinic_equipment = clinic_cot_edge18.fresh()
+    prior, reason = clinic_cot_work._prior_completed_brace(cot)
+    assert prior and "already" in reason.lower(), reason
+    assert "inconsistent physical history" in clinic_cot_work.public_status(cot).lower()
+
+    forged_brace = deepcopy(saved_equipment)
+    forged_brace["brace"]["event_id"] += 1000000
+    cot.db.clinic_equipment = forged_brace
+    assert "unverified smith fitting" in clinic_cot_work.public_status(cot).lower()
+
+    forged_approval = deepcopy(saved_equipment)
+    forged_approval["certification"]["event_id"] += 1000000
+    cot.db.clinic_equipment = forged_approval
+    assert "unverified clinical approval" in clinic_cot_work.public_status(cot).lower()
+finally:
+    cot.db.clinic_equipment = saved_equipment
+assert "clinically approved" in clinic_cot_work.public_status(cot).lower()
+print("POST_SECOND_RESTART_GDD_EDGE18_COT_ROLLBACK_AND_FORGERY_REJECTED_GREEN")
+
 print(f"POST_SECOND_RESTART_GDD_EDGE18_LATER_DAY_SUPPORTED_CARE_GREEN day={patient_day}")
 if patient_day == 2:
     print("POST_SECOND_RESTART_GDD_EDGE18_DAY_TWO_SUPPORTED_CARE_GREEN")
