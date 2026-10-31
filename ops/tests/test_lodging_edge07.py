@@ -110,7 +110,7 @@ class LodgingEdge07Tests(unittest.TestCase):
         self.assertIn("Independent qualified inquiry: signed event 200", rendered)
         self.assertNotIn("DetectiveTester", rendered)
         self.assertNotIn("InnkeepTester", rendered)
-        self.assertNotIn("guest identity is established", rendered.lower())
+        self.assertIn("No guest identity is established", rendered)
 
         missing_inquiry = rules.public_lines(
             state, event_lookup={100: events[100]}.get,
