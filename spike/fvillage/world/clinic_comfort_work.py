@@ -53,7 +53,7 @@ def act(mask, action):
     treatment = dict(clinic["treatment"])
     # This response is authored by the anonymous daily visitor state, not
     # supplied by the Healer command or inferred from treatment success.
-    visitor_choice = clinic_state.music_preference(day)
+    visitor_choice = clinic["music_preference"]
     source = ledger.get_event(treatment["event_id"])
     if not rules.treatment_valid(treatment, source, room.id):
         return None, "The original Healer treatment is not verified."
@@ -93,7 +93,7 @@ def act(mask, action):
                 raise RuntimeError("The actor, cot, Calling or village hour changed.")
             latest = clinic_state.refresh(room.db.village_clinic, day)
             if (latest["day"] != day or latest["treatment"] != treatment
-                    or clinic_state.music_preference(day) != visitor_choice
+                    or latest["music_preference"] != visitor_choice
                     or not rules.treatment_valid(
                         treatment, ledger.get_event(treatment["event_id"]),
                         room.id)):
@@ -109,7 +109,7 @@ def act(mask, action):
                 fresh_kwargs = {
                     "treatment": treatment,
                     "treatment_event": ledger.get_event(treatment["event_id"]),
-                    "visitor_choice": clinic_state.music_preference(day),
+                    "visitor_choice": latest["music_preference"],
                 }
             changed, valid, problem = transform(
                 cot.db.clinic_comfort, event_id=event["id"],
