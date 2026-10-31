@@ -24,16 +24,20 @@ supplier = AccountDB.objects.get(username="qa_smith_repair")
 carrier = AccountDB.objects.get(username="qa_merchant_repair")
 assert supplier.id != carrier.id
 clock = ScriptDB.objects.get(db_key="village_time")
-assert int(clock.db.day or 1) == 3
+race_day = tavern.db.qa_t13_race_day
+scenario_day = tavern.db.qa_t13_scenario_day
+assert type(race_day) is int and type(scenario_day) is int
+assert race_day > scenario_day >= 2
+assert int(clock.db.day or 1) == race_day
 state = civic_commissions.normalize(tavern.db.civic_commission)
 item = state["commission"]
-assert state["day"] == 3 and item["id"] == "civic-3", item
+assert state["day"] == race_day and item["id"] == f"civic-{race_day}", item
 assert item["supplier_account"] == supplier.id
 assert item["status"] in {"cancelled", "complete"}, item
 assert len(item["event_ids"]) == 2, item
-assert len([h for h in state["history"] if h["id"] == "civic-3"]) == 1
-assert [h for h in state["history"] if h["id"] == "civic-3"][0] == item
-assert civic_commissions.refresh(state, 3) == state
+assert len([h for h in state["history"] if h["id"] == f"civic-{race_day}"]) == 1
+assert [h for h in state["history"] if h["id"] == f"civic-{race_day}"][0] == item
+assert civic_commissions.refresh(state, race_day) == state
 
 ledger = ScriptDB.objects.get(db_key="world_event_ledger")
 pledge = ledger.get_event(item["event_ids"][0])
