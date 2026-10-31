@@ -165,7 +165,11 @@ class PublicManifestProvenance(unittest.TestCase):
             ([self.receipt], True),
         )
         self.assertEqual(self.read({"receipts": []}), ([], True))
-        self.assertEqual(self.read(None), ([], True))
+        self.assertEqual(
+            c.public_manifest(None, self.events.get,
+                              riverside_room_id=44, market_room_id=31),
+            ([], True),
+        )
 
     def test_wrong_positive_market_room_cannot_be_signed_as_market_lane(self):
         events = copy.deepcopy(self.events)
