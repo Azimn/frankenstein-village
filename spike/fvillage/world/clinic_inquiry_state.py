@@ -289,7 +289,18 @@ def public_lines(raw, day, event_lookup=None):
         if entries is not None and (isinstance(entries, (str, bytes, Mapping))
                                     or not hasattr(entries, "__iter__")):
             return "The clinic inquiry register requires signed source inspection."
-    records = normalize(raw)["records"]
+    # Do not silently discard a damaged retained row and then publish an
+    # older signed case as the current, intact clinic register. Normalization
+    # remains permissive for legacy action-time migration, but public signed
+    # readback must fail closed on corruption or duplicate day/event records.
+    try:
+        retained = (list(raw.get("records") or [])[-MAX_RECORDS:]
+                    if isinstance(raw, Mapping) else [])
+    except (TypeError, ValueError, RuntimeError):
+        return "The clinic inquiry register requires signed source inspection."
+    records = normalize({"records": retained})["records"]
+    if len(records) != len(retained):
+        return "The clinic inquiry register requires signed source inspection."
     current = next((r for r in reversed(records) if r["day"] == day), None)
     if not current:
         return ("No independent Detective inquiry has been signed for today's "
