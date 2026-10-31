@@ -1892,7 +1892,11 @@ def main() -> int:
         require(out, "hands grip")
         merchant.close()
         out = smith.command("wrestle quit")
-        require(out, "gone cold", "steps back")
+        # The other player's accept broadcast can arrive late on this socket.
+        # Wait for the actual quit reply without issuing a second quit command.
+        if not any(token in out.lower() for token in ("gone cold", "smithtester steps back")):
+            out += smith.read_quiet(max_wait=4.0, quiet=0.5)
+        require(out, "gone cold", "smithtester steps back")
         merchant = Client(args.host, args.port)
         merchant_banner = merchant.sync_login_screen()
         require(merchant_banner, "frankenstein village")
