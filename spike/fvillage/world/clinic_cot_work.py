@@ -5,12 +5,15 @@ Calling identity and canonical WorldEventLedger. No new quest/economy ledger.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+
 from django.db import transaction
+from evennia.scripts.models import ScriptDB
 from evennia.utils import search
 
 from world import clinic_cot_edge18 as rules, clinic_state, clinic_work, workshop_work
 from world.callings import active_calling, record_participation
-from world.events import get_event_ledger, publish_world_event
+from world.events import LEDGER_KEY, get_event_ledger, publish_world_event
 
 def _cot():
     church = clinic_work._room()
@@ -31,9 +34,27 @@ def _guard(mask, calling):
         return None, "The original clinic treatment cot is missing."
     return cot, None
 
+def public_status(cot):
+    """Public equipment claims must survive canonical source verification."""
+    state = rules.normalize(cot.db.clinic_equipment)
+    if state["condition"] == "worn":
+        prior, _why = _prior_completed_brace(cot)
+        if prior:
+            return "The clinic cot has inconsistent physical history; reinforced rest is unavailable."
+    elif state["condition"] in ("braced", "certified"):
+        brace_row, error = _verified_brace(cot)
+        if error:
+            return "The clinic cot has an unverified Smith fitting; reinforced rest is unavailable."
+        if state["condition"] == "certified":
+            _certification, error = _verified_certification(cot, brace_row)
+            if error:
+                return "The clinic cot has unverified clinical approval; reinforced rest is unavailable."
+    return rules.public_lines(cot.db.clinic_equipment)
+
+
 def status():
     cot = _cot()
-    return rules.public_lines(cot.db.clinic_equipment if cot else {"condition": "invalid"})
+    return public_status(cot) if cot else rules.public_lines({"condition": "invalid"})
 
 def _forge(item):
     source = item.db.forged_market_part
@@ -66,6 +87,33 @@ def _forge(item):
         return None, "The hinge has an invalid or future workshop date."
     return {"forge_event_id": forge_id, "workshop_id": workshop.id}, None
 
+def _prior_completed_brace(cot):
+    """A reset mutable cot Attribute cannot erase a completed physical fitting.
+
+    Read the existing ledger without creating one. Malformed history fails
+    closed, preventing another finite Workshop hinge from being consumed.
+    """
+    try:
+        ledger = ScriptDB.objects.get(db_key=LEDGER_KEY)
+    except ScriptDB.DoesNotExist:
+        return False, None
+    records = ledger.db.events
+    if not isinstance(records, Sequence) or isinstance(records, (str, bytes)):
+        return True, "The signed cot-fitting history is unavailable."
+    for event in records:
+        if not isinstance(event, Mapping):
+            return True, "The signed cot-fitting history is malformed."
+        if (event.get("kind") != "professional.clinic_cot_braced"
+                or event.get("status") != "complete"):
+            continue
+        payload = event.get("payload")
+        if not isinstance(payload, Mapping):
+            return True, "A completed cot fitting has no readable source."
+        if payload.get("cot_id") == cot.id:
+            return True, "This cot already has a completed signed Smith fitting."
+    return False, None
+
+
 def brace(mask):
     cot, error = _guard(mask, "smith")
     if error:
@@ -75,6 +123,9 @@ def brace(mask):
              and hasattr(o.db.forged_market_part, "get")]
     if len(items) != 1:
         return None, "Carry one real Workshop-forged iron hinge to the Church cot."
+    prior, reason = _prior_completed_brace(cot)
+    if prior:
+        return None, reason
     item = items[0]
     source, error = _forge(item)
     if error:
@@ -95,6 +146,9 @@ def brace(mask):
                     or active_calling(mask) != "smith"
                     or item.location != mask):
                 raise RuntimeError("Smith, hinge or clinic shift changed.")
+            prior, reason = _prior_completed_brace(cot)
+            if prior:
+                raise RuntimeError(reason)
             fresh_source, why = _forge(item)
             if why or fresh_source != source:
                 raise RuntimeError(why or "Forging provenance changed.")
@@ -263,24 +317,11 @@ def _verified_current_patient(cot, day, hour):
     return row, None
 
 
-def supported_rest_ready(mask):
-    cot, error = _guard(mask, "healer")
-    if error:
-        return False, error
+def _verified_certification(cot, brace_row):
     state = rules.normalize(cot.db.clinic_equipment)
     if state["condition"] != "certified":
-        return False, "Reinforced rest requires an independently certified cot."
-    brace_row, error = _verified_brace(cot)
-    if error:
-        return False, error
+        return None, "The cot has no valid clinical approval."
     c = state["certification"]
-    day, hour = clinic_work._clock()
-    if (day, hour) < (brace_row["day"], brace_row["hour"]) or (
-            day, hour) < (c["day"], c["hour"]):
-        return False, "The cot's signed installation and approval are still in the future."
-    assessment, error = _verified_current_patient(cot, day, hour)
-    if error:
-        return False, error
     event = get_event_ledger().get_event(c["event_id"])
     if (not event or event.get("kind") != "professional.clinic_cot_certified"
             or event.get("status") != "complete"
@@ -299,5 +340,29 @@ def supported_rest_ready(mask):
             or event["consequence"].get("brace_event_id") != brace_row["event_id"]
             or event["consequence"].get("assessment_event_id") != c["assessment_event_id"]
             or event["consequence"].get("condition") != "certified"):
-        return False, "The clinical approval lacks a completed signed event."
+        return None, "The clinical approval lacks a completed signed event."
+    return c, None
+
+
+def supported_rest_ready(mask):
+    cot, error = _guard(mask, "healer")
+    if error:
+        return False, error
+    state = rules.normalize(cot.db.clinic_equipment)
+    if state["condition"] != "certified":
+        return False, "Reinforced rest requires an independently certified cot."
+    brace_row, error = _verified_brace(cot)
+    if error:
+        return False, error
+    c = state["certification"]
+    day, hour = clinic_work._clock()
+    if (day, hour) < (brace_row["day"], brace_row["hour"]) or (
+            day, hour) < (c["day"], c["hour"]):
+        return False, "The cot's signed installation and approval are still in the future."
+    assessment, error = _verified_current_patient(cot, day, hour)
+    if error:
+        return False, error
+    _certification, error = _verified_certification(cot, brace_row)
+    if error:
+        return False, error
     return True, None
