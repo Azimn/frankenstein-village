@@ -11,6 +11,18 @@ CONDITIONS = ("cold", "sprain", "fever")
 METHODS = ("rest", "compress")
 MAX_HISTORY = 36
 DAILY_LINEN = 2
+MAX_LINEN = 4
+# Each anonymous daily visitor has an authored preference independent of the
+# Healer. This is a bounded game-state choice, not a new named-person canon fact.
+MUSIC_CHOICES = ("accepts", "declines", "unavailable")
+
+
+def music_preference(day):
+    """Independent day-scoped visitor response, never selected by a player."""
+    if type(day) is not int or day < 1:
+        return None
+    return MUSIC_CHOICES[(day - 1) % len(MUSIC_CHOICES)]
+
 
 
 def ident(value):
@@ -36,7 +48,8 @@ def hour_value(value):
 def _day_state(day):
     return {"day": day, "condition": CONDITIONS[(day - 1) % len(CONDITIONS)],
             "linen": DAILY_LINEN, "assessment": None, "treatment": None,
-            "records_permission": None, "history": []}
+            "records_permission": None, "supply": None, "history": [],
+            "music_preference": music_preference(day)}
 
 
 def normalize(raw):
@@ -47,9 +60,19 @@ def normalize(raw):
     condition = raw.get("condition")
     if condition == state["condition"]:
         try:
-            state["linen"] = max(0, min(DAILY_LINEN, int(raw.get("linen"))))
+            state["linen"] = max(0, min(MAX_LINEN, int(raw.get("linen"))))
         except (TypeError, ValueError, OverflowError):
             state["linen"] = DAILY_LINEN
+    supply = raw.get("supply")
+    if (hasattr(supply, "get") and ident(supply.get("event_id"))
+            and ident(supply.get("source_event_id"))
+            and ident(supply.get("parcel_id"))
+            and ident(supply.get("merchant_account_id"))
+            and ident(supply.get("healer_account_id"))
+            and supply.get("day") == day):
+        state["supply"] = copy.deepcopy(dict(supply))
+    if not state["supply"]:
+        state["linen"] = min(state["linen"], DAILY_LINEN)
     for key in ("assessment", "treatment"):
         row = raw.get(key)
         if (hasattr(row, "get") and ident(row.get("event_id"))
@@ -84,11 +107,12 @@ def refresh(raw, day):
     state = normalize(raw)
     if day <= state["day"]:
         return state
-    if state["assessment"] or state["treatment"]:
+    if state["assessment"] or state["treatment"] or state["supply"]:
         state["history"].append({
             "day": state["day"], "condition": state["condition"],
             "assessment": copy.deepcopy(state["assessment"]),
             "treatment": copy.deepcopy(state["treatment"]),
+            "supply": copy.deepcopy(state["supply"]),
         })
     future = _day_state(day)
     future["history"] = state["history"][-MAX_HISTORY:]
@@ -217,14 +241,20 @@ def public_lines(raw, day):
     lines = [
         "|wSt. Lazarus village clinic|n",
         f"Village day {state['day']}: a visiting patient is at the treatment cot.",
-        f"Fresh linen in the shared cabinet: {state['linen']} of {DAILY_LINEN}.",
+        f"Fresh linen in the shared cabinet: {state['linen']} of "
+        f"{MAX_LINEN if state['supply'] else DAILY_LINEN}.",
+        ("A Merchant parcel was clinically accepted (source event "
+         f"{state['supply']['source_event_id']}, receipt {state['supply']['event_id']})."
+         if state["supply"] else
+         "No additional Merchant linen delivery has been accepted today."),
         ("A professional assessment has been recorded."
          if state["assessment"] else
          "No examination has been completed yet."),
         ("Care has been provided."
          if state["treatment"] else
          "Treatment remains available after assessment."),
-        "Healers: clinic assess | clinic prepare | clinic treat rest|compress.",
+        "Healers: clinic assess | clinic prepare | clinic treat rest or clinic treat compress | clinic receive.",
+        "Merchants: clinic procure at Market Lane; carry a real parcel here for Healer acceptance.",
         "The examining Healer may request this patient's permission using "
         "clinic request records, then use clinic records for confidential notes.",
         "The public clinic board does not reveal individual findings or earlier patients.",
