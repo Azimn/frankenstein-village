@@ -11,13 +11,15 @@ from evennia import create_object
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
 
-from world import clinic_state
+from world import clinic_state, clinic_supply
 from world.callings import active_calling, record_participation
 from world.events import get_event_ledger, publish_world_event
 
 CHURCH = "St. Lazarus Church"
 COT = "a clinic treatment cot"
 COMPRESS = "a fresh linen compress"
+MARKET = "Market Lane"
+PARCEL = "a sealed clinic linen parcel"
 
 
 def _room():
@@ -205,3 +207,151 @@ def act(mask, action, method=None):
         "event_id": event["id"], "action": action, "method": method,
         "condition": None if action == "request_records" else preview["condition"],
     }, None
+
+
+def procure(mask):
+    """Merchant withdraws one real sealed linen parcel from Market Lane."""
+    market = next((o for o in search.search_object(MARKET)
+                   if o.key == MARKET and o.location is None
+                   and o.tags.has("ic", category="side")), None)
+    if (not getattr(mask, "account", None) or market is None
+            or mask.location != market):
+        return None, "A Merchant must be present at Market Lane to procure clinic linen."
+    if active_calling(mask) != "merchant":
+        return None, "Only an active Merchant may procure clinic linen."
+    if any(o.key == PARCEL and o.db.clinic_supply_parcel for o in mask.contents):
+        return None, "You already carry a sealed clinic linen parcel."
+    day, hour = _clock()
+    _preview, okay, reason = clinic_supply.issue(market.db.clinic_linen_stock, day)
+    if not okay:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            if (_clock() != (day, hour) or mask.location != market
+                    or active_calling(mask) != "merchant"):
+                raise RuntimeError("The Merchant left or the market shift changed.")
+            if any(o.key == PARCEL and o.db.clinic_supply_parcel for o in mask.contents):
+                raise RuntimeError("A clinic parcel is already carried.")
+            changed, good, problem = clinic_supply.issue(
+                market.db.clinic_linen_stock, day)
+            if not good:
+                raise RuntimeError(problem)
+            parcel = create_object(
+                "typeclasses.objects.Object", key=PARCEL, location=mask,
+                aliases=["clinic linen parcel", "linen parcel", "sealed linen"],
+            )
+            parcel.db.clinic_supply_parcel = {
+                "day": day, "hour": hour, "source_event_id": event["id"],
+                "market_room_id": market.id,
+                "merchant_account_id": mask.account.id,
+                "merchant_mask_id": mask.id,
+                "units": clinic_supply.UNITS, "material": "clean_linen",
+            }
+            parcel.db.desc = (
+                "Two clean linen dressings, sealed at Market Lane. Carry or "
+                "give this physical parcel to St. Lazarus Church, then have "
+                "a separate Healer inspect and accept it with clinic receive."
+            )
+            market.db.clinic_linen_stock = changed
+            return {
+                "parcel_id": parcel.id, "market_room_id": market.id,
+                "units": clinic_supply.UNITS,
+                "remaining": changed["remaining"],
+            }
+
+    event = publish_world_event(
+        "professional.merchant_clinic_supply", actor=mask,
+        payload={
+            "day": day, "hour": hour, "market_room_id": market.id,
+            "professional_calling": "merchant",
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    record_participation(mask, "clinic_supplies_procured", calling="merchant")
+    return {"event_id": event["id"]}, None
+
+
+def receive(mask):
+    """Healer accepts real signed linen without accessing private case notes."""
+    church, error = _guard(mask)
+    if error:
+        return None, error
+    if active_calling(mask) != "healer":
+        return None, "Only an active Healer can accept clinic supplies."
+    market = next((o for o in search.search_object(MARKET)
+                   if o.key == MARKET and o.location is None
+                   and o.tags.has("ic", category="side")), None)
+    if market is None:
+        return None, "Market Lane is not available."
+    parcels = [
+        o for o in list(church.contents) + list(mask.contents)
+        if o.key == PARCEL and hasattr(o.db.clinic_supply_parcel, "get")
+    ]
+    if not parcels:
+        return None, "Bring a physical sealed clinic linen parcel from Market Lane."
+    if len(parcels) != 1:
+        return None, "Choose a single clinic linen parcel before accepting supplies."
+    item = parcels[0]
+    source = dict(item.db.clinic_supply_parcel)
+    day, hour = _clock()
+    receipt = get_event_ledger().get_event(source.get("source_event_id"))
+    valid, problem = clinic_supply.verify_source(
+        receipt, source, item_id=item.id, market_id=market.id,
+        healer_account_id=mask.account.id, day=day,
+    )
+    if not valid:
+        return None, problem
+    props = {
+        "day": day, "event_id": 1,
+        "source_event_id": source["source_event_id"],
+        "source_day": source["day"], "parcel_id": item.id,
+        "merchant_account_id": source["merchant_account_id"],
+        "healer_account_id": mask.account.id,
+    }
+    _preview, okay, reason = clinic_supply.accept(church.db.village_clinic, **props)
+    if not okay:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            if (_clock() != (day, hour) or mask.location != church
+                    or active_calling(mask) != "healer"
+                    or item.location not in (church, mask)):
+                raise RuntimeError("The clinical handoff or shift changed.")
+            current = dict(item.db.clinic_supply_parcel or {})
+            signed = get_event_ledger().get_event(current.get("source_event_id"))
+            valid, problem = clinic_supply.verify_source(
+                signed, current, item_id=item.id, market_id=market.id,
+                healer_account_id=mask.account.id, day=day,
+            )
+            if not valid or current != source:
+                raise RuntimeError(problem or "The parcel provenance changed.")
+            changed, good, reason = clinic_supply.accept(
+                church.db.village_clinic, **{**props, "event_id": event["id"]})
+            if not good:
+                raise RuntimeError(reason)
+            church.db.village_clinic = changed
+            consumed_id = item.id
+            item.delete()
+            return {
+                "consumed_parcel_id": consumed_id,
+                "source_merchant_event_id": source["source_event_id"],
+                "merchant_account_id": source["merchant_account_id"],
+                "clinic_room_id": church.id,
+                "linen_after": changed["linen"],
+            }
+
+    event = publish_world_event(
+        "village.clinic_supply_received", actor=mask,
+        payload={
+            "day": day, "hour": hour,
+            "source_merchant_event_id": source["source_event_id"],
+            "parcel_id": item.id, "professional_calling": "healer",
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    record_participation(mask, "clinic_supplies_received", calling="healer")
+    return {"event_id": event["id"], "source_event_id": source["source_event_id"]}, None
