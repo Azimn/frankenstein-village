@@ -314,7 +314,9 @@ def public_lines(raw, day, event_lookup=None):
             event_lookup = get_event_ledger().get_event
         except Exception:
             return "The clinic inquiry register requires signed source inspection."
-    if not signed_inquiry(current, event_lookup):
+    # A valid-looking later or earlier row cannot be ignored while presenting
+    # another row as an intact signed register. Check the full retained chain.
+    if any(not signed_inquiry(row, event_lookup) for row in records):
         return "The clinic inquiry register requires signed source inspection."
     labels = {"possible_exposure": "possible environmental exposure",
               "unrelated_illness": "an unrelated illness"}
