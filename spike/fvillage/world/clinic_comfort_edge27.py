@@ -206,8 +206,105 @@ def offer(raw, *, day, hour, account_id, mask_id, mask, event_id,
     return state, True, None
 
 
-def public_lines(raw, day):
+def _public_sources_verified(state, *, event_lookup, treatment,
+                             treatment_event, room_id, cot_id):
+    """Verify public signed claims against canonical completed events."""
+    invitation = state["invitation"]
+    music = state["music"]
+    if (not invitation or not callable(event_lookup)
+            or not isinstance(treatment, Mapping)
+            or positive(room_id) is None or positive(cot_id) is None):
+        return False
+    if (invitation["room_id"] != room_id or invitation["cot_id"] != cot_id
+            or invitation["source_event_id"] != treatment.get("event_id")
+            or invitation["account_id"] != treatment.get("account_id")
+            or invitation["mask_id"] != treatment.get("mask_id")
+            or invitation["mask"] != treatment.get("mask")
+            or invitation["day"] != treatment.get("day")
+            or stamp(treatment.get("day"), treatment.get("hour")) is None
+            or stamp(invitation["day"], invitation["hour"])
+            < stamp(treatment["day"], treatment["hour"])
+            or not (positive(treatment.get("event_id"))
+                    < positive(invitation["event_id"]))
+            or not treatment_valid(treatment, treatment_event, room_id)):
+        return False
+    try:
+        signed_invitation = event_lookup(invitation["event_id"])
+    except Exception:
+        return False
+    if not invitation_valid(invitation, signed_invitation):
+        return False
+    payload = signed_invitation["payload"]
+    consequence = signed_invitation["consequence"]
+    if (positive(payload.get("room_id")) != room_id
+            or positive(consequence.get("source_event_id"))
+            != invitation["source_event_id"]
+            or consequence.get("day") != invitation["day"]
+            or consequence.get("hour") != invitation["hour"]
+            or consequence.get("outcome") != "invited"):
+        return False
+    if music is None:
+        return True
+    if (music["room_id"] != room_id or music["cot_id"] != cot_id
+            or music["day"] != invitation["day"]
+            or music["source_event_id"] != invitation["event_id"]
+            or music["healer_account_id"] != invitation["account_id"]
+            or music["account_id"] == invitation["account_id"]
+            or music["mask_id"] == invitation["mask_id"]
+            or not (positive(invitation["event_id"])
+                    < positive(music["event_id"]))
+            or stamp(music["day"], music["hour"])
+            < stamp(invitation["day"], invitation["hour"])):
+        return False
+    try:
+        signed_music = event_lookup(music["event_id"])
+    except Exception:
+        return False
+    if not isinstance(signed_music, Mapping):
+        return False
+    actor = signed_music.get("actor")
+    payload = signed_music.get("payload")
+    consequence = signed_music.get("consequence")
+    if not all(isinstance(x, Mapping) for x in (actor, payload, consequence)):
+        return False
+    return (
+        signed_music.get("kind") == "village.clinic_music_offered"
+        and signed_music.get("status") == "complete"
+        and positive(signed_music.get("id")) == music["event_id"]
+        and positive(actor.get("account_id")) == music["account_id"]
+        and positive(actor.get("mask_id")) == music["mask_id"]
+        and actor.get("mask") == music["mask"]
+        and payload.get("professional_calling") == "performer"
+        and payload.get("day") == music["day"]
+        and payload.get("hour") == music["hour"]
+        and positive(payload.get("room_id")) == room_id
+        and positive(payload.get("cot_id")) == cot_id
+        and positive(payload.get("source_healer_event_id"))
+        == invitation["source_event_id"]
+        and consequence.get("day") == music["day"]
+        and consequence.get("hour") == music["hour"]
+        and positive(consequence.get("room_id")) == room_id
+        and positive(consequence.get("cot_id")) == cot_id
+        and positive(consequence.get("source_event_id"))
+        == invitation["event_id"]
+        and positive(consequence.get("source_healer_event_id"))
+        == invitation["source_event_id"]
+        and consequence.get("consent") == "respected"
+        and consequence.get("outcome") == "music_offered"
+    )
+
+
+def public_lines(raw, day, *, event_lookup=None, treatment=None,
+                 treatment_event=None, room_id=None, cot_id=None):
     state = refresh(raw, day)
+    current_claim = (isinstance(raw, Mapping) and raw.get("day") == day
+                     and (raw.get("invitation") is not None
+                          or raw.get("music") is not None))
+    if current_claim and not _public_sources_verified(
+            state, event_lookup=event_lookup, treatment=treatment,
+            treatment_event=treatment_event, room_id=room_id, cot_id=cot_id):
+        return ("The clinic comfort record cannot be verified against "
+                "completed world events. No signed consent or music is claimed.")
     if state["music"]:
         return ("A visitor voluntarily heard a short piece at the cot "
                 "(signed music event %s, consent event %s). "
