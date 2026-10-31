@@ -53,8 +53,9 @@ assert "2 of 3 acoustic uses remain" in stage_fitting_work.public_status(tavern)
 # A shape-valid mutable record is not itself proof of a completed source.
 # Public status must independently recheck the canonical event ledger.
 for damaged in (
-    dict(state, fitting=dict(fitting, event_id=999999)),
-    dict(state, soundcheck=dict(check, event_id=999999)),
+    dict(state, fitting=dict(fitting, item_id=999999)),
+    dict(state, soundcheck=dict(check, event_id=999999),
+         plays=[dict(play, soundcheck_event_id=999999)]),
     dict(state, plays=[], remaining=3),
 ):
     tavern.db.stage_rail_edge21 = damaged
