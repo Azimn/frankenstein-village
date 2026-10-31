@@ -49,5 +49,21 @@ try:
 finally:
     tavern.db.stage_rail_edge21 = state
 assert stage_fitting_work._verified_plays(tavern) == (True, None)
+assert "2 of 3 acoustic uses remain" in stage_fitting_work.public_status(tavern)
+# A shape-valid mutable record is not itself proof of a completed source.
+# Public status must independently recheck the canonical event ledger.
+for damaged in (
+    dict(state, fitting=dict(fitting, event_id=999999)),
+    dict(state, soundcheck=dict(check, event_id=999999)),
+    dict(state, plays=[], remaining=3),
+):
+    tavern.db.stage_rail_edge21 = damaged
+    try:
+        assert "unverified" in stage_fitting_work.public_status(tavern).lower()
+        assert "acoustic sets are unavailable" in stage_fitting_work.public_status(tavern)
+    finally:
+        tavern.db.stage_rail_edge21 = state
+assert "2 of 3 acoustic uses remain" in stage_fitting_work.public_status(tavern)
+print("POST_RESTART_GDD_EDGE21_PUBLIC_STATUS_SOURCE_VERIFIED_GREEN")
 print("POST_RESTART_GDD_EDGE21_STALE_SNAPSHOT_REPLAY_REFUSED_GREEN")
 print("POST_RESTART_GDD_EDGE21_INDEPENDENT_SIGNED_RAIL_GREEN")
