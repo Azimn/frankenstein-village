@@ -171,6 +171,7 @@ for _room_obj, _line in (
     (lamp_shop, "South, the cobbles widen into Market Lane."),
     (tavern, "East, a damp path follows the river toward the old bridge."),
     (market_lane, "East, a public repair workshop opens off the market stalls."),
+    (market_lane, "Merchants can procure sealed clinic linen here with clinic procure."),
 ):
     if _line not in str(_room_obj.db.desc or ""):
         _room_obj.db.desc = (str(_room_obj.db.desc or "").rstrip() + " " + _line)
