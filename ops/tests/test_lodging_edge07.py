@@ -44,6 +44,34 @@ def signed_source(row):
         "consequence": {
             "scope": rules.SCOPE, "register_id": row["register_id"],
             "room_id": row["room_id"], "source_event_id": row["event_id"],
+            "day": row["day"], "hour": row["hour"],
+        },
+    }
+
+
+def signed_inquiry(row):
+    record = row["inquiry"]
+    return {
+        "id": record["event_id"],
+        "kind": "village.lodging_inquiry",
+        "status": "complete",
+        "actor": {
+            "account_id": record["account_id"],
+            "mask_id": record["mask_id"],
+            "mask": record["mask"],
+        },
+        "payload": {
+            "calling": "detective", "scope": rules.SCOPE,
+            "day": record["day"], "hour": record["hour"],
+            "register_id": row["register_id"], "room_id": row["room_id"],
+            "source_event_id": row["event_id"],
+        },
+        "consequence": {
+            "scope": rules.SCOPE,
+            "day": record["day"], "hour": record["hour"],
+            "register_id": row["register_id"], "room_id": row["room_id"],
+            "source_event_id": row["event_id"],
+            "finding": "qualified_register_observation",
         },
     }
 
@@ -64,6 +92,103 @@ class LodgingEdge07Tests(unittest.TestCase):
                          "qualified_register_observation")
         self.assertNotIn("culprit", rules.public_lines(after).lower())
         self.assertIn("no guest identity", rules.public_lines(after).lower())
+
+    def test_public_readback_requires_both_completed_canonical_events(self):
+        state, okay, error = rules.inquire(self.state, **inquiry())
+        self.assertTrue(okay, error)
+        row = state["records"][0]
+        events = {
+            100: signed_source(row),
+            200: signed_inquiry(row),
+        }
+        self.assertTrue(rules.inquiry_is_valid(events[200], row))
+        rendered = rules.public_lines(
+            json.loads(json.dumps(state)), event_lookup=events.get,
+            register_id=401, room_id=301,
+        )
+        self.assertIn("Latest redacted authorization", rendered)
+        self.assertIn("Independent qualified inquiry: signed event 200", rendered)
+        self.assertNotIn("DetectiveTester", rendered)
+        self.assertNotIn("InnkeepTester", rendered)
+        self.assertNotIn("guest identity is established", rendered.lower())
+
+        missing_inquiry = rules.public_lines(
+            state, event_lookup={100: events[100]}.get,
+            register_id=401, room_id=301,
+        )
+        self.assertIn("Stored Detective inquiry cannot be verified", missing_inquiry)
+        self.assertNotIn("Independent qualified inquiry: signed", missing_inquiry)
+        missing_source = rules.public_lines(
+            state, event_lookup={200: events[200]}.get,
+            register_id=401, room_id=301,
+        )
+        self.assertIn("no signed disclosure or inquiry is shown", missing_source)
+        self.assertNotIn("Latest redacted authorization:", missing_source)
+
+    def test_public_readback_fails_closed_without_ledger_or_physical_register(self):
+        row = self.state["records"][0]
+        source = signed_source(row)
+        for lookup, register_id, room_id in (
+            (None, 401, 301),
+            ({100: source}.get, 999, 301),
+            ({100: source}.get, 401, 999),
+            (lambda _id: (_ for _ in ()).throw(RuntimeError("ledger unavailable")), 401, 301),
+        ):
+            output = rules.public_lines(
+                self.state, event_lookup=lookup,
+                register_id=register_id, room_id=room_id,
+            )
+            self.assertIn("cannot be verified", output)
+            self.assertNotIn("Latest redacted authorization:", output)
+        valid = rules.public_lines(
+            self.state, event_lookup={100: source}.get,
+            register_id=401, room_id=301,
+        )
+        self.assertIn("Latest redacted authorization", valid)
+        self.assertIn("No independent Detective inquiry", valid)
+
+    def test_forged_inquiry_never_becomes_public_signed_evidence(self):
+        state, okay, error = rules.inquire(self.state, **inquiry())
+        self.assertTrue(okay, error)
+        row = state["records"][0]
+        source, original = signed_source(row), signed_inquiry(row)
+        for group, field, bad in (
+            (None, "id", 999),
+            (None, "kind", "village.lodging_disclosure"),
+            (None, "status", "consequence_failed"),
+            ("actor", "account_id", 11),
+            ("actor", "mask_id", 999),
+            ("payload", "calling", "innkeep"),
+            ("payload", "register_id", 999),
+            ("payload", "room_id", 999),
+            ("payload", "source_event_id", 999),
+            ("payload", "hour", 23),
+            ("consequence", "finding", "guest_identified"),
+            ("consequence", "source_event_id", 999),
+            ("consequence", "day", 9),
+            ("consequence", "scope", "full_guest_record"),
+        ):
+            forged = copy.deepcopy(original)
+            if group is None:
+                forged[field] = bad
+            else:
+                forged[group][field] = bad
+            self.assertFalse(rules.inquiry_is_valid(forged, row), (group, field))
+            output = rules.public_lines(
+                state, event_lookup={100: source, 200: forged}.get,
+                register_id=401, room_id=301,
+            )
+            self.assertIn("Stored Detective inquiry cannot be verified", output)
+            self.assertNotIn("Independent qualified inquiry: signed", output)
+
+        corrupted = json.loads(json.dumps(state))
+        corrupted["records"][0]["inquiry"]["account_id"] = 77
+        output = rules.public_lines(
+            corrupted, event_lookup={100: source, 200: original}.get,
+            register_id=401, room_id=301,
+        )
+        self.assertIn("cannot be verified", output)
+        self.assertNotIn("Independent qualified inquiry: signed", output)
 
     def test_one_disclosure_per_day_is_finite(self):
         before = copy.deepcopy(self.state)
