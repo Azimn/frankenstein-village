@@ -1586,8 +1586,10 @@ print("POST_RESTART_GDD_T08_PRIVATE_CLINIC_PERMISSION_GREEN")
 # Physical courier parcel is consumed only by real Riverside delivery.
 from world.courier_state import manifest as _ferry_manifest
 _ferry = _ferry_manifest(one("Riverside Path").db.ferry_manifest)
-assert len(_ferry["receipts"]) == 1, "Real ferry delivery vanished after restart"
+assert len(_ferry["receipts"]) == 2, "Solo mail or Merchant freight vanished after restart"
 _ferry_receipt = _ferry["receipts"][0]
+_freight_receipt = _ferry["receipts"][1]
+assert "freight" not in _ferry_receipt, "Solo mail was rewritten as a freight contract"
 _wanderer = one("WandererTester")
 assert active_calling(_wanderer) == "wanderer"
 assert _ferry_receipt["mask"] == "WandererTester"
@@ -1598,7 +1600,7 @@ assert _ferry_receipt["account_id"] == warning_ledger.get_event(
     _ferry_receipt["delivery_event_id"]
 )["actor"]["account_id"]
 assert calling_record(_wanderer, "wanderer")["participation"]["courier_collections"] == 1
-assert calling_record(_wanderer, "wanderer")["participation"]["courier_deliveries"] == 1
+assert calling_record(_wanderer, "wanderer")["participation"]["courier_deliveries"] == 2
 assert not [x for x in _wanderer.contents if x.db.ferry_parcel], (
     "An already delivered post parcel remains in the carrier's inventory"
 )
@@ -1610,6 +1612,41 @@ for _kind, _eid in (
     assert _event["status"] == "complete"
     assert _event["kind"] == _kind
 print("POST_RESTART_PHYSICAL_FERRY_POST_GREEN")
+
+# GDD-EDGE-31: a second physical parcel was consigned by MerchantTester,
+# accepted and delivered by a distinct WandererTester account, and consumed.
+# Check all three independently completed canonical events, not names alone.
+_freight = _freight_receipt.get("freight")
+assert _freight, "Merchant freight lost its signed custody chain"
+assert _freight_receipt["mask"] == "WandererTester"
+assert _freight_receipt["account_id"] == _freight["wanderer_account_id"]
+assert _freight["merchant_account_id"] != _freight["wanderer_account_id"]
+assert _freight_receipt["source_event_id"] == _freight["consignment_event_id"]
+_consignment = warning_ledger.get_event(_freight["consignment_event_id"])
+_acceptance = warning_ledger.get_event(_freight["accept_event_id"])
+_delivery = warning_ledger.get_event(_freight_receipt["delivery_event_id"])
+assert _consignment["kind"] == "village.freight_consigned"
+assert _acceptance["kind"] == "village.freight_accepted"
+assert _delivery["kind"] == "village.ferry_post_delivered"
+assert all(x["status"] == "complete" for x in (_consignment, _acceptance, _delivery))
+assert _consignment["actor"]["account_id"] == _freight["merchant_account_id"]
+assert _consignment["actor"]["mask_id"] == merchant_tester.id
+assert _acceptance["actor"]["account_id"] == _freight["wanderer_account_id"]
+assert _acceptance["actor"]["mask_id"] == _wanderer.id
+assert _delivery["actor"]["account_id"] == _freight["wanderer_account_id"]
+assert _delivery["payload"]["freight_accept_event_id"] == _acceptance["id"]
+assert _acceptance["payload"]["source_event_id"] == _consignment["id"]
+assert _acceptance["consequence"]["parcel_id"] == _freight_receipt["parcel_id"]
+assert _consignment["consequence"]["parcel_id"] == _freight_receipt["parcel_id"]
+assert _delivery["consequence"]["parcel_id"] == _freight_receipt["parcel_id"]
+assert not any(
+    getattr(o.db, "ferry_parcel", None) and
+    o.db.ferry_parcel.get("source_event_id") == _consignment["id"]
+    for o in one("Market Lane").contents + _wanderer.contents
+), "Delivered freight still exists in the Market or Wanderer inventory"
+assert calling_record(merchant_tester, "merchant")["participation"]["freight_consignments"] == 1
+assert calling_record(_wanderer, "wanderer")["participation"]["freight_acceptances"] == 1
+print("POST_RESTART_GDD_EDGE31_SIGNED_DISTINCT_FREIGHT_GREEN")
 
 # Smith workshop production and Merchant physical custody are durable:
 # the consumed item is absent and the Market board still records both
