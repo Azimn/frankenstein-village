@@ -300,9 +300,10 @@ class ClinicMusicRules(unittest.TestCase):
         self.assertIn("cannot be verified", public(state, events={}))
         state, ok, _ = music(state)
         self.assertTrue(ok)
+        canonical = {31: signed_invitation(state), 32: signed_music(state)}
         damaged = copy.deepcopy(state)
         damaged["music"]["event_id"] = 999992
-        self.assertIn("cannot be verified", public(damaged))
+        self.assertIn("cannot be verified", public(damaged, events=canonical))
         damaged = copy.deepcopy(state)
         damaged["invitation"]["cot_id"] = 72
         self.assertIn("cannot be verified", public(damaged))
