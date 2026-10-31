@@ -6,6 +6,7 @@ The finite public authorization is one redacted entry per village day.
 from __future__ import annotations
 
 import copy
+from collections.abc import Sequence
 
 MAX_RECORDS = 32
 MAX_AGE_HOURS = 48
@@ -45,9 +46,14 @@ def normalize(raw):
     state = fresh()
     if not hasattr(raw, "get"):
         return state
+    # Evennia persists list-like Attributes, but damaged saved state may be
+    # a scalar, string or mapping. Never let it crash ordinary public readback.
+    records = raw.get("records")
+    if not isinstance(records, Sequence) or isinstance(records, (str, bytes, bytearray)):
+        return state
     seen_days, seen_events = set(), set()
-    for item in list(raw.get("records") or [])[-MAX_RECORDS * 2:]:
-        if not hasattr(item, "get"):
+    for item in records[-MAX_RECORDS * 2:]:
+        if not hasattr(item, "get") or item.get("scope") != SCOPE:
             continue
         t = valid_time(item.get("day"), item.get("hour"))
         ids = [positive(item.get(k)) for k in
@@ -62,7 +68,8 @@ def normalize(raw):
             "scope": SCOPE, "inquiry": None,
         }
         inquiry = item.get("inquiry")
-        if hasattr(inquiry, "get"):
+        if (hasattr(inquiry, "get")
+                and inquiry.get("finding") == "qualified_register_observation"):
             it = valid_time(inquiry.get("day"), inquiry.get("hour"))
             ii = [positive(inquiry.get(k)) for k in
                   ("account_id", "mask_id", "event_id", "source_event_id")]
