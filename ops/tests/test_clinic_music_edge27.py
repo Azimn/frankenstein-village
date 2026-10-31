@@ -42,12 +42,15 @@ def signed_invitation(state):
         actor=dict(account_id=invitation["account_id"],
                    mask_id=invitation["mask_id"], mask=invitation["mask"]),
         payload=dict(day=invitation["day"], hour=invitation["hour"],
-                     professional_calling="healer", cot_id=invitation["cot_id"],
+                     professional_calling="healer",
+                     room_id=invitation["room_id"], cot_id=invitation["cot_id"],
                      source_healer_event_id=invitation["source_event_id"]),
         consequence=dict(room_id=invitation["room_id"],
                          cot_id=invitation["cot_id"],
+                         day=invitation["day"], hour=invitation["hour"],
+                         source_event_id=invitation["source_event_id"],
                          source_healer_event_id=invitation["source_event_id"],
-                         consent="accepted"))
+                         consent="accepted", outcome="invited"))
 
 
 def music(state, event=None, **changes):
@@ -59,6 +62,42 @@ def music(state, event=None, **changes):
     return rules.offer(state, **props)
 
 
+
+
+def signed_music(state):
+    record = state["music"]
+    return dict(
+        id=record["event_id"], kind="village.clinic_music_offered",
+        status="complete",
+        actor=dict(account_id=record["account_id"],
+                   mask_id=record["mask_id"], mask=record["mask"]),
+        payload=dict(day=record["day"], hour=record["hour"],
+                     professional_calling="performer",
+                     room_id=record["room_id"], cot_id=record["cot_id"],
+                     source_healer_event_id=state["invitation"]["source_event_id"]),
+        consequence=dict(room_id=record["room_id"], cot_id=record["cot_id"],
+                         day=record["day"], hour=record["hour"],
+                         source_event_id=record["source_event_id"],
+                         source_healer_event_id=state["invitation"]["source_event_id"],
+                         consent="respected", outcome="music_offered"))
+
+
+def public(state, *, events=None, treatment=None, treatment_event=None,
+           room_id=70, cot_id=71, day=1):
+    original_treatment, original_event = fixture()
+    if events is None:
+        events = {}
+        if state.get("invitation"):
+            events[state["invitation"]["event_id"]] = signed_invitation(state)
+        if state.get("music"):
+            events[state["music"]["event_id"]] = signed_music(state)
+    return rules.public_lines(
+        state, day, event_lookup=events.get,
+        treatment=original_treatment if treatment is None else treatment,
+        treatment_event=original_event if treatment_event is None else treatment_event,
+        room_id=room_id, cot_id=cot_id)
+
+
 class ClinicMusicRules(unittest.TestCase):
     def test_independent_two_account_consent_and_music(self):
         state, ok, reason = invite()
@@ -67,9 +106,9 @@ class ClinicMusicRules(unittest.TestCase):
         self.assertTrue(ok, reason)
         self.assertEqual(state["music"]["source_event_id"], 31)
         self.assertEqual(state["music"]["healer_account_id"], 11)
-        self.assertIn("not a treatment", rules.public_lines(state, 1))
-        self.assertNotIn("cold", rules.public_lines(state, 1))
-        self.assertNotIn("HealerTester", rules.public_lines(state, 1))
+        self.assertIn("not a treatment", public(state))
+        self.assertNotIn("cold", public(state))
+        self.assertNotIn("HealerTester", public(state))
 
     def test_requires_real_completed_healer_treatment(self):
         t, e = fixture()
@@ -181,6 +220,101 @@ class ClinicMusicRules(unittest.TestCase):
         self.assertIsNone(rules.normalize(corrupt)["invitation"])
         self.assertIsNone(rules.normalize({"day": 1, "invitation": "forged"})["invitation"])
         self.assertFalse(rules.invitation_valid({}, {}))
+
+
+    def test_public_readback_requires_actual_three_signed_events(self):
+        state, ok, _ = invite()
+        self.assertTrue(ok)
+        state, ok, _ = music(state)
+        self.assertTrue(ok)
+        signed = public(state)
+        self.assertIn("signed music event 32, consent event 31", signed)
+        self.assertNotIn("cold", signed)
+        self.assertNotIn("HealerTester", signed)
+        self.assertNotIn("PerformerTester", signed)
+        self.assertIn("cannot be verified", rules.public_lines(state, 1))
+        self.assertIn("cannot be verified", public(state, events={}))
+        self.assertIn("cannot be verified", public(state, room_id=72))
+        self.assertIn("cannot be verified", public(state, cot_id=72))
+        self.assertIn("cannot be verified", public(state, treatment={}))
+        self.assertIn("cannot be verified", public(
+            state, treatment_event=dict(fixture()[1], status="consequence_failed")))
+        persisted = UserDict(json.loads(json.dumps(state)))
+        self.assertIn("signed music event 32", public(persisted))
+        self.assertNotIn("signed music", public(persisted, events={}))
+        self.assertNotIn("signed music", public(state, day=2))
+
+    def test_public_readback_rejects_forged_invitation_and_music_events(self):
+        state, ok, _ = invite()
+        self.assertTrue(ok)
+        state, ok, _ = music(state)
+        self.assertTrue(ok)
+        invitation = signed_invitation(state)
+        offered = signed_music(state)
+        tampered_invitation = (
+            dict(invitation, id=999991),
+            dict(invitation, status="consequence_failed"),
+            dict(invitation, actor=dict(invitation["actor"], account_id=90)),
+            dict(invitation, payload=dict(invitation["payload"], cot_id=72)),
+            dict(invitation, payload=dict(invitation["payload"], room_id=72)),
+            dict(invitation, consequence=dict(invitation["consequence"],
+                                               source_event_id=900)),
+            dict(invitation, consequence=dict(invitation["consequence"],
+                                               consent="refused")),
+            dict(invitation, consequence=dict(invitation["consequence"],
+                                               outcome="unknown")),
+            dict(invitation, consequence=dict(invitation["consequence"],
+                                               hour=20)),
+        )
+        for bad in tampered_invitation:
+            with self.subTest(invitation=bad):
+                text = public(state, events={31: bad, 32: offered})
+                self.assertIn("cannot be verified", text)
+                self.assertNotIn("signed music event", text)
+        tampered_music = (
+            dict(offered, id=999992),
+            dict(offered, status="consequence_failed"),
+            dict(offered, kind="village.clinic_treat"),
+            dict(offered, actor=dict(offered["actor"], mask_id=99)),
+            dict(offered, payload=dict(offered["payload"], cot_id=72)),
+            dict(offered, payload=dict(offered["payload"], day=2)),
+            dict(offered, consequence=dict(offered["consequence"],
+                                            source_event_id=900)),
+            dict(offered, consequence=dict(offered["consequence"],
+                                            consent="refused")),
+            dict(offered, consequence=dict(offered["consequence"],
+                                            outcome="treatment")),
+            dict(offered, consequence=dict(offered["consequence"],
+                                            hour=20)),
+        )
+        for bad in tampered_music:
+            with self.subTest(music=bad):
+                text = public(state, events={31: invitation, 32: bad})
+                self.assertIn("cannot be verified", text)
+                self.assertNotIn("signed music event", text)
+
+    def test_public_readback_handles_absent_sources_corrupt_cot_and_ledger_errors(self):
+        state, ok, _ = invite()
+        self.assertTrue(ok)
+        self.assertIn("accepted a short", public(state))
+        self.assertIn("cannot be verified", public(state, events={}))
+        state, ok, _ = music(state)
+        self.assertTrue(ok)
+        damaged = copy.deepcopy(state)
+        damaged["music"]["event_id"] = 999992
+        self.assertIn("cannot be verified", public(damaged))
+        damaged = copy.deepcopy(state)
+        damaged["invitation"]["cot_id"] = 72
+        self.assertIn("cannot be verified", public(damaged))
+        damaged = copy.deepcopy(state)
+        damaged["music"] = "forged"
+        self.assertIn("cannot be verified", public(damaged))
+        self.assertIn("cannot be verified", rules.public_lines(
+            state, 1, event_lookup=lambda _: (_ for _ in ()).throw(
+                RuntimeError("ledger unavailable")),
+            treatment=fixture()[0], treatment_event=fixture()[1],
+            room_id=70, cot_id=71))
+        self.assertNotIn("cold", public(state, events={}))
 
     def test_bounded_history(self):
         state, ok, _ = invite()
