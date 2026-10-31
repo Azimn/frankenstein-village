@@ -209,6 +209,31 @@ class MarketStandardsTests(unittest.TestCase):
         self.assertTrue(market.suspended(held, 1),
                         "Audit must not silently release held physical stock")
 
+    def test_corrupt_audit_choice_is_not_a_signed_public_claim(self):
+        import copy
+
+        held, ok, error = sign(None, "hold", actor=5, event=10)
+        self.assertTrue(ok, error)
+        audited, ok, error = sign(held, "audit", actor=11, event=12)
+        self.assertTrue(ok, error)
+        self.assertIn("independently audited Merchant",
+                      " ".join(market.public_lines(audited, 1)))
+        for malformed in (["hold"], {"choice": "hold"}, True):
+            with self.subTest(malformed=malformed):
+                broken = copy.deepcopy(audited)
+                broken["audit"]["review_choice"] = malformed
+                self.assertIsNone(market.normalize(broken)["audit"])
+                self.assertNotIn("independently audited Merchant",
+                                 " ".join(market.public_lines(broken, 1)))
+                self.assertEqual(broken["audit"]["review_choice"], malformed)
+
+    def test_merchant_review_verifier_fails_closed_on_nonstring_choice(self):
+        for malformed in (["hold"], {"choice": "hold"}, True):
+            with self.subTest(malformed=malformed):
+                self.assertFalse(market.verified_merchant_review(
+                    {"choice": malformed}, {"status": "complete"}
+                ))
+
     def test_bad_actor_does_not_create_public_event_record(self):
         state, ok, error = market.apply(
             None, "hold", day=1, hour=13, account_id=True,
