@@ -1358,6 +1358,13 @@ assert _market_live["audit"]["account_id"] != _market_live["review"]["account_id
 assert _market_live["review"]["mask_id"] == merchant_tester.id
 assert _market_live["calibration"]["mask_id"] == smith_tester.id
 assert _market_live["attestation"]["mask_id"] == smoke.id
+from world.market_standards import verified_sources as _market_verified_sources
+assert _market_verified_sources(
+    _market_live, _market_live["day"], warning_ledger.get_event
+), "Signed Merchant and Smith receipts do not support the Chronicler attestation"
+assert _market_live["attestation"]["review_event_id"] == _market_live["review"]["event_id"]
+assert _market_live["attestation"]["calibration_event_id"] == _market_live["calibration"]["event_id"]
+
 assert not _market_suspended(_market_live, _market_live["day"]), (
     "A Smith's completed physical correction left supplies blocked"
 )
