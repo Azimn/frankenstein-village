@@ -17,11 +17,29 @@ def _guard(mask, calling):
     return tavern, None
 
 
+def public_status(tavern):
+    """Never advertise a rail or finite uses from an unverified Attribute."""
+    state = rules.normalize(tavern.db.stage_rail_edge21)
+    if state["condition"] in ("worn", "invalid"):
+        return rules.public_lines(tavern.db.stage_rail_edge21)
+    _fitting, error = _fit_receipt(tavern)
+    if error:
+        return "Stage rail: unverified physical fitting; acoustic sets are unavailable."
+    if state["soundcheck"] is not None:
+        _check, error = _check_receipt(tavern)
+        if error:
+            return "Stage rail: unverified Performer soundcheck; acoustic sets are unavailable."
+    verified, error = _verified_plays(tavern)
+    if not verified:
+        return "Stage rail: unverified acoustic history; acoustic sets are unavailable."
+    return rules.public_lines(tavern.db.stage_rail_edge21)
+
+
 def status(mask):
     tavern, error = stage_work._guard(mask)
     if error:
         return error
-    return rules.public_lines(tavern.db.stage_rail_edge21)
+    return public_status(tavern)
 
 
 def _forge(item):
