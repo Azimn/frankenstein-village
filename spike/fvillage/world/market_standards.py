@@ -224,6 +224,29 @@ def verified_sources(raw, day, event_lookup):
             return False
         if field == "review" and row["choice"] != action:
             return False
+        # Completed world events must prove the physical market consequence,
+        # not merely repeat the action name. Event IDs are monotonic: a source
+        # can only cite the other professional's receipt if it already existed
+        # when this particular event was committed.
+        expected_held = field == "review" and action == "hold"
+        if (type(consequence.get("market_distribution_held")) is not bool
+                or consequence["market_distribution_held"] is not expected_held):
+            return False
+        for source_key, source_row in (
+                ("review_event_id", state["review"]),
+                ("calibration_event_id", state["calibration"])):
+            if source_key not in consequence:
+                return False
+            expected_id = (
+                source_row["event_id"]
+                if source_row and source_row["event_id"] <= event_id else None
+            )
+            actual_id = consequence[source_key]
+            if expected_id is None:
+                if actual_id is not None:
+                    return False
+            elif type(actual_id) is not int or actual_id != expected_id:
+                return False
     return True
 
 
