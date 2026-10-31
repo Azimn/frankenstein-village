@@ -40,9 +40,9 @@ def status(mask):
     if error:
         return error
     day, _ = _clock()
-    from world import stage_fitting_edge21
+    from world import stage_fitting_work
     return (stage_state.public_lines(tavern.db.village_stage, day) + "\n" +
-            stage_fitting_edge21.public_lines(tavern.db.stage_rail_edge21))
+            stage_fitting_work.public_status(tavern))
 
 
 def act(mask, action, tune=None):
