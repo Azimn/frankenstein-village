@@ -1,11 +1,14 @@
 """GDD-EDGE-21: signed stage rail installation and independent acoustic work."""
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+
 from django.db import transaction
+from evennia.scripts.models import ScriptDB
 
 from world import stage_fitting_edge21 as rules, stage_work, workshop_work
 from world.callings import active_calling, record_participation
-from world.events import get_event_ledger, publish_world_event
+from world.events import LEDGER_KEY, get_event_ledger, publish_world_event
 
 
 def _guard(mask, calling):
@@ -17,10 +20,43 @@ def _guard(mask, calling):
     return tavern, None
 
 
+def _prior_completed_fit(tavern):
+    """A reset mutable rail Attribute cannot erase a completed physical fit.
+
+    This read must not create a new event ledger. Malformed ledger history
+    fails closed rather than granting another finite Workshop installation.
+    """
+    try:
+        ledger = ScriptDB.objects.get(db_key=LEDGER_KEY)
+    except ScriptDB.DoesNotExist:
+        return False, None
+    records = ledger.db.events
+    if (not isinstance(records, Sequence)
+            or isinstance(records, (str, bytes))):
+        return True, "The signed stage-fitting history is unavailable."
+    for event in records:
+        if not isinstance(event, Mapping):
+            return True, "The signed stage-fitting history is malformed."
+        if (event.get("kind") != "professional.stage_rail_fitted"
+                or event.get("status") != "complete"):
+            continue
+        payload = event.get("payload")
+        if not isinstance(payload, Mapping):
+            return True, "A completed stage fitting has no readable source."
+        if payload.get("tavern_id") == tavern.id:
+            return True, "This Tavern already has a completed signed stage fitting."
+    return False, None
+
+
 def public_status(tavern):
     """Never advertise a rail or finite uses from an unverified Attribute."""
     state = rules.normalize(tavern.db.stage_rail_edge21)
-    if state["condition"] in ("worn", "invalid"):
+    if state["condition"] == "worn":
+        prior, _reason = _prior_completed_fit(tavern)
+        if prior:
+            return "Stage rail: inconsistent physical history; acoustic sets are unavailable."
+        return rules.public_lines(tavern.db.stage_rail_edge21)
+    if state["condition"] == "invalid":
         return rules.public_lines(tavern.db.stage_rail_edge21)
     _fitting, error = _fit_receipt(tavern)
     if error:
@@ -192,6 +228,9 @@ def act(mask, action, tune=None):
     item = None
     source = None
     if action == "fit":
+        prior, reason = _prior_completed_fit(tavern)
+        if prior:
+            return None, reason
         items = [o for o in mask.contents
                  if o.key == workshop_work.FITTING
                  and hasattr(o.db.forged_market_part, "get")]
@@ -234,6 +273,9 @@ def act(mask, action, tune=None):
                     or mask.account.id != account_id or mask.id != mask_id):
                 raise RuntimeError("The acting player, Calling or shift changed.")
             if action == "fit":
+                prior, reason = _prior_completed_fit(tavern)
+                if prior:
+                    raise RuntimeError(reason)
                 if item.location != mask:
                     raise RuntimeError("The real hinge is no longer carried.")
                 current_source, source_error = _forge(item)
