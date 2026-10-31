@@ -118,6 +118,40 @@ class StageRailTests(unittest.TestCase):
             _state, ok, _why = play(broken, day=5)
             self.assertFalse(ok)
 
+    def test_persisted_current_day_set_must_match_latest_soundcheck(self):
+        state, ok, why = fit()
+        self.assertTrue(ok, why)
+        state, ok, why = check(state)
+        self.assertTrue(ok, why)
+        state, ok, why = play(state)
+        self.assertTrue(ok, why)
+        # A shape-valid Attribute must not turn a forged same-day play into
+        # a public claim about remaining physical stage-rail capacity.
+        for field, forged in (
+            ("soundcheck_event_id", 999),
+            ("account_id", 999),
+            ("mask_id", 999),
+            ("day", 5),
+            ("hour", 10),
+            ("event_id", state["soundcheck"]["event_id"]),
+            ("event_id", state["fitting"]["event_id"]),
+        ):
+            with self.subTest(field=field, forged=forged):
+                broken = json.loads(json.dumps(state))
+                broken["plays"][0][field] = forged
+                self.assertEqual(rail.normalize(broken)["condition"], "invalid")
+                self.assertIn("inconsistent", rail.public_lines(broken))
+                _result, allowed, _reason = play(broken, day=5)
+                self.assertFalse(allowed)
+        # Older sets legitimately reference earlier soundchecks, while the
+        # physical record stores only the newest check. Do not reject them.
+        renewed, ok, why = check(state, day=5, hour=11, event_id=205)
+        self.assertTrue(ok, why)
+        self.assertEqual(rail.normalize(json.loads(json.dumps(renewed))), renewed)
+        played, ok, why = play(renewed, day=5, hour=12, event_id=206)
+        self.assertTrue(ok, why)
+        self.assertEqual(rail.normalize(json.loads(json.dumps(played))), played)
+
     def test_evennia_style_persistence_wrappers_and_json_restart(self):
         a, _, _ = fit()
         a, _, _ = check(a)
