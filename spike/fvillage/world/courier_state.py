@@ -106,6 +106,8 @@ def _signed_event(lookup, event_id, kind):
         return None
     if not all(isinstance(event.get(k), dict) for k in ("actor", "payload", "consequence")):
         return None
+    if not _positive_int(event["actor"].get("account_id")):
+        return None
     return event
 
 
