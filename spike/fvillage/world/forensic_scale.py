@@ -126,11 +126,92 @@ def inspect(raw, *, calibration, source_event, account_id, mask_id,
     return (history + [row])[-MAX_RECORDS:], True, None
 
 
-def public_lines(raw, day):
+def verified_record(row, *, event_lookup, scale_id, market_id):
+    """Verify a persisted custody claim against both completed world events.
+
+    Shape-valid database rows are not themselves signed evidence. The caller
+    supplies a read-only canonical event lookup and the physical room/object.
+    """
+    if not isinstance(row, Mapping):
+        return False
+    if any(_id(value) is None for value in (scale_id, market_id)):
+        return False
+    if row.get("scale_id") != scale_id or row.get("market_id") != market_id:
+        return False
+    if row["source_event_id"] >= row["event_id"]:
+        return False
+    if not callable(event_lookup):
+        return False
+    try:
+        smith = event_lookup(row["source_event_id"])
+        inquiry = event_lookup(row["event_id"])
+    except (Exception,):
+        return False
+    if not isinstance(smith, Mapping) or not isinstance(inquiry, Mapping):
+        return False
+    for event, event_id, kind in (
+        (smith, row["source_event_id"], SOURCE_KIND),
+        (inquiry, row["event_id"], INQUIRY_KIND),
+    ):
+        if (event.get("id") != event_id or type(event.get("id")) is not int
+                or event.get("kind") != kind
+                or event.get("status") != "complete"
+                or not all(isinstance(event.get(k), Mapping)
+                           for k in ("actor", "payload", "consequence"))):
+            return False
+    smith_actor, smith_payload, smith_result = (
+        smith["actor"], smith["payload"], smith["consequence"]
+    )
+    detective_actor, detective_payload, detective_result = (
+        inquiry["actor"], inquiry["payload"], inquiry["consequence"]
+    )
+    if (_id(smith_actor.get("mask_id")) is None
+            or smith_actor.get("account_id") != row["smith_account_id"]
+            or type(smith_actor.get("account_id")) is not int
+            or not isinstance(smith_actor.get("mask"), str)
+            or not smith_actor["mask"].strip()
+            or smith_payload.get("professional_calling") != "smith"
+            or smith_payload.get("action") != "calibrate"
+            or smith_payload.get("location") != "Market Lane"
+            or smith_payload.get("day") != row["day"]
+            or not _time(smith_payload.get("day"), smith_payload.get("hour"))
+            or smith_payload["hour"] > row["hour"]
+            or smith_result.get("calibration_event_id") != row["source_event_id"]):
+        return False
+    if (detective_actor.get("account_id") != row["account_id"]
+            or detective_actor.get("mask_id") != row["mask_id"]
+            or detective_actor.get("mask") != row["mask"]
+            or detective_payload.get("professional_calling") != "detective"
+            or detective_payload.get("action") != "inspect"
+            or detective_payload.get("location") != "Market Lane"
+            or detective_payload.get("day") != row["day"]
+            or detective_payload.get("hour") != row["hour"]
+            or detective_payload.get("scale_object_id") != scale_id
+            or detective_payload.get("smith_source_event_id")
+            != row["source_event_id"]
+            or detective_result.get("scale_object_id") != scale_id
+            or detective_result.get("market_room_id") != market_id
+            or detective_result.get("smith_source_event_id")
+            != row["source_event_id"]
+            or detective_result.get("finding") != FINDING
+            or detective_result.get("day") != row["day"]):
+        return False
+    return True
+
+
+def public_lines(raw, day, *, event_lookup=None, scale_id=None, market_id=None):
     rows = normalize(raw)
     today = [row for row in rows if row["day"] == day]
     if today:
         row = today[-1]
+        if not verified_record(
+            row, event_lookup=event_lookup,
+            scale_id=scale_id, market_id=market_id,
+        ):
+            return (
+                "A stored scale custody entry cannot be verified against "
+                "completed world events; no signed Detective inquiry is shown."
+            )
         return (
             f"Detective {row['mask']} inspected the physical scale "
             f"(event {row['event_id']}, Smith source {row['source_event_id']}). "
