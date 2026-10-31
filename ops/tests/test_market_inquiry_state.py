@@ -287,6 +287,37 @@ class MarketInquiryTests(unittest.TestCase):
                 self.assertIn("not verified", signed_lines(rows, events))
                 self.assertNotIn("independently examined", signed_lines(rows, events))
 
+    def test_incomplete_rebuttal_fields_cannot_suppress_signed_contest(self):
+        rows, okay, why = open_one()
+        self.assertTrue(okay, why)
+        self.assertIn("independently examined", signed_lines(rows))
+        signed, okay, why = rebut_one(rows)
+        self.assertTrue(okay, why)
+        self.assertIn("remains contested", signed_lines(signed))
+        for changes in (
+            {"rebuttal_hour": None},
+            {"rebuttal_hour": "13.5"},
+            {"rebuttal_hour": 11},
+            {"rebuttal_event_id": None},
+            {"rebuttal_event_id": "42.5"},
+            {"rebuttal_event_id": True},
+        ):
+            with self.subTest(changes=changes):
+                damaged = copy.deepcopy(signed)
+                damaged[0].update(changes)
+                text = signed_lines(damaged)
+                self.assertIn("not verified", text)
+                self.assertNotIn("independently examined", text)
+                self.assertNotIn("remains contested", text)
+        # A stray rebuttal hour on an otherwise valid, un-rebutted case
+        # cannot be laundered into a clean public readback either.
+        orphan = copy.deepcopy(rows)
+        orphan[0]["rebuttal_hour"] = 13
+        self.assertIn("not verified", signed_lines(orphan))
+        # Normal unsigned absence and complete signed provenance still work.
+        self.assertIn("independently examined", signed_lines(rows))
+        self.assertIn("remains contested", signed_lines(signed))
+
     def test_forged_rebuttal_fails_closed_but_historic_signed_reply_survives(self):
         rows, okay, _ = open_one()
         self.assertTrue(okay)
