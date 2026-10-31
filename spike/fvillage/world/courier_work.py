@@ -43,7 +43,7 @@ def status(mask):
     supply = courier_state.stock(market.db.ferry_post_stock, day)
     receipts, verified = courier_state.public_manifest(
         path.db.ferry_manifest, get_event_ledger().get_event,
-        riverside_room_id=path.id,
+        riverside_room_id=path.id, market_room_id=market.id,
     )
     last = receipts[-1] if verified and receipts else None
     lines = [
