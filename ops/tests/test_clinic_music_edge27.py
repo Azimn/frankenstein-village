@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "spike/fvillage"))
-from world import clinic_comfort_edge27 as rules
+from world import clinic_comfort_edge27 as rules, clinic_state
 
 
 def fixture(day=1, hour=21):
@@ -30,7 +30,8 @@ def invite(raw=None, treatment=None, treatment_event=None, **changes):
     props = dict(day=1, hour=21, account_id=11, mask_id=101,
                  mask="HealerTester", event_id=31, room_id=70, cot_id=71,
                  treatment=t if treatment is None else treatment,
-                 treatment_event=e if treatment_event is None else treatment_event)
+                 treatment_event=e if treatment_event is None else treatment_event,
+                 visitor_choice="accepts")
     props.update(changes)
     return rules.invite(raw, **props)
 
@@ -45,13 +46,15 @@ def signed_invitation(state):
         payload=dict(day=invitation["day"], hour=invitation["hour"],
                      professional_calling="healer",
                      room_id=invitation["room_id"], cot_id=invitation["cot_id"],
-                     source_healer_event_id=invitation["source_event_id"]),
+                     source_healer_event_id=invitation["source_event_id"],
+                     visitor_choice=invitation["visitor_choice"]),
         consequence=dict(room_id=invitation["room_id"],
                          cot_id=invitation["cot_id"],
                          day=invitation["day"], hour=invitation["hour"],
                          source_event_id=invitation["source_event_id"],
                          source_healer_event_id=invitation["source_event_id"],
-                         consent="accepted", outcome="invited"))
+                         consent="accepted", outcome="invited",
+                         visitor_choice=invitation["visitor_choice"]))
 
 
 def music(state, event=None, **changes):
@@ -111,6 +114,40 @@ class ClinicMusicRules(unittest.TestCase):
         self.assertNotIn("cold", public(state))
         self.assertNotIn("HealerTester", public(state))
 
+    def test_anonymous_visitor_independently_accepts_declines_or_is_unavailable(self):
+        # This choice belongs to the new daily visitor, never to the Healer.
+        self.assertEqual(clinic_state.music_preference(1), "accepts")
+        self.assertEqual(clinic_state.music_preference(2), "declines")
+        self.assertEqual(clinic_state.music_preference(3), "unavailable")
+        self.assertIsNone(clinic_state.music_preference(True))
+        self.assertEqual(clinic_state.refresh(None, 2)["music_preference"], "declines")
+        self.assertEqual(clinic_state.normalize(
+            json.loads(json.dumps(clinic_state.refresh(None, 3)))
+        )["music_preference"], "unavailable")
+        for day, choice, expected in (
+            (2, "declines", "declines music"),
+            (3, "unavailable", "unavailable to answer"),
+        ):
+            with self.subTest(day=day):
+                treatment, event = fixture(day=day)
+                state, ok, reason = invite(
+                    day=day, visitor_choice=choice,
+                    treatment=treatment, treatment_event=event,
+                )
+                self.assertFalse(ok)
+                self.assertIn(expected, reason)
+                self.assertIsNone(state["invitation"])
+                self.assertIsNone(state["music"])
+                # A forged Healer-supplied "accepts" cannot override the patient.
+                _, ok, reason = invite(
+                    day=day, visitor_choice="accepts",
+                    treatment=treatment, treatment_event=event,
+                )
+                self.assertFalse(ok)
+                self.assertIn("independent preference", reason)
+                _, ok, _ = music(state, day=day)
+                self.assertFalse(ok)
+
     def test_requires_real_completed_healer_treatment(self):
         t, e = fixture()
         for changed in (
@@ -161,6 +198,8 @@ class ClinicMusicRules(unittest.TestCase):
             dict(valid, actor=dict(valid["actor"], account_id=12)),
             dict(valid, payload=dict(valid["payload"], cot_id=900)),
             dict(valid, consequence=dict(valid["consequence"], consent="refused")),
+            dict(valid, payload=dict(valid["payload"], visitor_choice="declines")),
+            dict(valid, consequence=dict(valid["consequence"], visitor_choice="declines")),
             dict(valid, consequence=dict(valid["consequence"], room_id=900)),
             dict(valid, consequence=None),
         )
@@ -262,6 +301,10 @@ class ClinicMusicRules(unittest.TestCase):
                                                source_event_id=900)),
             dict(invitation, consequence=dict(invitation["consequence"],
                                                consent="refused")),
+            dict(invitation, payload=dict(invitation["payload"],
+                                          visitor_choice="declines")),
+            dict(invitation, consequence=dict(invitation["consequence"],
+                                              visitor_choice="declines")),
             dict(invitation, consequence=dict(invitation["consequence"],
                                                outcome="unknown")),
             dict(invitation, consequence=dict(invitation["consequence"],
