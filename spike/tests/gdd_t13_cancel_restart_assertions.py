@@ -19,11 +19,13 @@ tavern = one("The Blood of the Vine")
 ledger = ScriptDB.objects.get(db_key="world_event_ledger")
 state = civic_commissions.normalize(tavern.db.civic_commission)
 item = state["commission"]
-assert state["day"] == 2 and item["id"] == "civic-2"
+scenario_day = tavern.db.qa_t13_scenario_day
+assert isinstance(scenario_day, int) and scenario_day >= 2
+assert state["day"] == scenario_day and item["id"] == f"civic-{scenario_day}"
 assert item["status"] == "cancelled", item
 assert item["finisher_account"] is None
 assert len(item["event_ids"]) == 2
-history = [record for record in state["history"] if record["id"] == "civic-2"]
+history = [record for record in state["history"] if record["id"] == f"civic-{scenario_day}"]
 assert len(history) == 1 and history[0] == item
 assert not ObjectDB.objects.filter(id=item["bundle_id"]).exists(), (
     "Cancelled order's physical wood reappeared after ordinary delivery"
