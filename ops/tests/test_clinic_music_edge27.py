@@ -4,6 +4,7 @@ import json
 import sys
 import unittest
 from collections import UserDict
+from collections.abc import Mapping
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "spike/fvillage"))
@@ -87,9 +88,9 @@ def public(state, *, events=None, treatment=None, treatment_event=None,
     original_treatment, original_event = fixture()
     if events is None:
         events = {}
-        if state.get("invitation"):
+        if isinstance(state.get("invitation"), Mapping):
             events[state["invitation"]["event_id"]] = signed_invitation(state)
-        if state.get("music"):
+        if isinstance(state.get("music"), Mapping):
             events[state["music"]["event_id"]] = signed_music(state)
     return rules.public_lines(
         state, day, event_lookup=events.get,
