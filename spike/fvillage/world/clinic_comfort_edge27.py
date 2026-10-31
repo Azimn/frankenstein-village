@@ -8,6 +8,8 @@ from __future__ import annotations
 import copy
 from collections.abc import Mapping
 
+from world import clinic_state
+
 MAX_HISTORY = 36
 
 
@@ -50,7 +52,10 @@ def normalize(raw):
     state = fresh(day)
     invitation = _row(raw.get("invitation"), INVITE_FIELDS, day)
     music = _row(raw.get("music"), MUSIC_FIELDS, day)
-    if invitation and invitation["event_id"] != invitation["source_event_id"]:
+    if (invitation and invitation["event_id"] != invitation["source_event_id"]
+            and raw["invitation"].get("visitor_choice") == "accepts"
+            and clinic_state.music_preference(day) == "accepts"):
+        invitation["visitor_choice"] = "accepts"
         state["invitation"] = invitation
     if (state["invitation"] and music
             and music["source_event_id"] == invitation["event_id"]
@@ -146,13 +151,17 @@ def invitation_valid(invitation, event):
         and positive(consequence.get("cot_id")) == invitation.get("cot_id")
         and positive(consequence.get("source_healer_event_id"))
         == invitation.get("source_event_id")
+        and invitation.get("visitor_choice") == "accepts"
+        and clinic_state.music_preference(invitation.get("day")) == "accepts"
+        and payload.get("visitor_choice") == "accepts"
+        and consequence.get("visitor_choice") == "accepts"
         and consequence.get("consent") == "accepted"
         and stamp(invitation.get("day"), invitation.get("hour")) is not None
     )
 
 
 def invite(raw, *, day, hour, account_id, mask_id, mask, event_id,
-           room_id, cot_id, treatment, treatment_event):
+           room_id, cot_id, treatment, treatment_event, visitor_choice):
     state = refresh(raw, day) if positive(day) else normalize(raw)
     if stamp(day, hour) is None or day < state["day"]:
         return state, False, "The village clock is invalid or has moved backward."
@@ -161,6 +170,16 @@ def invite(raw, *, day, hour, account_id, mask_id, mask, event_id,
         return state, False, "A real Healer, cot and signed event are required."
     if state["invitation"]:
         return state, False, "Today's patient has already answered an invitation."
+    # The visitor's day-scoped preference belongs to the clinic world state.
+    # The Healer cannot choose or override it, including by passing a forged
+    # acceptance into this pure transition.
+    expected_choice = clinic_state.music_preference(day)
+    if visitor_choice != expected_choice or expected_choice is None:
+        return state, False, "The visitor's independent preference is unavailable or invalid."
+    if expected_choice == "declines":
+        return state, False, "Today's visitor declines music; no consent is signed."
+    if expected_choice == "unavailable":
+        return state, False, "Today's visitor is unavailable to answer; no consent is signed."
     if not treatment_valid(treatment, treatment_event, room_id):
         return state, False, "The signed clinical treatment cannot be verified."
     if (treatment["day"] != day or treatment["account_id"] != account_id
@@ -173,6 +192,7 @@ def invite(raw, *, day, hour, account_id, mask_id, mask, event_id,
         "mask_id": mask_id, "mask": str(mask or "")[:70],
         "event_id": event_id, "source_event_id": treatment["event_id"],
         "room_id": room_id, "cot_id": cot_id,
+        "visitor_choice": "accepts",
     }
     return state, True, None
 
@@ -186,6 +206,8 @@ def offer(raw, *, day, hour, account_id, mask_id, mask, event_id,
            (account_id, mask_id, event_id, room_id, cot_id)):
         return state, False, "A real Performer, cot and signed event are required."
     invitation = state["invitation"]
+    if clinic_state.music_preference(day) != "accepts":
+        return state, False, "This visitor has not independently agreed to music."
     if not invitation or not invitation_valid(invitation, invitation_event):
         return state, False, "The visitor has no verifiable consented invitation."
     if state["music"]:
@@ -216,6 +238,8 @@ def _public_sources_verified(state, *, event_lookup, treatment,
             or positive(room_id) is None or positive(cot_id) is None):
         return False
     if (invitation["room_id"] != room_id or invitation["cot_id"] != cot_id
+            or clinic_state.music_preference(invitation["day"]) != "accepts"
+            or invitation.get("visitor_choice") != "accepts"
             or invitation["source_event_id"] != treatment.get("event_id")
             or invitation["account_id"] != treatment.get("account_id")
             or invitation["mask_id"] != treatment.get("mask_id")
@@ -242,6 +266,7 @@ def _public_sources_verified(state, *, event_lookup, treatment,
             != invitation["source_event_id"]
             or consequence.get("day") != invitation["day"]
             or consequence.get("hour") != invitation["hour"]
+            or consequence.get("visitor_choice") != "accepts"
             or consequence.get("outcome") != "invited"):
         return False
     if music is None:
