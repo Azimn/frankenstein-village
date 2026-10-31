@@ -309,6 +309,15 @@ class MarketInquiryTests(unittest.TestCase):
                 self.assertIn("not verified", text)
                 self.assertNotIn("independently examined", text)
                 self.assertNotIn("remains contested", text)
+                normalized = inquiry.normalize(damaged)
+                self.assertTrue(normalized[0]["rebuttal_provenance_invalid"])
+                self.assertEqual(
+                    inquiry.normalize(json.loads(json.dumps(normalized))), normalized
+                )
+                retry, accepted, reason = rebut_one(normalized, event_id=43)
+                self.assertFalse(accepted)
+                self.assertIn("provenance is inconsistent", reason)
+                self.assertEqual(retry, normalized)
         # A stray rebuttal hour on an otherwise valid, un-rebutted case
         # cannot be laundered into a clean public readback either.
         orphan = copy.deepcopy(rows)
