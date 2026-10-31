@@ -57,10 +57,20 @@ def _observed(mask):
 
 
 def status(mask):
-    _tavern, register, error = _guard(mask)
+    tavern, register, error = _guard(mask)
     if error:
         return error
-    return lodging_state.public_lines(register.db.lodging_inquiry)
+    # Public readback must not create a missing ledger or trust a stored
+    # authorization without its original completed world event.
+    try:
+        ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+    except ScriptDB.DoesNotExist:
+        ledger = None
+    return lodging_state.public_lines(
+        register.db.lodging_inquiry,
+        event_lookup=ledger.get_event if ledger else None,
+        register_id=register.id, room_id=tavern.id,
+    )
 
 
 def act(mask, action):
