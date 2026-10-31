@@ -68,7 +68,8 @@ def normalize(raw):
             source_id = row.get("review_event_id")
             if type(source_id) is not int or source_id < 1:
                 continue
-            if row.get("review_choice") not in CHOICES:
+            review_choice = row.get("review_choice")
+            if not isinstance(review_choice, str) or review_choice not in CHOICES:
                 continue
             review = result["review"]
             if (not review or source_id != review["event_id"]
@@ -155,7 +156,7 @@ def verified_merchant_review(review, source):
     if not all(isinstance(row, Mapping) for row in (actor, payload, result)):
         return False
     choice = review.get("choice")
-    if choice not in CHOICES:
+    if not isinstance(choice, str) or choice not in CHOICES:
         return False
     if type(source.get("id")) is not int or source["id"] < 1:
         return False
@@ -366,21 +367,13 @@ def public_lines(raw, day):
             f"(event {row['event_id']})."
         )
     if state["audit"]:
-            return state, False, "The Merchant decision has already been audited today."
-        if signed["account_id"] == review["account_id"]:
-            return state, False, "A separate account must audit the Merchant decision."
-        if signed["hour"] < review["hour"]:
-            return state, False, "The audit cannot precede the Merchant decision."
-        signed["review_event_id"] = review["event_id"]
-        signed["review_choice"] = review["choice"]
-        state["audit"] = signed
-    elif action == "attest":
-        if not state["review"] or not state["calibration"]:
-            return state, False, (
-                "A documented Merchant decision and Smith calibration "
-                "are both needed for an attestation."
-            )
-        if state["attestation"]:
+        row = state["audit"]
+        lines.append(
+            f"Chronicler {row['mask']} independently audited Merchant "
+            f"{row['review_choice']} (source event {row['review_event_id']}, "
+            f"audit event {row['event_id']})."
+        )
+    if state["attestation"]:
         row = state["attestation"]
         lines.append(
             f"Chronicler {row['mask']} attested both source events "
