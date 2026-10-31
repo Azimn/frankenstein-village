@@ -221,6 +221,23 @@ class ClinicInquiryRules(unittest.TestCase):
         self.assertNotIn("HealerTester", line)
         self.assertNotIn("cold", line)
 
+        # Hostile persisted history must not disappear during normalization
+        # and make an older genuine signed row look like an intact register.
+        for damaged in (
+            {"day": 1, "hour": 22, "event_id": 999},
+            {"day": 2, "hour": 1, "event_id": 999},
+            copy.deepcopy(state["records"][0]),
+            dict(state["records"][0], day=2, event_id=203),
+            dict(state["records"][0], source_event_id=None),
+        ):
+            with self.subTest(damaged=damaged):
+                corrupted = copy.deepcopy(state)
+                corrupted["records"].append(damaged)
+                self.assertIn("requires signed source inspection",
+                              rules.public_lines(corrupted, 1, lookup))
+        self.assertIn("signed as event 202",
+                      rules.public_lines(json.loads(json.dumps(state)), 1, lookup))
+
         # Shape-valid persisted IDs are not signed without canonical events.
         self.assertIn("requires signed source inspection",
                       rules.public_lines(state, 1, lambda _id: None))
