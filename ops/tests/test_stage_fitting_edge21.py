@@ -163,6 +163,59 @@ class StageRailTests(unittest.TestCase):
         self.assertEqual(rail.normalize(wrapped), a)
         self.assertEqual(rail.normalize(json.loads(json.dumps(a))), a)
 
+    def test_signed_event_ids_cannot_alias_their_own_sources(self):
+        _state, ok, _why = fit(forge_event_id=102)
+        self.assertFalse(ok)
+        state, ok, why = fit()
+        self.assertTrue(ok, why)
+        for event_id in (101, 102):
+            with self.subTest(action="soundcheck", event_id=event_id):
+                _state, ok, _why = check(state, event_id=event_id)
+                self.assertFalse(ok)
+        state, ok, why = check(state)
+        self.assertTrue(ok, why)
+        for event_id in (101, 102, 103):
+            with self.subTest(action="acoustic", event_id=event_id):
+                _state, ok, _why = play(state, event_id=event_id)
+                self.assertFalse(ok)
+        state, ok, why = play(state)
+        self.assertTrue(ok, why)
+        for event_id in (101, 102, 103, 104):
+            with self.subTest(action="renew", event_id=event_id):
+                _state, ok, _why = check(state, day=5, event_id=event_id)
+                self.assertFalse(ok)
+        renewed, ok, why = check(state, day=5, event_id=205)
+        self.assertTrue(ok, why)
+        for event_id in (101, 102, 103, 104, 205):
+            with self.subTest(action="second_set", event_id=event_id):
+                _state, ok, _why = play(renewed, day=5, event_id=event_id)
+                self.assertFalse(ok)
+        second, ok, why = play(renewed, day=5, event_id=206)
+        self.assertTrue(ok, why)
+        self.assertEqual(rail.normalize(json.loads(json.dumps(second))), second)
+
+    def test_persisted_source_id_aliases_fail_closed_in_public_status(self):
+        state, _, _ = fit()
+        state, _, _ = check(state)
+        state, _, _ = play(state)
+        state, _, _ = check(state, day=5, event_id=205)
+        state, _, _ = play(state, day=5, event_id=206)
+        for group, field, alias in (
+            ("fitting", "forge_event_id", 102),
+            ("soundcheck", "event_id", 101),
+            ("soundcheck", "event_id", 104),
+            ("plays", "event_id", 103),
+        ):
+            with self.subTest(group=group, field=field, alias=alias):
+                forged = json.loads(json.dumps(state))
+                if group == "plays":
+                    forged["plays"][1][field] = alias
+                else:
+                    forged[group][field] = alias
+                self.assertEqual(rail.normalize(forged)["condition"], "invalid")
+                self.assertIn("inconsistent", rail.public_lines(forged))
+        self.assertEqual(rail.normalize(json.loads(json.dumps(state))), state)
+
     def test_existing_stage_solo_rehearsal_not_replaced(self):
         from world import stage_state
         s, ok, why = stage_state.rehearse(
