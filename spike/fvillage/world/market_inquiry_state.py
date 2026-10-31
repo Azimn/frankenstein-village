@@ -63,11 +63,20 @@ def normalize(raw):
             "detective_mask": str(item.get("detective_mask") or "")[:70],
             "rebuttal_event_id": None, "rebuttal_hour": None,
         }
-        rebuttal = _id(item.get("rebuttal_event_id"))
-        rebuttal_hour = _hour(item.get("rebuttal_hour"))
-        if rebuttal and rebuttal_hour is not None and rebuttal_hour >= hour:
-            row["rebuttal_event_id"] = rebuttal
-            row["rebuttal_hour"] = rebuttal_hour
+        raw_rebuttal_id = item.get("rebuttal_event_id")
+        raw_rebuttal_hour = item.get("rebuttal_hour")
+        rebuttal = _id(raw_rebuttal_id)
+        rebuttal_hour = _hour(raw_rebuttal_hour)
+        # Never silently turn a damaged signed rebuttal into an
+        # apparently uncontested inquiry during persistence readback.
+        if item.get("rebuttal_provenance_invalid") is True:
+            row["rebuttal_provenance_invalid"] = True
+        if raw_rebuttal_id is not None or raw_rebuttal_hour is not None:
+            if rebuttal is not None and rebuttal_hour is not None and rebuttal_hour >= hour:
+                row["rebuttal_event_id"] = rebuttal
+                row["rebuttal_hour"] = rebuttal_hour
+            else:
+                row["rebuttal_provenance_invalid"] = True
         rows.append(row)
     return copy.deepcopy(rows[-MAX_CASES:])
 
@@ -122,6 +131,8 @@ def rebut_case(raw, *, day, hour, source_event_id, merchant_account_id,
     found = next((r for r in rows if r["source_event_id"] == source_event_id), None)
     if found is None:
         return rows, False, "No independent Detective inquiry exists for this decision."
+    if found.get("rebuttal_provenance_invalid"):
+        return rows, False, "The existing rebuttal provenance is inconsistent."
     if (found["day"] != day or h < found["hour"]
             or any((r["day"], r["hour"]) > (day, h) for r in rows)):
         return rows, False, "This response is outside the signed inquiry's village time."
@@ -171,7 +182,8 @@ def _signed_event(event_lookup, event_id, kind, actor_account, actor_mask,
 
 def verified_case(row, *, event_lookup, room_id):
     """Read historic ledger events, never trust an unsigned saved case row."""
-    if _id(room_id) is None or not callable(event_lookup):
+    if (_id(room_id) is None or not callable(event_lookup)
+            or row.get("rebuttal_provenance_invalid")):
         return False
     source = _signed_event(
         event_lookup, row["source_event_id"], "village.market_hold",
