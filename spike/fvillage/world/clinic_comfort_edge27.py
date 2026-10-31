@@ -301,9 +301,12 @@ def public_lines(raw, day, *, event_lookup=None, treatment=None,
     current_claim = (isinstance(raw, Mapping) and raw.get("day") == day
                      and (raw.get("invitation") is not None
                           or raw.get("music") is not None))
-    if current_claim and not _public_sources_verified(
+    invalid_shape = (current_claim and (
+        (raw.get("invitation") is not None and state["invitation"] is None)
+        or (raw.get("music") is not None and state["music"] is None)))
+    if current_claim and (invalid_shape or not _public_sources_verified(
             state, event_lookup=event_lookup, treatment=treatment,
-            treatment_event=treatment_event, room_id=room_id, cot_id=cot_id):
+            treatment_event=treatment_event, room_id=room_id, cot_id=cot_id)):
         return ("The clinic comfort record cannot be verified against "
                 "completed world events. No signed consent or music is claimed.")
     if state["music"]:
