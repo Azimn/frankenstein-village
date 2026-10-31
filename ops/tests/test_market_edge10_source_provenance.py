@@ -1,9 +1,12 @@
 """GDD-EDGE-10: signed Smith calibration must precede sourced Chronicle proof."""
+import ast
 import copy
 import json
 import sys
 import unittest
+from contextlib import nullcontext
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "spike/fvillage"))
 from world import market_standards as market
@@ -16,7 +19,8 @@ def signed(state, action, actor, event, day=1):
     )
 
 
-def ledger_event(row, action, role):
+def ledger_event(row, action, role, *, review_id=None, calibration_id=None,
+                 distribution_held=False):
     return {
         "id": row["event_id"],
         "kind": "village.market_" + action,
@@ -29,7 +33,12 @@ def ledger_event(row, action, role):
             "action": action, "day": row["day"], "hour": row["hour"],
             "location": "Market Lane", "professional_calling": role,
         },
-        "consequence": {"action": action},
+        "consequence": {
+            "action": action,
+            "market_distribution_held": distribution_held,
+            "review_event_id": review_id,
+            "calibration_event_id": calibration_id,
+        },
     }
 
 
@@ -40,8 +49,10 @@ class Edge10SourceVerification(unittest.TestCase):
         self.state, ok, error = signed(held, "calibrate", 9, 12)
         self.assertTrue(ok, error)
         self.ledger = {
-            10: ledger_event(self.state["review"], "hold", "merchant"),
-            12: ledger_event(self.state["calibration"], "calibrate", "smith"),
+            10: ledger_event(self.state["review"], "hold", "merchant",
+                             review_id=10, distribution_held=True),
+            12: ledger_event(self.state["calibration"], "calibrate", "smith",
+                             review_id=10, calibration_id=12),
         }
 
     def check(self, state=None, ledger=None):
@@ -49,6 +60,120 @@ class Edge10SourceVerification(unittest.TestCase):
         return market.verified_sources(
             self.state if state is None else state, 1, source.get,
         )
+
+    def test_consequence_schema_and_source_links_fail_closed(self):
+        # The ledger's completed flag and action alone cannot prove that the
+        # physical market consequence actually happened.
+        cases = (
+            (10, "market_distribution_held", "missing", None),
+            (10, "market_distribution_held", "replace", False),
+            (10, "market_distribution_held", "replace", 1),
+            (12, "market_distribution_held", "missing", None),
+            (12, "market_distribution_held", "replace", True),
+            (12, "market_distribution_held", "replace", "false"),
+            (10, "review_event_id", "missing", None),
+            (10, "review_event_id", "replace", 12),
+            (10, "review_event_id", "replace", True),
+            (10, "calibration_event_id", "missing", None),
+            (10, "calibration_event_id", "replace", 12),
+            (12, "review_event_id", "missing", None),
+            (12, "review_event_id", "replace", 99),
+            (12, "calibration_event_id", "missing", None),
+            (12, "calibration_event_id", "replace", 10),
+            (12, "calibration_event_id", "replace", True),
+        )
+        for event_id, field, operation, bad in cases:
+            with self.subTest(event=event_id, field=field, bad=bad):
+                forged = copy.deepcopy(self.ledger)
+                consequence = forged[event_id]["consequence"]
+                if operation == "missing":
+                    del consequence[field]
+                else:
+                    consequence[field] = bad
+                self.assertFalse(self.check(ledger=forged))
+        self.assertTrue(self.check(), "Valid signed freight-free market sources survive")
+
+    def test_smith_first_then_merchant_honor_has_historical_source_links(self):
+        # A Smith may calibrate before the Merchant honors prices. Each
+        # completed event only links to receipts already present at that time.
+        first, ok, error = signed(None, "calibrate", 9, 12)
+        self.assertTrue(ok, error)
+        state, ok, error = signed(first, "honor", 5, 13)
+        self.assertTrue(ok, error)
+        ledger = {
+            12: ledger_event(state["calibration"], "calibrate", "smith",
+                             calibration_id=12),
+            13: ledger_event(state["review"], "honor", "merchant",
+                             review_id=13, calibration_id=12),
+        }
+        self.assertTrue(market.verified_sources(state, 1, ledger.get))
+        restored = json.loads(json.dumps(state))
+        self.assertTrue(market.verified_sources(restored, 1, ledger.get))
+        signed_state, ok, error = signed(restored, "attest", 11, 14)
+        self.assertTrue(ok, error)
+        self.assertEqual(signed_state["attestation"]["review_event_id"], 13)
+        self.assertEqual(signed_state["attestation"]["calibration_event_id"], 12)
+
+    def test_actual_commit_gate_does_not_publish_invalid_source(self):
+        # Execute the actual market_work.perform function AST, without
+        # importing Django/Evennia. This checks preflight and consequence
+        # against the real pure verifier, not a hand-written copy of the gate.
+        source = (Path(__file__).resolve().parents[2]
+                  / "spike/fvillage/world/market_work.py")
+        tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+        perform = next(node for node in tree.body
+                       if isinstance(node, ast.FunctionDef)
+                       and node.name == "perform")
+        module = ast.fix_missing_locations(ast.Module(body=[perform], type_ignores=[]))
+
+        def run(ledger):
+            room = SimpleNamespace(db=SimpleNamespace(
+                market_standards=copy.deepcopy(self.state)))
+            mask = SimpleNamespace(account=SimpleNamespace(id=11),
+                                   id=111, key="Chronicler11", location=room)
+            published = []
+            def publish(kind, *, actor, payload, consequence):
+                published.append(kind)
+                consequence({"id": 14})
+                return {"id": 14}
+            namespace = {
+                "ACTION_ROLE": {"attest": "chronicler"},
+                "MARKET": "Market Lane",
+                "market_room": lambda: room,
+                "clock": lambda: (1, 14),
+                "active_calling": lambda actor: "chronicler",
+                "witnessed_scale_today": lambda actor, day: True,
+                "market_standards": market,
+                "get_event_ledger": lambda: SimpleNamespace(get_event=ledger.get),
+                "transaction": SimpleNamespace(atomic=nullcontext),
+                "publish_world_event": publish,
+                "record_participation": lambda *args, **kwargs: None,
+                "state_lines": lambda: "Market state",
+            }
+            exec(compile(module, str(source), "exec"), namespace)
+            result, error = namespace["perform"](mask, "attest")
+            return result, error, room.db.market_standards, published
+
+        valid, error, state, published = run(self.ledger)
+        self.assertIsNone(error)
+        self.assertEqual(valid["event_id"], 14)
+        self.assertEqual(published, ["village.market_attest"])
+        self.assertEqual(state["attestation"]["review_event_id"], 10)
+
+        for event_id, field, bad in (
+            (10, "market_distribution_held", False),
+            (12, "market_distribution_held", True),
+            (12, "review_event_id", 999),
+            (12, "calibration_event_id", None),
+        ):
+            with self.subTest(event=event_id, field=field):
+                invalid = copy.deepcopy(self.ledger)
+                invalid[event_id]["consequence"][field] = bad
+                result, error, state, published = run(invalid)
+                self.assertIsNone(result)
+                self.assertIn("cannot be verified", error)
+                self.assertIsNone(state["attestation"])
+                self.assertEqual(published, [], "No event may be emitted on denial")
 
     def test_two_independent_accounts_and_json_restart(self):
         self.assertTrue(self.check())
