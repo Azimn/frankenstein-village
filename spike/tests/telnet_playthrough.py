@@ -116,6 +116,7 @@ def main() -> int:
     merchant = None
     mystic = None
     performer = None
+    stage_smith = None
     wanderer = None
     hound = None
     detective = None
@@ -2202,6 +2203,70 @@ def main() -> int:
         print("TELNET_GDD_EDGE04_SIGNED_TWO_ACCOUNT_KITCHEN_SUPPLY_GREEN")
         print("TELNET_MARKET_TO_TAVERN_SOUP_SUPPLY_GREEN")
 
+        # EDGE-21: use the second shared Workshop offcut, not a new stock
+        # system. A second Smith account forges a real object, installs it
+        # at the Tavern, and the already-authenticated Performer tests and
+        # plays it independently. Both accounts use ordinary player verbs.
+        out = performer.command("stage")
+        require(out, "stage rail: worn")
+        out = performer.command("stage soundcheck")
+        require(out, "no signed physical stage fitting")
+        stage_smith = Client(args.host, args.port)
+        require(stage_smith.sync_login_screen(), "frankenstein village")
+        stage_password = os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = stage_smith.command(
+            f"connect qa_smith_stage {stage_password}", wait=4.0)
+        require(out, "connected", "account qa_smith_stage")
+        stage_smith.command("charcreate StageSmithTester", wait=3.0)
+        out = stage_smith.command("ic StageSmithTester", wait=4.0)
+        require(out, "private room")
+        out = stage_smith.command("calling choose smith")
+        require(out, "smith is now your active calling")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"), ("east", "market workshop"),
+        ):
+            out = stage_smith.command(move)
+            require(out, destination)
+        out = stage_smith.command("workshop forge")
+        require_all(out, "real transferable iron market hinge",
+                    "0 iron offcut")
+        out = stage_smith.command("inventory")
+        require(out, "forged market hinge")
+        for move, destination in (
+            ("west", "market lane"), ("north", "lamp shop"),
+            ("north", "village square"), ("east", "blood of the vine"),
+        ):
+            out = stage_smith.command(move)
+            require(out, destination)
+        out = stage_smith.command("stage soundcheck")
+        require(out, "active performer")
+        out = performer.command("stage fit")
+        require(out, "active smith")
+        out = stage_smith.command("stage fit")
+        require_all(out, "install the real forged hinge", "signed world event")
+        out = stage_smith.command("inventory")
+        assert "forged market hinge" not in out.lower()
+        out = stage_smith.command("stage fit")
+        require(out, "already has a completed signed stage fitting")
+        out = performer.command("stage acoustic reel")
+        require(out, "no completed performer soundcheck")
+        out = performer.command("stage soundcheck")
+        require_all(out, "independently test", "signed world event")
+        out = performer.command("stage soundcheck")
+        require(out, "already signed")
+        out = performer.command("stage acoustic reel")
+        require_all(out, "actual acoustic reel", "signed world event")
+        out = performer.command("stage acoustic reel")
+        require(out, "already been played")
+        out = performer.command("stage")
+        require_all(out, "stage rail: ready", "2 of 3 acoustic uses remain")
+        out = stage_smith.command("stage acoustic ballad")
+        require(out, "active performer")
+        print("TELNET_GDD_EDGE21_INDEPENDENT_PHYSICAL_STAGE_RAIL_GREEN")
+
+
         # A real Wanderer moves a finite, non-magical parcel between rooms.
         wanderer = Client(args.host, args.port)
         require(wanderer.sync_login_screen(), "frankenstein village")
@@ -2551,6 +2616,8 @@ def main() -> int:
             print("\nMERCHANT TRANSCRIPT\n" + "\n".join(merchant.transcript))
         if mystic is not None:
             print("\nMYSTIC TRANSCRIPT\n" + "\n".join(mystic.transcript))
+        if stage_smith is not None:
+            print("\nSTAGE SMITH TRANSCRIPT\n" + "\n".join(stage_smith.transcript))
         if performer is not None:
             print("\nPERFORMER TRANSCRIPT\n" + "\n".join(performer.transcript))
         if wanderer is not None:
@@ -2567,6 +2634,8 @@ def main() -> int:
             hound.close()
         if wanderer is not None:
             wanderer.close()
+        if stage_smith is not None:
+            stage_smith.close()
         if performer is not None:
             performer.close()
         if mystic is not None:

@@ -40,7 +40,9 @@ def status(mask):
     if error:
         return error
     day, _ = _clock()
-    return stage_state.public_lines(tavern.db.village_stage, day)
+    from world import stage_fitting_work
+    return (stage_state.public_lines(tavern.db.village_stage, day) + "\n" +
+            stage_fitting_work.public_status(tavern))
 
 
 def archive(mask):
