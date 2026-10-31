@@ -359,6 +359,62 @@ class MarketInquiryTests(unittest.TestCase):
         self.assertIn("remains contested", signed_lines(restored, events))
         self.assertIn("not verified", inquiry.public_lines(restored, event_lookup=events.get, room_id=999))
 
+    def test_malformed_newest_saved_case_cannot_resurrect_stale_signed_status(self):
+        older, accepted, reason = open_one()
+        self.assertTrue(accepted, reason)
+        self.assertIn("independently examined", signed_lines(older))
+
+        newer, accepted, reason = open_one(
+            older, day=4, source_day=4, source_hour=10, hour=11,
+            source_event_id=50, case_event_id=51,
+        )
+        self.assertTrue(accepted, reason)
+        events = signed_events()
+        events[50] = copy.deepcopy(events[40])
+        events[50]["id"] = 50
+        events[50]["payload"].update(day=4, hour=10)
+        events[50]["consequence"]["review_event_id"] = 50
+        events[51] = copy.deepcopy(events[41])
+        events[51]["id"] = 51
+        events[51]["payload"].update(day=4, hour=11, source_event_id=50)
+        events[51]["consequence"].update(source_event_id=50, case_event_id=51)
+        self.assertIn("Merchant decision event 50", signed_lines(newer, events))
+        self.assertIn(
+            "Merchant decision event 50",
+            signed_lines(json.loads(json.dumps(newer)), events),
+        )
+
+        for field, value in (
+            ("case_event_id", 0),
+            ("source_event_id", None),
+            ("source_event_id", 40),  # Duplicate source must not reveal older case.
+            ("detective_account_id", "20.5"),
+            ("source_hour", 24),
+            ("hour", -1),
+            ("day", "corrupted"),
+        ):
+            with self.subTest(field=field, value=value):
+                damaged = copy.deepcopy(newer)
+                damaged[-1][field] = value
+                for persisted in (damaged, json.loads(json.dumps(damaged))):
+                    text = signed_lines(persisted, events)
+                    self.assertIn("not verified", text)
+                    self.assertNotIn("Merchant decision event 40", text)
+                    self.assertNotIn("independently examined", text)
+
+        damaged = copy.deepcopy(newer)
+        damaged[-1] = {"source_event_id": 50}
+        self.assertIn("not verified", signed_lines(damaged, events))
+        self.assertIn(
+            "not verified",
+            inquiry.public_lines(17, event_lookup=events.get, room_id=301),
+        )
+        # Valid historic original-Merchant rebuttals are still visible.
+        replied, accepted, reason = rebut_one(older)
+        self.assertTrue(accepted, reason)
+        self.assertIn("remains contested", signed_lines(replied, events))
+
+
     def test_no_inquiry_is_valid_solo_market_fallback(self):
         self.assertIn("No independent", inquiry.public_lines(None))
         self.assertEqual(inquiry.normalize({"fake": "case"}), [])
