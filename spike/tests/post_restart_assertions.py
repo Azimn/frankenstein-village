@@ -1408,6 +1408,49 @@ else:
         "A backwards clock incorrectly restored earlier market duties",
         _market_now, _market_live["day"], _market_visible,
     )
+# EDGE-22: exact signed Smith source, independent Detective and original scale
+# survive a real Evennia process stop/start. No guilt inference is recorded.
+from world import forensic_scale as _forensic_scale
+_detective = one("DetectiveTester")
+assert active_calling(_detective) == "detective"
+_scale = one("a crooked market scale")
+_forensic_history = _forensic_scale.normalize(_scale.db.forensic_inspections)
+assert len(_forensic_history) == 1, "Physical scale inquiry missing or duplicated"
+_forensic_row = _forensic_history[0]
+assert _forensic_row["scale_id"] == _scale.id
+assert _forensic_row["market_id"] == one("Market Lane").id
+assert _forensic_row["mask_id"] == _detective.id
+_detective_account = AccountDB.objects.get(id=_forensic_row["account_id"])
+_smith_account = AccountDB.objects.get(id=_forensic_row["smith_account_id"])
+assert _detective_account.key.casefold() == "qa_detective_inquiry"
+assert _smith_account.key.casefold() == "qa_smith_repair"
+assert _forensic_row["account_id"] == _detective_account.id
+assert _forensic_row["smith_account_id"] == _smith_account.id
+assert _forensic_row["account_id"] != _forensic_row["smith_account_id"]
+assert _forensic_row["source_event_id"] == _market_live["calibration"]["event_id"]
+assert _forensic_row["finding"] == _forensic_scale.FINDING
+_forensic_event = warning_ledger.get_event(_forensic_row["event_id"])
+_smith_event = warning_ledger.get_event(_forensic_row["source_event_id"])
+assert _forensic_event["kind"] == _forensic_scale.INQUIRY_KIND
+assert _forensic_event["status"] == "complete"
+assert _forensic_event["actor"]["account_id"] == _detective_account.id
+assert _forensic_event["payload"]["scale_object_id"] == _scale.id
+assert _forensic_event["consequence"]["smith_source_event_id"] == _smith_event["id"]
+assert _smith_event["kind"] == _forensic_scale.SOURCE_KIND
+assert _smith_event["status"] == "complete"
+assert _smith_event["actor"]["account_id"] == _smith_account.id
+assert calling_record(_detective, "detective")["participation"]["market_forensic_inspections"] == 1
+_rejected, _accepted, _reason = _forensic_scale.inspect(
+    _scale.db.forensic_inspections,
+    calibration=_market_live["calibration"], source_event=_smith_event,
+    account_id=_detective_account.id, mask_id=_detective.id,
+    mask=_detective.key, day=_forensic_row["day"], hour=_forensic_row["hour"],
+    event_id=_forensic_row["event_id"] + 10000,
+    scale_id=_scale.id, market_id=one("Market Lane").id,
+)
+assert not _accepted and "already" in _reason
+print("POST_RESTART_GDD_EDGE22_SIGNED_INDEPENDENT_SCALE_CUSTODY_GREEN")
+
 from world.mystic_circles import normalize as _guild_studies
 from world.resident_data import RESIDENT_BY_ID, projection_for
 _churchyard = one("St. Lazarus Churchyard")

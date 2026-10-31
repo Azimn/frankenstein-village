@@ -91,6 +91,9 @@ WORK = {
         "gathering through commons rather than claiming one occurred.",
     ),
     "detective": (
+        "At Market Lane, inspect the physical crooked scale and use trade inspect "
+        "after a different account signs Smith calibration. This records limited "
+        "physical evidence, not guilt or an invented culprit.",
         "At Market Lane: inspect the real crooked market scale. After a Merchant " 
         "has signed trade hold, use trade investigate to open an independent " 
         "source-linked inquiry. A Merchant may answer with trade rebut.",
