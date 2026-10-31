@@ -1,5 +1,6 @@
 """GDD-EDGE-07: real Innkeep disclosure and separate Detective register inquiry."""
 import copy
+from collections import UserList
 import json
 import sys
 import unittest
@@ -189,6 +190,51 @@ class LodgingEdge07Tests(unittest.TestCase):
         )
         self.assertIn("cannot be verified", output)
         self.assertNotIn("Independent qualified inquiry: signed", output)
+
+    def test_malformed_persisted_history_fails_closed_in_public_status(self):
+        row = self.state["records"][0]
+        source = signed_source(row)
+        for damaged in (None, 7, True, "forged", {"0": row}):
+            rendered = rules.public_lines(
+                {"records": damaged}, event_lookup={100: source}.get,
+                register_id=401, room_id=301,
+            )
+            self.assertIn("No signed redacted authorization", rendered)
+            self.assertNotIn("Latest redacted authorization:", rendered)
+
+        # A list-like persisted container must still preserve valid evidence.
+        saver_like = {"records": UserList(copy.deepcopy(self.state["records"]))}
+        rendered = rules.public_lines(
+            saver_like, event_lookup={100: source}.get,
+            register_id=401, room_id=301,
+        )
+        self.assertIn("Latest redacted authorization:", rendered)
+
+    def test_tampered_saved_scope_or_finding_cannot_claim_signed_evidence(self):
+        row = self.state["records"][0]
+        source = signed_source(row)
+        for invalid_scope in (None, "full_guest_record", "guest_identified"):
+            damaged = copy.deepcopy(self.state)
+            damaged["records"][0]["scope"] = invalid_scope
+            rendered = rules.public_lines(
+                damaged, event_lookup={100: source}.get,
+                register_id=401, room_id=301,
+            )
+            self.assertIn("No signed redacted authorization", rendered)
+            self.assertNotIn("Latest redacted authorization:", rendered)
+
+        state, okay, error = rules.inquire(self.state, **inquiry())
+        self.assertTrue(okay, error)
+        events = {100: signed_source(state["records"][0]),
+                  200: signed_inquiry(state["records"][0])}
+        damaged = copy.deepcopy(state)
+        damaged["records"][0]["inquiry"]["finding"] = "guest_identified"
+        rendered = rules.public_lines(
+            damaged, event_lookup=events.get, register_id=401, room_id=301,
+        )
+        self.assertIn("Latest redacted authorization:", rendered)
+        self.assertIn("No independent Detective inquiry", rendered)
+        self.assertNotIn("Independent qualified inquiry: signed", rendered)
 
     def test_one_disclosure_per_day_is_finite(self):
         before = copy.deepcopy(self.state)
