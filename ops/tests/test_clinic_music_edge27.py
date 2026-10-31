@@ -121,6 +121,9 @@ class ClinicMusicRules(unittest.TestCase):
         self.assertEqual(clinic_state.music_preference(3), "unavailable")
         self.assertIsNone(clinic_state.music_preference(True))
         self.assertEqual(clinic_state.refresh(None, 2)["music_preference"], "declines")
+        forged_case = clinic_state.refresh(None, 2)
+        forged_case["music_preference"] = "accepts"
+        self.assertEqual(clinic_state.normalize(forged_case)["music_preference"], "declines")
         self.assertEqual(clinic_state.normalize(
             json.loads(json.dumps(clinic_state.refresh(None, 3)))
         )["music_preference"], "unavailable")
