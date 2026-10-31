@@ -1,6 +1,7 @@
 """Finite village mail parcels and signed ferry-post receipts, Evennia-free."""
 from __future__ import annotations
 import copy
+from collections.abc import Mapping, Sequence
 
 DAILY_STOCK = 2
 MAX_RECEIPTS = 48
@@ -100,11 +101,11 @@ def _signed_event(lookup, event_id, kind):
         event = lookup(event_id)
     except (KeyError, LookupError, ValueError, TypeError, AttributeError):
         return None
-    if not isinstance(event, dict) or event.get("status") != "complete" or event.get("kind") != kind:
+    if not isinstance(event, Mapping) or event.get("status") != "complete" or event.get("kind") != kind:
         return None
     if event.get("id") != event_id:
         return None
-    if not all(isinstance(event.get(k), dict) for k in ("actor", "payload", "consequence")):
+    if not all(isinstance(event.get(k), Mapping) for k in ("actor", "payload", "consequence")):
         return None
     if not _positive_int(event["actor"].get("account_id")):
         return None
@@ -124,12 +125,13 @@ def public_manifest(raw, event_lookup, *, riverside_room_id, market_room_id):
         return [], False
     if raw is None:
         return [], True
-    if not hasattr(raw, "get"):
+    if not isinstance(raw, Mapping):
         return [], False
     original = raw.get("receipts", [])
-    if not isinstance(original, (list, tuple)) or len(original) > MAX_RECEIPTS:
+    if (not isinstance(original, Sequence) or isinstance(original, (str, bytes, bytearray))
+            or len(original) > MAX_RECEIPTS):
         return [], False
-    if any(not isinstance(row, dict) for row in original):
+    if any(not isinstance(row, Mapping) for row in original):
         return [], False
     try:
         normalized = manifest(raw)["receipts"]
