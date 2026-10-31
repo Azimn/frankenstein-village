@@ -180,6 +180,9 @@ def source_is_valid(event, row):
         and payload.get("hour") == row.get("hour")
         and payload.get("register_id") == row.get("register_id")
         and payload.get("room_id") == row.get("room_id")
+        and payload.get("source_event_id") is None
+        and consequence.get("day") == row.get("day")
+        and consequence.get("hour") == row.get("hour")
         and consequence.get("scope") == SCOPE
         and consequence.get("register_id") == row.get("register_id")
         and consequence.get("room_id") == row.get("room_id")
@@ -187,7 +190,55 @@ def source_is_valid(event, row):
     )
 
 
-def public_lines(raw):
+def inquiry_is_valid(event, row):
+    """Check a persisted Detective claim against its own completed event."""
+    if not hasattr(event, "get") or not hasattr(row, "get"):
+        return False
+    inquiry = row.get("inquiry")
+    if not hasattr(inquiry, "get"):
+        return False
+    actor, payload, consequence = (
+        event.get("actor"), event.get("payload"), event.get("consequence")
+    )
+    if not all(hasattr(x, "get") for x in (actor, payload, consequence)):
+        return False
+    source_id = row.get("event_id")
+    inquiry_id = inquiry.get("event_id")
+    source_time = valid_time(row.get("day"), row.get("hour"))
+    inquiry_time = valid_time(inquiry.get("day"), inquiry.get("hour"))
+    if (not source_time or not inquiry_time
+            or positive(source_id) != source_id
+            or positive(inquiry_id) != inquiry_id
+            or inquiry_id <= source_id
+            or inquiry.get("source_event_id") != source_id
+            or inquiry.get("account_id") == row.get("account_id")
+            or not 0 <= absolute(*inquiry_time) - absolute(*source_time) <= MAX_AGE_HOURS):
+        return False
+    return (
+        event.get("kind") == "village.lodging_inquiry"
+        and event.get("status") == "complete"
+        and positive(event.get("id")) == inquiry_id
+        and positive(actor.get("account_id")) == inquiry.get("account_id")
+        and positive(actor.get("mask_id")) == inquiry.get("mask_id")
+        and actor.get("mask") == inquiry.get("mask")
+        and payload.get("calling") == "detective"
+        and payload.get("scope") == SCOPE
+        and payload.get("day") == inquiry.get("day")
+        and payload.get("hour") == inquiry.get("hour")
+        and payload.get("register_id") == row.get("register_id")
+        and payload.get("room_id") == row.get("room_id")
+        and payload.get("source_event_id") == source_id
+        and consequence.get("scope") == SCOPE
+        and consequence.get("day") == inquiry.get("day")
+        and consequence.get("hour") == inquiry.get("hour")
+        and consequence.get("register_id") == row.get("register_id")
+        and consequence.get("room_id") == row.get("room_id")
+        and consequence.get("source_event_id") == source_id
+        and consequence.get("finding") == "qualified_register_observation"
+    )
+
+
+def public_lines(raw, *, event_lookup=None, register_id=None, room_id=None):
     state = normalize(raw)
     lines = [
         "The Tavern guest register: professional inquiry",
@@ -198,13 +249,42 @@ def public_lines(raw):
     ]
     if state["records"]:
         row = state["records"][-1]
-        lines.append("Latest redacted authorization: village day %s, event %s." %
-                     (row["day"], row["event_id"]))
-        if row["inquiry"]:
-            lines.append("Independent qualified inquiry: signed event %s, source %s." %
-                         (row["inquiry"]["event_id"], row["event_id"]))
+        # Persisted Attributes are not evidence. Read the canonical ledger
+        # without creating it, and verify this exact physical register.
+        source = None
+        if (callable(event_lookup)
+                and positive(register_id) == row["register_id"]
+                and positive(room_id) == row["room_id"]):
+            try:
+                source = event_lookup(row["event_id"])
+            except Exception:
+                source = None
+        if not source_is_valid(source, row):
+            lines.append(
+                "A stored register authorization cannot be verified against "
+                "completed world events; no signed disclosure or inquiry is shown."
+            )
         else:
-            lines.append("No independent Detective inquiry is recorded for that entry.")
+            lines.append("Latest redacted authorization: village day %s, event %s." %
+                         (row["day"], row["event_id"]))
+            if row["inquiry"]:
+                inquiry_event = None
+                try:
+                    inquiry_event = event_lookup(row["inquiry"]["event_id"])
+                except Exception:
+                    pass
+                if inquiry_is_valid(inquiry_event, row):
+                    lines.append(
+                        "Independent qualified inquiry: signed event %s, source %s." %
+                        (row["inquiry"]["event_id"], row["event_id"])
+                    )
+                else:
+                    lines.append(
+                        "Stored Detective inquiry cannot be verified; "
+                        "no signed independent inquiry is shown."
+                    )
+            else:
+                lines.append("No independent Detective inquiry is recorded for that entry.")
     else:
         lines.append("No signed redacted authorization has been made.")
     return "\n".join(lines)
