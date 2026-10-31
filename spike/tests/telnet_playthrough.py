@@ -2249,7 +2249,7 @@ def main() -> int:
         out = stage_smith.command("inventory")
         assert "forged market hinge" not in out.lower()
         out = stage_smith.command("stage fit")
-        require(out, "carry one real workshop-forged hinge")
+        require(out, "already has a completed signed stage fitting")
         out = performer.command("stage acoustic reel")
         require(out, "no completed performer soundcheck")
         out = performer.command("stage soundcheck")
