@@ -236,9 +236,19 @@ def verified_case(row, *, event_lookup, room_id):
 
 
 def public_lines(raw, *, event_lookup=None, room_id=None):
-    rows = normalize(raw)
-    if not rows:
+    # Do not silently discard a damaged newest saved case and then advertise
+    # an older signed case as the latest market inquiry. Only the bounded
+    # retained history is relevant, but every retained row must survive
+    # normalization without being dropped or deduplicated.
+    try:
+        retained = list(raw or [])[-MAX_CASES:]
+    except (TypeError, ValueError):
+        return "The market inquiry record is not verified against signed village events."
+    if not retained:
         return "No independent Detective market inquiry has been filed."
+    rows = normalize(retained)
+    if len(rows) != len(retained):
+        return "The market inquiry record is not verified against signed village events."
     latest = rows[-1]
     if not verified_case(latest, event_lookup=event_lookup, room_id=room_id):
         return "The market inquiry record is not verified against signed village events."
