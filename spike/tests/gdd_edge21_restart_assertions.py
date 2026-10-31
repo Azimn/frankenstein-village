@@ -50,6 +50,20 @@ finally:
     tavern.db.stage_rail_edge21 = state
 assert stage_fitting_work._verified_plays(tavern) == (True, None)
 assert "2 of 3 acoustic uses remain" in stage_fitting_work.public_status(tavern)
+# Adversarial full rollback: the mutable Attribute says "never fitted",
+# but the canonical ledger still contains the completed physical installation.
+# Ordinary status must not advertise a fresh Smith fitting or reset capacity.
+tavern.db.stage_rail_edge21 = rules.fresh()
+try:
+    prior, reason = stage_fitting_work._prior_completed_fit(tavern)
+    assert prior and "already" in reason, (prior, reason)
+    public = stage_fitting_work.public_status(tavern)
+    assert "inconsistent physical history" in public, public
+    assert "acoustic sets are unavailable" in public, public
+    assert "A Smith can bring" not in public, public
+finally:
+    tavern.db.stage_rail_edge21 = state
+assert "2 of 3 acoustic uses remain" in stage_fitting_work.public_status(tavern)
 # A shape-valid mutable record is not itself proof of a completed source.
 # Public status must independently recheck the canonical event ledger.
 for damaged in (
@@ -67,4 +81,5 @@ for damaged in (
 assert "2 of 3 acoustic uses remain" in stage_fitting_work.public_status(tavern)
 print("POST_RESTART_GDD_EDGE21_PUBLIC_STATUS_SOURCE_VERIFIED_GREEN")
 print("POST_RESTART_GDD_EDGE21_STALE_SNAPSHOT_REPLAY_REFUSED_GREEN")
+print("POST_RESTART_GDD_EDGE21_FULL_ATTRIBUTE_ROLLBACK_REFUSED_GREEN")
 print("POST_RESTART_GDD_EDGE21_INDEPENDENT_SIGNED_RAIL_GREEN")
