@@ -11,6 +11,7 @@ class CmdTrade(Command):
         trade hold        (Merchant: suspend disputed material distribution)
         trade release     (Merchant: reopen distribution)
         trade calibrate   (Smith: correct the scale)
+        trade inspect     (Detective: independent signed Smith scale inquiry)
         trade audit       (Chronicler: independently audit a Merchant decision)
         trade attest      (Chronicler: attest both source records)
         trade investigate (Detective: inspect a signed Merchant hold)

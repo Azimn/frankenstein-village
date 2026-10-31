@@ -2113,6 +2113,15 @@ def main() -> int:
                     "your smith calibration", "chronicler can attest")
         out = smith.command("trade calibrate")
         require(out, "already been calibrated")
+        # EDGE-22: reuse the independently authenticated EDGE-33 Detective.
+        require(smith.command("trade inspect"), "Detective Calling")
+        out = detective.command("trade inspect")
+        require_all(out, "signed", "DetectiveTester", "Smith source",
+                    "does not establish")
+        require(detective.command("trade inspect"),
+                "already has an independent custody inquiry")
+        require(merchant.command("trade inspect"), "Detective Calling")
+        print("TELNET_GDD_EDGE22_TWO_ACCOUNT_SIGNED_SCALE_INQUIRY_GREEN")
         out = c.command("trade attest")
         require_all(out, "signed", "attested both source events")
         require_all(c.command("agenda"),
