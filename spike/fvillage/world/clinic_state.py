@@ -12,6 +12,17 @@ METHODS = ("rest", "compress")
 MAX_HISTORY = 36
 DAILY_LINEN = 2
 MAX_LINEN = 4
+# Each anonymous daily visitor has an authored preference independent of the
+# Healer. This is a bounded game-state choice, not a new named-person canon fact.
+MUSIC_CHOICES = ("accepts", "declines", "unavailable")
+
+
+def music_preference(day):
+    """Independent day-scoped visitor response, never selected by a player."""
+    if type(day) is not int or day < 1:
+        return None
+    return MUSIC_CHOICES[(day - 1) % len(MUSIC_CHOICES)]
+
 
 
 def ident(value):
@@ -37,7 +48,8 @@ def hour_value(value):
 def _day_state(day):
     return {"day": day, "condition": CONDITIONS[(day - 1) % len(CONDITIONS)],
             "linen": DAILY_LINEN, "assessment": None, "treatment": None,
-            "records_permission": None, "supply": None, "history": []}
+            "records_permission": None, "supply": None, "history": [],
+            "music_preference": music_preference(day)}
 
 
 def normalize(raw):

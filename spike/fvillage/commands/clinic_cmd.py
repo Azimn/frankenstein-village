@@ -15,6 +15,8 @@ class CmdClinic(Command):
         clinic records
         clinic procure  (Merchant at Market Lane)
         clinic receive  (Healer at St. Lazarus)
+        clinic invite   (treating Healer, patient consent)
+        clinic music    (independent Performer, at the cot)
 
     A fresh prepared dressing can be carried or handed to a different
     Healer. Only actual signed treatment changes the clinic's public record.
@@ -46,6 +48,30 @@ class CmdClinic(Command):
                 f"Merchant source event {result['source_event_id']})."
             ))
             return
+        if raw in (["invite"], ["music"]):
+            from world import clinic_comfort_work
+            result, error = clinic_comfort_work.act(self.caller, raw[0])
+            if error:
+                self.caller.msg(error)
+                return
+            if raw == ["invite"]:
+                self.caller.msg(
+                    "The treated visitor voluntarily accepts a short song "
+                    "(signed consent event %s). A different Performer may "
+                    "now look at the cot and use clinic music."
+                    % result["event_id"]
+                )
+            else:
+                self.caller.msg(
+                    "You play a short piece for the consenting visitor "
+                    "(signed music event %s). This is companionship, not "
+                    "clinical treatment." % result["event_id"]
+                )
+            self.caller.location.msg_contents(
+                "%s completes a consent-bounded clinic %s action."
+                % (self.caller.key, raw[0]), exclude=[self.caller],
+            )
+            return
         if raw == ["records"]:
             self.caller.msg(clinic_work.confidential_records(self.caller))
             return
@@ -58,7 +84,7 @@ class CmdClinic(Command):
         else:
             self.caller.msg(
                 "Use clinic | clinic assess | clinic prepare | "
-                "clinic treat rest or clinic treat compress | clinic request records | clinic records | clinic procure | clinic receive."
+                "clinic treat rest or clinic treat compress | clinic request records | clinic records | clinic procure | clinic receive | clinic invite | clinic music."
             )
             return
         if error:

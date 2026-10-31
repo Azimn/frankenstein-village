@@ -1438,6 +1438,51 @@ def main() -> int:
         require(out, "blood of the vine")
         print("TELNET_HEALER_RENEWABLE_CLINIC_GREEN")
 
+        # EDGE-27: the existing treated clinic visitor is not a music prop.
+        # A Healer must explicitly request consent. A different logged-in
+        # Performer then travels to the real cot and offers actual music.
+        for actor in (h, performer):
+            for direction, destination in (
+                ("west", "village square"),
+                ("west", "st. lazarus church"),
+            ):
+                out = actor.command(direction)
+                require(out, destination)
+        h.read_quiet()
+        performer.read_quiet()
+        out = performer.command("clinic invite")
+        require(out, "only an active healer")
+        out = performer.command("clinic music")
+        require(out, "look at the original clinic cot")
+        out = h.command("look clinic cot")
+        require_all(out, "visiting patient", "clinic")
+        out = h.command("clinic music")
+        require(out, "only an active performer")
+        out = h.command("clinic invite")
+        require_all(out, "voluntarily accepts", "signed consent event")
+        out = h.command("clinic invite")
+        require(out, "already answered")
+        out = performer.command("look clinic cot")
+        require_all(out, "visiting patient", "short, voluntary song")
+        out = performer.command("clinic music")
+        require_all(out, "short piece", "signed music event", "not clinical treatment")
+        out = performer.command("clinic music")
+        require(out, "already received")
+        out = performer.command("clinic")
+        require_all(out, "not a treatment", "signed music event")
+        assert "cold" not in out.lower()
+        assert "healertester" not in out.lower()
+        for actor in (h, performer):
+            for direction, destination in (
+                ("east", "village square"),
+                ("east", "blood of the vine"),
+            ):
+                out = actor.command(direction)
+                require(out, destination)
+        h.read_quiet()
+        performer.read_quiet()
+        print("TELNET_GDD_EDGE27_TWO_ACCOUNT_CONSENTED_CLINIC_MUSIC_GREEN")
+
         # Third structural interdependence case: independent QA accounts each
         # own exactly one mask. The fixture provisions them before telnet so
         # public account creation rate limits remain fully enforced.
@@ -1847,7 +1892,11 @@ def main() -> int:
         require(out, "hands grip")
         merchant.close()
         out = smith.command("wrestle quit")
-        require(out, "gone cold", "steps back")
+        # The other player's accept broadcast can arrive late on this socket.
+        # Wait for the actual quit reply without issuing a second quit command.
+        if not any(token in out.lower() for token in ("gone cold", "smithtester steps back")):
+            out += smith.read_quiet(max_wait=4.0, quiet=0.5)
+        require(out, "gone cold", "smithtester steps back")
         merchant = Client(args.host, args.port)
         merchant_banner = merchant.sync_login_screen()
         require(merchant_banner, "frankenstein village")

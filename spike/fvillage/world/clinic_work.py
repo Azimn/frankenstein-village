@@ -56,7 +56,28 @@ def status(mask=None):
         if error:
             return error
     day, _ = _clock()
-    return clinic_state.public_lines(room.db.village_clinic, day)
+    lines = clinic_state.public_lines(room.db.village_clinic, day)
+    cot = next((o for o in room.contents if o.key == COT), None)
+    if cot:
+        from world.clinic_comfort_edge27 import public_lines
+        ledger = None
+        treatment = None
+        source = None
+        try:
+            ledger = get_event_ledger()
+            treatment = clinic_state.refresh(room.db.village_clinic, day).get("treatment")
+            if treatment:
+                source = ledger.get_event(treatment["event_id"])
+        except Exception:
+            # A missing ledger is not permission to advertise signed consent.
+            ledger = None
+        lines += "\n" + public_lines(
+            cot.db.clinic_comfort, day,
+            event_lookup=ledger.get_event if ledger is not None else None,
+            treatment=treatment, treatment_event=source,
+            room_id=room.id, cot_id=cot.id,
+        )
+    return lines
 
 
 def confidential_records(mask):
