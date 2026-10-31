@@ -111,14 +111,16 @@ def _signed_event(lookup, event_id, kind):
     return event
 
 
-def public_manifest(raw, event_lookup, *, riverside_room_id):
+def public_manifest(raw, event_lookup, *, riverside_room_id, market_room_id):
     """Verify *every* retained receipt against canonical completed events.
 
-    Returns (receipts, verified). A damaged newer row cannot be dropped to
+    Requires the actual Market Lane and Riverside Path room IDs, not merely
+    positive room IDs embedded in ledger payloads. A damaged newer row cannot be dropped to
     display an older signed row as the latest. The ordinary write normalizer
     remains unchanged; this strict path is exclusively for public claims.
     """
-    if not _positive_int(riverside_room_id) or not callable(event_lookup):
+    if (not _positive_int(riverside_room_id) or not _positive_int(market_room_id)
+            or not callable(event_lookup)):
         return [], False
     if raw is None:
         return [], True
@@ -181,7 +183,7 @@ def public_manifest(raw, event_lookup, *, riverside_room_id):
             if source is None:
                 return [], False
             if (not _positive_int(source["actor"].get("account_id"))
-                    or not _positive_int(source["payload"].get("market_room_id"))
+                    or source["payload"].get("market_room_id") != market_room_id
                     or not _positive_int(source["payload"].get("day"))
                     or source["payload"]["day"] > day
                     or source["consequence"].get("parcel_id") != parcel_id):
@@ -202,7 +204,7 @@ def public_manifest(raw, event_lookup, *, riverside_room_id):
             ha, hp, hr = handoff["actor"], handoff["payload"], handoff["consequence"]
             if (sm.get("account_id") != contract["merchant_account_id"]
                     or sp.get("professional_calling") != "merchant"
-                    or not _positive_int(sp.get("market_room_id"))
+                    or sp.get("market_room_id") != market_room_id
                     or not _positive_int(sp.get("day"))
                     or sr.get("parcel_id") != parcel_id
                     or ha.get("account_id") != contract["wanderer_account_id"]
