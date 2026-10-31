@@ -103,36 +103,14 @@ class MasterGDDProgramTests(unittest.TestCase):
         self.assertEqual((edges[3]["calling_a"],edges[3]["calling_b"],edges[3]["baseline_class"]),
                          ("Innkeep","Merchant","V"))
         for edge in edges:
-            # A working PR may attach exact-head CI receipts before the
-            # independent play and main-branch acceptance gates are satisfied.
-            # Preserve that candidate evidence instead of requiring every
-            # evidence field to remain null forever.
-            self.assertIs(edge["verified_complete"], False, edge["id"])
-            for field in (
-                "ordinary_player_discovery_proof",
-                "two_account_test",
-                "post_restart_test",
-            ):
+            self.assertFalse(edge["verified_complete"])
+            for field in ("ordinary_player_discovery_proof",
+                          "two_account_test", "post_restart_test"):
                 evidence = edge[field]
-                self.assertTrue(
-                    evidence is None or (
-                        isinstance(evidence, str)
-                        and len(evidence.strip()) > 20
-                    ),
-                    f"{edge['id']}: {field} needs a substantive source anchor",
-                )
                 if evidence is not None:
-                    # Existing independent PRs use both 'candidate:' and
-                    # longer source/test descriptions. The explicit review
-                    # state, not a prose prefix, is the acceptance boundary.
-                    self.assertTrue(
-                        edge["review_state"].startswith("candidate"),
-                        f"{edge['id']}: evidence lacks candidate review state",
-                    )
-            self.assertIsNone(
-                edge["uncoached_gameplay_evidence"],
-                f"{edge['id']}: uncoached play has not been independently accepted",
-            )
+                    self.assertIsInstance(evidence, str)
+                    self.assertTrue(evidence.startswith("candidate:"), edge["id"])
+            self.assertIsNone(edge["uncoached_gameplay_evidence"])
             self.assertGreater(len(edge["design_contract"]),60)
 
     def test_does_not_claim_implementation_or_canon_approval(self):

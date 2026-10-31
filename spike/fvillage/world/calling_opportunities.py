@@ -9,7 +9,9 @@ WORK = {
         "Work at the shared Tavern soup pot: soup prep turnip thyme "
         "reserves real pantry stock, soup simmer cooks a transferable edible "
         "bowl, soup notebook preserves experiments. Soup quality changes "
-        "when a neighbor has tended the hearth.",
+        "when a neighbor has tended the hearth. A Merchant can give you a "
+        "physical kitchen roots crate; soup accept verifies its signed source "
+        "and receives it into the pantry. soup deliver remains a solo fallback.",
         "At the Blood of the Vine: inspect the hearth, then use hearth "
         "tend when the fire has settled and delivered stock is available.",
         "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
@@ -17,7 +19,8 @@ WORK = {
     ),
     "chronicler": (
         "At Market Lane: inspect the crooked market scale, use trade, and "
-        "trade attest after an actual Merchant decision and Smith calibration.",
+        "trade audit after a signed Merchant decision, or trade attest "
+        "after a Merchant decision and Smith calibration.",
         "In the village: read chronicle and rumors; investigate conflicting "
         "testimony before making a documented entry.",
     ),
@@ -34,6 +37,9 @@ WORK = {
         "At the Church cot, inspect its folding rail. After a real Smith "
         "installs a fitting and you assess today\'s patient, clinic certify "
         "approves reinforced rest; clinic treat supported then uses it.",
+        "At St. Lazarus Church, clinic receive inspects and accepts a "
+        "real Merchant-sourced linen parcel, adding two finite dressings "
+        "to the shared cabinet. A separate Merchant must supply it.",
         "At St. Lazarus Church a patient comes to the staffed clinic every "
         "village day. Use clinic assess to record a firsthand finding; "
         "clinic prepare makes real transferable linen dressings, and "
@@ -41,15 +47,23 @@ WORK = {
         "signed, restart-safe history. After personally assessing the visitor, "
         "use clinic request records to obtain consent before opening private "
         "notes with clinic records. Public clinic status omits those notes.",
+        "After completing real treatment at St. Lazarus, look at the cot "
+        "and use clinic invite to ask whether the visitor wants voluntary "
+        "music. This is separate from permission for private case notes.",
         "At the Square: investigate the pale well mushrooms; use assess "
         "on the real object, rather than trusting the public appearance.",
         "At the Tavern: inspect care needs; the Cold Hunter at Supper "
         "can change through actual help or through delay.",
     ),
     "merchant": (
+        "At Market Lane, clinic procure withdraws one finite sealed linen "
+        "parcel per village day. Carry it to St. Lazarus Church for a "
+        "different Healer to use clinic receive; the shared cabinet gains "
+        "stock only after clinical acceptance.",
         "At Market Lane use soup procure for a real crate of roots; "
-        "carry or transfer it to the Blood of the Vine, then soup deliver "
-        "to restock the working kitchen's finite pantry.",
+        "carry it to the Blood of the Vine for soup deliver, or give it "
+        "to a different Innkeep account for a signed soup accept receipt. "
+        "Both routes consume the physical crate and restock finite pantry.",
         "At Market Lane: look market scale, then trade honor to keep "
         "goods moving or trade hold to suspend disputed distributions. "
         "A Smith can calibrate, and a Merchant can trade release.",
@@ -74,12 +88,21 @@ WORK = {
         "then stage perform the rehearsed piece. Other real visitors can "
         "stage witness during that hour; the signed performance remains in "
         "the public Tavern history.",
+        "After a Healer has treated a real St. Lazarus visitor and signed "
+        "a consented invitation, go to the Church, look at the clinic cot "
+        "and use clinic music. Companionship is not a medical cure.",
         "Also play, practice or perform a duet with a willing partner using "
         "the normal leisure commands.",
         "Read the public calendar, then invite neighbors to an in-world "
         "gathering through commons rather than claiming one occurred.",
     ),
     "detective": (
+        "At Market Lane, inspect the physical crooked scale and use trade inspect "
+        "after a different account signs Smith calibration. This records limited "
+        "physical evidence, not guilt or an invented culprit.",
+        "At Market Lane: inspect the real crooked market scale. After a Merchant " 
+        "has signed trade hold, use trade investigate to open an independent " 
+        "source-linked inquiry. A Merchant may answer with trade rebut.",
         "At the Old Stone Bridge: look plaque, inspect the river gauge "
         "on Riverside Path, and consider a provisional theory bridge.",
         "Use mystery bridge or mystery manor to compare public evidence. "

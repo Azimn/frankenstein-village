@@ -44,9 +44,9 @@ class MarketStandardsTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("both", error)
         self.assertEqual(failed, state)
-        calibrated, ok, error = sign(state, "calibrate", event=20)
+        calibrated, ok, error = sign(state, "calibrate", actor=9, event=20)
         self.assertTrue(ok, error)
-        result, ok, error = sign(calibrated, "attest", event=21)
+        result, ok, error = sign(calibrated, "attest", actor=11, event=21)
         self.assertTrue(ok, error)
         again, ok, error = sign(result, "attest", event=22)
         self.assertFalse(ok)
@@ -139,6 +139,100 @@ class MarketStandardsTests(unittest.TestCase):
         self.assertTrue(ok, error)
         self.assertIn("decision to honor the disputed prices",
                       " ".join(market.personal_agenda(honored, 1, 105)))
+
+    def test_t16_return_agenda_rejects_corrupt_historical_receipts(self):
+        # A stale Evennia archive can retain a malformed nested decision.
+        # The returning-player command must not crash or invent past work.
+        import copy
+
+        held, ok, error = sign(None, "hold", actor=5, event=10)
+        self.assertTrue(ok, error)
+        day_two = market.refresh(held, 2)
+        archive = day_two["history"][0]
+        valid_receipt = copy.deepcopy(archive["review"])
+
+        for invalid in ("broken receipt", {"mask_id": 105}, [105], True):
+            with self.subTest(invalid=invalid):
+                archive["review"] = invalid
+                snapshot = copy.deepcopy(day_two)
+                self.assertEqual(market.personal_agenda(day_two, 2, 105), [])
+                self.assertEqual(day_two, snapshot, "Agenda mutated persisted history")
+
+        # An invalid receipt for another profession must also be ignored.
+        archive["review"] = None
+        archive["calibration"] = {"mask_id": 105, "day": 1}
+        self.assertEqual(market.personal_agenda(day_two, 2, 105), [])
+
+        # The original valid signature still provides a truthful return cue.
+        archive["calibration"] = None
+        archive["review"] = valid_receipt
+        snapshot = copy.deepcopy(day_two)
+        self.assertIn(
+            "previous day's standards work is archived",
+            " ".join(market.personal_agenda(day_two, 2, 105)),
+        )
+        self.assertEqual(market.personal_agenda(day_two, 2, 999), [])
+        self.assertEqual(day_two, snapshot)
+
+    def test_independent_chronicler_audit_survives_edge33_inquiry_branch(self):
+        import json
+
+        held, ok, error = sign(None, "hold", actor=5, event=10)
+        self.assertTrue(ok, error)
+        self.assertTrue(market.suspended(held, 1))
+
+        refused, ok, error = sign(held, "audit", actor=5, event=11)
+        self.assertFalse(ok)
+        self.assertIn("separate account", error)
+        self.assertEqual(refused, held)
+
+        audited, ok, error = sign(held, "audit", actor=11, event=12)
+        self.assertTrue(ok, error)
+        self.assertEqual(audited["audit"]["review_event_id"], 10)
+        self.assertEqual(audited["audit"]["review_choice"], "hold")
+        self.assertIn("independently audited Merchant",
+                      " ".join(market.public_lines(audited, 1)))
+        self.assertIn("independent Chronicler audit",
+                      " ".join(market.personal_agenda(audited, 1, 111)))
+
+        duplicate, ok, error = sign(audited, "audit", actor=12, event=13)
+        self.assertFalse(ok)
+        self.assertIn("already been audited", error)
+        self.assertEqual(duplicate, audited)
+
+        restored = market.refresh(json.loads(json.dumps(audited)), 1)
+        self.assertEqual(restored["audit"]["review_event_id"], 10)
+        self.assertEqual(restored["audit"]["event_id"], 12)
+        next_day = market.refresh(restored, 2)
+        self.assertEqual(next_day["history"][-1]["audit"]["event_id"], 12)
+        self.assertIsNone(next_day["audit"])
+        self.assertTrue(market.suspended(held, 1),
+                        "Audit must not silently release held physical stock")
+
+    def test_corrupt_audit_choice_is_not_a_signed_public_claim(self):
+        import copy
+
+        held, ok, error = sign(None, "hold", actor=5, event=10)
+        self.assertTrue(ok, error)
+        audited, ok, error = sign(held, "audit", actor=11, event=12)
+        self.assertTrue(ok, error)
+        self.assertIn("independently audited Merchant",
+                      " ".join(market.public_lines(audited, 1)))
+        for malformed in (["hold"], {"choice": "hold"}, True):
+            with self.subTest(malformed=malformed):
+                broken = copy.deepcopy(audited)
+                broken["audit"]["review_choice"] = malformed
+                self.assertIsNone(market.normalize(broken)["audit"])
+                self.assertNotIn("independently audited Merchant",
+                                 " ".join(market.public_lines(broken, 1)))
+                self.assertEqual(broken["audit"]["review_choice"], malformed)
+
+    def test_merchant_review_verifier_fails_closed_on_nonstring_choice(self):
+        for malformed in (["hold"], {"choice": "hold"}, True):
+            with self.subTest(malformed=malformed):
+                self.assertFalse(market.verified_merchant_review(
+                    {"choice": malformed}, {"status": "complete"}
+                ))
 
     def test_bad_actor_does_not_create_public_event_record(self):
         state, ok, error = market.apply(
