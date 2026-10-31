@@ -51,12 +51,16 @@ def act(mask, action):
     if clinic["day"] != day or not clinic["treatment"]:
         return None, "Today's visitor needs genuine Healer treatment first."
     treatment = dict(clinic["treatment"])
+    # This response is authored by the anonymous daily visitor state, not
+    # supplied by the Healer command or inferred from treatment success.
+    visitor_choice = clinic_state.music_preference(day)
     source = ledger.get_event(treatment["event_id"])
     if not rules.treatment_valid(treatment, source, room.id):
         return None, "The original Healer treatment is not verified."
     if action == "invite":
         kwargs = {
             "treatment": treatment, "treatment_event": source,
+            "visitor_choice": visitor_choice,
         }
         transform = rules.invite
     else:
@@ -89,6 +93,7 @@ def act(mask, action):
                 raise RuntimeError("The actor, cot, Calling or village hour changed.")
             latest = clinic_state.refresh(room.db.village_clinic, day)
             if (latest["day"] != day or latest["treatment"] != treatment
+                    or clinic_state.music_preference(day) != visitor_choice
                     or not rules.treatment_valid(
                         treatment, ledger.get_event(treatment["event_id"]),
                         room.id)):
@@ -104,6 +109,7 @@ def act(mask, action):
                 fresh_kwargs = {
                     "treatment": treatment,
                     "treatment_event": ledger.get_event(treatment["event_id"]),
+                    "visitor_choice": clinic_state.music_preference(day),
                 }
             changed, valid, problem = transform(
                 cot.db.clinic_comfort, event_id=event["id"],
@@ -118,6 +124,7 @@ def act(mask, action):
                 "source_healer_event_id": treatment["event_id"],
                 "source_event_id": record["source_event_id"],
                 "consent": "accepted" if action == "invite" else "respected",
+                "visitor_choice": visitor_choice if action == "invite" else None,
                 "outcome": "invited" if action == "invite" else "music_offered",
             }
 
@@ -127,6 +134,7 @@ def act(mask, action):
         payload={
             "day": day, "hour": hour, "room_id": room.id, "cot_id": cot.id,
             "professional_calling": role,
+            "visitor_choice": visitor_choice if action == "invite" else None,
             "source_healer_event_id": treatment["event_id"],
             "harbinger": False, "chronicle_eligible": False,
         },
