@@ -2314,6 +2314,8 @@ def main() -> int:
         require(out, "examine the physical red cord")
         out = wanderer.command("look cord")
         require_all(out, "scarlet cord", "cut cleanly")
+        out = wanderer.command("survey corroborate")
+        require(out, "both independent professional field records")
         out = wanderer.command("survey protect")
         require(out, "only a hound")
         out = wanderer.command("survey passability")
@@ -2345,6 +2347,8 @@ def main() -> int:
         require(out, "scarlet cord")
         out = hound.command("survey passability")
         require(out, "only a hound")
+        out = hound.command("survey corroborate")
+        require(out, "only a hound")
         out = hound.command("survey protect")
         require_all(out, "tie the original frayed cord", "visible warning", "signed event")
         out = hound.command("survey protect")
@@ -2357,7 +2361,46 @@ def main() -> int:
         out = wanderer.command("survey")
         require_all(out, "houndtester", "wanderertester", "unmarked cord",
                     "does not repair the cord")
+        out = wanderer.command("survey corroborate")
+        require_all(out, "independently confirm", "hound source", "signed event")
+        out = wanderer.command("survey corroborate")
+        require(out, "already signed today")
+        out = wanderer.command("survey")
+        require_all(out, "independently rechecked", "hound source", "not that the route is safe")
+        print("TELNET_GDD_EDGE38_INDEPENDENT_SIGNED_ROUTE_CORROBORATION_GREEN")
         print("TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN")
+
+        # EDGE-05: a signed Wanderer actually returns from the treeline.
+        # A different Innkeep cooks one finite meal and hands over its
+        # physical bowl. A remote guest cannot be welcomed by assertion.
+        out = inn.command("soup prep barley salt")
+        require(out, "measure real barley and salt")
+        out = inn.command("soup simmer")
+        require(out, "real, shareable bowl")
+        out = inn.command("soup welcome WandererTester")
+        require(out, "physically present")
+        for move, destination in (
+            ("south", "churchyard"),
+            ("east", "st. lazarus church"),
+            ("east", "village square"),
+            ("east", "blood of the vine"),
+        ):
+            out = wanderer.command(move)
+            require(out, destination)
+        out = wanderer.command("soup welcome InnkeepTester")
+        require(out, "active innkeep")
+        out = inn.command("soup welcome WandererTester")
+        require_all(out, "welcome wanderertester", "signed world event",
+                    "route event", "guest can eat")
+        out = wanderer.command("inventory")
+        require(out, "a bowl of barley and salt soup")
+        out = inn.command("soup welcome WandererTester")
+        require(out, "cook and carry a real uneaten soup bowl")
+        out = inn.command("look soup pot")
+        require_all(out, "signed returning-traveler hospitality", "route event")
+        print("TELNET_GDD_EDGE05_SIGNED_TWO_ACCOUNT_ARRIVAL_HOSPITALITY_GREEN")
+
+
 
         # GDD-EDGE-13: the Wanderer has signed firsthand evidence; a
         # DIFFERENT account with the Chronicler Calling must travel to the

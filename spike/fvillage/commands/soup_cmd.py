@@ -16,6 +16,7 @@ class CmdSoup(Command):
         soup procure             (Merchant, Market Lane)
         soup deliver             (solo/courier fallback with signed crate)
         soup accept              (Innkeep verifies a separate Merchant crate)
+        soup welcome <Wanderer>  (Innkeep with cooked bowl, after signed route)
 
     The kitchen has finite pantry supplies, a renewing daily baseline,
     a permanent work log and individual recipe notebooks. Prepared packets
@@ -114,6 +115,23 @@ class CmdSoup(Command):
                 "The public receipt certifies no guest behavior."
             )
             return
+        if raw.startswith("welcome "):
+            guest = raw[len("welcome "):].strip()
+            result, error = soup_kitchen.welcome(caller, guest)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"You welcome {result['guest']} back from a genuinely "
+                f"witnessed route and hand over your real cooked bowl. "
+                f"Signed world event {result['event_id']} cites route event "
+                f"{result['route_event_id']}. The guest can eat the bowl normally."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} offers a cooked meal to a returning traveler.",
+                exclude=[caller],
+            )
+            return
         if raw == "procure":
             result, error = soup_kitchen.procure(caller)
             if error:
@@ -162,5 +180,6 @@ class CmdSoup(Command):
         caller.msg(
             "Use soup | soup prep <base> <seasoning> | soup simmer | "
             "soup notebook | soup receipt [event] | soup publish [event] | "
-            "soup receipts | soup procure | soup deliver | soup accept."
+            "soup receipts | soup procure | soup deliver | soup accept | "
+            "soup welcome <Wanderer>."
         )
