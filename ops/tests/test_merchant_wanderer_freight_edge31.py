@@ -1,5 +1,6 @@
 """GDD-EDGE-31: Merchant freight, distinct Wanderer custody and real postbag."""
 import copy
+from collections import UserDict, UserList
 import json
 import sys
 import unittest
@@ -169,6 +170,68 @@ class PublicManifestProvenance(unittest.TestCase):
             c.public_manifest(None, self.events.get,
                               riverside_room_id=44, market_room_id=31),
             ([], True),
+        )
+
+    def test_evennia_saver_wrapped_real_receipts(self):
+        # Evennia Attributes return _SaverDict/_SaverList (Mapping/Sequence),
+        # not built-in dict/list. Real telnet status must verify those shapes.
+        def saved(value):
+            if isinstance(value, dict):
+                return UserDict({key: saved(item) for key, item in value.items()})
+            if isinstance(value, list):
+                return UserList([saved(item) for item in value])
+            return value
+
+        freight_state = saved({"receipts": [self.receipt]})
+        freight_events = {eid: saved(event) for eid, event in self.events.items()}
+        self.assertEqual(
+            self.read(freight_state, freight_events),
+            ([self.receipt], True),
+        )
+        self.assertEqual(
+            self.read(saved(json.loads(json.dumps({"receipts": [self.receipt]}))),
+                      freight_events),
+            ([self.receipt], True),
+        )
+
+        solo = {
+            "day": 7, "account_id": 19, "mask": "WandererTester",
+            "parcel_id": 100, "source_event_id": 70, "delivery_event_id": 71,
+        }
+        solo_events = {
+            70: {"id": 70, "status": "complete",
+                 "kind": "village.ferry_post_collected",
+                 "actor": {"account_id": 15, "mask": "FirstCollector"},
+                 "payload": {"day": 7, "market_room_id": 31},
+                 "consequence": {"parcel_id": 100}},
+            71: {"id": 71, "status": "complete",
+                 "kind": "village.ferry_post_delivered",
+                 "actor": {"account_id": 19, "mask": "WandererTester"},
+                 "payload": {"day": 7, "parcel_id": 100,
+                             "source_event_id": 70,
+                             "freight_accept_event_id": None},
+                 "consequence": {"riverside_room_id": 44, "parcel_id": 100,
+                                 "source_event_id": 70}},
+        }
+        wrapped_events = {eid: saved(event) for eid, event in solo_events.items()}
+        self.assertEqual(
+            self.read(saved({"receipts": [solo]}), wrapped_events),
+            ([solo], True),
+        )
+        # A wrapper must not bypass signed provenance or room validation.
+        bad_events = copy.deepcopy(wrapped_events)
+        bad_events[70]["payload"]["market_room_id"] = 999
+        self.assertEqual(
+            self.read(saved({"receipts": [solo]}), bad_events), ([], False),
+        )
+        bad_freight = copy.deepcopy(freight_events)
+        bad_freight[92]["actor"]["account_id"] = 12
+        self.assertEqual(
+            self.read(freight_state, bad_freight), ([], False),
+        )
+        self.assertEqual(
+            self.read(saved({"receipts": [solo, "damaged"]}), wrapped_events),
+            ([], False),
         )
 
     def test_wrong_positive_market_room_cannot_be_signed_as_market_lane(self):
