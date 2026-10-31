@@ -154,7 +154,7 @@ class PublicManifestProvenance(unittest.TestCase):
     def read(self, state=None, events=None):
         events = self.events if events is None else events
         state = {"receipts": [self.receipt]} if state is None else state
-        return c.public_manifest(state, events.get, riverside_room_id=44)
+        return c.public_manifest(state, events.get, riverside_room_id=44, market_room_id=31)
 
     def test_real_signed_freight_and_json_roundtrip(self):
         receipts, verified = self.read()
@@ -166,6 +166,14 @@ class PublicManifestProvenance(unittest.TestCase):
         )
         self.assertEqual(self.read({"receipts": []}), ([], True))
         self.assertEqual(self.read(None), ([], True))
+
+    def test_wrong_positive_market_room_cannot_be_signed_as_market_lane(self):
+        events = copy.deepcopy(self.events)
+        events[91]["payload"]["market_room_id"] = 999
+        self.assertEqual(self.read(events=events), ([], False))
+        events = copy.deepcopy(self.events)
+        events[91]["payload"]["market_room_id"] = 31
+        self.assertEqual(self.read(events=events), ([self.receipt], True))
 
     def test_missing_failed_and_forged_canonical_events_fail_closed(self):
         for event_id in (91, 92, 93):
@@ -249,6 +257,9 @@ class PublicManifestProvenance(unittest.TestCase):
         state = {"receipts": [receipt]}
         self.assertEqual(self.read(state, events), ([receipt], True))
         events[70]["kind"] = "village.freight_consigned"
+        self.assertEqual(self.read(state, events), ([], False))
+        events[70]["kind"] = "village.ferry_post_collected"
+        events[70]["payload"]["market_room_id"] = 999
         self.assertEqual(self.read(state, events), ([], False))
 
 if __name__ == "__main__":
