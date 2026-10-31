@@ -48,13 +48,16 @@ def normalize(raw):
     if condition not in ("fitted", "ready", "spent") or not _row(
             f, ("item_id", "forge_event_id", "workshop_id", "tavern_id")):
         return invalid()
+    if f["forge_event_id"] == f["event_id"]:
+        return invalid()
     check = raw.get("soundcheck")
     if condition == "fitted" and check is not None:
         return invalid()
     if condition != "fitted" and not _row(check, ("fitting_event_id",)):
         return invalid()
     if check is not None and (
-            check["fitting_event_id"] != f["event_id"]
+            check["event_id"] in (f["event_id"], f["forge_event_id"])
+            or check["fitting_event_id"] != f["event_id"]
             or check["account_id"] == f["account_id"]
             or check["mask_id"] == f["mask_id"]
             or (check["day"], check["hour"]) < (f["day"], f["hour"])):
@@ -80,11 +83,16 @@ def normalize(raw):
                     or p["account_id"] != check["account_id"]
                     or p["mask_id"] != check["mask_id"]
                     or p["hour"] < check["hour"]))
-                or p["event_id"] in (f["event_id"], p["soundcheck_event_id"])):
+                or p["soundcheck_event_id"] in (f["event_id"], f["forge_event_id"])
+                or p["event_id"] in (f["event_id"], f["forge_event_id"],
+                                     p["soundcheck_event_id"], check["event_id"])):
             return invalid()
         if (clean and (p["day"], p["hour"]) < (clean[-1]["day"], clean[-1]["hour"])):
             return invalid()
-        if any(q["day"] == p["day"] or q["event_id"] == p["event_id"] for q in clean):
+        if any(q["day"] == p["day"] or p["event_id"] in
+               (q["event_id"], q["soundcheck_event_id"]) or
+               p["soundcheck_event_id"] in
+               (q["event_id"], q["soundcheck_event_id"]) for q in clean):
             return invalid()
         clean.append({k: p[k] for k in
                       ("day", "hour", "event_id", "account_id", "mask_id",
@@ -112,7 +120,8 @@ def fit(raw, *, day, hour, event_id, account_id, mask_id,
         return state, False, "The stage rail is already fitted or its record is invalid."
     vals = (event_id, account_id, mask_id, item_id, forge_event_id,
             workshop_id, tavern_id)
-    if not _time(day, hour) or not all(_id(v) for v in vals):
+    if (not _time(day, hour) or not all(_id(v) for v in vals)
+            or event_id == forge_event_id):
         return state, False, "A real fitting, signed Smith and village shift are required."
     state["condition"] = "fitted"
     state["remaining"] = USES
@@ -131,6 +140,13 @@ def soundcheck(raw, *, day, hour, event_id, account_id, mask_id):
     c = state["soundcheck"]
     if not _time(day, hour) or not all(_id(v) for v in (event_id, account_id, mask_id)):
         return state, False, "A signed Performer and village shift are required."
+    used = {f["event_id"], f["forge_event_id"]}
+    for prior in state["plays"]:
+        used.update((prior["event_id"], prior["soundcheck_event_id"]))
+    if c:
+        used.add(c["event_id"])
+    if event_id in used:
+        return state, False, "The signed soundcheck event must be distinct from its sources."
     if (day, hour) < (f["day"], f["hour"]):
         return state, False, "The fitting has not yet been installed."
     if account_id == f["account_id"] or mask_id == f["mask_id"]:
@@ -153,6 +169,12 @@ def acoustic(raw, *, day, hour, event_id, account_id, mask_id, tune):
     c = state["soundcheck"]
     if not _time(day, hour) or not all(_id(v) for v in (event_id, account_id, mask_id)):
         return state, False, "A signed Performer and village shift are required."
+    used = {state["fitting"]["event_id"], state["fitting"]["forge_event_id"],
+            c["event_id"]}
+    for prior in state["plays"]:
+        used.update((prior["event_id"], prior["soundcheck_event_id"]))
+    if event_id in used:
+        return state, False, "The signed acoustic event must be distinct from its sources."
     if tune not in ("ballad", "reel"):
         return state, False, "Choose ballad or reel."
     if day != c["day"] or hour < c["hour"]:
