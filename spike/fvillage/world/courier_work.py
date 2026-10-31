@@ -41,12 +41,14 @@ def status(mask):
     if market is None or path is None:
         return "The ferry-post route has not been constructed."
     supply = courier_state.stock(market.db.ferry_post_stock, day)
-    receipts = courier_state.manifest(path.db.ferry_manifest)["receipts"]
-    last = receipts[-1] if receipts else None
+    receipts, verified = courier_state.public_manifest(
+        path.db.ferry_manifest, get_event_ledger().get_event,
+        riverside_room_id=path.id,
+    )
+    last = receipts[-1] if verified and receipts else None
     lines = [
         "|wThe village ferry post|n",
         f"Market Lane postbag, day {day}: {supply['remaining']} real parcels left.",
-        f"{len(receipts)} signed recent deliveries retained by the Riverside post chest.",
         "An active Wanderer can collect a physical parcel in Market Lane: |wcourier collect|n.",
         "Carry it east through the Tavern to Riverside Path, or give it to a neighbor.",
         "Any real carrier at Riverside Path may use |wcourier deliver|n.",
@@ -54,6 +56,15 @@ def status(mask):
         "in Market Lane. A different Wanderer uses |wcourier accept|n there.",
         "Unaccepted freight remains physically available to another Wanderer.",
     ]
+    if verified:
+        lines.append(
+            f"{len(receipts)} signed recent deliveries retained by the Riverside post chest."
+        )
+    else:
+        lines.append(
+            "Riverside public delivery archive not verified against canonical world events; "
+            "signed delivery claims withheld."
+        )
     if last:
         lines.append(
             f"Latest delivery by {last['mask']} on day {last['day']} "
