@@ -224,6 +224,7 @@ def _public_sources_verified(state, *, event_lookup, treatment,
             or stamp(treatment.get("day"), treatment.get("hour")) is None
             or stamp(invitation["day"], invitation["hour"])
             < stamp(treatment["day"], treatment["hour"])
+            or positive(treatment.get("event_id")) is None
             or not (positive(treatment.get("event_id"))
                     < positive(invitation["event_id"]))
             or not treatment_valid(treatment, treatment_event, room_id)):
