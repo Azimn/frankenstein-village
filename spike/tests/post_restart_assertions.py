@@ -1554,6 +1554,34 @@ assert _edge15_signed_bulletin["payload"]["source_event_id"] == _edge15_exam["ev
 assert _edge15_signed_bulletin["consequence"]["status"] == "attributed_evidence_only"
 assert _edge15_signed_observation["kind"] == "public_mystery.bridge_plaque.observed"
 assert _edge15_signed_observation["status"] == "complete"
+# The Chronicler inspected the plaque first; the Detective came later.
+# Both must own distinct completed physical observation events after restart.
+_edge15_witness_rows = [
+    row for row in _edge15_bridge.get("observations") or []
+    if any(w.get("account_id") == _edge15_detective_account.id
+           and w.get("mask_id") == _edge15_detective.id
+           and w.get("source_event_id") == _edge15_exam["observation_event_id"]
+           for w in row.get("witnesses") or [])
+]
+assert len(_edge15_witness_rows) == 1, "Detective's own signed witness link missing"
+_edge15_witness_row = _edge15_witness_rows[0]
+assert _edge15_witness_row["source_event_id"] != _edge15_exam["observation_event_id"], (
+    "Detective reused the first visitor's signed observation"
+)
+_edge15_original_observation = _edge15_ledger_obj.get_event(
+    _edge15_witness_row["source_event_id"]
+)
+assert _edge15_original_observation["status"] == "complete"
+assert _edge15_original_observation["kind"] == "public_mystery.bridge_plaque.observed"
+assert _edge15_original_observation["actor"]["account_id"] == _edge15_chronicler_account.id
+assert _edge15_original_observation["actor"]["mask_id"] == smoke.id
+assert _edge15_signed_observation["actor"]["account_id"] == _edge15_detective_account.id
+assert _edge15_signed_observation["actor"]["mask_id"] == _edge15_detective.id
+assert _edge15_signed_observation["payload"]["day"] == _edge15_witness_row["day"]
+assert _edge15_signed_observation["payload"]["hour"] == _edge15_witness_row["hour"]
+assert _edge15_signed_observation["payload"]["pattern"] == _edge15_witness_row["pattern"]
+assert _edge15_signed_observation["payload"]["weather"] == _edge15_witness_row["weather"]
+print("POST_RESTART_GDD_EDGE15_SECOND_WITNESS_ACTOR_BOUND_GREEN")
 assert "do not identify a culprit" in " ".join(
     _edge15_case_lines(_edge15_bridge, _edge15_bulletin["day"])
 )
