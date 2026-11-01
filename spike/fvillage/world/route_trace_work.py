@@ -137,7 +137,9 @@ def preserve(mask):
             observed_condition="tied_caution",
         )
 
-    _preview, accepted, error = propose(1)
+    # Preview is only a feasibility check, not a real event reservation.
+    # The first signed Hound event can itself be ID 1; never collide with it.
+    _preview, accepted, error = propose(source_id + 1)
     if not accepted:
         return None, error
 
