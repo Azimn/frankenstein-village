@@ -182,7 +182,8 @@ def _signed_exam(state, exam, get_event):
         and type(observed.get("hour")) is int
         and 0 <= observed["hour"] <= exam["hour"]
         and observed.get("pattern") == exam["pattern"]
-        and observed.get("weather") in {"clear", "rain", "fog", "snow"}
+        and isinstance(observed.get("weather"), str)
+        and bool(observed["weather"])
     ):
         return False
     # The original physical witness is stored on the canonical bridge record.
