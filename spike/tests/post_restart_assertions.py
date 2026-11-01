@@ -2099,7 +2099,7 @@ print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")
 # professional actions survive a real Evennia process restart.
 from world.events import get_event_ledger as _edge15_ledger
 from world.bridge_case_state import case_lines as _edge15_case_lines
-_edge15_detective = one("DetectiveTester")
+_edge15_detective = one("BridgeCaseTester")
 # A character's session-bound .account may be None after logout/restart.
 # Use the persisted account-to-character ownership relation, as the existing
 # bridge assertions do, rather than relying on normalized account names.

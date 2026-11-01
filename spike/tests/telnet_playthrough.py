@@ -449,8 +449,8 @@ def main() -> int:
             f"connect qa_detective_case {detective_pass}", wait=4.0
         )
         require(out, "connected", "account qa_detective_case")
-        bridge_detective.command("charcreate DetectiveTester", wait=3.0)
-        out = bridge_detective.command("ic DetectiveTester", wait=4.0)
+        bridge_detective.command("charcreate BridgeCaseTester", wait=3.0)
+        out = bridge_detective.command("ic BridgeCaseTester", wait=4.0)
         require(out, "private room")
         out = bridge_detective.command("calling choose detective")
         require(out, "detective is now your active calling")
