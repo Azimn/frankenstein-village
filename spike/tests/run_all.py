@@ -226,7 +226,7 @@ def main() -> int:
                 "import os\n"
                 "from evennia.utils import create\n"
                 "from evennia.accounts.models import AccountDB\n"
-                "for key in ('qa_smith_repair', 'qa_smith_stage', 'qa_merchant_repair', 'qa_mystic_study', 'qa_performer_stage', 'qa_wanderer_mail', 'qa_hound_protection', 'qa_detective_inquiry'):\n"
+                "for key in ('qa_smith_repair', 'qa_smith_stage', 'qa_merchant_repair', 'qa_mystic_study', 'qa_performer_stage', 'qa_wanderer_mail', 'qa_hound_protection', 'qa_detective_inquiry', 'qa_smith_cot'):\n"
                 "    account = AccountDB.objects.filter(db_key=key).first()\n"
                 "    if account is None:\n"
                 "        account = create.create_account(\n"
@@ -408,12 +408,32 @@ def main() -> int:
                     ],
                     cwd=checkout, env=env, timeout=140,
                 )
+                # EDGE-18 positive: assess and treat the next patient before
+                # the later negative-test restarts can advance village time.
+                run(
+                    [
+                        vpython,
+                        checkout / "spike" / "tests"
+                        / "telnet_edge18_day2_supported.py",
+                        "--host", "127.0.0.1", "--port", "4000",
+                    ],
+                    cwd=checkout, env=env, timeout=100,
+                )
             finally:
                 run([evennia, "stop"], cwd=game, env=env, timeout=60)
             t13_cancel = (
                 checkout / "spike" / "tests" / "gdd_t13_cancel_world_assertions.py"
             ).read_text(encoding="utf-8")
             run([evennia, "shell"], cwd=game, env=env, input_text=t13_cancel)
+            # EDGE-18: read-only gate calls against deliberately forged
+            # attributes and a rewound QA clock. Restore all original
+            # state before proceeding with the other real-world tests.
+            edge18_guards = (
+                checkout / "spike" / "tests"
+                / "edge18_guard_negative_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge18_guards)
 
             # GDD T-12: the same disposable QA database, now after a genuine
             # server restart and with no connected players, must resolve a
@@ -448,6 +468,14 @@ def main() -> int:
                 checkout / "spike" / "tests" / "gdd_t13_cancel_restart_assertions.py"
             ).read_text(encoding="utf-8")
             run([evennia, "shell"], cwd=game, env=env, input_text=t13_restart)
+            # EDGE-18: the second day's treatment, original fitting and
+            # confidentiality must survive a second real process restart.
+            edge18_restart = (
+                checkout / "spike" / "tests"
+                / "edge18_day2_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge18_restart)
 
             # T-13: independently exercise a live two-socket cancel/deliver
             # contest, then verify physical custody and signed outcome before
@@ -511,6 +539,49 @@ def main() -> int:
             day4_restart_env["FV_T13_DAY4_RESTART"] = "1"
             run([evennia, "shell"], cwd=game, env=day4_restart_env,
                 input_text=day4_assertions)
+            # EDGE-18 adversarial source check AFTER the existing T-13
+            # day-two/three/four sequence. Extra REAL process restarts must
+            # not consume T-13's deliberately pinned day-two clock window.
+            # Advance only the disposable QA clock into the start of a fresh
+            # future day AFTER all time-pinned T-13 assertions finish. This
+            # avoids another midnight transition during an authenticated
+            # refusal, without ever backdating the clock or world receipts.
+            edge18_future_day = (
+                "from evennia.scripts.models import ScriptDB\n"
+                "clock = ScriptDB.objects.get(db_key='village_time')\n"
+                "before = (int(clock.db.day), int(clock.db.hour))\n"
+                "clock.db.day = before[0] + 1\n"
+                "clock.db.hour = 0\n"
+                "assert (int(clock.db.day), int(clock.db.hour)) > before\n"
+                "print('EDGE18_AUTH_NEGATIVE_FUTURE_DAY_READY')\n"
+            )
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge18_future_day)
+            forged_fixture = (
+                checkout / "spike" / "tests"
+                / "edge18_authenticated_forgery_fixture.py"
+            ).read_text(encoding="utf-8")
+            staged_env = dict(env)
+            staged_env["FV_EDGE18_AUTH_NEGATIVE_PHASE"] = "stage"
+            run([evennia, "shell"], cwd=game, env=staged_env,
+                input_text=forged_fixture)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [
+                        vpython, checkout / "spike" / "tests"
+                        / "telnet_edge18_forged_assessment_negative.py",
+                        "--host", "127.0.0.1", "--port", "4000",
+                    ],
+                    cwd=checkout, env=env, timeout=100,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            restored_env = dict(env)
+            restored_env["FV_EDGE18_AUTH_NEGATIVE_PHASE"] = "restore"
+            run([evennia, "shell"], cwd=game, env=restored_env,
+                input_text=forged_fixture)
         except Exception:
             dump_logs(game)
             raise

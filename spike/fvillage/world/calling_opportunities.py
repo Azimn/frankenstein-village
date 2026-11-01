@@ -25,12 +25,18 @@ WORK = {
         "testimony before making a documented entry.",
     ),
     "smith": (
+        "At the Church, inspect the clinic cot. A Workshop-forged physical "
+        "hinge can brace its worn folding rail with clinic brace; an "
+        "independent Healer must certify its clinical suitability.",
         "At Market Lane: look market scale and use trade calibrate for a "
         "signed physical correction, once per village day.",
         "At the Square: examine north-square gas lamp; its repair is "
         "one-time and may already have been finished by a neighbor.",
     ),
     "healer": (
+        "At the Church cot, inspect its folding rail. After a real Smith "
+        "installs a fitting and you assess today\'s patient, clinic certify "
+        "approves reinforced rest; clinic treat supported then uses it.",
         "At St. Lazarus Church, clinic receive inspects and accepts a "
         "real Merchant-sourced linen parcel, adding two finite dressings "
         "to the shared cabinet. A separate Merchant must supply it.",
