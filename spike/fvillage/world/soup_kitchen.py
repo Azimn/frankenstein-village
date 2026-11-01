@@ -158,7 +158,7 @@ def simmer(mask):
         return None, err
     if active_calling(mask) != "innkeep":
         return None, "An active Innkeep is needed to simmer a batch."
-    from world import kitchen_repair_edge02, kitchen_repair_work
+    from world import kitchen_repair_work
     pot = kitchen_repair_work._pot()
     if not kitchen_repair_work.player_simmer_allowed(pot):
         return None, "Player simmering is restricted until the real kitchen pot is repaired."
