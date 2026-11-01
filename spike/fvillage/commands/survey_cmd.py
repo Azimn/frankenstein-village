@@ -10,7 +10,7 @@ class CmdSurvey(Command):
         survey report
         survey protect       (Hound, Northern Treeline)
         survey passability   (Wanderer, Northern Treeline)
-        survey corroborate   (Wanderer, after Hound protection)
+        survey corroborate   (Wanderer, after signed Hound protection)
         survey publish       (Chronicler, Village Square; sourced map)
 
     Read the board, go to an outstanding district, examine the actual
@@ -77,7 +77,7 @@ class CmdSurvey(Command):
                 return
             if verb == "protect":
                 caller.msg(
-                    f"You tie the original frayed cord as a visible warning, "
+                    f"You tie the original frayed cord as a visible warning, or re-tighten its older marker, "
                     f"without repairing it (signed event {result['event_id']})."
                 )
             elif verb == "passability":
