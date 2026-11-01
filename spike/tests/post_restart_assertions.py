@@ -2171,7 +2171,29 @@ assert _edge15_signed_observation["payload"]["hour"] == _edge15_witness_row["hou
 assert _edge15_signed_observation["payload"]["pattern"] == _edge15_witness_row["pattern"]
 assert _edge15_signed_observation["payload"]["weather"] == _edge15_witness_row["weather"]
 print("POST_RESTART_GDD_EDGE15_SECOND_WITNESS_ACTOR_BOUND_GREEN")
-assert "do not identify a culprit" in " ".join(
-    _edge15_case_lines(_edge15_bridge, _edge15_bulletin["day"])
-)
+_edge15_readback = " ".join(_edge15_case_lines(
+    _edge15_bridge, _edge15_bulletin["day"],
+    get_event=_edge15_ledger_obj.get_event,
+))
+assert f"examination event {_edge15_exam['event_id']}" in _edge15_readback
+assert f"bulletin event {_edge15_bulletin['event_id']}" in _edge15_readback
+assert "do not identify a culprit" in _edge15_readback
+# Exercise the actual public command adapter against a tampered, disposable
+# in-memory projection. Do not alter the persisted registry or canonical ledger.
+import copy as _edge15_copy
+from unittest.mock import patch as _edge15_patch
+from world import public_mysteries as _edge15_public
+for _edge15_field, _edge15_bad in (
+    ("event_id", 99999999), ("source_event_id", 99999998),
+    ("account_id", _edge15_detective_account.id),
+):
+    _edge15_forged = _edge15_copy.deepcopy(_edge15_bridge)
+    _edge15_forged["case_bulletins"][-1][_edge15_field] = _edge15_bad
+    with _edge15_patch.object(_edge15_public, "get_public_mystery",
+                              return_value=_edge15_forged):
+        _edge15_text = " ".join(_edge15_public.mystery_lines(
+            stable_id=BRIDGE_PLAQUE_ID))
+    assert f"bulletin event {_edge15_bulletin['event_id']}" not in _edge15_text
+    assert "unverified" in _edge15_text
+print("POST_RESTART_GDD_EDGE15_FORGED_PUBLIC_READBACK_SUPPRESSED_GREEN")
 print("POST_RESTART_GDD_EDGE15_DISTINCT_SIGNED_BRIDGE_CASE_GREEN")
