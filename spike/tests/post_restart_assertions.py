@@ -1430,8 +1430,24 @@ from world import workshop_state as _workshop_rules
 _workroom = one("The Market Workshop")
 _public_market = one("Market Lane")
 _work_docket = _workshop_rules.normalize(_workroom.db.repair_docket)
-assert _work_docket["offcuts"] == 0, "Both finite Workshop offcuts must remain spent"
-assert len(_work_docket["crafts"]) == 2, "Market and kitchen both forged real hinges"
+# Day one has the signed Market forge, plus the stage forge once
+# reconciled with main. The kitchen fitting is deliberately later-day.
+# Match every physical docket craft to its canonical signed event, never
+# assume an impossible third craft or silently ignore a real stage craft.
+_day_one_forges = [
+    event for event in warning_ledger.db.events
+    if event.get("kind") == "village.market_hinge_forged"
+    and event.get("status") == "complete"
+    and event.get("payload", {}).get("day") == 1
+]
+assert 1 <= len(_day_one_forges) <= _workshop_rules.DAILY_OFFCUTS
+assert len(_work_docket["crafts"]) == len(_day_one_forges)
+assert {row["event_id"] for row in _work_docket["crafts"]} == {
+    event["id"] for event in _day_one_forges
+}, "A signed day-one Workshop forge is absent from physical stock history"
+assert _work_docket["offcuts"] == (
+    _workshop_rules.DAILY_OFFCUTS - len(_day_one_forges)
+), "Day-one physical stock does not conserve its signed crafts"
 assert _work_docket["installation"] is not None
 _repair_craft = next(row for row in _work_docket["crafts"]
                      if row["mask"] == "SmithTester")
@@ -1459,7 +1475,9 @@ assert calling_record(one("MerchantTester"), "merchant")["participation"][
     "market_hinges_installed"
 ] == 1
 assert "MerchantTester" in one("a market fittings board").get_display_desc()
-assert "0 of 2 iron offcuts" in one("a public smithing bench").get_display_desc()
+assert (
+    f"{_work_docket['offcuts']} of {_workshop_rules.DAILY_OFFCUTS} iron offcuts"
+) in one("a public smithing bench").get_display_desc()
 assert _public_market in [e.destination for e in _workroom.exits]
 _next_repair = _workshop_rules.refresh(_work_docket, _work_docket["day"] + 1)
 assert _next_repair["offcuts"] == _workshop_rules.DAILY_OFFCUTS
