@@ -2117,3 +2117,106 @@ print("POST_RESTART_BRIDGE_RESPONSE_GREEN")
 
 
 print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")
+
+# EDGE-15: the same physical bridge case and both independently signed
+# professional actions survive a real Evennia process restart.
+from world.events import get_event_ledger as _edge15_ledger
+from world.bridge_case_state import case_lines as _edge15_case_lines
+_edge15_detective = one("BridgeCaseTester")
+# A character's session-bound .account may be None after logout/restart.
+# Use the persisted account-to-character ownership relation, as the existing
+# bridge assertions do, rather than relying on normalized account names.
+_edge15_detective_account = next(
+    (account for account in AccountDB.objects.all()
+     if any(char.id == _edge15_detective.id
+            for char in account.characters.all())),
+    None,
+)
+_edge15_chronicler_account = _bridge_owner
+assert _edge15_detective_account is not None, "Detective owner not found after restart"
+assert _edge15_chronicler_account is not None, "Chronicler owner not found after restart"
+_edge15_bridge = get_public_mystery(BRIDGE_PLAQUE_ID)
+_edge15_exams = list(_edge15_bridge.get("case_examinations") or [])
+_edge15_bulletins = list(_edge15_bridge.get("case_bulletins") or [])
+assert _edge15_exams and _edge15_bulletins, "Case actions did not persist"
+_edge15_exam = _edge15_exams[-1]
+_edge15_bulletin = _edge15_bulletins[-1]
+assert _edge15_exam["account_id"] == _edge15_detective_account.id
+assert _edge15_exam["mask_id"] == _edge15_detective.id
+assert _edge15_bulletin["account_id"] == _edge15_chronicler_account.id
+assert _edge15_bulletin["mask_id"] == smoke.id
+assert _edge15_exam["account_id"] != _edge15_bulletin["account_id"]
+assert _edge15_bulletin["source_event_id"] == _edge15_exam["event_id"]
+assert _edge15_bulletin["observation_event_id"] == _edge15_exam["observation_event_id"]
+_edge15_ledger_obj = _edge15_ledger()
+_edge15_signed_exam = _edge15_ledger_obj.get_event(_edge15_exam["event_id"])
+_edge15_signed_bulletin = _edge15_ledger_obj.get_event(_edge15_bulletin["event_id"])
+_edge15_signed_observation = _edge15_ledger_obj.get_event(
+    _edge15_exam["observation_event_id"]
+)
+assert _edge15_signed_exam["kind"] == "village.bridge_plaque_examined"
+assert _edge15_signed_exam["status"] == "complete"
+assert _edge15_signed_exam["actor"]["account_id"] == _edge15_detective_account.id
+assert _edge15_signed_exam["payload"]["professional_calling"] == "detective"
+assert _edge15_signed_exam["consequence"]["finding"] == "physical_marks_only"
+assert _edge15_signed_bulletin["kind"] == "village.bridge_case_bulletin"
+assert _edge15_signed_bulletin["status"] == "complete"
+assert _edge15_signed_bulletin["actor"]["account_id"] == _edge15_chronicler_account.id
+assert _edge15_signed_bulletin["payload"]["source_event_id"] == _edge15_exam["event_id"]
+assert _edge15_signed_bulletin["consequence"]["status"] == "attributed_evidence_only"
+assert _edge15_signed_observation["kind"] == "public_mystery.bridge_plaque.observed"
+assert _edge15_signed_observation["status"] == "complete"
+# The Chronicler inspected the plaque first; the Detective came later.
+# Both must own distinct completed physical observation events after restart.
+_edge15_witness_rows = [
+    row for row in _edge15_bridge.get("observations") or []
+    if any(w.get("account_id") == _edge15_detective_account.id
+           and w.get("mask_id") == _edge15_detective.id
+           and w.get("source_event_id") == _edge15_exam["observation_event_id"]
+           for w in row.get("witnesses") or [])
+]
+assert len(_edge15_witness_rows) == 1, "Detective's own signed witness link missing"
+_edge15_witness_row = _edge15_witness_rows[0]
+assert _edge15_witness_row["source_event_id"] != _edge15_exam["observation_event_id"], (
+    "Detective reused the first visitor's signed observation"
+)
+_edge15_original_observation = _edge15_ledger_obj.get_event(
+    _edge15_witness_row["source_event_id"]
+)
+assert _edge15_original_observation["status"] == "complete"
+assert _edge15_original_observation["kind"] == "public_mystery.bridge_plaque.observed"
+assert _edge15_original_observation["actor"]["account_id"] == _edge15_chronicler_account.id
+assert _edge15_original_observation["actor"]["mask_id"] == smoke.id
+assert _edge15_signed_observation["actor"]["account_id"] == _edge15_detective_account.id
+assert _edge15_signed_observation["actor"]["mask_id"] == _edge15_detective.id
+assert _edge15_signed_observation["payload"]["day"] == _edge15_witness_row["day"]
+assert _edge15_signed_observation["payload"]["hour"] == _edge15_witness_row["hour"]
+assert _edge15_signed_observation["payload"]["pattern"] == _edge15_witness_row["pattern"]
+assert _edge15_signed_observation["payload"]["weather"] == _edge15_witness_row["weather"]
+print("POST_RESTART_GDD_EDGE15_SECOND_WITNESS_ACTOR_BOUND_GREEN")
+_edge15_readback = " ".join(_edge15_case_lines(
+    _edge15_bridge, _edge15_bulletin["day"],
+    get_event=_edge15_ledger_obj.get_event,
+))
+assert f"examination event {_edge15_exam['event_id']}" in _edge15_readback
+assert f"bulletin event {_edge15_bulletin['event_id']}" in _edge15_readback
+assert "do not identify a culprit" in _edge15_readback
+# Exercise the actual public command adapter against a tampered, disposable
+# in-memory projection. Do not alter the persisted registry or canonical ledger.
+import copy as _edge15_copy
+from unittest.mock import patch as _edge15_patch
+from world import public_mysteries as _edge15_public
+for _edge15_field, _edge15_bad in (
+    ("event_id", 99999999), ("source_event_id", 99999998),
+    ("account_id", _edge15_detective_account.id),
+):
+    _edge15_forged = _edge15_copy.deepcopy(_edge15_bridge)
+    _edge15_forged["case_bulletins"][-1][_edge15_field] = _edge15_bad
+    with _edge15_patch.object(_edge15_public, "get_public_mystery",
+                              return_value=_edge15_forged):
+        _edge15_text = " ".join(_edge15_public.mystery_lines(
+            stable_id=BRIDGE_PLAQUE_ID))
+    assert f"bulletin event {_edge15_bulletin['event_id']}" not in _edge15_text
+    assert "unverified" in _edge15_text
+print("POST_RESTART_GDD_EDGE15_FORGED_PUBLIC_READBACK_SUPPRESSED_GREEN")
+print("POST_RESTART_GDD_EDGE15_DISTINCT_SIGNED_BRIDGE_CASE_GREEN")

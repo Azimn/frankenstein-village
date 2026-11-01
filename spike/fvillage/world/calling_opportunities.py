@@ -35,6 +35,9 @@ WORK = {
         "after a Merchant decision and Smith calibration.",
         "In the village: read chronicle and rumors; investigate conflicting "
         "testimony before making a documented entry.",
+        "At Village Square, use mystery bridge publish after an independent "
+        "Detective signs a firsthand examination of the real bridge plaque. "
+        "The bulletin is evidence-limited and does not identify a culprit.",
     ),
     "smith": (
         "At the Church, inspect the clinic cot. A Workshop-forged physical "
@@ -132,6 +135,8 @@ WORK = {
         "on Riverside Path, and consider a provisional theory bridge.",
         "Use mystery bridge or mystery manor to compare public evidence. "
         "Claims and suspicions do not become facts just by being published.",
+        "At the Old Stone Bridge, look plaque, then mystery bridge examine "
+        "to sign a physical evidence record for an independent Chronicler.",
     ),
     "hound": (
         "At the Northern Treeline, examine the frayed red cord and use "

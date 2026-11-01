@@ -121,6 +121,7 @@ def main() -> int:
     wanderer = None
     hound = None
     detective = None
+    bridge_detective = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -437,9 +438,55 @@ def main() -> int:
         require(out, "provisional public interpretation")
         out = c.command("mystery bridge")
         require_all(out, "provisional theories", "former ferry keeper")
+        # EDGE-15: an ordinary player may still submit a theory alone.
+        # A Detective and Chronicler must then perform distinct signed acts.
+        out = c.command("mystery bridge examine")
+        require(out, "only an active detective")
+        bridge_detective = Client(args.host, args.port)
+        require(bridge_detective.sync_login_screen(), "frankenstein village")
+        detective_pass = os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = bridge_detective.command(
+            f"connect qa_detective_case {detective_pass}", wait=4.0
+        )
+        require(out, "connected", "account qa_detective_case")
+        bridge_detective.command("charcreate BridgeCaseTester", wait=3.0)
+        out = bridge_detective.command("ic BridgeCaseTester", wait=4.0)
+        require(out, "private room")
+        out = bridge_detective.command("calling choose detective")
+        require(out, "detective is now your active calling")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("east", "blood of the vine"),
+            ("east", "riverside path"), ("east", "old stone bridge"),
+        ):
+            out = bridge_detective.command(move)
+            require(out, destination)
+        out = bridge_detective.command("mystery bridge examine")
+        require(out, "look at the physical plaque")
+        out = bridge_detective.command("look plaque")
+        require_all(out, "screws", "who removed it")
+        out = bridge_detective.command("mystery bridge publish")
+        require(out, "only an active chronicler")
+        out = bridge_detective.command("mystery bridge examine")
+        require_all(out, "detective examination event", "no culprit")
+        out = bridge_detective.command("mystery bridge examine")
+        require(out, "already signed today")
+        out = c.command("mystery bridge publish")
+        require(out, "publish the case bulletin from village square")
         out = c.command("west")
         require(out, "riverside path")
         out = c.command("west")
+        require(out, "blood of the vine")
+        out = c.command("west")
+        require(out, "village square")
+        out = c.command("mystery bridge publish")
+        require_all(out, "chronicler case bulletin event", "independent detective source")
+        out = c.command("mystery bridge")
+        require_all(out, "detective source", "bulletin event", "do not identify a culprit")
+        out = c.command("mystery bridge publish")
+        require(out, "already signed today")
+        print("TELNET_GDD_EDGE15_DISTINCT_SIGNED_BRIDGE_CASE_GREEN")
+        out = c.command("east")
         require(out, "blood of the vine")
 
         # Systemic object foundation: the ordinary eat verb now reads the
@@ -2802,6 +2849,8 @@ def main() -> int:
             print("\nDETECTIVE TRANSCRIPT\n" + "\n".join(detective.transcript))
         raise
     finally:
+        if bridge_detective is not None:
+            bridge_detective.close()
         if detective is not None:
             detective.close()
         if hound is not None:
