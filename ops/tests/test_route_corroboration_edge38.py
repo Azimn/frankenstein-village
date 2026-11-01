@@ -213,5 +213,133 @@ class Edge38Tests(unittest.TestCase):
         self.assertNotIn("corroboration", restored["field_decisions"]["wanderer"])
 
 
+    def test_public_corroboration_requires_completed_three_event_chain(self):
+        state, marker = prepared()
+        state, ok, reason = r.corroborate(
+            state, 4, "red_cord", 102, 31, "Wanderer", 103
+        )
+        self.assertTrue(ok, reason)
+        hound, wanderer = signed("hound"), signed("wanderer")
+        joint = {
+            "id": 103, "status": "complete",
+            "kind": "village.route_caution_corroborated",
+            "actor": {"account_id": 31, "mask": "Wanderer", "mask_id": 88},
+            "payload": {
+                "site": "red_cord", "day": 4, "hour": 13,
+                "role": "wanderer", "action": "corroborate",
+                "location": "The Northern Treeline", "cord_object_id": 6,
+                "hound_source_event_id": 102,
+                "wanderer_source_event_id": 101,
+            },
+            "consequence": {
+                "site": "red_cord", "day": 4,
+                "role": "wanderer", "action": "corroborate",
+                "cord_object_id": 6, "square_room_id": 7,
+                "hound_source_event_id": 102,
+                "wanderer_source_event_id": 101,
+                "physical_caution_present": True,
+            },
+        }
+        def verified(event=joint, h=hound, w=wanderer, board=state, physical=marker):
+            return r.verify_signed_corroboration(
+                board, event, h, w, day=4, hour=13, cord_id=6,
+                square_id=7, marker=physical,
+            )
+        self.assertTrue(verified())
+        self.assertTrue(verified(board=json.loads(json.dumps(state))))
+        for section, key, bad in (
+            ("root", "status", "failed"),
+            ("root", "kind", "village.route_passability_observed"),
+            ("root", "id", 999),
+            ("actor", "account_id", 32),
+            ("actor", "mask", "Impostor"),
+            ("actor", "mask_id", True),
+            ("payload", "day", 5),
+            ("payload", "hour", 11),
+            ("payload", "location", "Village Square"),
+            ("payload", "cord_object_id", 9),
+            ("payload", "hound_source_event_id", 999),
+            ("payload", "wanderer_source_event_id", 999),
+            ("consequence", "square_room_id", 9),
+            ("consequence", "cord_object_id", 9),
+            ("consequence", "physical_caution_present", False),
+        ):
+            with self.subTest(section=section, key=key):
+                forged = copy.deepcopy(joint)
+                target = forged if section == "root" else forged[section]
+                target[key] = bad
+                self.assertFalse(verified(event=forged))
+        for source in (hound, wanderer):
+            forged = copy.deepcopy(source)
+            forged["status"] = "failed"
+            self.assertFalse(verified(
+                h=forged if source is hound else hound,
+                w=forged if source is wanderer else wanderer,
+            ))
+        self.assertFalse(verified(physical=dict(marker, event_id=999)))
+        self.assertFalse(verified(board=r.refresh(state, 5)))
+
+    def test_public_status_suppresses_forged_joint_without_mutating_board(self):
+        import ast
+        from types import SimpleNamespace
+        path = (Path(__file__).resolve().parents[2]
+                / "spike/fvillage/world/route_work.py")
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        node = next(n for n in tree.body
+                    if isinstance(n, ast.FunctionDef) and n.name == "status_lines")
+        import copy as _copy
+        state, marker = prepared()
+        state, ok, _ = r.corroborate(state, 4, "red_cord", 102, 31, "Wanderer", 103)
+        self.assertTrue(ok)
+        square = SimpleNamespace(id=7, db=SimpleNamespace(daily_route_survey=state))
+        cord = SimpleNamespace(
+            id=6, location=SimpleNamespace(key="The Northern Treeline"),
+            db=SimpleNamespace(landmark_id="red_cord", route_caution=marker),
+        )
+        sources = {
+            101: signed("wanderer"), 102: signed("hound"),
+            103: {
+                "id": 103, "status": "complete",
+                "kind": "village.route_caution_corroborated",
+                "actor": {"account_id": 31, "mask": "Wanderer", "mask_id": 88},
+                "payload": {
+                    "site": "red_cord", "day": 4, "hour": 13,
+                    "role": "wanderer", "action": "corroborate",
+                    "location": "The Northern Treeline", "cord_object_id": 6,
+                    "hound_source_event_id": 102, "wanderer_source_event_id": 101,
+                },
+                "consequence": {
+                    "site": "red_cord", "day": 4, "role": "wanderer",
+                    "action": "corroborate", "cord_object_id": 6,
+                    "square_room_id": 7, "hound_source_event_id": 102,
+                    "wanderer_source_event_id": 101,
+                    "physical_caution_present": True,
+                },
+            },
+        }
+        ns = {
+            "_square": lambda: square, "_day_hour": lambda: (4, 13),
+            "route_surveys": r,
+            "get_event_ledger": lambda: SimpleNamespace(
+                get_event=lambda eid: sources.get(eid)),
+            "search": SimpleNamespace(search_object=lambda key: [cord]),
+            "LANDMARKS": {
+                site: {"key": "a frayed red cord", "room": "The Northern Treeline"}
+                for site in r.SITES
+            },
+            "_caution_marker": lambda raw: raw,
+        }
+        module = ast.Module(body=[node], type_ignores=[])
+        exec(compile(module, str(path), "exec"), ns)
+        snapshot = _copy.deepcopy(state)
+        good = ns["status_lines"]()
+        self.assertIn("independently rechecked", good)
+        sources[103]["consequence"]["physical_caution_present"] = False
+        bad = ns["status_lines"]()
+        self.assertNotIn("independently rechecked", bad)
+        self.assertIn("stored route corroboration is unverified", bad)
+        self.assertEqual(state, snapshot)
+
+
 if __name__ == "__main__":
     unittest.main()
