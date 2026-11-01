@@ -12,6 +12,9 @@ WORK = {
         "when a neighbor has tended the hearth. A Merchant can give you a "
         "physical kitchen roots crate; soup accept verifies its signed source "
         "and receives it into the pantry. soup deliver remains a solo fallback.",
+        "After a Wanderer signs survey passability at the Northern Treeline "
+        "and returns, cook a real soup bowl and use soup welcome <Wanderer> "
+        "at the Tavern to hand over finite food with a signed arrival receipt.",
         "At the Blood of the Vine: inspect the hearth, then use hearth "
         "tend when the fire has settled and delivered stock is available.",
         "At the communal soup pot, inspect its lid hinge. Use soup restrict "
@@ -83,10 +86,15 @@ WORK = {
         "Collect actual sealed ferry-post parcels in Market Lane with courier collect. "
         "Carry or give them to another person for courier deliver at Riverside Path. "
         "The limited daily supply and signed ferry manifest persist.",
+        "After signing survey passability, physically return to the Blood "
+        "of the Vine. An independent Innkeep with a cooked bowl can use "
+        "soup welcome <your mask> to offer real food, which you may eat.",
         "At the Northern Treeline, examine the frayed red cord and use "
         "survey passability to record whether a real caution marker was "
-        "present when you visited. This is a dated route judgment, not "
-        "a guarantee of safety.",
+        "present when you visited. If a separate Hound has since used "
+        "survey protect, examine the cord again and use survey corroborate "
+        "to sign an independently sourced follow-up. Neither observation "
+        "guarantees safety.",
         "Use survey to see the four current district checkpoints. "
         "Travel there, look at each actual clue, and use survey report.",
         "Examine the Riverside Path, churchyard, treeline, and market "

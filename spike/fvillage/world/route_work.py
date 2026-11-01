@@ -62,11 +62,39 @@ def status_lines():
                 f"* {spec['room']}: not yet inspected. Find "
                 f"{spec['key']} and examine it."
             )
-    lines.extend(route_surveys.field_lines(state))
+    ledger = get_event_ledger()
+    # A normalized board claim alone is not a completed route recheck. The
+    # current physical cord and all three original ledger events must agree.
+    public_field_state = state
+    entries = state["field_decisions"]
+    joint = (entries.get("wanderer") or {}).get("corroboration")
+    if joint:
+        cord = next((
+            obj for obj in search.search_object(LANDMARKS["red_cord"]["key"])
+            if getattr(getattr(obj, "location", None), "key", None)
+            == LANDMARKS["red_cord"]["room"]
+            and getattr(obj.db, "landmark_id", None) == "red_cord"
+        ), None)
+        hound = entries.get("hound") or {}
+        wanderer = entries.get("wanderer") or {}
+        signed = bool(cord) and route_surveys.verify_signed_corroboration(
+            state, ledger.get_event(joint["event_id"]),
+            ledger.get_event(hound.get("event_id")),
+            ledger.get_event(wanderer.get("event_id")),
+            day=day, hour=_hour, cord_id=cord.id, square_id=square.id,
+            marker=_caution_marker(getattr(cord.db, "route_caution", None)),
+        )
+        if not signed:
+            public_entries = dict(entries)
+            public_wanderer = dict(wanderer)
+            public_wanderer.pop("corroboration", None)
+            public_entries["wanderer"] = public_wanderer
+            public_field_state = dict(state, field_decisions=public_entries)
+            lines.append("The stored route corroboration is unverified; no signed recheck is displayed.")
+    lines.extend(route_surveys.field_lines(public_field_state))
     # Persisted advisory text is not proof that a Chronicler event completed.
     public_state = state
     item = state.get("advisory")
-    ledger = get_event_ledger()
     if item and not route_surveys.verified_advisory_publication(
         state, ledger.get_event(item["event_id"]), square_id=square.id,
     ):
@@ -78,6 +106,8 @@ def status_lines():
         "frayed red cord and use |wsurvey protect|n to tie a visible warning. "
         "An active Wanderer can independently use |wsurvey passability|n "
         "there to record whether the warning was present when inspected. "
+        "After both signed actions, the original Wanderer may examine the "
+        "cord again and use |wsurvey corroborate|n for an independent check. "
         "Neither action proves why the cord was damaged."
     )
     if route_surveys.complete(state):
@@ -266,7 +296,8 @@ def field_action(mask, action):
         return None, "Use an ordinary logged-in player mask."
     role = active_calling(mask)
     if (role, action) not in {
-        ("hound", "protect"), ("wanderer", "passability")
+        ("hound", "protect"), ("wanderer", "passability"),
+        ("wanderer", "corroborate")
     }:
         return None, "Only a Hound can protect a route and a Wanderer can assess passability."
     site = "red_cord"
@@ -295,6 +326,8 @@ def field_action(mask, action):
     square = _square()
     if square is None:
         return None, "The Square's existing public route board is missing."
+    if action == "corroborate":
+        return _corroborate(mask, room, cord, square, day, hour)
     marker = _caution_marker(getattr(cord.db, "route_caution", None))
     if marker is None:
         return None, "The physical cord warning record is malformed; ask a keeper to inspect it."
@@ -462,3 +495,88 @@ def publish_advisory(mask):
     )
     return {"event_id": event["id"], "source_event_id": source["event_id"],
             "version": 1, "day": day}, None
+
+
+def _corroboration_sources(square, cord, day, hour):
+    """Validate both completed events and the same actual marked object."""
+    state = route_surveys.refresh(square.db.daily_route_survey, day)
+    entries = state["field_decisions"]
+    hound, wanderer = entries.get("hound"), entries.get("wanderer")
+    if not hound or not wanderer:
+        return None, "Both independent professional field records are required."
+    marker = _caution_marker(getattr(cord.db, "route_caution", None))
+    if marker is None:
+        return None, "The physical cord warning record is malformed."
+    if not route_surveys.verify_caution_marker(marker, hound, day):
+        return None, "The current physical warning has no matching Hound source today."
+    if hound["account_id"] == wanderer["account_id"]:
+        return None, "Two separate ordinary accounts must contribute."
+    ledger = get_event_ledger()
+    for role, entry in (("hound", hound), ("wanderer", wanderer)):
+        signed = ledger.get_event(entry["event_id"])
+        if not route_surveys.verify_signed_field_source(
+            signed, entry, role, day, hour, cord.id, square.id
+        ):
+            return None, "A completed independent field source could not be verified."
+    return state, None
+
+
+def _corroborate(mask, room, cord, square, day, hour):
+    """A later firsthand Wanderer check, bound to signed Hound protection."""
+    state, problem = _corroboration_sources(square, cord, day, hour)
+    if problem:
+        return None, problem
+    hound = state["field_decisions"]["hound"]
+    proposed, ok, reason = route_surveys.corroborate(
+        state, day, "red_cord", hound["event_id"],
+        mask.account.id, mask.key,
+        max(hound["event_id"], state["field_decisions"]["wanderer"]["event_id"]) + 1,
+    )
+    if not ok:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            if mask.location != room or cord.location != room:
+                raise RuntimeError("The firsthand observer left the physical cord.")
+            if active_calling(mask) != "wanderer":
+                raise RuntimeError("The observer is no longer a Wanderer.")
+            if _day_hour() != (day, hour):
+                raise RuntimeError("Village time changed during corroboration.")
+            recent = dict(mask.db.landmark_latest_view or {}).get("red_cord") or {}
+            if int(recent.get("day") or 0) != day:
+                raise RuntimeError("The Wanderer did not inspect the cord today.")
+            latest, source_error = _corroboration_sources(square, cord, day, hour)
+            if source_error:
+                raise RuntimeError(source_error)
+            hound_entry = latest["field_decisions"]["hound"]
+            updated, valid, failure = route_surveys.corroborate(
+                latest, day, "red_cord", hound_entry["event_id"],
+                mask.account.id, mask.key, event["id"],
+            )
+            if not valid:
+                raise RuntimeError(failure)
+            square.db.daily_route_survey = updated
+            record_participation(mask, "field_corroborations", calling="wanderer")
+            return {
+                "site": "red_cord", "day": day,
+                "role": "wanderer", "action": "corroborate",
+                "cord_object_id": cord.id, "square_room_id": square.id,
+                "hound_source_event_id": hound_entry["event_id"],
+                "wanderer_source_event_id": latest["field_decisions"]["wanderer"]["event_id"],
+                "physical_caution_present": True,
+            }
+
+    event = publish_world_event(
+        "village.route_caution_corroborated", actor=mask,
+        payload={
+            "site": "red_cord", "day": day, "hour": hour,
+            "role": "wanderer", "action": "corroborate",
+            "location": room.key, "cord_object_id": cord.id,
+            "hound_source_event_id": hound["event_id"],
+            "wanderer_source_event_id": state["field_decisions"]["wanderer"]["event_id"],
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "hound_source_event_id": hound["event_id"]}, None

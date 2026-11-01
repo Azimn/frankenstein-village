@@ -62,6 +62,33 @@ def normalize(raw):
             decisions[role]["retied_previous_day"] = entry.get("retied_previous_day") is True
         if role == "wanderer":
             decisions[role]["observation"] = observation
+    # A later Wanderer check links two completed professional sources without
+    # rewriting either original observation. Old snapshots lack this optional
+    # entry and remain readable.
+    raw_wanderer = dict(value.get("field_decisions") or {}).get("wanderer") or {}
+    joint = raw_wanderer.get("corroboration") if hasattr(raw_wanderer, "get") else None
+    if (hasattr(joint, "get") and "hound" in decisions and "wanderer" in decisions):
+        try:
+            joint_id = int(joint["event_id"])
+            source_id = int(joint["hound_event_id"])
+            joint_account = int(joint["account_id"])
+        except (KeyError, TypeError, ValueError, OverflowError):
+            pass
+        else:
+            if (not any(isinstance(joint.get(k), bool) for k in
+                        ("event_id", "hound_event_id", "account_id"))
+                    and joint_id > 0
+                    and source_id == decisions["hound"]["event_id"]
+                    and joint_account == decisions["wanderer"]["account_id"]
+                    and joint_account != decisions["hound"]["account_id"]
+                    and joint_id not in {source_id, decisions["wanderer"]["event_id"]}
+                    and joint.get("observation") == "marked_caution"):
+                decisions["wanderer"]["corroboration"] = {
+                    "event_id": joint_id, "hound_event_id": source_id,
+                    "account_id": joint_account,
+                    "mask": decisions["wanderer"]["mask"],
+                    "observation": "marked_caution",
+                }
     # A map is an attributed editorial snapshot, never a live hazard oracle.
     advisory = None
     item = value.get("advisory")
@@ -197,6 +224,174 @@ def field_decision(raw, day, site, role, action, caution_marked,
     return state, True, None
 
 
+def corroborate(raw, day, site, marker_event_id, account_id, mask, event_id):
+    """A Wanderer independently rechecks a Hound's physical caution marker.
+
+    Ledger and actual-object verification belong to route_work. This pure
+    transition only accepts the two existing signed field roles, the exact
+    physical marker source, and the original Wanderer's account. No invented
+    hazard, repaired cord, new resource, or retroactive report is created.
+    """
+    state = refresh(raw, day)
+    if day < state["day"]:
+        return state, False, "A later village day is already recorded."
+    if site != "red_cord":
+        return state, False, "Corroboration requires the physical treeline cord."
+    hound = state["field_decisions"].get("hound")
+    wanderer = state["field_decisions"].get("wanderer")
+    if not hound or not wanderer:
+        return state, False, "Both professional field observations must exist today."
+    if "corroboration" in wanderer:
+        return state, False, "This independent route check is already signed today."
+    for val in (marker_event_id, account_id, event_id):
+        if type(val) is not int or val < 1:
+            return state, False, "Valid independent account and event sources are required."
+    if marker_event_id != hound["event_id"]:
+        return state, False, "The physical warning does not match the Hound's source."
+    if account_id != wanderer["account_id"] or account_id == hound["account_id"]:
+        return state, False, "A separate Wanderer account must verify the Hound's work."
+    if mask != wanderer["mask"]:
+        return state, False, "The original Wanderer must sign their own follow-up."
+    if event_id in {marker_event_id, wanderer["event_id"]}:
+        return state, False, "Corroboration needs its own signed event."
+    wanderer["corroboration"] = {
+        "event_id": event_id, "hound_event_id": marker_event_id,
+        "account_id": account_id, "mask": wanderer["mask"],
+        "observation": "marked_caution",
+    }
+    return state, True, None
+
+
+def verify_caution_marker(marker, hound, day):
+    """Reject a forged or stale physical warning, including mapping-backed DB."""
+    if not hasattr(marker, "get") or not hasattr(hound, "get"):
+        return False
+    return (
+        type(marker.get("day")) is int and marker["day"] == day
+        and type(marker.get("event_id")) is int
+        and marker["event_id"] == hound.get("event_id")
+        and type(marker.get("account_id")) is int
+        and marker["account_id"] == hound.get("account_id")
+        and marker.get("mask") == hound.get("mask")
+    )
+
+
+def verify_signed_field_source(event, entry, role, day, hour, cord_id, square_id):
+    """Check the completed canonical ledger, not a field-board assertion."""
+    if not hasattr(event, "get") or not hasattr(entry, "get"):
+        return False
+    if role not in {"hound", "wanderer"}:
+        return False
+    actor = event.get("actor") or {}
+    payload = event.get("payload") or {}
+    effect = event.get("consequence") or {}
+    if not all(hasattr(item, "get") for item in (actor, payload, effect)):
+        return False
+    action = "protect" if role == "hound" else "passability"
+    kind = ("village.route_protected" if role == "hound"
+            else "village.route_passability_observed")
+    source_hour = payload.get("hour")
+    return (
+        type(event.get("id")) is int and event["id"] == entry.get("event_id")
+        and event.get("status") == "complete" and event.get("kind") == kind
+        and type(actor.get("account_id")) is int
+        and actor["account_id"] == entry.get("account_id")
+        and actor.get("mask") == entry.get("mask")
+        and payload.get("role") == role and payload.get("action") == action
+        and payload.get("site") == "red_cord"
+        and payload.get("location") == "The Northern Treeline"
+        and type(payload.get("day")) is int and payload["day"] == day
+        and type(source_hour) is int and 0 <= source_hour <= hour <= 23
+        and effect.get("site") == "red_cord"
+        and effect.get("role") == role and effect.get("action") == action
+        and type(effect.get("day")) is int and effect["day"] == day
+        and type(effect.get("cord_object_id")) is int
+        and effect["cord_object_id"] == cord_id
+        and type(effect.get("square_room_id")) is int
+        and effect["square_room_id"] == square_id
+        and (effect.get("caution_marked") is True if role == "hound"
+             else effect.get("interpretation") == entry.get("observation"))
+    )
+
+
+
+def verify_signed_corroboration(raw, event, hound_event, wanderer_event, *,
+                                day, hour, cord_id, square_id, marker):
+    """Only a completed, source-linked physical recheck may appear publicly.
+
+    Persisted route-board metadata is an index, not proof. Require the three
+    canonical events, independent ordinary accounts and the actual cord.
+    """
+    if (type(day) is not int or day < 1 or type(hour) is not int
+            or not 0 <= hour <= 23 or type(cord_id) is not int
+            or cord_id < 1 or type(square_id) is not int or square_id < 1):
+        return False
+    state = normalize(raw)
+    if state["day"] != day:
+        return False
+    hound = state["field_decisions"].get("hound")
+    wanderer = state["field_decisions"].get("wanderer")
+    joint = (wanderer or {}).get("corroboration")
+    if (not hound or not wanderer or not joint
+            or hound["account_id"] == wanderer["account_id"]
+            or not verify_caution_marker(marker, hound, day)
+            or not verify_signed_field_source(
+                hound_event, hound, "hound", day, hour, cord_id, square_id)
+            or not verify_signed_field_source(
+                wanderer_event, wanderer, "wanderer", day, hour, cord_id, square_id)):
+        return False
+    if not hasattr(event, "get"):
+        return False
+    actor = event.get("actor") or {}
+    payload = event.get("payload") or {}
+    effect = event.get("consequence") or {}
+    if not all(hasattr(part, "get") for part in (actor, payload, effect)):
+        return False
+    if (type(event.get("id")) is not int
+            or event["id"] != joint["event_id"]
+            or event["id"] in {hound["event_id"], wanderer["event_id"]}
+            or event.get("status") != "complete"
+            or event.get("kind") != "village.route_caution_corroborated"):
+        return False
+    source_hour = payload.get("hour")
+    hound_hour = (hound_event.get("payload") or {}).get("hour")
+    wanderer_hour = (wanderer_event.get("payload") or {}).get("hour")
+    return (
+        type(actor.get("account_id")) is int
+        and actor["account_id"] == wanderer["account_id"] == joint["account_id"]
+        and actor.get("mask") == wanderer["mask"] == joint["mask"]
+        and type(actor.get("mask_id")) is int and actor["mask_id"] > 0
+        and payload.get("site") == "red_cord"
+        and payload.get("role") == "wanderer"
+        and payload.get("action") == "corroborate"
+        and payload.get("location") == "The Northern Treeline"
+        and type(payload.get("day")) is int and payload["day"] == day
+        and type(source_hour) is int
+        and type(hound_hour) is int and type(wanderer_hour) is int
+        and max(hound_hour, wanderer_hour) <= source_hour <= hour
+        and type(payload.get("cord_object_id")) is int
+        and payload["cord_object_id"] == cord_id
+        and type(payload.get("hound_source_event_id")) is int
+        and payload["hound_source_event_id"] == joint["hound_event_id"] == hound["event_id"]
+        and type(payload.get("wanderer_source_event_id")) is int
+        and payload["wanderer_source_event_id"] == wanderer["event_id"]
+        and effect.get("site") == "red_cord"
+        and type(effect.get("day")) is int and effect["day"] == day
+        and effect.get("role") == "wanderer"
+        and effect.get("action") == "corroborate"
+        and type(effect.get("cord_object_id")) is int
+        and effect["cord_object_id"] == cord_id
+        and type(effect.get("square_room_id")) is int
+        and effect["square_room_id"] == square_id
+        and type(effect.get("hound_source_event_id")) is int
+        and effect["hound_source_event_id"] == hound["event_id"]
+        and type(effect.get("wanderer_source_event_id")) is int
+        and effect["wanderer_source_event_id"] == wanderer["event_id"]
+        and effect.get("physical_caution_present") is True
+        and joint.get("observation") == "marked_caution"
+    )
+
+
 def field_lines(raw):
     """Source-limited public record; a professional report is not a hazard oracle."""
     state = normalize(raw)
@@ -217,6 +412,14 @@ def field_lines(raw):
             f"{traveler['mask']} recorded a Wanderer's passage observation: "
             f"{label} (signed event {traveler['event_id']}). "
             "It describes the observed route at that time, not guaranteed safety."
+        )
+    joint = (entries.get("wanderer") or {}).get("corroboration")
+    if joint and "hound" in entries:
+        lines.append(
+            f"{joint['mask']} independently rechecked the Hound's visible "
+            f"caution marker (Wanderer event {joint['event_id']}, "
+            f"Hound source {joint['hound_event_id']}). "
+            "This confirms the marker was present, not that the route is safe."
         )
     return lines
 

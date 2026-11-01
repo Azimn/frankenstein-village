@@ -166,21 +166,25 @@ from world import soup_state
 _tavern_soup = one("The Blood of the Vine")
 _soup_log = soup_state.pantry(_tavern_soup.db.soup_pantry, 1)
 assert _soup_log["history"], "The shared soup pot lost all batches"
-# The first bowl was tasted; a second independently cooked bowl was
-# physically served at the Performer show. Preserve BOTH recipes and receipts.
-assert len(_soup_log["history"]) == 2
-_batch, _service_batch = _soup_log["history"]
-assert all(row["maker_id"] == innkeep_tester.id for row in (_batch, _service_batch))
+# The first bowl was tasted, a second served at the Performer show,
+# and a third cooked BEFORE the signed kitchen restriction for an independently
+# witnessed returning Wanderer. All three physical recipes must persist.
+assert len(_soup_log["history"]) == 3
+_batch, _service_batch, _arrival_batch = _soup_log["history"]
+assert all(row["maker_id"] == innkeep_tester.id
+           for row in (_batch, _service_batch, _arrival_batch))
 assert (_batch["base"], _batch["seasoning"]) == ("turnip", "thyme")
 assert (_service_batch["base"], _service_batch["seasoning"]) == ("barley", "salt")
+assert (_arrival_batch["base"], _arrival_batch["seasoning"]) == ("barley", "salt")
 assert all(row["prep_event_id"] < row["cook_event_id"]
-           for row in (_batch, _service_batch))
-assert innkeep_record["participation"]["soup_preparations"] == 2
-assert innkeep_record["participation"]["soup_batches_cooked"] == 2
+           for row in (_batch, _service_batch, _arrival_batch))
+assert innkeep_record["participation"]["soup_preparations"] == 3
+assert innkeep_record["participation"]["soup_batches_cooked"] == 3
 _notebook = list(innkeep_tester.db.soup_notebook or [])
-assert len(_notebook) == 2
+assert len(_notebook) == 3
 assert [row["cook_event_id"] for row in _notebook] == [
-    _batch["cook_event_id"], _service_batch["cook_event_id"]
+    _batch["cook_event_id"], _service_batch["cook_event_id"],
+    _arrival_batch["cook_event_id"]
 ]
 assert calling_record(merchant_tester, "merchant")["participation"]["kitchen_procurements"] == 1
 _soup_cooked = ScriptDB.objects.get(db_key="world_event_ledger").get_event(_batch["cook_event_id"])
@@ -286,6 +290,74 @@ assert "Chronicler SmokeTester" in _public_receipts
 assert "not a guest list" in _public_receipts
 assert "guest_name" not in str(_batch)
 print("POST_RESTART_GDD_EDGE01_CONSENTED_HOUSE_RECEIPT_GREEN")
+
+# EDGE-05: actual soup bowl, source-verified Wanderer observation, separate
+# accounts and signed Tavern hospitality survive a full Evennia restart.
+_wanderer_arrival = one("WandererTester")
+assert active_calling(_wanderer_arrival) == "wanderer"
+_arrival_batch = next(
+    row for row in _soup_log["history"]
+    if row["base"] == "barley" and row["seasoning"] == "salt"
+    and row.get("arrival_welcome")
+)
+_welcome = dict(_arrival_batch["arrival_welcome"])
+assert _welcome["wanderer_mask_id"] == _wanderer_arrival.id
+assert AccountDB.objects.filter(id=_welcome["wanderer_account_id"]).exists()
+assert _welcome["innkeep_mask_id"] == innkeep_tester.id
+assert AccountDB.objects.filter(id=_welcome["innkeep_account_id"]).exists()
+assert _welcome["wanderer_account_id"] != _welcome["innkeep_account_id"]
+assert _welcome["cook_event_id"] == _arrival_batch["cook_event_id"]
+assert _welcome["service"] == "physical_bowl_transferred"
+# Two independently cooked barley/salt batches legitimately have the same
+# display name. Identify each physical object by its signed cooking receipt,
+# never by a supposedly unique display name.
+_ledger_arrival = ScriptDB.objects.get(db_key="world_event_ledger")
+_arrival_cook = _ledger_arrival.get_event(_arrival_batch["cook_event_id"])
+_stage_cook = _ledger_arrival.get_event(_service_batch["cook_event_id"])
+assert _arrival_cook["status"] == _stage_cook["status"] == "complete"
+assert _arrival_cook["kind"] == _stage_cook["kind"] == "professional.innkeep_soup_cooked"
+assert _arrival_cook["id"] != _stage_cook["id"]
+assert _arrival_cook["payload"]["prep_event_id"] == _arrival_batch["prep_event_id"]
+assert _stage_cook["payload"]["prep_event_id"] == _service_batch["prep_event_id"]
+assert _arrival_batch["prep_event_id"] != _service_batch["prep_event_id"]
+_arrival_id = _arrival_cook["consequence"]["bowl_id"]
+_stage_id = _stage_cook["consequence"]["bowl_id"]
+assert type(_arrival_id) is int and type(_stage_id) is int
+assert _arrival_id == _welcome["bowl_id"] and _arrival_id != _stage_id
+_same_name_bowls = [obj for obj in search.search_object("a bowl of barley and salt soup")
+                    if obj.key == "a bowl of barley and salt soup"]
+assert len(_same_name_bowls) == 2, [obj.id for obj in _same_name_bowls]
+assert {obj.id for obj in _same_name_bowls} == {_arrival_id, _stage_id}
+_arrival_bowl = next(obj for obj in _same_name_bowls if obj.id == _arrival_id)
+_stage_bowl = next(obj for obj in _same_name_bowls if obj.id == _stage_id)
+assert _arrival_bowl.location == _wanderer_arrival
+assert _arrival_bowl.db.servings == 1
+assert _arrival_bowl.db.soup_serving["event_id"] == _arrival_cook["id"]
+assert _arrival_bowl.db.soup_serving["prep_event_id"] == _arrival_batch["prep_event_id"]
+assert _stage_bowl.location == _tavern_soup
+assert _stage_bowl.db.soup_serving["event_id"] == _stage_cook["id"]
+assert _stage_bowl.db.soup_serving["prep_event_id"] == _service_batch["prep_event_id"]
+_ledger_arrival = ScriptDB.objects.get(db_key="world_event_ledger")
+_arrival_event = _ledger_arrival.get_event(_welcome["event_id"])
+assert _arrival_event["status"] == "complete"
+assert _arrival_event["kind"] == "professional.innkeep_wanderer_arrival_welcome"
+assert _arrival_event["actor"]["account_id"] == _welcome["innkeep_account_id"]
+assert _arrival_event["consequence"]["bowl_id"] == _arrival_bowl.id
+assert _arrival_event["consequence"]["route_event_id"] == _welcome["route_event_id"]
+_route_source = _ledger_arrival.get_event(_welcome["route_event_id"])
+assert _route_source["status"] == "complete"
+assert _route_source["kind"] == "village.route_passability_observed"
+assert _route_source["actor"]["account_id"] == _welcome["wanderer_account_id"]
+assert _route_source["payload"]["location"] == "The Northern Treeline"
+assert _route_source["payload"]["day"] == _welcome["day"]
+assert innkeep_record["participation"]["arrival_hospitality"] == 1
+print("POST_RESTART_GDD_EDGE05_SIGNED_TWO_ACCOUNT_ARRIVAL_HOSPITALITY_GREEN")
+
+
+
+
+
+
 
 
 
@@ -1314,6 +1386,22 @@ assert _actions["wanderer"]["observation"] == "unmarked", (
     "Later protection overwrote the original Wanderer's observation"
 )
 assert _actions["hound"]["event_id"] == _cord.db.route_caution["event_id"]
+_joint = _actions["wanderer"]["corroboration"]
+assert _joint["hound_event_id"] == _actions["hound"]["event_id"]
+assert _joint["account_id"] == _actions["wanderer"]["account_id"]
+assert _joint["account_id"] != _actions["hound"]["account_id"]
+assert _joint["observation"] == "marked_caution"
+_signed_joint = warning_ledger.get_event(_joint["event_id"])
+assert _signed_joint["kind"] == "village.route_caution_corroborated"
+assert _signed_joint["status"] == "complete"
+assert _signed_joint["actor"]["account_id"] == _joint["account_id"]
+assert _signed_joint["payload"]["hound_source_event_id"] == _joint["hound_event_id"]
+assert _signed_joint["consequence"]["hound_source_event_id"] == _joint["hound_event_id"]
+assert _signed_joint["consequence"]["physical_caution_present"] is True
+assert _next_survey_day["history"][-1]["field_decisions"]["wanderer"]["corroboration"] == _joint
+assert calling_record(_wanderer_field, "wanderer")["participation"]["field_corroborations"] == 1
+print("POST_RESTART_GDD_EDGE38_SIGNED_INDEPENDENT_ROUTE_CORROBORATION_GREEN")
+
 for _role, _kind in (("hound", "village.route_protected"),
                      ("wanderer", "village.route_passability_observed")):
     _signed = warning_ledger.get_event(_actions[_role]["event_id"])
