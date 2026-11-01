@@ -60,7 +60,7 @@ def main():
                     "physically repaired by kitchensmithtester", "signed event")
         require(inn.command("soup simmer"), "carry one real prepared packet")
         require(inn.command("soup restrict"),
-                "already restricted, repaired, or invalid")
+                "already has completed signed kitchen work")
         assert "forged market hinge" not in smith.command("inventory").lower()
         require(smith.command("soup repair"), "carry one real forged iron hinge")
         print(f"TELNET_GDD_EDGE02_LATER_DAY_TWO_ACCOUNT_FINITE_KITCHEN_GREEN day={day}")
