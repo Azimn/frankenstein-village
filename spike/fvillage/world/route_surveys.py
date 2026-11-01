@@ -8,7 +8,7 @@ incomplete to complete. Incomplete days become explicit historical outcomes.
 from __future__ import annotations
 
 import copy
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 SITES = ("grave_marker", "red_cord", "market_scale", "river_gauge")
 MAX_HISTORY = 30
@@ -627,7 +627,9 @@ def publish_caution(raw, *, day, hour, account_id, mask_id, mask,
 
 def _valid_history(raw):
     """Keep only coherent archived days, never scalar or invented public reports."""
-    if not isinstance(raw, (list, tuple)):
+    # Evennia reloads stored lists as _SaverList (MutableSequence), not list.
+    # Preserve validated prior-day receipts across actual server restarts.
+    if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes, bytearray)):
         return []
     history = []
     for prior in raw:
