@@ -234,6 +234,28 @@ assert any(row["item_id"] == _kitchen_fix["item_id"]
            for row in _kitchen_crafts), "The finite Workshop source vanished"
 if _kitchen_docket["day"] == _kitchen_fix["day"]:
     assert _kitchen_docket["offcuts"] == 0, "The Workshop offcut was refunded"
+# Adversarial persistence rollback: the original completed world events
+# must prevent another restriction or fitting if the mutable pot state is
+# reset or rewound after a genuine server restart.
+from world import kitchen_repair_work
+_saved_kitchen_attribute = _kitchen_pot.db.kitchen_repair
+try:
+    _kitchen_pot.db.kitchen_repair = None
+    _prior, _why = kitchen_repair_work._prior_completed_pot_event(
+        _kitchen_pot, ("professional.innkeep_kitchen_restriction",
+                       "professional.smith_kitchen_repair"))
+    assert _prior, "Erasing pot Attribute hid original signed restriction"
+    assert "conflicts with signed physical history" in kitchen_repair_work.status()
+    _kitchen_pot.db.kitchen_repair = {
+        "condition": "restricted", "restriction": _kitchen_inn, "repair": None}
+    _prior, _why = kitchen_repair_work._prior_completed_pot_event(
+        _kitchen_pot, ("professional.smith_kitchen_repair",))
+    assert _prior, "Rewinding pot Attribute hid completed Smith fitting"
+    assert "conflicts with signed physical history" in kitchen_repair_work.status()
+finally:
+    _kitchen_pot.db.kitchen_repair = _saved_kitchen_attribute
+assert "physically repaired" in kitchen_repair_work.status()
+print("POST_RESTART_GDD_EDGE02_SIGNED_ROLLBACK_REFUSAL_GREEN")
 print("POST_RESTART_GDD_EDGE02_SIGNED_PHYSICAL_KITCHEN_REPAIR_GREEN")
 
 
