@@ -24,7 +24,8 @@ def fixture():
                     "day": 1, "hour": 21},
         "consequence": {"site": "red_cord", "role": "wanderer",
                         "action": "passability", "day": 1,
-                        "square_room_id": 2, "cord_object_id": 9},
+                        "square_room_id": 2, "cord_object_id": 9,
+                        "interpretation": "unmarked", "caution_marked": False},
     }
     cooked = {
         "id": 61, "kind": "professional.innkeep_soup_cooked",
@@ -126,6 +127,71 @@ class ArrivalHospitalityTests(unittest.TestCase):
         state, kw = fixture()
         kw["bowl_event"]["payload"]["prep_event_id"] = 99
         self.assertFalse(arrival.welcome(state, **kw)[1])
+
+    def test_original_observation_must_match_signed_route_consequence(self):
+        # A mutable Square projection must not rewrite the actual witnessed
+        # cord condition recorded in the completed canonical world event.
+        state, kw = fixture()
+        kw["route_entry"]["observation"] = "marked_caution"
+        self.assertFalse(arrival.welcome(state, **kw)[1])
+        self.assertNotIn("arrival_welcome", state["history"][0])
+
+        state, kw = fixture()
+        kw["route_event"]["consequence"]["interpretation"] = "marked_caution"
+        self.assertFalse(arrival.welcome(state, **kw)[1])
+
+        state, kw = fixture()
+        kw["route_event"]["consequence"]["caution_marked"] = True
+        self.assertFalse(arrival.welcome(state, **kw)[1])
+
+        # A legitimate observed marker remains a valid distinct account path.
+        state, kw = fixture()
+        kw["route_entry"]["observation"] = "marked_caution"
+        kw["route_event"]["consequence"]["interpretation"] = "marked_caution"
+        kw["route_event"]["consequence"]["caution_marked"] = True
+        result, ok, reason = arrival.welcome(state, **kw)
+        self.assertTrue(ok, reason)
+        self.assertEqual(result["history"][0]["arrival_welcome"]["route_observation"],
+                         "marked_caution")
+
+    def test_signed_identity_types_and_days_cannot_be_substituted(self):
+        # Python bool/float equality must not turn a malformed source into
+        # an authenticated account, object, world event or clock day.
+        mutations = (
+            ("route_event", "actor", "account_id", 31.0),
+            ("route_event", "actor", "mask_id", 32.0),
+            ("route_event", "payload", "day", True),
+            ("route_event", "consequence", "day", 1.0),
+            ("route_event", "consequence", "square_room_id", 2.0),
+            ("route_event", "consequence", "cord_object_id", True),
+            ("bowl_event", "actor", "account_id", 20.0),
+            ("bowl_event", "actor", "mask_id", 21.0),
+            ("bowl_event", "payload", "day", True),
+            ("bowl_event", "consequence", "bowl_id", 77.0),
+            ("bowl_event", "consequence", "pantry_room_id", 3.0),
+        )
+        for root, part, key, bad in mutations:
+            with self.subTest(root=root, part=part, key=key, bad=bad):
+                state, kw = fixture()
+                kw[root][part][key] = bad
+                changed, ok, _reason = arrival.welcome(state, **kw)
+                self.assertFalse(ok)
+                self.assertEqual(changed["history"], state["history"])
+
+        for key, bad in (("event_id", 80.0), ("account_id", 31.0)):
+            with self.subTest(route_entry=key):
+                state, kw = fixture()
+                kw["route_entry"][key] = bad
+                self.assertFalse(arrival.welcome(state, **kw)[1])
+
+    def test_malformed_persisted_cooking_receipt_is_not_proof(self):
+        for key, bad in (("cook_event_id", 61.0),
+                         ("prep_event_id", 60.0),
+                         ("maker_id", 21.0)):
+            with self.subTest(receipt=key):
+                state, kw = fixture()
+                state["history"][0][key] = bad
+                self.assertFalse(arrival.welcome(state, **kw)[1])
 
     def test_one_route_cannot_buy_multiple_meals(self):
         state, kw = fixture()
