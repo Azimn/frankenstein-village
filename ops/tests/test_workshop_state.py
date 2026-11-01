@@ -1,5 +1,6 @@
 """Pure tests for limited daily work, custody, renewal and replay denial."""
 import sys
+from collections import UserDict, UserList
 from pathlib import Path
 import unittest
 
@@ -74,6 +75,53 @@ class WorkshopTests(unittest.TestCase):
         self.assertFalse(okay)
         self.assertIn("already installed", error)
         self.assertEqual(replay, refreshed)
+
+    def test_evennia_mutable_sequence_history_survives_two_reloads(self):
+        # Evennia's Attribute _SaverList implements MutableSequence, not list.
+        # UserList reproduces the relevant persisted container contract.
+        day_one, okay, error = craft()
+        self.assertTrue(okay, error)
+        day_one, okay, error = craft(
+            day_one, aid=11, mid=110, eid=22, item=52,
+        )
+        self.assertTrue(okay, error)
+        self.assertEqual(day_one["offcuts"], 0)
+        day_two = w.refresh(day_one, 2)
+        self.assertEqual(len(day_two["history"]), 1)
+        persisted = UserDict(day_two)
+        persisted["history"] = UserList(
+            [UserDict(row) for row in day_two["history"]]
+        )
+        reloaded = w.normalize(persisted)
+        self.assertEqual([row["day"] for row in reloaded["history"]], [1])
+        self.assertEqual(
+            {craft["event_id"] for craft in reloaded["history"][0]["crafts"]},
+            {21, 22},
+        )
+        day_two, okay, error = craft(
+            persisted, day=2, aid=12, mid=120, eid=23, item=53,
+        )
+        self.assertTrue(okay, error)
+        self.assertEqual(day_two["offcuts"], 1)
+        self.assertEqual(len(day_two["history"][0]["crafts"]), 2)
+        second_persisted = UserDict(day_two)
+        second_persisted["history"] = UserList(
+            [UserDict(row) for row in day_two["history"]]
+        )
+        after_second_reload = w.normalize(second_persisted)
+        self.assertEqual(
+            [row["day"] for row in after_second_reload["history"]], [1]
+        )
+        self.assertEqual(
+            {craft["event_id"] for craft in after_second_reload["history"][0]["crafts"]},
+            {21, 22},
+        )
+        self.assertEqual(after_second_reload["crafts"][0]["event_id"], 23)
+        day_three = w.refresh(after_second_reload, 3)
+        self.assertEqual([row["day"] for row in day_three["history"]], [1, 2])
+        self.assertEqual(len(day_three["history"][0]["crafts"]), 2)
+        self.assertEqual(len(day_three["history"][1]["crafts"]), 1)
+        self.assertEqual(w.normalize({"day": 2, "history": "invalid"})["history"], [])
 
     def test_source_event_provenance_and_invalid_input(self):
         for kwargs in (
