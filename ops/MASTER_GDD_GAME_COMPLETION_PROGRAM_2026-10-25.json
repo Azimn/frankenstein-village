@@ -11,12 +11,23 @@
       "depends": [],
       "deliver": "Exact SHA authority/conflict register; select surviving #89/#90 and #91/#92 code paths; review #93/#94 as subordinate sources; retain draft status until separately approved.",
       "proof": "No duplicate changes, higher-authority World Bible conflicts marked for keeper, fresh exact-commit CI after eventual integration.",
-      "status": "planned",
-      "verified_evidence": [],
+      "status": "verified",
+      "verified_evidence": [
+        "main_sha:f8cea11584022c827c92985a092028ac96eea449",
+        "main_ci:https://github.com/Azimn/frankenstein-village/actions/runs/40450814068",
+        "review:https://github.com/Azimn/frankenstein-village/pull/85#issuecomment-6433775166",
+        "pr_head:f7c54219e5e6b86972aba2d22ae51e409e0961ac",
+        "pr_ci:https://github.com/Azimn/frankenstein-village/actions/runs/40449718259",
+        "merged_pr:https://github.com/Azimn/frankenstein-village/pull/85",
+        "authority_register:ops/FV_G00_INTEGRATION_REGISTER_2026-10-26.md"
+      ],
       "source_sections": [
         "19",
         "21"
-      ]
+      ],
+      "audit_register": "ops/FV_G00_INTEGRATION_REGISTER_2026-10-26.md",
+      "next_dependency": "FV-G01/FV-G02 Phase A source/evidence qualification; PR #89 remains separate and unmerged; no deployment authorized.",
+      "accepted_at_utc": "2026-10-27"
     },
     {
       "id": "FV-G01",

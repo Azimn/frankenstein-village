@@ -48,8 +48,30 @@ class MasterGDDProgramTests(unittest.TestCase):
         ids=[x["id"] for x in work]
         self.assertEqual(len(ids),len(set(ids)))
         statuses={x["status"] for x in work}
-        self.assertEqual(statuses,{"planned"})
+        self.assertTrue(statuses <= {"planned", "in_progress", "verified"})
+        self.assertEqual(len(work),14)
         parents={x["id"]:x["depends"] for x in work}
+        indexed={x["id"]:x for x in work}
+        for package in work:
+            status=package["status"]
+            evidence=package["verified_evidence"]
+            self.assertIsInstance(evidence,list)
+            if status=="planned":
+                self.assertEqual(evidence,[],package["id"])
+            if status=="verified":
+                self.assertTrue(evidence,"Verified package needs recorded proof")
+                self.assertTrue(
+                    all(indexed[parent]["status"]=="verified"
+                        for parent in package["depends"]),
+                    "Verified package requires verified dependencies",
+                )
+                if package["id"]=="FV-G00":
+                    for prefix in ("main_sha:", "main_ci:", "review:"):
+                        self.assertTrue(
+                            any(isinstance(item,str) and item.startswith(prefix)
+                                for item in evidence),
+                            "FV-G00 lacks "+prefix+" acceptance proof",
+                        )
         for k,prereqs in parents.items():
             self.assertNotIn(k,prereqs)
             self.assertTrue(all(x in parents for x in prereqs))
@@ -66,7 +88,7 @@ class MasterGDDProgramTests(unittest.TestCase):
             with self.subTest(string=string):
                 self.assertIn(string,self.plan)
 
-    def test_source_pair_register_has_all_45_with_evidence_unverified(self):
+    def test_source_pair_register_preserves_candidate_evidence_without_acceptance(self):
         register=json.loads(
             (ROOT/"ops/MASTER_GDD_45_EDGE_REGISTER_2026-10-25.json").read_text(encoding="utf-8")
         )
@@ -82,28 +104,22 @@ class MasterGDDProgramTests(unittest.TestCase):
                          ("Innkeep","Merchant","V"))
         for edge in edges:
             self.assertFalse(edge["verified_complete"])
+            for field in ("ordinary_player_discovery_proof",
+                          "two_account_test", "post_restart_test"):
+                evidence = edge[field]
+                if evidence is not None:
+                    self.assertIsInstance(evidence, str)
+                    self.assertTrue(evidence.startswith("candidate:"), edge["id"])
+            self.assertIsNone(edge["uncoached_gameplay_evidence"])
             self.assertGreater(len(edge["design_contract"]),60)
-            if edge["two_account_test"] is not None:
-                self.assertIn("spike/tests/", edge["two_account_test"])
-            if edge["post_restart_test"] is not None:
-                self.assertIn("spike/tests/", edge["post_restart_test"])
-            if edge["ordinary_player_discovery_proof"] is not None:
-                self.assertIsNotNone(edge["runtime_source_owner"])
-            if edge["uncoached_gameplay_evidence"] is None:
-                self.assertFalse(edge["verified_complete"])
-        candidate = edges[5]
-        self.assertIn("stage_work.py", candidate["runtime_source_owner"])
-        self.assertIn("TELNET_GDD_EDGE06", candidate["two_account_test"])
-        self.assertIn("POST_RESTART_GDD_EDGE06", candidate["post_restart_test"])
-        self.assertIsNone(candidate["solo_fallback_proof"])
-        self.assertIsNone(candidate["uncoached_gameplay_evidence"])
 
     def test_does_not_claim_implementation_or_canon_approval(self):
         self.assertIn("REVIEW DRAFT",self.gdd)
         self.assertIn("Do not describe this file as a lossless PDF",self.gdd)
         self.assertIn("Mystic B1",self.plan)
         self.assertTrue(any("Mystic keeper B1" in x for x in self.data["warnings"]))
-        self.assertTrue(all(x["verified_evidence"]==[] for x in self.data["work_packages"]))
+        self.assertTrue(all(x["verified_evidence"]==[] for x in self.data["work_packages"]
+                            if x["status"]=="planned"))
         self.assertIn("separate",self.plan.lower())
         self.assertIn("No new repository",self.plan)
 

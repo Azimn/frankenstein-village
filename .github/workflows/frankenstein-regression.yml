@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - feature/gdd-edge-06-stage-catering-20261026
+      - feat/gdd-edge33-signed-market-inquiry-20261027
 
 permissions:
   contents: read
