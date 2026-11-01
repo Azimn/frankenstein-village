@@ -12,6 +12,7 @@ class CmdStage(Command):
         stage perform ballad
         stage perform reel
         stage witness
+        stage cater             (Innkeep with a real cooked bowl)
         stage fit                (Smith with real Workshop hinge)
         stage soundcheck         (independent Performer)
         stage acoustic ballad    (finite tested rail)
@@ -33,6 +34,20 @@ class CmdStage(Command):
         raw = (self.args or "").strip().lower().split()
         if not raw or raw in (["status"], ["help"]):
             self.caller.msg(stage_work.status(self.caller))
+            return
+        if raw == ["cater"]:
+            result, error = stage_work.cater(self.caller)
+            if error:
+                self.caller.msg(error)
+                return
+            self.caller.msg("You place one real cooked soup bowl at the witnessed stage "
+                            "(service event %s, physical bowl %s, show event %s). "
+                            "Anyone here can take the bowl; no audience was invented."
+                            % (result["event_id"], result["bowl_id"], result["performance_event_id"]))
+            self.caller.location.msg_contents(
+                "%s provides real cooked soup at the witnessed Tavern performance." % self.caller.key,
+                exclude=[self.caller],
+            )
             return
         if raw == ["archive"]:
             self.caller.msg(stage_work.archive(self.caller))
@@ -63,7 +78,7 @@ class CmdStage(Command):
         elif raw == ["contest"]:
             result, error = stage_work.act(self.caller, "contest")
         else:
-            self.caller.msg("Use stage, stage rehearse ballad (or reel), stage perform ballad (or reel), stage witness, stage archive, stage review praise (or critique), stage fit, stage soundcheck, stage acoustic ballad (or reel), or stage contest <review event>.")
+            self.caller.msg("Use stage, stage rehearse ballad (or reel), stage perform ballad (or reel), stage witness, stage archive, stage review praise (or critique), stage cater, stage fit, stage soundcheck, stage acoustic ballad (or reel), or stage contest <review event>.")
             return
         if error:
             self.caller.msg(error)

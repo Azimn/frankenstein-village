@@ -17,6 +17,9 @@ WORK = {
         "At the communal soup pot, inspect its lid hinge. Use soup restrict "
         "to suspend unsafe player simmering until an independent Smith "
         "installs a real Workshop-forged hinge with soup repair.",
+        "After a real Performer show and signed audience witness at the Tavern, "
+        "cook a real soup bowl and use stage cater during the same village hour "
+        "to place it in public service. No show or audience means no demand claim.",
         "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
         "only if that unresolved need remains in the village.",
     ),
@@ -97,6 +100,9 @@ WORK = {
         "After a Healer has treated a real St. Lazarus visitor and signed "
         "a consented invitation, go to the Church, look at the clinic cot "
         "and use clinic music. Companionship is not a medical cure.",
+        "After a witnessed show, an Innkeep can bring a real cooked soup bowl "
+        "and use stage cater during the same hour; the stage preserves the "
+        "signed food and attendance receipts.",
         "Also play, practice or perform a duet with a willing partner using "
         "the normal leisure commands.",
         "Read the public calendar, then invite neighbors to an in-world "
