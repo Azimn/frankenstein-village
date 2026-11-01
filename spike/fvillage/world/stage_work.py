@@ -37,12 +37,57 @@ def _guard(mask):
     return tavern, None
 
 
+def _verified_public_status(raw, day, hour):
+    """Show safety decisions only when original world sources still verify.
+
+    Tavern Attribute projections are not signatures. In particular, a
+    restored or edited projection must never advertise an invented Hound
+    caution or an independent Performer decision as completed.
+    """
+    state = stage_state.refresh(raw, day)
+    claimed_warning = bool(state.get("safety_warning"))
+    claimed_decision = bool(state.get("safety_decision"))
+    verified_warning = False
+    verified_decision = False
+    if claimed_warning:
+        try:
+            verified_warning = bool(_verified_warning(raw, day, hour))
+        except (AttributeError, KeyError, TypeError, ValueError):
+            verified_warning = False
+    if claimed_decision and verified_warning:
+        try:
+            verified_decision = bool(_verified_decision(raw, day, hour))
+        except (AttributeError, KeyError, TypeError, ValueError):
+            verified_decision = False
+
+    if not verified_warning:
+        state["safety_warning"] = None
+    if not verified_decision:
+        state["safety_decision"] = None
+
+    # Earlier-day projections are not independently verified by the current
+    # daily route record. Never call a mutable archived choice signed.
+    historical_claim = False
+    for record in state["history"]:
+        if isinstance(record, Mapping) and record.get("safety_decision"):
+            record["safety_decision"] = None
+            historical_claim = True
+
+    lines = stage_state.public_lines(state, day)
+    if (claimed_warning and not verified_warning
+            or claimed_decision and not verified_decision):
+        lines += "\nA stage safety claim could not be verified against the original signed events."
+    if historical_claim:
+        lines += "\nEarlier stage safety choices require separate source verification."
+    return lines
+
+
 def status(mask):
     tavern, error = _guard(mask)
     if error:
         return error
-    day, _ = _clock()
-    return stage_state.public_lines(tavern.db.village_stage, day)
+    day, hour = _clock()
+    return _verified_public_status(tavern.db.village_stage, day, hour)
 
 
 def act(mask, action, tune=None):
