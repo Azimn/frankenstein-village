@@ -614,7 +614,7 @@ def public_lines(raw, day):
             lines.append("Previous stage decision: %s, day %d." % (prior_decision["choice"], last["day"]))
     lines.append("Hounds: after survey protect at the real red cord, visit here and stage warn.")
     lines.append("Performers: stage adapt indoor or stage adapt cancel after a Hound warning.")
-    lines.append("Performers: stage rehearse ballad (or reel), then stage perform ballad (or reel).")
+    lines.append("Performers: stage rehearse ballad or stage rehearse reel, then stage perform ballad or stage perform reel.")
     lines.append("During the actual performance hour, other visitors may stage witness.")
     lines.append("A firsthand Chronicler may stage review praise (or critique); the Performer may stage contest <review event>.")
     lines.append("Innkeeps: after a real audience witness, carry a cooked soup bowl and use stage cater in the same hour.")
