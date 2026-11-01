@@ -395,5 +395,32 @@ class BridgeWitnessAdapterTests(unittest.TestCase):
 
 
 
+
+class BridgeCallingDiscoveryPreservationTests(unittest.TestCase):
+    def test_bridge_leads_and_merged_player_work_remain_discoverable(self):
+        from world import calling_opportunities as leads
+
+        self.assertEqual(len(leads.WORK), 10)
+        required = {
+            "chronicler": ("mystery bridge publish", "trade audit"),
+            "detective": ("mystery bridge examine", "trade investigate"),
+            "innkeep": ("soup restrict", "soup repair", "stage cater"),
+            "hound": ("stage warn", "survey protect"),
+            "performer": ("stage adapt", "stage cater"),
+            "healer": ("clinic invite", "clinic records"),
+            "smith": ("clinic brace", "soup repair"),
+            "merchant": ("clinic procure", "soup accept"),
+            "wanderer": ("survey passability", "courier collect"),
+            "mystic": ("mystic study",),
+        }
+        for calling, verbs in required.items():
+            text = " ".join(leads.lines(calling)).lower()
+            for verb in verbs:
+                with self.subTest(calling=calling, command=verb):
+                    self.assertIn(verb, text)
+        self.assertNotIn("culprit identified", " ".join(leads.lines("chronicler")).lower())
+
+
+
 if __name__ == "__main__":
     unittest.main()
