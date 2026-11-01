@@ -94,6 +94,26 @@ class CautionNoticeTests(unittest.TestCase):
         self.assertEqual(newer["history"][-1]["caution_notice"]["event_id"], 41)
         self.assertIsNone(state.normalize(newer)["caution_notice"])
 
+    def test_persisted_mutable_sequence_keeps_signed_prior_day_history(self):
+        # Evennia reloads Attribute lists as _SaverList, a MutableSequence
+        # rather than a built-in list. Losing it breaks real day-two restart.
+        from collections import UserList
+
+        first, ok, reason = self.publish()
+        self.assertTrue(ok, reason)
+        rolled = state.refresh(first, 5)
+        saved = json.loads(json.dumps(rolled))
+        saved["history"] = UserList(saved["history"])
+        normalized = state.normalize(saved)
+        self.assertEqual(len(normalized["history"]), 1)
+        self.assertEqual(normalized["history"][-1]["day"], 4)
+        self.assertEqual(normalized["history"][-1]["caution_notice"]["event_id"], 41)
+        self.assertEqual(normalized["history"][-1]["field_decisions"]["hound"]["event_id"], 40)
+        self.assertEqual(len(state.refresh(saved, 6)["history"]), 2)
+        # Do not accidentally accept mapping keys or textual scalars as days.
+        for invalid in ("corrupt", b"corrupt", {"day": 4}, 17):
+            self.assertEqual(state.normalize({**saved, "history": invalid})["history"], [])
+
     def test_old_day_cannot_overwrite_new_day(self):
         self.s, ok, _ = self.publish()
         self.assertTrue(ok)
