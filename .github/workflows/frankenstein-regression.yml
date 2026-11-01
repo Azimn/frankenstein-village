@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - feature/gdd-edge15-detective-chronicler-case-20261027
 
 permissions:
   contents: read
