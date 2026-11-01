@@ -1812,7 +1812,11 @@ def main() -> int:
         out = smith.command("commons 1")
         require(out, "neighbors sought")
         require(out, "no one has written a response yet")
-        out = smith.command("commons follow 1")
+        out = smith.command("commons follow 1", wait=4.0)
+        if not out:
+            # A delayed telnet response is read once without resending a
+            # non-idempotent follow command. Missing output still fails below.
+            out = smith.read_quiet(max_wait=4.0)
         require(out, "in this mask's keeping")
         out = smith.command("commons followed")
         require(out, "commons #1")
