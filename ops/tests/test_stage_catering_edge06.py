@@ -147,8 +147,8 @@ class InnkeepPerformerCateringTests(unittest.TestCase):
             self.assertIsNone(stage.normalize(forged)["service"], field)
 
 
-def signed_catering_adapter():
-    """Load the actual pure source predicate without a running Evennia server."""
+def signed_catering_adapter(module_only=False):
+    """Load the actual adapter without a running Evennia server."""
     import importlib.util
     import types
     from unittest import mock
@@ -176,7 +176,7 @@ def signed_catering_adapter():
     module = importlib.util.module_from_spec(spec)
     with mock.patch.dict(sys.modules, fake):
         spec.loader.exec_module(module)
-    return module._catering_sources_match
+    return module if module_only else module._catering_sources_match
 
 
 def signed_catering_events():
@@ -278,6 +278,87 @@ class SignedCateringSourceTests(unittest.TestCase):
                 self.assertFalse(self.valid(state, corrupted))
         self.assertTrue(self.valid(state, original))
 
+
+
+
+class PublicCateringStatusProvenanceTests(unittest.TestCase):
+    """Exercise the actual adapter public status, not just pure state shape."""
+
+    def setUp(self):
+        import types
+        self.module = signed_catering_adapter(module_only=True)
+        self.state, ok, reason = cater(witnessed_show())
+        self.assertTrue(ok, reason)
+        self.events = signed_catering_events()
+        self.events["service"] = {
+            "id": 105, "status": "complete", "kind": "village.stage_cater",
+            "actor": {"account_id": 8, "mask_id": 80, "mask": "Mask8"},
+            "payload": {"day": 3, "hour": 19, "bowl_id": 201,
+                        "cook_event_id": 104},
+            "consequence": {
+                "day": 3, "hour": 19, "tavern_room_id": 500,
+                "bowl_id": 201, "cook_event_id": 104,
+                "performance_event_id": 102, "witness_event_id": 103,
+                "witness_count": 1,
+            },
+        }
+        self.tavern = types.SimpleNamespace(id=500)
+        self.tavern.db = types.SimpleNamespace(village_stage=self.state)
+        self.bowl = types.SimpleNamespace(
+            id=201, location=self.tavern,
+            tags=types.SimpleNamespace(has=lambda name: name == "food"),
+            db=types.SimpleNamespace(
+                servings=1, soup_serving={"event_id": 104},
+                stage_service={"event_id": 105,
+                               "performance_event_id": 102,
+                               "innkeep_account_id": 8},
+            ),
+        )
+        by_id = {event["id"]: event for event in self.events.values()}
+        self.ledger = types.SimpleNamespace(get_event=lambda event_id: by_id.get(event_id))
+        self.module._guard = lambda mask: (self.tavern, None)
+        self.module._clock = lambda: (3, 19)
+        self.module.get_event_ledger = lambda: self.ledger
+        self.module.search.search_object = lambda dbref: [self.bowl]
+
+    def public(self):
+        return self.module.status(object())
+
+    def test_original_signed_events_and_physical_bowl_are_visible(self):
+        self.assertIn("one real cooked soup bowl", self.public())
+        self.assertIn("service event 105", self.public())
+
+    def test_forged_service_projection_is_hidden_without_state_mutation(self):
+        baseline = copy.deepcopy(self.state)
+        self.events["service"]["consequence"]["bowl_id"] = 999
+        self.assertNotIn("provided one real cooked soup bowl", self.public())
+        self.assertEqual(self.state, baseline)
+
+    def test_missing_signed_event_and_moved_bowl_fail_closed(self):
+        original = self.ledger
+        self.ledger = type("MissingLedger", (), {"get_event": lambda self, key: None})()
+        self.assertNotIn("provided one real cooked soup bowl", self.public())
+        self.ledger = original
+        self.bowl.location = object()
+        self.assertNotIn("provided one real cooked soup bowl", self.public())
+
+    def test_wrong_actor_or_bowl_receipt_fail_closed(self):
+        self.events["service"]["actor"]["account_id"] = 7
+        self.assertNotIn("provided one real cooked soup bowl", self.public())
+        self.events["service"]["actor"]["account_id"] = 8
+        self.bowl.db.stage_service["event_id"] = 999
+        self.assertNotIn("provided one real cooked soup bowl", self.public())
+
+    def test_unrelated_witness_or_cooking_event_fail_closed(self):
+        self.events["witness"]["consequence"]["performance_event_id"] = 999
+        self.assertNotIn("provided one real cooked soup bowl", self.public())
+        self.events["witness"]["consequence"]["performance_event_id"] = 102
+        self.events["cook"]["consequence"]["bowl_id"] = 999
+        self.assertNotIn("provided one real cooked soup bowl", self.public())
+
+    def test_no_claim_when_bowl_search_is_empty(self):
+        self.module.search.search_object = lambda dbref: []
+        self.assertNotIn("provided one real cooked soup bowl", self.public())
 
 
 if __name__ == "__main__":
