@@ -95,6 +95,17 @@ def status_lines():
     if state.get("caution_notice") and not _verified_notice(square, state, day):
         public_field_state = dict(public_field_state, caution_notice=None)
         lines.append("The stored Chronicler caution is unverified; no signed notice is displayed.")
+    # A forged Square attribution cannot be displayed as signed Hound work.
+    if entries.get("hound") and not _signed_hound_source(square, day, _hour):
+        public_entries = dict(public_field_state["field_decisions"])
+        public_entries.pop("hound", None)
+        if "wanderer" in public_entries:
+            independent = dict(public_entries["wanderer"])
+            independent.pop("corroboration", None)
+            public_entries["wanderer"] = independent
+        public_field_state = dict(public_field_state, field_decisions=public_entries,
+                                  caution_notice=None)
+        lines.append("The stored Hound attribution is unverified; no signed Hound warning is displayed.")
     lines.extend(route_surveys.field_lines(public_field_state))
     # Persisted advisory text is not proof that a Chronicler event completed.
     public_state = state
@@ -200,11 +211,28 @@ def report(mask):
         return None, "A later village day is already recorded."
     if site in existing["reports"]:
         return None, "Today's report for this landmark is already signed."
+    original_account_id = mask.account.id
 
     def consequence(event):
         with transaction.atomic():
-            if mask.location != room or clue.location != room:
-                raise RuntimeError("The observer left the actual landmark.")
+            account = getattr(mask, "account", None)
+            if (mask.location != room or clue.location != room
+                    or account is None or account.id != original_account_id):
+                raise RuntimeError("The observer changed account or left the actual landmark.")
+            if (getattr(clue.db, "landmark_id", None) != site
+                    or not clue.access(mask, "view", default=True)):
+                raise RuntimeError("The physical inspected landmark changed.")
+            if _day_hour() != (day, hour):
+                raise RuntimeError("Village time advanced before the report.")
+            current_known = any(row["id"] == site for row in
+                                known_landmarks(mask.db.landmark_discoveries))
+            try:
+                current_latest = dict(mask.db.landmark_latest_view or {}).get(site) or {}
+                current_inspected = int(current_latest.get("day") or 0) == day
+            except (TypeError, ValueError, OverflowError):
+                current_inspected = False
+            if not current_known or not current_inspected:
+                raise RuntimeError("The firsthand physical inspection changed.")
             changed, accepted, error = route_surveys.report(
                 square.db.daily_route_survey, day, site,
                 mask.account.id, mask.key, event["id"],
@@ -341,6 +369,7 @@ def field_action(mask, action):
             and not _signed_prior_caution(cord, square, marker, day)):
         return None, "The older cord warning has no valid signed source or is already current."
     prior_event_id = marker.get("event_id") if role == "hound" and marked else None
+    original_account_id = mask.account.id
     current, allowed, why = route_surveys.field_decision(
         square.db.daily_route_survey, day, site, role, action,
         marked, mask.account.id, mask.key, 1,
@@ -351,8 +380,24 @@ def field_action(mask, action):
 
     def consequence(event):
         with transaction.atomic():
+            account = getattr(mask, "account", None)
+            if (account is None or account.id != original_account_id
+                    or active_calling(mask) != role):
+                raise RuntimeError("The professional changed account or Calling.")
             if mask.location != room or cord.location != room:
                 raise RuntimeError("The real observer or cord moved away.")
+            if (getattr(cord.db, "landmark_id", None) != site
+                    or not cord.access(mask, "view", default=True)):
+                raise RuntimeError("The inspected physical cord changed.")
+            current_known = any(row["id"] == site for row in
+                                known_landmarks(mask.db.landmark_discoveries))
+            try:
+                current_latest = dict(mask.db.landmark_latest_view or {}).get(site) or {}
+                current_inspected = int(current_latest.get("day") or 0) == day
+            except (TypeError, ValueError, OverflowError):
+                current_inspected = False
+            if not current_known or not current_inspected:
+                raise RuntimeError("The professional's physical inspection changed.")
             now_day, now_hour = _day_hour()
             if (now_day, now_hour) != (day, hour):
                 raise RuntimeError("Village time advanced before this route action.")
