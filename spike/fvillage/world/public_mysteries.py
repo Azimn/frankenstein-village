@@ -554,6 +554,25 @@ def hide_theory(moderator, theory_id, reason, stable_id=MANOR_LIGHTS_ID):
     return copy.deepcopy(entry), None
 
 
+def resolve_subject(token):
+    token = str(token or "").strip().lower()
+    if token in {
+        "manor",
+        "lights",
+        "manor lights",
+        "manor-lights",
+        "hilltop manor",
+        "why are the manor lights returning",
+    }:
+        return MANOR_LIGHTS_ID
+    if token in {
+        "bridge", "bridge plaque", "missing plaque", "old stone bridge",
+        "missing bridge plaque", "inscription",
+    }:
+        return BRIDGE_PLAQUE_ID
+    return None
+
+
 def examine_bridge_case(player):
     """Detective signs firsthand marks, never an invented culprit."""
     from world.callings import active_calling

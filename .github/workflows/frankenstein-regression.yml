@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - feature/gdd-edge15-detective-chronicler-case-20261027
+      - feat/gdd-edge33-signed-market-inquiry-20261027
 
 permissions:
   contents: read

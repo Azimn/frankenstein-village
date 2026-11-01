@@ -855,7 +855,13 @@ class ClinicCot(DefaultObject):
         self.locks.add("get:false()")
 
     def get_display_desc(self, looker=None, **kwargs):
-        from world.clinic_work import status
+        from world.clinic_work import status, _clock
+        if (looker is not None and getattr(looker, "account", None)
+                and looker.location == self.location):
+            day, _hour = _clock()
+            looker.db.clinic_cot_seen = {
+                "day": day, "cot_id": self.id, "room_id": self.location.id,
+            }
         return (
             "A real cot shelters the day's visiting patient in the "
             "Church dispensary. The patient is visible, but confidential "
