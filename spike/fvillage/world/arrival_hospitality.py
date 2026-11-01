@@ -129,3 +129,119 @@ def welcome(raw, *, day, hour, innkeep_account_id, innkeep_mask_id,
         "route_observation": entry["observation"],
     }
     return state, True, None
+
+
+def verified_public_welcome(history, get_event):
+    """Return public, source-backed history, never an assertion from mutable soup data.
+
+    This is a read-only projection of completed canonical events. A stale or
+    forged batch Attribute cannot manufacture a public hospitality claim.
+    The actual bowl may later be eaten; signed transfer remains historical.
+    """
+    if not isinstance(history, (list, tuple)) or not callable(get_event):
+        return ""
+    for batch in reversed(history):
+        row = _map(batch)
+        receipt = _map(row.get("arrival_welcome"))
+        if not receipt:
+            continue
+        keys = ("event_id", "route_event_id", "cook_event_id", "bowl_id",
+                "innkeep_account_id", "innkeep_mask_id",
+                "wanderer_account_id", "wanderer_mask_id", "day")
+        if any(_id(receipt.get(key)) is None for key in keys):
+            continue
+        if (_hour(receipt.get("hour")) is None
+                or receipt.get("service") != "physical_bowl_transferred"
+                or not isinstance(receipt.get("wanderer_mask"), str)
+                or not receipt["wanderer_mask"]
+                or _id(row.get("cook_event_id")) != receipt["cook_event_id"]
+                or _id(row.get("maker_id")) != receipt["innkeep_mask_id"]
+                or _id(row.get("prep_event_id")) is None
+                or receipt["innkeep_account_id"] == receipt["wanderer_account_id"]
+                or receipt["event_id"] <= max(receipt["route_event_id"],
+                                               receipt["cook_event_id"])):
+            continue
+        try:
+            event = _map(get_event(receipt["event_id"]))
+            route = _map(get_event(receipt["route_event_id"]))
+            cook = _map(get_event(receipt["cook_event_id"]))
+        except (LookupError, TypeError, ValueError, AttributeError):
+            continue
+        actor, payload, result = (
+            _map(event.get("actor")), _map(event.get("payload")),
+            _map(event.get("consequence")),
+        )
+        ractor, rpay, rresult = (
+            _map(route.get("actor")), _map(route.get("payload")),
+            _map(route.get("consequence")),
+        )
+        cactor, cpay, cresult = (
+            _map(cook.get("actor")), _map(cook.get("payload")),
+            _map(cook.get("consequence")),
+        )
+        if (event.get("status") != "complete"
+                or event.get("kind") != "professional.innkeep_wanderer_arrival_welcome"
+                or _id(event.get("id")) != receipt["event_id"]
+                or _id(actor.get("account_id")) != receipt["innkeep_account_id"]
+                or _id(actor.get("mask_id")) != receipt["innkeep_mask_id"]
+                or _id(payload.get("guest_account_id")) != receipt["wanderer_account_id"]
+                or _id(payload.get("guest_mask_id")) != receipt["wanderer_mask_id"]
+                or _id(payload.get("route_event_id")) != receipt["route_event_id"]
+                or _id(payload.get("cook_event_id")) != receipt["cook_event_id"]
+                or _id(payload.get("bowl_id")) != receipt["bowl_id"]
+                or _id(payload.get("tavern_room_id")) is None
+                or type(payload.get("day")) is not int
+                or payload["day"] != receipt["day"]
+                or _hour(payload.get("hour")) != receipt["hour"]
+                or _id(result.get("route_event_id")) != receipt["route_event_id"]
+                or _id(result.get("cook_event_id")) != receipt["cook_event_id"]
+                or _id(result.get("bowl_id")) != receipt["bowl_id"]
+                or _id(result.get("innkeep_account_id")) != receipt["innkeep_account_id"]
+                or _id(result.get("wanderer_account_id")) != receipt["wanderer_account_id"]
+                or result.get("service") != "physical_bowl_transferred"):
+            continue
+        if (route.get("status") != "complete"
+                or route.get("kind") != "village.route_passability_observed"
+                or _id(route.get("id")) != receipt["route_event_id"]
+                or _id(ractor.get("account_id")) != receipt["wanderer_account_id"]
+                or _id(ractor.get("mask_id")) != receipt["wanderer_mask_id"]
+                or ractor.get("mask") != receipt["wanderer_mask"]
+                or rpay.get("location") != "The Northern Treeline"
+                or rpay.get("site") != "red_cord"
+                or rpay.get("role") != "wanderer"
+                or rpay.get("action") != "passability"
+                or type(rpay.get("day")) is not int
+                or rpay["day"] != receipt["day"]
+                or _hour(rpay.get("hour")) is None
+                or rpay["hour"] > receipt["hour"]
+                or rresult.get("site") != "red_cord"
+                or rresult.get("role") != "wanderer"
+                or rresult.get("action") != "passability"
+                or rresult.get("interpretation") != receipt.get("route_observation")
+                or type(rresult.get("caution_marked")) is not bool
+                or rresult["caution_marked"] != (
+                    receipt.get("route_observation") == "marked_caution")):
+            continue
+        if (cook.get("status") != "complete"
+                or cook.get("kind") != "professional.innkeep_soup_cooked"
+                or _id(cook.get("id")) != receipt["cook_event_id"]
+                or _id(cactor.get("account_id")) != receipt["innkeep_account_id"]
+                or _id(cactor.get("mask_id")) != receipt["innkeep_mask_id"]
+                or _id(cpay.get("prep_event_id")) != row["prep_event_id"]
+                or type(cpay.get("day")) is not int
+                or cpay["day"] != receipt["day"]
+                or _hour(cpay.get("hour")) is None
+                or cpay["hour"] > receipt["hour"]
+                or _id(cresult.get("bowl_id")) != receipt["bowl_id"]
+                or _id(cresult.get("pantry_room_id")) != payload["tavern_room_id"]
+                or _id(cresult.get("source_event_id")) != row["prep_event_id"]):
+            continue
+        return (
+            " Signed returning-traveler hospitality: "
+            + receipt["wanderer_mask"][:70]
+            + " received a real cooked bowl (route event "
+            + str(receipt["route_event_id"])
+            + "; welcome event " + str(receipt["event_id"])
+            + "). This historical receipt does not certify route safety."
+        )
+    return ""
