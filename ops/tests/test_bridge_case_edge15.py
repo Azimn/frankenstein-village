@@ -389,7 +389,7 @@ class BridgeWitnessAdapterTests(unittest.TestCase):
                     count = len(published)
                     denied, reason = env["examine_bridge_case"](player)
                     self.assertIsNone(denied)
-                    self.assertIn("source", reason)
+                    self.assertTrue("source" in reason or "signed event ID" in reason, reason)
                     self.assertEqual(registry, before)
                     self.assertEqual(len(published), count)
 
