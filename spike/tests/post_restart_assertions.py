@@ -1785,8 +1785,22 @@ assert "MerchantTester" in one("a market fittings board").get_display_desc()
 _workshop_live_day = int(ScriptDB.objects.get(db_key="village_time").db.day or 1)
 assert _workshop_live_day >= _work_docket["day"]
 _workshop_visible = _workshop_rules.refresh(_work_docket, _workshop_live_day)
+# Two different signed Smith crafts consumed BOTH finite offcuts on the
+# original day: the market fitting and the clinic cot brace. The older
+# single-craft oracle (1 remaining) is no longer a valid world invariant.
+assert len({row["event_id"] for row in _work_docket["crafts"]}) == 2
+for _signed_craft in _work_docket["crafts"]:
+    _craft_event = warning_ledger.get_event(_signed_craft["event_id"])
+    assert _craft_event["kind"] == "village.market_hinge_forged"
+    assert _craft_event["status"] == "complete"
+    assert _craft_event["actor"]["account_id"] == _signed_craft["account_id"]
+    assert _craft_event["consequence"]["item_id"] == _signed_craft["item_id"]
+assert _work_docket["offcuts"] == (
+    _workshop_rules.DAILY_OFFCUTS - len(_work_docket["crafts"])
+)
 assert _workshop_visible["offcuts"] == (
-    1 if _workshop_live_day == _work_docket["day"]
+    _workshop_rules.DAILY_OFFCUTS - len(_work_docket["crafts"])
+    if _workshop_live_day == _work_docket["day"]
     else _workshop_rules.DAILY_OFFCUTS
 )
 assert (
