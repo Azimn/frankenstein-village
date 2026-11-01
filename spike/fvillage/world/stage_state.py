@@ -53,7 +53,7 @@ def _time(day, hour):
 
 def fresh(day=1):
     return {"day": day, "rehearsals": [], "performance": None,
-            "witnesses": [], "service": None, "history": []
+            "witnesses": [], "service": None, "history": []}
 
 
 def normalize(raw):
