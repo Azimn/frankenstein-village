@@ -12,11 +12,17 @@ WORK = {
         "when a neighbor has tended the hearth. A Merchant can give you a "
         "physical kitchen roots crate; soup accept verifies its signed source "
         "and receives it into the pantry. soup deliver remains a solo fallback.",
-        "After a Wanderer signs survey passability at the Northern Treeline and returns, "
-        "cook a real soup bowl and use soup welcome <Wanderer> at the Tavern "
-        "to hand over finite food with a signed arrival receipt.",
+        "After a Wanderer signs survey passability at the Northern Treeline "
+        "and returns, cook a real soup bowl and use soup welcome <Wanderer> "
+        "at the Tavern to hand over finite food with a signed arrival receipt.",
         "At the Blood of the Vine: inspect the hearth, then use hearth "
         "tend when the fire has settled and delivered stock is available.",
+        "At the communal soup pot, inspect its lid hinge. Use soup restrict "
+        "to suspend unsafe player simmering until an independent Smith "
+        "installs a real Workshop-forged hinge with soup repair.",
+        "After a real Performer show and signed audience witness at the Tavern, "
+        "cook a real soup bowl and use stage cater during the same village hour "
+        "to place it in public service. No show or audience means no demand claim.",
         "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
         "only if that unresolved need remains in the village.",
     ),
@@ -28,12 +34,21 @@ WORK = {
         "testimony before making a documented entry.",
     ),
     "smith": (
+        "At the Church, inspect the clinic cot. A Workshop-forged physical "
+        "hinge can brace its worn folding rail with clinic brace; an "
+        "independent Healer must certify its clinical suitability.",
         "At Market Lane: look market scale and use trade calibrate for a "
         "signed physical correction, once per village day.",
+        "At the Tavern: inspect the communal soup pot. If an Innkeep "
+        "has restricted unsafe simmering, carry a physical Workshop-forged "
+        "hinge there and use soup repair. This spends the actual fitting.",
         "At the Square: examine north-square gas lamp; its repair is "
         "one-time and may already have been finished by a neighbor.",
     ),
     "healer": (
+        "At the Church cot, inspect its folding rail. After a real Smith "
+        "installs a fitting and you assess today\'s patient, clinic certify "
+        "approves reinforced rest; clinic treat supported then uses it.",
         "At St. Lazarus Church, clinic receive inspects and accepts a "
         "real Merchant-sourced linen parcel, adding two finite dressings "
         "to the shared cabinet. A separate Merchant must supply it.",
@@ -44,6 +59,9 @@ WORK = {
         "signed, restart-safe history. After personally assessing the visitor, "
         "use clinic request records to obtain consent before opening private "
         "notes with clinic records. Public clinic status omits those notes.",
+        "After completing real treatment at St. Lazarus, look at the cot "
+        "and use clinic invite to ask whether the visitor wants voluntary "
+        "music. This is separate from permission for private case notes.",
         "At the Square: investigate the pale well mushrooms; use assess "
         "on the real object, rather than trusting the public appearance.",
         "At the Tavern: inspect care needs; the Cold Hunter at Supper "
@@ -68,9 +86,9 @@ WORK = {
         "Collect actual sealed ferry-post parcels in Market Lane with courier collect. "
         "Carry or give them to another person for courier deliver at Riverside Path. "
         "The limited daily supply and signed ferry manifest persist.",
-        "After signing survey passability, physically return to the Blood of the Vine. "
-        "An independent Innkeep with a cooked bowl can use soup welcome <your mask> "
-        "to offer genuine food, which you may then eat normally.",
+        "After signing survey passability, physically return to the Blood "
+        "of the Vine. An independent Innkeep with a cooked bowl can use "
+        "soup welcome <your mask> to offer real food, which you may eat.",
         "At the Northern Treeline, examine the frayed red cord and use "
         "survey passability to record whether a real caution marker was "
         "present when you visited. If a separate Hound has since used "
@@ -87,12 +105,26 @@ WORK = {
         "then stage perform the rehearsed piece. Other real visitors can "
         "stage witness during that hour; the signed performance remains in "
         "the public Tavern history.",
+        "If a Hound has firsthand signed a treeline caution, use stage adapt "
+        "indoor or stage adapt cancel to decide how the real show proceeds.",
+        "After a Healer has treated a real St. Lazarus visitor and signed "
+        "a consented invitation, go to the Church, look at the clinic cot "
+        "and use clinic music. Companionship is not a medical cure.",
+        "After a witnessed show, an Innkeep can bring a real cooked soup bowl "
+        "and use stage cater during the same hour; the stage preserves the "
+        "signed food and attendance receipts.",
         "Also play, practice or perform a duet with a willing partner using "
         "the normal leisure commands.",
         "Read the public calendar, then invite neighbors to an in-world "
         "gathering through commons rather than claiming one occurred.",
     ),
     "detective": (
+        "At Market Lane, inspect the physical crooked scale and use trade inspect "
+        "after a different account signs Smith calibration. This records limited "
+        "physical evidence, not guilt or an invented culprit.",
+        "At Market Lane: inspect the real crooked market scale. After a Merchant " 
+        "has signed trade hold, use trade investigate to open an independent " 
+        "source-linked inquiry. A Merchant may answer with trade rebut.",
         "At the Old Stone Bridge: look plaque, inspect the river gauge "
         "on Riverside Path, and consider a provisional theory bridge.",
         "Use mystery bridge or mystery manor to compare public evidence. "
@@ -101,8 +133,11 @@ WORK = {
     "hound": (
         "At the Northern Treeline, examine the frayed red cord and use "
         "survey protect to tie its loose end into a real caution marker. "
-        "The physical change is one-time; it cannot be repeated after "
-        "someone else has already protected the route.",
+        "The same cord can be re-tightened after a new firsthand "
+        "inspection on a later village day, never twice in one day.",
+        "After signing survey protect on the real treeline cord, travel to "
+        "the Blood of the Vine and use stage warn before a public show. "
+        "An independent Performer decides whether to play indoors or cancel.",
         "Use survey and perform signed firsthand inspections in the "
         "churchyard, treeline, market and riverside districts.",
         "Talk to residents you physically encounter during their "
