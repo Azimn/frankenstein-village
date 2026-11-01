@@ -160,7 +160,7 @@ def simmer(mask):
         return None, "An active Innkeep is needed to simmer a batch."
     from world import kitchen_repair_edge02, kitchen_repair_work
     pot = kitchen_repair_work._pot()
-    if pot is None or kitchen_repair_edge02.normalize(pot.db.kitchen_repair)["condition"] in ("restricted", "invalid"):
+    if not kitchen_repair_work.player_simmer_allowed(pot):
         return None, "Player simmering is restricted until the real kitchen pot is repaired."
     packets = _held(mask, "soup_preparation")
     if not packets:
@@ -183,6 +183,13 @@ def simmer(mask):
         return None, "You already carry three soup bowls; serve or eat them first."
 
     def consequence(event):
+        # Recheck signed pot service when the world event is actually applied.
+        # A rollback between command preflight and consequence cannot cook.
+        if (mask.location != tavern
+                or active_calling(mask) != "innkeep"
+                or kitchen_repair_work._pot() != pot
+                or not kitchen_repair_work.player_simmer_allowed(pot)):
+            raise RuntimeError("The physical kitchen pot is not cleared for player simmering.")
         if packet.location != mask or not packet.db.soup_preparation:
             raise RuntimeError("The reserved ingredients were moved or consumed.")
         bowl = create_object(
