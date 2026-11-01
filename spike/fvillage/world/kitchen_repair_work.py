@@ -78,6 +78,78 @@ def _rollback_blocker(pot):
     return False, None
 
 
+
+def player_simmer_allowed(pot):
+    """Use original signed physical history, not just the mutable pot Attribute.
+
+    A legitimate never-restricted loose pot is usable. Once an Innkeep has
+    signed a restriction, only a matching completed Smith repair can reopen
+    player cooking. A rolled-back or forged 'working' Attribute cannot do so.
+    This is read-only: never create a new ledger merely to inspect service.
+    """
+    if pot is None:
+        return False
+    state = rules.normalize(pot.db.kitchen_repair)
+    condition = state["condition"]
+    if condition == "loose":
+        prior, _ = _prior_completed_pot_event(
+            pot, ("professional.innkeep_kitchen_restriction",
+                  "professional.smith_kitchen_repair"))
+        return not prior
+    if condition != "working":
+        return False
+
+    restriction, repair = state["restriction"], state["repair"]
+    try:
+        ledger = ScriptDB.objects.get(db_key=LEDGER_KEY)
+        inn = ledger.get_event(restriction["event_id"])
+        smith = ledger.get_event(repair["event_id"])
+        forge = ledger.get_event(repair["forge_event_id"])
+    except Exception:
+        return False
+    if not all(isinstance(event, Mapping) for event in (inn, smith, forge)):
+        return False
+    if any(event.get("status") != "complete" for event in (inn, smith, forge)):
+        return False
+    if (inn.get("kind") != "professional.innkeep_kitchen_restriction"
+            or smith.get("kind") != "professional.smith_kitchen_repair"
+            or forge.get("kind") != "village.market_hinge_forged"):
+        return False
+    for event, worker in ((inn, restriction), (smith, repair)):
+        actor, payload, consequence = (
+            event.get("actor"), event.get("payload"), event.get("consequence"))
+        if not all(isinstance(part, Mapping)
+                   for part in (actor, payload, consequence)):
+            return False
+        if (actor.get("account_id") != worker["account_id"]
+                or actor.get("mask_id") != worker["mask_id"]
+                or payload.get("pot_id") != pot.id
+                or payload.get("day") != worker["day"]
+                or payload.get("hour") != worker["hour"]
+                or consequence.get("pot_id") != pot.id):
+            return False
+    if (inn["payload"].get("professional_calling") != "innkeep"
+            or inn["consequence"].get("condition") != "restricted"
+            or inn["consequence"].get("innkeep_account_id")
+            != restriction["account_id"]
+            or smith["payload"].get("professional_calling") != "smith"
+            or smith["payload"].get("restriction_event_id")
+            != restriction["event_id"]
+            or smith["payload"].get("forge_event_id") != repair["forge_event_id"]
+            or smith["consequence"].get("condition") != "working"
+            or smith["consequence"].get("restriction_event_id")
+            != restriction["event_id"]
+            or smith["consequence"].get("forge_event_id")
+            != repair["forge_event_id"]
+            or smith["consequence"].get("consumed_item_id") != repair["item_id"]
+            or not isinstance(forge.get("consequence"), Mapping)
+            or forge["consequence"].get("item_id") != repair["item_id"]
+            or inn["id"] >= smith["id"]
+            or forge["id"] >= smith["id"]):
+        return False
+    return True
+
+
 def status():
     pot = _pot()
     if pot is None:
