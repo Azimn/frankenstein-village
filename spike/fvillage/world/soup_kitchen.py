@@ -67,14 +67,14 @@ def pot_description():
         f"quality {done['quality']} (world event {done['cook_event_id']})."
         if done else " No player-made batch has been recorded."
     )
+    from world import kitchen_repair_work
     return (
         "A large, shared iron soup pot sits beside the Blood of the Vine's "
         "working kitchen fire. Bram's ordinary pantry renews each village day "
         "whether or not players are present; it is not anyone's private business. "
         f"Pantry day {state['day']}: {listed}. "
         f"The main hearth is {'warm' if fire else 'low'}."
-        + last +
-        (" Signed returning-traveler hospitality: world event %s, route event %s." % (done["arrival_welcome"]["event_id"], done["arrival_welcome"]["route_event_id"]) if done and done.get("arrival_welcome") else "") +
+        + last + " " + kitchen_repair_work.status() +
         " Use soup prep <turnip|barley> <thyme|salt|pepper>, soup simmer, "
         "soup notebook, soup receipt/publish/receipts for consented records, "
         "soup accept after a Merchant handoff, or use signed solo soup deliver."
@@ -160,6 +160,10 @@ def simmer(mask):
         return None, err
     if active_calling(mask) != "innkeep":
         return None, "An active Innkeep is needed to simmer a batch."
+    from world import kitchen_repair_work
+    pot = kitchen_repair_work._pot()
+    if not kitchen_repair_work.player_simmer_allowed(pot):
+        return None, "Player simmering is restricted until the real kitchen pot is repaired."
     packets = _held(mask, "soup_preparation")
     if not packets:
         return None, "Carry one real prepared packet; use soup prep first."
@@ -181,6 +185,13 @@ def simmer(mask):
         return None, "You already carry three soup bowls; serve or eat them first."
 
     def consequence(event):
+        # Recheck signed pot service when the world event is actually applied.
+        # A rollback between command preflight and consequence cannot cook.
+        if (mask.location != tavern
+                or active_calling(mask) != "innkeep"
+                or kitchen_repair_work._pot() != pot
+                or not kitchen_repair_work.player_simmer_allowed(pot)):
+            raise RuntimeError("The physical kitchen pot is not cleared for player simmering.")
         if packet.location != mask or not packet.db.soup_preparation:
             raise RuntimeError("The reserved ingredients were moved or consumed.")
         bowl = create_object(
@@ -236,6 +247,7 @@ def simmer(mask):
     mask.db.soup_notebook = soup_state.notebook(mask.db.soup_notebook, row)
     record_participation(mask, "soup_batches_cooked", calling="innkeep")
     return {"event_id": event["id"], **recipe}, None
+
 
 
 def welcome(mask, guest_name):
@@ -307,8 +319,13 @@ def welcome(mask, guest_name):
         "bowl_id": bowl.id, "square_room_id": square.id,
         "tavern_room_id": tavern.id,
     }
+    if (type(route_id) is not int or route_id < 1
+            or type(cook_id) is not int or cook_id < 1):
+        return None, "Both route and cooked-bowl sources need signed event IDs."
+    # A real first route event may be ID 1. Preflight is not a ledger write.
+    preview_event_id = max(route_id, cook_id) + 1
     _preview, okay, reason = arrival_hospitality.welcome(
-        tavern.db.soup_pantry, event_id=1, **kwargs,
+        tavern.db.soup_pantry, event_id=preview_event_id, **kwargs,
     )
     if not okay:
         return None, reason
@@ -373,8 +390,6 @@ def welcome(mask, guest_name):
         "event_id": event["id"], "guest": guest.key,
         "route_event_id": route_id, "bowl_id": bowl.id,
     }, None
-
-
 
 def procure(mask):
     market, err = _access(mask, MARKET)
