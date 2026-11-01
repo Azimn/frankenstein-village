@@ -52,11 +52,11 @@ def welcome(raw, *, day, hour, innkeep_account_id, innkeep_mask_id,
     route_id = _id(route.get("id"))
     if (not route_id or route.get("status") != "complete"
             or route.get("kind") != "village.route_passability_observed"
-            or ractor.get("account_id") != wanderer_account_id
-            or ractor.get("mask_id") != wanderer_mask_id
+            or _id(ractor.get("account_id")) != wanderer_account_id
+            or _id(ractor.get("mask_id")) != wanderer_mask_id
             or ractor.get("mask") != wanderer_mask
-            or entry.get("event_id") != route_id
-            or entry.get("account_id") != wanderer_account_id
+            or _id(entry.get("event_id")) != route_id
+            or _id(entry.get("account_id")) != wanderer_account_id
             or entry.get("mask") != wanderer_mask
             or entry.get("site") != "red_cord"
             or entry.get("action") != "passability"
@@ -65,15 +65,18 @@ def welcome(raw, *, day, hour, innkeep_account_id, innkeep_mask_id,
             or rpay.get("role") != "wanderer"
             or rpay.get("action") != "passability"
             or rpay.get("location") != "The Northern Treeline"
-            or rpay.get("day") != day
+            or type(rpay.get("day")) is not int or rpay["day"] != day
             or _hour(rpay.get("hour")) is None
             or rpay["hour"] > hour
             or rresult.get("site") != "red_cord"
             or rresult.get("role") != "wanderer"
             or rresult.get("action") != "passability"
-            or rresult.get("day") != day
-            or rresult.get("square_room_id") != square_room_id
-            or _id(rresult.get("cord_object_id")) is None):
+            or type(rresult.get("day")) is not int or rresult["day"] != day
+            or _id(rresult.get("square_room_id")) != square_room_id
+            or _id(rresult.get("cord_object_id")) is None
+            or rresult.get("interpretation") != entry.get("observation")
+            or type(rresult.get("caution_marked")) is not bool
+            or rresult["caution_marked"] != (entry["observation"] == "marked_caution")):
         return state, False, "The arrival lacks a matching signed firsthand route observation."
 
     cooked = _map(bowl_event)
@@ -84,23 +87,23 @@ def welcome(raw, *, day, hour, innkeep_account_id, innkeep_mask_id,
     cook_id = _id(cooked.get("id"))
     if (not cook_id or cooked.get("status") != "complete"
             or cooked.get("kind") != "professional.innkeep_soup_cooked"
-            or cactor.get("account_id") != innkeep_account_id
-            or cactor.get("mask_id") != innkeep_mask_id
-            or cresult.get("bowl_id") != bowl_id
-            or cresult.get("pantry_room_id") != tavern_room_id
+            or _id(cactor.get("account_id")) != innkeep_account_id
+            or _id(cactor.get("mask_id")) != innkeep_mask_id
+            or _id(cresult.get("bowl_id")) != bowl_id
+            or _id(cresult.get("pantry_room_id")) != tavern_room_id
             or _id(cpay.get("prep_event_id")) is None
             or _id(cpay.get("packet_id")) is None
             or _id(cresult.get("source_event_id")) != cpay.get("prep_event_id")
             or _hour(cpay.get("hour")) is None
-            or cpay.get("day") != day
+            or type(cpay.get("day")) is not int or cpay["day"] != day
             or cpay["hour"] > hour):
         return state, False, "The bowl lacks a completed signed Innkeep cooking source."
 
     matching = [
         row for row in state["history"]
-        if _map(row).get("cook_event_id") == cook_id
-        and row.get("prep_event_id") == cpay["prep_event_id"]
-        and row.get("maker_id") == innkeep_mask_id
+        if _id(_map(row).get("cook_event_id")) == cook_id
+        and _id(row.get("prep_event_id")) == cpay["prep_event_id"]
+        and _id(row.get("maker_id")) == innkeep_mask_id
         and row.get("base") == cpay.get("base")
         and row.get("seasoning") == cpay.get("seasoning")
     ]
