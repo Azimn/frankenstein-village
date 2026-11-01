@@ -116,10 +116,10 @@ def main() -> int:
     merchant = None
     mystic = None
     performer = None
+    stage_smith = None
     wanderer = None
     hound = None
     detective = None
-    cot_smith = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -2174,75 +2174,6 @@ def main() -> int:
         assert agent_json(out)["commands"]["install_market_repair"] == "workshop install"
         print("TELNET_TWO_ACCOUNT_PHYSICAL_MARKET_WORKSHOP_GREEN")
 
-        # GDD-EDGE-18: a second independent Smith spends the remaining
-        # real Workshop offcut on the ORIGINAL Church cot's worn rail.
-        # The Healer's earlier real patient assessment is required for
-        # a separate clinical approval; workmanship alone is not care.
-        cot_smith = Client(args.host, args.port)
-        require(cot_smith.sync_login_screen(), "frankenstein village")
-        out = cot_smith.command(
-            f"connect qa_smith_cot {repair_password}", wait=4.0)
-        require(out, "connected", "account qa_smith_cot")
-        cot_smith.command("charcreate CotSmithTester", wait=3.0)
-        out = cot_smith.command("ic CotSmithTester", wait=4.0)
-        require(out, "private room")
-        out = cot_smith.command("calling choose smith")
-        require(out, "smith is now your active calling")
-        for direction, expected in (
-            ("down", "inn common room"),
-            ("east", "inn hallway"),
-            ("south", "village square"),
-            ("south", "lamp shop"),
-            ("south", "market lane"),
-            ("east", "market workshop"),
-        ):
-            require(cot_smith.command(direction), expected)
-        out = cot_smith.command("workshop forge")
-        require_all(out, "real transferable iron market hinge",
-                    "0 iron offcuts remain")
-        out = cot_smith.command("clinic brace")
-        require(out, "st. lazarus church")
-        for direction, expected in (
-            ("west", "market lane"),
-            ("north", "lamp shop"),
-            ("north", "village square"),
-            ("west", "st. lazarus church"),
-        ):
-            require(cot_smith.command(direction), expected)
-        out = cot_smith.command("look clinic cot")
-        require_all(out, "worn hinge", "clinic brace")
-        out = cot_smith.command("clinic certify")
-        require(out, "active healer")
-        out = cot_smith.command("clinic brace")
-        require_all(out, "physically brace", "signed world event")
-        out = cot_smith.command("inventory")
-        assert "forged market hinge" not in out.lower()
-        out = cot_smith.command("clinic brace")
-        require(out, "carry one real")
-        out = cot_smith.command("look clinic cot")
-        require_all(out, "smith has fitted", "independent healer")
-        out = cot_smith.command("clinic treat supported")
-        require(out, "active healer")
-        h.read_quiet()
-        require(h.command("west"), "village square")
-        require(h.command("west"), "st. lazarus church")
-        out = h.command("clinic brace")
-        require(out, "active smith")
-        out = h.command("clinic treat supported")
-        require(out, "independently certified cot")
-        out = h.command("clinic certify")
-        require_all(out, "clinically approve", "signed world event")
-        out = h.command("clinic certify")
-        require(out, "real smith fitting must be installed before approval")
-        out = h.command("clinic")
-        require_all(out, "clinically approved", "clinic treat supported")
-        assert "cold" not in out.lower() and "healertester" not in out.lower()
-        out = h.command("clinic treat supported")
-        require(out, "already received treatment")
-        require(h.command("east"), "village square")
-        require(h.command("east"), "blood of the vine")
-        print("TELNET_GDD_EDGE18_TWO_ACCOUNT_PHYSICAL_COT_CERTIFICATION_GREEN")
-
         for actor in (merchant, smith):
             for direction, expected in (
                 ("north", "lamp shop"),
@@ -2271,6 +2202,70 @@ def main() -> int:
         require_all(out, "pantry day", "Last completed batch: InnkeepTester")
         print("TELNET_GDD_EDGE04_SIGNED_TWO_ACCOUNT_KITCHEN_SUPPLY_GREEN")
         print("TELNET_MARKET_TO_TAVERN_SOUP_SUPPLY_GREEN")
+
+        # EDGE-21: use the second shared Workshop offcut, not a new stock
+        # system. A second Smith account forges a real object, installs it
+        # at the Tavern, and the already-authenticated Performer tests and
+        # plays it independently. Both accounts use ordinary player verbs.
+        out = performer.command("stage")
+        require(out, "stage rail: worn")
+        out = performer.command("stage soundcheck")
+        require(out, "no signed physical stage fitting")
+        stage_smith = Client(args.host, args.port)
+        require(stage_smith.sync_login_screen(), "frankenstein village")
+        stage_password = os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = stage_smith.command(
+            f"connect qa_smith_stage {stage_password}", wait=4.0)
+        require(out, "connected", "account qa_smith_stage")
+        stage_smith.command("charcreate StageSmithTester", wait=3.0)
+        out = stage_smith.command("ic StageSmithTester", wait=4.0)
+        require(out, "private room")
+        out = stage_smith.command("calling choose smith")
+        require(out, "smith is now your active calling")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"), ("east", "market workshop"),
+        ):
+            out = stage_smith.command(move)
+            require(out, destination)
+        out = stage_smith.command("workshop forge")
+        require_all(out, "real transferable iron market hinge",
+                    "0 iron offcut")
+        out = stage_smith.command("inventory")
+        require(out, "forged market hinge")
+        for move, destination in (
+            ("west", "market lane"), ("north", "lamp shop"),
+            ("north", "village square"), ("east", "blood of the vine"),
+        ):
+            out = stage_smith.command(move)
+            require(out, destination)
+        out = stage_smith.command("stage soundcheck")
+        require(out, "active performer")
+        out = performer.command("stage fit")
+        require(out, "active smith")
+        out = stage_smith.command("stage fit")
+        require_all(out, "install the real forged hinge", "signed world event")
+        out = stage_smith.command("inventory")
+        assert "forged market hinge" not in out.lower()
+        out = stage_smith.command("stage fit")
+        require(out, "already has a completed signed stage fitting")
+        out = performer.command("stage acoustic reel")
+        require(out, "no completed performer soundcheck")
+        out = performer.command("stage soundcheck")
+        require_all(out, "independently test", "signed world event")
+        out = performer.command("stage soundcheck")
+        require(out, "already signed")
+        out = performer.command("stage acoustic reel")
+        require_all(out, "actual acoustic reel", "signed world event")
+        out = performer.command("stage acoustic reel")
+        require(out, "already been played")
+        out = performer.command("stage")
+        require_all(out, "stage rail: ready", "2 of 3 acoustic uses remain")
+        out = stage_smith.command("stage acoustic ballad")
+        require(out, "active performer")
+        print("TELNET_GDD_EDGE21_INDEPENDENT_PHYSICAL_STAGE_RAIL_GREEN")
+
 
         # A real Wanderer moves a finite, non-magical parcel between rooms.
         wanderer = Client(args.host, args.port)
@@ -2621,12 +2616,12 @@ def main() -> int:
             print("\nMERCHANT TRANSCRIPT\n" + "\n".join(merchant.transcript))
         if mystic is not None:
             print("\nMYSTIC TRANSCRIPT\n" + "\n".join(mystic.transcript))
+        if stage_smith is not None:
+            print("\nSTAGE SMITH TRANSCRIPT\n" + "\n".join(stage_smith.transcript))
         if performer is not None:
             print("\nPERFORMER TRANSCRIPT\n" + "\n".join(performer.transcript))
         if wanderer is not None:
             print("\nWANDERER TRANSCRIPT\n" + "\n".join(wanderer.transcript))
-        if cot_smith is not None:
-            print("\nCOT SMITH TRANSCRIPT\n" + "\n".join(cot_smith.transcript))
         if hound is not None:
             print("\nHOUND TRANSCRIPT\n" + "\n".join(hound.transcript))
         if detective is not None:
@@ -2635,12 +2630,12 @@ def main() -> int:
     finally:
         if detective is not None:
             detective.close()
-        if cot_smith is not None:
-            cot_smith.close()
         if hound is not None:
             hound.close()
         if wanderer is not None:
             wanderer.close()
+        if stage_smith is not None:
+            stage_smith.close()
         if performer is not None:
             performer.close()
         if mystic is not None:

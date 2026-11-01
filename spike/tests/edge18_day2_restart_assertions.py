@@ -55,8 +55,8 @@ assert equipment["condition"] == "certified"
 brace = equipment["brace"]
 cert = equipment["certification"]
 assert brace["account_id"] != cert["account_id"] == healer.id
-assert brace["day"] == cert["day"] == 1
-assert cert["assessment_event_id"] == day_one["assessment"]["event_id"]
+assert brace["day"] == cert["day"] == patient_day
+assert cert["assessment_event_id"] == assessment["event_id"]
 assert "clinically approved" in cot.get_display_desc().lower()
 public = clinic_state.public_lines(church.db.village_clinic, patient_day).lower()
 assert "care has been provided" in public
@@ -88,6 +88,30 @@ assert treat_event["consequence"]["room_id"] == church.id
 assert len([row for row in ledger.db.events
             if row.get("kind") == "village.clinic_treat"
             and row.get("payload", {}).get("day") == patient_day]) == 1
+# Exact cross-day conservation: two real day-one crafts (Market and
+# Tavern stage) and one later cot craft, each with signed physical receipts.
+from world import workshop_state as workshop_rules
+workshop = one("The Market Workshop")
+docket = workshop_rules.normalize(workshop.db.repair_docket)
+days = list(docket["history"]) + [{"day": docket["day"], "crafts": docket["crafts"]}]
+day_one_work = [row for row in days if row["day"] == 1]
+cot_day_work = [row for row in days if row["day"] == brace["day"]]
+assert len(day_one_work) == len(cot_day_work) == 1, days
+assert len(day_one_work[0]["crafts"]) == workshop_rules.DAILY_OFFCUTS
+assert len(cot_day_work[0]["crafts"]) == 1
+cot_craft = cot_day_work[0]["crafts"][0]
+assert cot_craft["event_id"] == brace["forge_event_id"]
+assert cot_craft["item_id"] == brace["item_id"]
+assert brace["day"] > day_one_work[0]["day"]
+for row in (day_one_work[0], cot_day_work[0]):
+    assert len(row["crafts"]) <= workshop_rules.DAILY_OFFCUTS
+    for craft in row["crafts"]:
+        signed = ledger.get_event(craft["event_id"])
+        assert signed and signed["status"] == "complete"
+        assert signed["kind"] == "village.market_hinge_forged"
+        assert signed["consequence"]["item_id"] == craft["item_id"]
+print("POST_SECOND_RESTART_GDD_EDGE18_FINITE_CROSS_DAY_WORKSHOP_GREEN")
+
 # Signed physical history must survive mutable Attribute rollback, and
 # public readback must never endorse forged brace or approval event IDs.
 saved_equipment = deepcopy(dict(cot.db.clinic_equipment))
