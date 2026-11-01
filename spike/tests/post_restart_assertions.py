@@ -308,10 +308,35 @@ assert AccountDB.objects.filter(id=_welcome["innkeep_account_id"]).exists()
 assert _welcome["wanderer_account_id"] != _welcome["innkeep_account_id"]
 assert _welcome["cook_event_id"] == _arrival_batch["cook_event_id"]
 assert _welcome["service"] == "physical_bowl_transferred"
-_arrival_bowl = one("a bowl of barley and salt soup")
+# Two independently cooked barley/salt batches legitimately have the same
+# display name. Identify each physical object by its signed cooking receipt,
+# never by a supposedly unique display name.
+_ledger_arrival = ScriptDB.objects.get(db_key="world_event_ledger")
+_arrival_cook = _ledger_arrival.get_event(_arrival_batch["cook_event_id"])
+_stage_cook = _ledger_arrival.get_event(_service_batch["cook_event_id"])
+assert _arrival_cook["status"] == _stage_cook["status"] == "complete"
+assert _arrival_cook["kind"] == _stage_cook["kind"] == "professional.innkeep_soup_cooked"
+assert _arrival_cook["id"] != _stage_cook["id"]
+assert _arrival_cook["payload"]["prep_event_id"] == _arrival_batch["prep_event_id"]
+assert _stage_cook["payload"]["prep_event_id"] == _service_batch["prep_event_id"]
+assert _arrival_batch["prep_event_id"] != _service_batch["prep_event_id"]
+_arrival_id = _arrival_cook["consequence"]["bowl_id"]
+_stage_id = _stage_cook["consequence"]["bowl_id"]
+assert type(_arrival_id) is int and type(_stage_id) is int
+assert _arrival_id == _welcome["bowl_id"] and _arrival_id != _stage_id
+_same_name_bowls = [obj for obj in search.search_object("a bowl of barley and salt soup")
+                    if obj.key == "a bowl of barley and salt soup"]
+assert len(_same_name_bowls) == 2, [obj.id for obj in _same_name_bowls]
+assert {obj.id for obj in _same_name_bowls} == {_arrival_id, _stage_id}
+_arrival_bowl = next(obj for obj in _same_name_bowls if obj.id == _arrival_id)
+_stage_bowl = next(obj for obj in _same_name_bowls if obj.id == _stage_id)
 assert _arrival_bowl.location == _wanderer_arrival
 assert _arrival_bowl.db.servings == 1
-assert _arrival_bowl.id == _welcome["bowl_id"]
+assert _arrival_bowl.db.soup_serving["event_id"] == _arrival_cook["id"]
+assert _arrival_bowl.db.soup_serving["prep_event_id"] == _arrival_batch["prep_event_id"]
+assert _stage_bowl.location == _tavern_soup
+assert _stage_bowl.db.soup_serving["event_id"] == _stage_cook["id"]
+assert _stage_bowl.db.soup_serving["prep_event_id"] == _service_batch["prep_event_id"]
 _ledger_arrival = ScriptDB.objects.get(db_key="world_event_ledger")
 _arrival_event = _ledger_arrival.get_event(_welcome["event_id"])
 assert _arrival_event["status"] == "complete"
