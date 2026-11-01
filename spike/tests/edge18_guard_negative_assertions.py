@@ -116,14 +116,15 @@ try:
     ready, reason = downstream_ready()
     assert not ready and "still in the future" in reason.lower(), reason
 
-    # A forged but already elapsed certification timestamp also fails.
-    # Comparing only the clock to the mutable Attribute is insufficient.
+    # A forged elapsed timestamp earlier than the physical fitting is
+    # structurally invalid and must fail closed before any signed-source lookup.
     forged_equipment = deepcopy(original_equipment)
     forged_equipment["certification"]["day"] = original_clock[0]
     forged_equipment["certification"]["hour"] = 0
+    assert clinic_cot_edge18.normalize(forged_equipment)["condition"] == "invalid"
     cot.db.clinic_equipment = forged_equipment
     ready, reason = downstream_ready()
-    assert not ready and "lacks a completed signed event" in reason.lower(), reason
+    assert not ready and "requires an independently certified cot" in reason.lower(), reason
 finally:
     clock.db.day, clock.db.hour = original_clock
     church.db.village_clinic = original_clinic
