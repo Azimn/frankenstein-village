@@ -2185,7 +2185,7 @@ def main() -> int:
         out = inn.command("soup restrict")
         require_all(out, "restrict player simmering", "signed world event")
         out = inn.command("soup restrict")
-        require(out, "already restricted, repaired, or invalid")
+        require(out, "already has completed signed kitchen work")
         out = inn.command("soup simmer")
         require(out, "restricted until the real kitchen pot is repaired")
         smith_kitchen = Client(args.host, args.port)
