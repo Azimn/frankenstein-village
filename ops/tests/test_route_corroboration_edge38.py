@@ -328,6 +328,18 @@ class Edge38Tests(unittest.TestCase):
                 for site in r.SITES
             },
             "_caution_marker": lambda raw: raw,
+            # The public adapter now separately verifies Hound provenance.
+            # Preserve that requirement in this isolated EDGE-38 AST fixture.
+            "_signed_hound_source": lambda square_obj, day, hour: (
+                {"source_event_id": 102}
+                if r.verify_caution_marker(
+                    marker, state["field_decisions"]["hound"], day
+                ) and r.verify_signed_field_source(
+                    sources[102], state["field_decisions"]["hound"],
+                    "hound", day, hour, cord.id, square_obj.id
+                ) else None
+            ),
+            "_verified_notice": lambda *_args: False,
         }
         module = ast.Module(body=[node], type_ignores=[])
         exec(compile(module, str(path), "exec"), ns)
