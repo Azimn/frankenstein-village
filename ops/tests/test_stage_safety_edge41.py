@@ -120,6 +120,47 @@ class StageSafetyTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("rewound", why)
 
+    def test_fractional_signed_ids_and_hours_fail_closed(self):
+        # Signed event, actor and time fields must never be truncated from
+        # floats or fractional strings into valid-looking stage evidence.
+        for invalid in (11.5, 11.0, "11.5", True):
+            for field in ("account_id", "mask_id", "event_id"):
+                with self.subTest(field=field, invalid=invalid):
+                    _, ok, _ = warning(**{field: invalid})
+                    self.assertFalse(ok)
+        for invalid in (90.5, 90.0, "90.5", True):
+            with self.subTest(source_event_id=invalid):
+                _, ok, _ = stage.warn(
+                    None, source_event_id=invalid, cord_id=777, **who()
+                )
+                self.assertFalse(ok)
+        for invalid in (20.5, 20.0, "20.5", True):
+            with self.subTest(hour=invalid):
+                _, ok, _ = warning(hour=invalid)
+                self.assertFalse(ok)
+        state, ok, why = warning()
+        self.assertTrue(ok, why)
+        for invalid in (22.5, 22.0, "22.5", True):
+            with self.subTest(performer_account=invalid):
+                _, ok, _ = decision(state, account_id=invalid)
+                self.assertFalse(ok)
+        corrupted = copy.deepcopy(state)
+        corrupted["safety_warning"]["source_event_id"] = 90.5
+        self.assertIsNone(stage.normalize(corrupted)["safety_warning"])
+        corrupted = copy.deepcopy(state)
+        corrupted["safety_warning"]["hour"] = 20.5
+        self.assertIsNone(stage.normalize(corrupted)["safety_warning"])
+        corrupted = copy.deepcopy(state)
+        corrupted["day"] = 1.5
+        self.assertIsNone(stage.normalize(corrupted)["safety_warning"])
+        # Legitimate decimal-string IDs and hours remain accepted.
+        valid, ok, why = stage.warn(
+            None, source_event_id="90", cord_id="777",
+            **who(account="11", mask="111", event="100", hour="20")
+        )
+        self.assertTrue(ok, why)
+        self.assertEqual(valid["safety_warning"]["source_event_id"], 90)
+
     def test_day_rollover_cannot_reuse_old_warning(self):
         state, ok, _ = warning()
         self.assertTrue(ok)
