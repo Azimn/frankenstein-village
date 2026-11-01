@@ -14,7 +14,7 @@ from telnet_t13_cancel import connect
 
 
 def workshop_stock(text):
-    match = re.search(r"Village day (\\d+): (\\d+) of 2 iron offcuts", text, re.I)
+    match = re.search(r"Village day (\d+): (\d+) of 2 iron offcuts", text, re.I)
     assert match, "The public Workshop did not expose its finite daily stock"
     return int(match.group(1)), int(match.group(2))
 
