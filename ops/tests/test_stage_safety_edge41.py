@@ -5,6 +5,8 @@ source adapter require separate authenticated Evennia integration testing.
 """
 import json
 import copy
+import ast
+from collections.abc import Mapping
 from collections import UserDict
 import sys
 import unittest
@@ -335,6 +337,72 @@ class StageSafetyTests(unittest.TestCase):
             account=22, mask=222, event=103, hour=20))
         self.assertFalse(ok)
         self.assertIn("after this performance", why)
+
+    def test_adapter_public_status_rejects_forged_stage_projection(self):
+        # Execute the real pure adapter helper without importing Django or
+        # Evennia. The authenticated client/restart gate remains separate.
+        source = (Path(__file__).resolve().parents[2]
+                  / "spike/fvillage/world/stage_work.py").read_text()
+        tree = ast.parse(source)
+        helper = next(node for node in tree.body
+                      if isinstance(node, ast.FunctionDef)
+                      and node.name == "_verified_public_status")
+        gates = {"warning": False, "decision": False}
+        seen = []
+        def verify_warning(raw, day, hour):
+            seen.append(("warning", day, hour))
+            return gates["warning"]
+        def verify_decision(raw, day, hour):
+            seen.append(("decision", day, hour))
+            return gates["decision"]
+        scope = {
+            "stage_state": stage, "Mapping": Mapping,
+            "_verified_warning": verify_warning,
+            "_verified_decision": verify_decision,
+        }
+        exec(compile(ast.Module(body=[helper], type_ignores=[]),
+                     "<actual-stage-status-adapter>", "exec"), scope)
+        public = scope["_verified_public_status"]
+
+        original, ok, why = warning()
+        self.assertTrue(ok, why)
+        original, ok, why = decision(original)
+        self.assertTrue(ok, why)
+        saved = copy.deepcopy(original)
+        forged = public(original, 1, 21)
+        self.assertNotIn("A Hound signed", forged)
+        self.assertNotIn("A Performer chose", forged)
+        self.assertIn("could not be verified", forged)
+        self.assertEqual(seen, [("warning", 1, 21)])
+        self.assertEqual(original, saved)  # Never mutate persistent evidence.
+
+        gates["warning"] = True
+        seen.clear()
+        partial = public(original, 1, 21)
+        self.assertIn("A Hound signed", partial)
+        self.assertNotIn("A Performer chose", partial)
+        self.assertIn("could not be verified", partial)
+        self.assertEqual(seen, [("warning", 1, 21), ("decision", 1, 21)])
+
+        gates["decision"] = True
+        verified = public(original, 1, 21)
+        self.assertIn("A Hound signed", verified)
+        self.assertIn("A Performer chose indoor", verified)
+        self.assertNotIn("could not be verified", verified)
+
+        later = stage.refresh(original, 2)
+        historical = public(later, 2, 9)
+        self.assertNotIn("Previous stage decision:", historical)
+        self.assertIn("Earlier stage safety choices require", historical)
+        self.assertEqual(later["history"][-1]["safety_decision"]["choice"], "indoor")
+
+        scope["_verified_warning"] = lambda *_: (_ for _ in ()).throw(KeyError("ledger"))
+        # The helper's global namespace is scope, so a missing ledger
+        # cannot turn a mutable warning into a signed public claim.
+        broken = public(original, 1, 21)
+        self.assertNotIn("A Hound signed", broken)
+        self.assertNotIn("A Performer chose", broken)
+        self.assertIn("could not be verified", broken)
 
     def test_public_status_does_not_invent_crowd(self):
         state, ok, _ = warning()
