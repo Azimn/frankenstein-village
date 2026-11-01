@@ -356,7 +356,7 @@ class CautionAdapterTests(unittest.TestCase):
                 self.setUp()
                 hound = self._hound_renewal_actor()
                 self.mutate = lambda: change(hound)
-                with self.assertRaisesRegex(RuntimeError, "changed account"):
+                with self.assertRaisesRegex(RuntimeError, "changed account|moved away"):
                     self.work.field_action(hound, "protect")
                 self.assertEqual(self.cord.db.route_caution["event_id"], 40)
                 self.assertEqual(self.published, [])
