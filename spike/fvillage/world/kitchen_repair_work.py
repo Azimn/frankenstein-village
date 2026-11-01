@@ -144,6 +144,9 @@ def player_simmer_allowed(pot):
             or smith["consequence"].get("consumed_item_id") != repair["item_id"]
             or not isinstance(forge.get("consequence"), Mapping)
             or forge["consequence"].get("item_id") != repair["item_id"]
+            or type(inn.get("id")) is not int
+            or type(smith.get("id")) is not int
+            or type(forge.get("id")) is not int
             or inn["id"] >= smith["id"]
             or forge["id"] >= smith["id"]):
         return False
@@ -155,7 +158,8 @@ def status():
     if pot is None:
         return rules.public_lines({"condition": "invalid"})
     prior, _reason = _rollback_blocker(pot)
-    if prior:
+    if prior or (rules.normalize(pot.db.kitchen_repair)["condition"] == "working"
+                 and not player_simmer_allowed(pot)):
         return "The pot's repair record conflicts with signed physical history; service is unavailable."
     return rules.public_lines(pot.db.kitchen_repair)
 
