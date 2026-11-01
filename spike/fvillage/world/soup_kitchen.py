@@ -15,7 +15,7 @@ from evennia.utils import search
 
 from world import soup_state, hearth_state, soup_supply_edge04, arrival_hospitality, route_surveys
 from world.callings import active_calling, record_participation
-from world.events import publish_world_event, get_event_ledger
+from world.events import LEDGER_KEY, publish_world_event, get_event_ledger
 
 TAVERN = "The Blood of the Vine"
 MARKET = "Market Lane"
@@ -68,13 +68,25 @@ def pot_description():
         if done else " No player-made batch has been recorded."
     )
     from world import kitchen_repair_work
+    arrival_line = ""
+    if any(getattr(row, "get", lambda _key: None)("arrival_welcome")
+           for row in state["history"]):
+        try:
+            # Read existing canonical evidence. Looking at the pot must never
+            # create a new world ledger or authenticate a mutable Attribute.
+            ledger = ScriptDB.objects.get(db_key=LEDGER_KEY)
+            arrival_line = arrival_hospitality.verified_public_welcome(
+                state["history"], ledger.get_event,
+            )
+        except (ScriptDB.DoesNotExist, AttributeError, TypeError, ValueError):
+            arrival_line = ""
     return (
         "A large, shared iron soup pot sits beside the Blood of the Vine's "
         "working kitchen fire. Bram's ordinary pantry renews each village day "
         "whether or not players are present; it is not anyone's private business. "
         f"Pantry day {state['day']}: {listed}. "
         f"The main hearth is {'warm' if fire else 'low'}."
-        + last + " " + kitchen_repair_work.status() +
+        + last + " " + kitchen_repair_work.status() + arrival_line +
         " Use soup prep <turnip|barley> <thyme|salt|pepper>, soup simmer, "
         "soup notebook, soup receipt/publish/receipts for consented records, "
         "soup accept after a Merchant handoff, or use signed solo soup deliver."
