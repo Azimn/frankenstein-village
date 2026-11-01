@@ -72,7 +72,7 @@ def _eligible_accounts(raw, performer_id):
 def fresh(day=1):
     return {"day": day, "rehearsals": [], "performance": None,
             "witnesses": [], "safety_warning": None,
-            "safety_decision": None, "history": []}
+            "safety_decision": None, "service": None, "history": []}
 
 
 def normalize(raw):
@@ -106,6 +106,13 @@ def normalize(raw):
             perf.get("eligible_audience_ids"), _ident(perf.get("account_id"))
         )
         result["performance"]["eligible_audience_ids"] = eligible
+        result["performance"]["reviews"] = [
+            dict(r) for r in list(perf.get("reviews") or [])
+            if hasattr(r, "get") and r.get("verdict") in ("praise", "critique")
+            and _ident(r.get("account_id")) and _ident(r.get("mask_id"))
+            and _ident(r.get("event_id")) and _ident(r.get("witness_event_id"))
+            and _ident(r.get("performance_event_id"))
+        ][:8]
         seen = set()
         for r in _records(raw.get("witnesses"))[-MAX_WITNESSES * 2:]:
             account = _ident(r.get("account_id"))
@@ -117,6 +124,36 @@ def normalize(raw):
                 receipt["event_id"] = event
                 result["witnesses"].append(receipt)
     result["witnesses"] = result["witnesses"][-MAX_WITNESSES:]
+    # A catered service is credible only with an actual show, an independent
+    # Innkeep, a physical bowl receipt and a real signed audience witness.
+    service = raw.get("service")
+    show = result["performance"]
+    if (show and result["witnesses"] and hasattr(service, "get")
+            and all(_ident(service.get(key)) for key in (
+                "account_id", "mask_id", "event_id", "bowl_id",
+                "cook_event_id", "performance_event_id", "witness_event_id"))
+            and service.get("performance_event_id") == show["event_id"]
+            and _ident(service.get("account_id")) != show["account_id"]
+            and service.get("hour") == show["hour"]
+            and not isinstance(service.get("witness_count"), bool)
+            and _ident(service.get("witness_count"))
+            and int(service["witness_count"]) <= len(result["witnesses"])
+            and _ident(service.get("event_id")) > max(
+                show["event_id"], _ident(service.get("cook_event_id")),
+                _ident(service.get("witness_event_id")))
+            and any(w["event_id"] == service["witness_event_id"]
+                    for w in result["witnesses"])):
+        result["service"] = {
+            "account_id": int(service["account_id"]),
+            "mask_id": int(service["mask_id"]),
+            "mask": str(service.get("mask") or "")[:70],
+            "hour": show["hour"], "event_id": int(service["event_id"]),
+            "bowl_id": int(service["bowl_id"]),
+            "cook_event_id": int(service["cook_event_id"]),
+            "performance_event_id": show["event_id"],
+            "witness_event_id": int(service["witness_event_id"]),
+            "witness_count": int(service["witness_count"]),
+        }
     warning = raw.get("safety_warning")
     if (hasattr(warning, "get")
             and all(_ident(warning.get(k)) for k in (
@@ -163,10 +200,11 @@ def refresh(raw, day):
             "witnesses": copy.deepcopy(state["witnesses"]),
             "safety_warning": copy.deepcopy(state["safety_warning"]),
             "safety_decision": copy.deepcopy(state["safety_decision"]),
+            "service": copy.deepcopy(state["service"]),
         })
     return {"day": target, "rehearsals": [], "performance": None,
             "witnesses": [], "safety_warning": None, "safety_decision": None,
-            "history": state["history"][-MAX_HISTORY:]}
+            "service": None, "history": state["history"][-MAX_HISTORY:]}
 
 
 def rehearse(raw, *, day, hour, account_id, mask_id, mask, tune, event_id):
@@ -364,6 +402,180 @@ def witness(raw, *, day, hour, account_id, mask_id, mask, event_id):
     return state, True, None
 
 
+MAX_REVIEWS = 8
+VERDICTS = ("praise", "critique")
+
+
+def _signed_stage_event(event, *, kind, event_id, account_id, mask_id, day, hour=None, tune=None):
+    """Check a completed canonical source, not just a copied event number."""
+    if not hasattr(event, "get") or event.get("kind") != "village.stage_" + kind:
+        return False
+    if event.get("status") != "complete" or _ident(event.get("id")) != _ident(event_id):
+        return False
+    actor, payload = event.get("actor") or {}, event.get("payload") or {}
+    if not hasattr(actor, "get") or not hasattr(payload, "get"):
+        return False
+    if (_ident(actor.get("account_id")) != _ident(account_id)
+            or _ident(actor.get("mask_id")) != _ident(mask_id)
+            or _ident(payload.get("day")) != _ident(day)):
+        return False
+    if hour is not None and payload.get("hour") != hour:
+        return False
+    if tune is not None and payload.get("tune") != tune:
+        return False
+    return True
+
+
+def verify_review_sources(show, witness, events, *, day):
+    """A review needs actual rehearsal, performance and firsthand witness."""
+    if not hasattr(show, "get") or not hasattr(witness, "get") or not hasattr(events, "get"):
+        return False
+    if _ident(show.get("account_id")) == _ident(witness.get("account_id")):
+        return False
+    performance = events.get("performance")
+    rehearsal = events.get("rehearsal")
+    witnessed = events.get("witness")
+    if not _signed_stage_event(
+        performance, kind="perform", event_id=show.get("event_id"),
+        account_id=show.get("account_id"), mask_id=show.get("mask_id"),
+        day=day, hour=show.get("hour"), tune=show.get("tune"),
+    ):
+        return False
+    if not _signed_stage_event(
+        rehearsal, kind="rehearse", event_id=show.get("rehearsal_event_id"),
+        account_id=show.get("account_id"), mask_id=show.get("mask_id"),
+        day=day, tune=show.get("tune"),
+    ):
+        return False
+    if not _signed_stage_event(
+        witnessed, kind="witness", event_id=witness.get("event_id"),
+        account_id=witness.get("account_id"), mask_id=witness.get("mask_id"),
+        day=day, hour=show.get("hour"),
+    ):
+        return False
+    performance_result = performance.get("consequence") or {}
+    witness_result = witnessed.get("consequence") or {}
+    return (hasattr(performance_result, "get") and hasattr(witness_result, "get")
+            and performance_result.get("performance_event_id") == show.get("event_id")
+            and witness_result.get("performance_event_id") == show.get("event_id"))
+
+
+def verify_review_event(review, event, show):
+    """A contest must reference a completed, source-bound Chronicler review."""
+    if not _signed_stage_event(
+        event, kind="review", event_id=review.get("event_id"),
+        account_id=review.get("account_id"), mask_id=review.get("mask_id"),
+        day=review.get("day"), hour=review.get("hour"),
+    ):
+        return False
+    payload, consequence = event.get("payload") or {}, event.get("consequence") or {}
+    return (
+        payload.get("source_performance_event_id") == show.get("event_id")
+        and payload.get("source_witness_event_id") == review.get("witness_event_id")
+        and payload.get("verdict") == review.get("verdict")
+        and consequence.get("performance_event_id") == show.get("event_id")
+        and consequence.get("review_event_id") == review.get("event_id")
+    )
+
+
+def review(raw, *, day, hour, account_id, mask_id, mask, event_id,
+           verdict, performance_event_id, witness_event_id):
+    state = refresh(raw, day)
+    if not _time(day, hour) or day < state["day"]:
+        return state, False, "The village clock cannot be rewound."
+    if verdict not in VERDICTS:
+        return state, False, "Choose praise or critique."
+    aid, mid, eid = _ident(account_id), _ident(mask_id), _ident(event_id)
+    show = state["performance"]
+    if not (aid and mid and eid):
+        return state, False, "An actual player and signed event are required."
+    if not show or show["event_id"] != _ident(performance_event_id):
+        return state, False, "A real performance must exist today."
+    if show["account_id"] == aid:
+        return state, False, "A Performer cannot review their own work."
+    witness = next((
+        w for w in state["witnesses"]
+        if w["account_id"] == aid and w["mask_id"] == mid
+        and w["event_id"] == _ident(witness_event_id)
+    ), None)
+    if not witness:
+        return state, False, "Sign firsthand stage witness before reviewing."
+    reviews = list(show.get("reviews") or [])
+    if any(r["account_id"] == aid for r in reviews):
+        return state, False, "This account already reviewed the performance."
+    if len(reviews) >= MAX_REVIEWS:
+        return state, False, "The review book is full for this performance."
+    reviews.append({
+        "account_id": aid, "mask_id": mid, "mask": str(mask)[:70],
+        "day": day, "hour": hour, "event_id": eid,
+        "performance_event_id": show["event_id"],
+        "witness_event_id": witness["event_id"],
+        "verdict": verdict, "contest_event_id": None,
+    })
+    show["reviews"] = reviews
+    return state, True, None
+
+
+def contest(raw, *, day, hour, account_id, mask_id, mask, event_id,
+            review_event_id):
+    state = refresh(raw, day)
+    if not _time(day, hour) or day < state["day"]:
+        return state, False, "The village clock cannot be rewound."
+    aid, mid, eid = _ident(account_id), _ident(mask_id), _ident(event_id)
+    show = state["performance"]
+    if not (aid and mid and eid):
+        return state, False, "An actual player and signed event are required."
+    if not show or show["account_id"] != aid or show["mask_id"] != mid:
+        return state, False, "Only the original Performer can contest this review."
+    target = next((
+        r for r in show.get("reviews") or []
+        if r["event_id"] == _ident(review_event_id)
+    ), None)
+    if not target:
+        return state, False, "No such signed review exists for this performance."
+    if target.get("contest_event_id"):
+        return state, False, "This review has already been contested."
+    target["contest_event_id"] = eid
+    return state, True, None
+
+
+def cater(raw, *, day, hour, account_id, mask_id, mask, event_id,
+          bowl_id, cook_event_id):
+    """One finite Innkeep food service linked to a witnessed real show.
+
+    The Evennia adapter must separately verify the real bowl, its completed
+    cooking event, active Innkeep Calling and physical Tavern location.
+    """
+    state = refresh(raw, day)
+    if not _time(day, hour) or day < state["day"]:
+        return state, False, "The village clock cannot be rewound."
+    aid, mid, eid = _ident(account_id), _ident(mask_id), _ident(event_id)
+    bid, cid = _ident(bowl_id), _ident(cook_event_id)
+    if not all((aid, mid, eid, bid, cid)):
+        return state, False, "A signed Innkeep and physical cooked bowl are required."
+    show = state["performance"]
+    if not show:
+        return state, False, "No real Performer show has taken place today."
+    if show["hour"] != hour:
+        return state, False, "The audience has left this performance hour."
+    if show["account_id"] == aid:
+        return state, False, "An independent Innkeep must provide the food service."
+    if not state["witnesses"]:
+        return state, False, "No audience member signed attendance at this show."
+    if state["service"]:
+        return state, False, "This performance has already received its catered bowl."
+    witness = state["witnesses"][0]
+    if eid <= max(show["event_id"], cid, witness["event_id"]):
+        return state, False, "The service must follow the signed show, witness and cooking."
+    state["service"] = {
+        "account_id": aid, "mask_id": mid, "mask": str(mask)[:70],
+        "hour": hour, "event_id": eid, "bowl_id": bid,
+        "cook_event_id": cid, "performance_event_id": show["event_id"],
+        "witness_event_id": witness["event_id"],
+        "witness_count": len(state["witnesses"]),
+    }
+    return state, True, None
+
 def public_lines(raw, day):
     state = refresh(raw, day)
     lines = ["The Tavern stage", "Today: village day %d." % state["day"]]
@@ -379,22 +591,60 @@ def public_lines(raw, day):
                      % (p["mask"], p["tune"], p["hour"]))
         lines.append("%d other player account(s) witnessed it firsthand."
                      % len(state["witnesses"]))
+        if state["service"]:
+            meal = state["service"]
+            lines.append("%s provided one real cooked soup bowl for the witnessed show "
+                         "(service event %d, bowl %d, cooking event %d)."
+                         % (meal["mask"], meal["event_id"], meal["bowl_id"],
+                            meal["cook_event_id"]))
+        for review_record in p.get("reviews") or []:
+            lines.append("%s filed an attributed %s review (event %s)%s."
+                         % (review_record["mask"], review_record["verdict"],
+                            review_record["event_id"],
+                            ", contested by the Performer" if review_record.get("contest_event_id") else ""))
     else:
         lines.append("No public performance has occurred today.")
     if state["history"]:
         last = state["history"][-1]
         prior_show = last.get("performance")
         prior_decision = last.get("safety_decision")
-        if (isinstance(prior_show, Mapping)
-                and isinstance(prior_show.get("mask"), str)):
-            lines.append("Previous recorded show: %s, day %d."
-                         % (prior_show["mask"], last["day"]))
-        elif (isinstance(prior_decision, Mapping)
-              and prior_decision.get("choice") in {"indoor", "cancel"}):
-            lines.append("Previous stage decision: %s, day %d."
-                         % (prior_decision["choice"], last["day"]))
+        if isinstance(prior_show, Mapping) and isinstance(prior_show.get("mask"), str):
+            lines.append("Previous recorded show: %s, day %d." % (prior_show["mask"], last["day"]))
+        elif isinstance(prior_decision, Mapping) and prior_decision.get("choice") in {"indoor", "cancel"}:
+            lines.append("Previous stage decision: %s, day %d." % (prior_decision["choice"], last["day"]))
     lines.append("Hounds: after survey protect at the real red cord, visit here and stage warn.")
     lines.append("Performers: stage adapt indoor or stage adapt cancel after a Hound warning.")
-    lines.append("Performers: stage rehearse ballad or stage rehearse reel, then stage perform ballad or stage perform reel.")
+    lines.append("Performers: stage rehearse ballad (or reel), then stage perform ballad (or reel).")
     lines.append("During the actual performance hour, other visitors may stage witness.")
+    lines.append("A firsthand Chronicler may stage review praise (or critique); the Performer may stage contest <review event>.")
+    lines.append("Innkeeps: after a real audience witness, carry a cooked soup bowl and use stage cater in the same hour.")
+    return "\n".join(lines)
+
+
+def archive_lines(raw, day):
+    """Public, attributed stage record. Reviews are opinions, not world truth."""
+    state = refresh(raw, day)
+    shows = list(state["history"][-10:])
+    if state["performance"]:
+        shows.append({
+            "day": state["day"], "performance": state["performance"],
+            "witnesses": state["witnesses"],
+        })
+    lines = ["The Tavern's signed performance and review archive"]
+    if not shows:
+        lines.append("No performances have been recorded.")
+    for item in shows:
+        show = item.get("performance") or {}
+        if not show:
+            continue
+        lines.append("Day %s: %s played %s (performance event %s; %s signed witnesses)."
+                     % (item["day"], show.get("mask"), show.get("tune"),
+                        show.get("event_id"), len(item.get("witnesses") or [])))
+        for record in show.get("reviews") or []:
+            lines.append("  %s: attributed %s review, event %s, witness event %s%s."
+                         % (record.get("mask"), record.get("verdict"),
+                            record.get("event_id"), record.get("witness_event_id"),
+                            "; Performer contested in event %s" % record["contest_event_id"]
+                            if record.get("contest_event_id") else ""))
+    lines.append("A review reports a Chronicler's opinion, not objective proof.")
     return "\n".join(lines)
