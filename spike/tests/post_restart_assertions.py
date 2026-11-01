@@ -246,15 +246,30 @@ try:
                        "professional.smith_kitchen_repair"))
     assert _prior, "Erasing pot Attribute hid original signed restriction"
     assert "conflicts with signed physical history" in kitchen_repair_work.status()
+    assert not kitchen_repair_work.player_simmer_allowed(_kitchen_pot), (
+        "Erased signed restriction reopened actual player simmering")
     _kitchen_pot.db.kitchen_repair = {
         "condition": "restricted", "restriction": _kitchen_inn, "repair": None}
     _prior, _why = kitchen_repair_work._prior_completed_pot_event(
         _kitchen_pot, ("professional.smith_kitchen_repair",))
     assert _prior, "Rewinding pot Attribute hid completed Smith fitting"
     assert "conflicts with signed physical history" in kitchen_repair_work.status()
+    assert not kitchen_repair_work.player_simmer_allowed(_kitchen_pot), (
+        "Rewound signed Smith repair reopened actual player simmering")
+    _forged_working = dict(_saved_kitchen_attribute)
+    _forged_working["repair"] = dict(
+        _kitchen_fix, event_id=_kitchen_inn["event_id"])
+    _kitchen_pot.db.kitchen_repair = _forged_working
+    assert kitchen_repair_edge02.normalize(
+        _kitchen_pot.db.kitchen_repair)["condition"] == "working"
+    assert not kitchen_repair_work.player_simmer_allowed(_kitchen_pot), (
+        "Shape-valid forged Smith event ID reopened player simmering")
 finally:
     _kitchen_pot.db.kitchen_repair = _saved_kitchen_attribute
+assert kitchen_repair_work.player_simmer_allowed(_kitchen_pot), (
+    "Original signed Smith repair did not restore legitimate simmering")
 assert "physically repaired" in kitchen_repair_work.status()
+print("POST_RESTART_GDD_EDGE02_SIGNED_SIMMER_SOURCE_GATE_GREEN")
 print("POST_RESTART_GDD_EDGE02_SIGNED_ROLLBACK_REFUSAL_GREEN")
 print("POST_RESTART_GDD_EDGE02_SIGNED_PHYSICAL_KITCHEN_REPAIR_GREEN")
 
