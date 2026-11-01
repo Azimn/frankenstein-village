@@ -8,23 +8,25 @@ incomplete to complete. Incomplete days become explicit historical outcomes.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping, Sequence
 
 SITES = ("grave_marker", "red_cord", "market_scale", "river_gauge")
 MAX_HISTORY = 30
 
 
 def fresh(day=0):
-    return {"day": int(day), "reports": {}, "field_decisions": {}, "advisory": None, "history": []}
+    return {"day": int(day), "reports": {}, "field_decisions": {}, "advisory": None, "caution_notice": None, "caution_publication_event_id": None, "history": []}
 
 
 def normalize(raw):
-    value = copy.deepcopy(dict(raw or {}))
+    value = copy.deepcopy(dict(raw)) if isinstance(raw, Mapping) else {}
     try:
         day = max(0, int(value.get("day") or 0))
     except (TypeError, ValueError, OverflowError):
         day = 0
     reports = {}
-    for ident, entry in dict(value.get("reports") or {}).items():
+    raw_reports = value.get("reports")
+    for ident, entry in (raw_reports.items() if isinstance(raw_reports, Mapping) else ()):
         if ident not in SITES or not hasattr(entry, "get"):
             continue
         try:
@@ -39,7 +41,8 @@ def normalize(raw):
             "event_id": event,
         }
     decisions = {}
-    for role, entry in dict(value.get("field_decisions") or {}).items():
+    raw_decisions = value.get("field_decisions")
+    for role, entry in (raw_decisions.items() if isinstance(raw_decisions, Mapping) else ()):
         if role not in {"hound", "wanderer"} or not hasattr(entry, "get"):
             continue
         try:
@@ -65,7 +68,7 @@ def normalize(raw):
     # A later Wanderer check links two completed professional sources without
     # rewriting either original observation. Old snapshots lack this optional
     # entry and remain readable.
-    raw_wanderer = dict(value.get("field_decisions") or {}).get("wanderer") or {}
+    raw_wanderer = raw_decisions.get("wanderer") or {} if isinstance(raw_decisions, Mapping) else {}
     joint = raw_wanderer.get("corroboration") if hasattr(raw_wanderer, "get") else None
     if (hasattr(joint, "get") and "hound" in decisions and "wanderer" in decisions):
         try:
@@ -122,12 +125,19 @@ def normalize(raw):
                     "source_mask": str(item.get("source_mask") or "")[:70],
                     "observation": item["observation"],
                 }
+    raw_notice = value.get("caution_notice")
+    published_id = _positive(value.get("caution_publication_event_id"))
+    if not published_id and isinstance(raw_notice, Mapping):
+        if _positive(raw_notice.get("day")) == day:
+            published_id = _positive(raw_notice.get("event_id"))
     return {
         "day": day,
         "reports": reports,
         "field_decisions": decisions,
         "advisory": advisory,
-        "history": list(value.get("history") or [])[-MAX_HISTORY:],
+        "caution_notice": _notice(raw_notice, decisions, day),
+        "caution_publication_event_id": published_id,
+        "history": _valid_history(value.get("history"))[-MAX_HISTORY:],
     }
 
 
@@ -145,6 +155,8 @@ def refresh(raw, day):
             "reports": copy.deepcopy(state["reports"]),
             "field_decisions": copy.deepcopy(state["field_decisions"]),
             "advisory": copy.deepcopy(state["advisory"]),
+            "caution_notice": copy.deepcopy(state["caution_notice"]),
+            "caution_publication_event_id": state["caution_publication_event_id"],
         }
         state["history"].append(previous)
         state["history"] = state["history"][-MAX_HISTORY:]
@@ -152,6 +164,8 @@ def refresh(raw, day):
     state["reports"] = {}
     state["field_decisions"] = {}
     state["advisory"] = None
+    state["caution_notice"] = None
+    state["caution_publication_event_id"] = None
     return state
 
 
@@ -405,6 +419,14 @@ def field_lines(raw):
             f"by {hound['mask']} (signed event {hound['event_id']}). "
             "This does not repair the cord or establish what damaged it."
         )
+    if state["caution_notice"]:
+        notice = state["caution_notice"]
+        lines.append(
+            f"{notice['mask']} published a Chronicler caution notice "
+            f"(event {notice['event_id']}) based on the Hound's physical "
+            f"cord marker (event {notice['source_event_id']}). "
+            "This reports an observed warning, not a verified threat or safe route."
+        )
     if "wanderer" in entries:
         traveler = entries["wanderer"]
         label = "marked caution" if traveler["observation"] == "marked_caution" else "unmarked cord"
@@ -531,3 +553,95 @@ def advisory_lines(raw):
         f"(source event {item['source_event_id']}). "
         "This dated account is not a current safety guarantee or proof of a hazard."
     ]
+
+
+def _positive(value):
+    """Accept genuine positive integer IDs or ASCII decimal strings only."""
+    if type(value) is int:
+        return value if value > 0 else None
+    if isinstance(value, str) and value.isascii() and value.isdecimal():
+        parsed = int(value)
+        return parsed if parsed > 0 else None
+    return None
+
+def _notice(raw, decisions, day):
+    """Reject malformed persisted editorial claims, including stale source links."""
+    if not isinstance(raw, Mapping) or "hound" not in decisions:
+        return None
+    keys = ("account_id", "mask_id", "event_id", "source_event_id",
+            "source_account_id", "source_mask_id", "source_cord_id")
+    ids = {key: _positive(raw.get(key)) for key in keys}
+    if not all(ids.values()):
+        return None
+    if type(raw.get("hour")) is not int or type(raw.get("source_hour")) is not int:
+        return None
+    try:
+        hour = int(raw.get("hour"))
+        source_hour = int(raw.get("source_hour"))
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if (isinstance(raw.get("hour"), bool)
+            or isinstance(raw.get("source_hour"), bool)
+            or not (0 <= source_hour <= hour <= 23)
+            or ids["account_id"] == ids["source_account_id"]
+            or ids["event_id"] == ids["source_event_id"]
+            or ids["source_event_id"] != decisions["hound"]["event_id"]
+            or ids["source_account_id"] != decisions["hound"]["account_id"]
+            or _positive(raw.get("day")) != day):
+        return None
+    return {**ids, "day": day, "hour": hour, "source_hour": source_hour,
+            "mask": str(raw.get("mask") or "")[:70]}
+
+def publish_caution(raw, *, day, hour, account_id, mask_id, mask,
+                    event_id, source_event_id, source_account_id,
+                    source_mask_id, source_cord_id, source_hour):
+    """One independent, qualified Chronicler notice per village day.
+
+    The Hound's physical marker and completed ledger are verified separately
+    by the adapter. This pure transition never asserts a monster or safe road.
+    """
+    state = refresh(raw, day)
+    if day < state["day"]:
+        return state, False, "A later village day is already recorded."
+    if state["caution_notice"] or state["caution_publication_event_id"]:
+        return state, False, "Today's sourced caution notice is already published."
+    hound = state["field_decisions"].get("hound")
+    if not hound:
+        return state, False, "A firsthand signed Hound protection is required."
+    raw_notice = {
+        "day": day, "hour": hour, "account_id": account_id,
+        "mask_id": mask_id, "mask": mask, "event_id": event_id,
+        "source_event_id": source_event_id,
+        "source_account_id": source_account_id,
+        "source_mask_id": source_mask_id,
+        "source_cord_id": source_cord_id,
+        "source_hour": source_hour,
+    }
+    notice = _notice(raw_notice, state["field_decisions"], day)
+    if not notice:
+        return state, False, "Independent, chronological signed source evidence is required."
+    state["caution_notice"] = notice
+    state["caution_publication_event_id"] = notice["event_id"]
+    return state, True, None
+
+
+def _valid_history(raw):
+    """Keep only coherent archived days, never scalar or invented public reports."""
+    # Evennia reloads stored lists as _SaverList (MutableSequence), not list.
+    # Preserve validated prior-day receipts across actual server restarts.
+    if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes, bytearray)):
+        return []
+    history = []
+    for prior in raw:
+        if not isinstance(prior, Mapping):
+            continue
+        reports = prior.get("reports")
+        if (not _positive(prior.get("day"))
+                or not isinstance(reports, Mapping)
+                or type(prior.get("completed")) is not bool
+                or any(site not in SITES or not isinstance(entry, Mapping)
+                       for site, entry in reports.items())
+                or prior["completed"] != (len(reports) == len(SITES))):
+            continue
+        history.append(copy.deepcopy(dict(prior)))
+    return history
