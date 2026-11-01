@@ -123,7 +123,9 @@ def verified_public_lines(raw, source, detective, *, cord_id, room, caution):
                for value in (sa, sp, sc, da, dp, dc)):
         return absent
     if (
-        source.get("id") != record["source_event_id"]
+        type(source.get("id")) is not int
+        or type(detective.get("id")) is not int
+        or source.get("id") != record["source_event_id"]
         or source.get("kind") != "village.route_protected"
         or source.get("status") != "complete"
         or sa.get("account_id") != record["hound_account_id"]
