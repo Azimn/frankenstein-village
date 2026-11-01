@@ -213,6 +213,21 @@ class BridgeCaseEdge15Tests(unittest.TestCase):
         altered["case_examinations"][0]["hour"] = 13
         self.assertFalse(chronicler(altered, hour=12)[1])
 
+    def test_first_ledger_event_can_be_original_observation(self):
+        # An observation may legitimately be world event 1. The bridge
+        # preflight must use a distinct synthetic ID, never a hardcoded 1.
+        observed = observation(event=1)
+        state, ok, reason = detective(event=2, observed=observed)
+        self.assertTrue(ok, reason)
+        signed = source(event=2)
+        signed["payload"]["observation_event_id"] = 1
+        signed["consequence"]["observation_event_id"] = 1
+        published, ok, reason = chronicler(state, event=3, signed=signed)
+        self.assertTrue(ok, reason)
+        self.assertEqual(published["case_bulletins"][0]["source_event_id"], 2)
+        self.assertEqual(published["case_bulletins"][0]["observation_event_id"], 1)
+        self.assertFalse(chronicler(state, event=1, signed=signed)[1])
+
     def test_no_publication_without_source_or_with_wrong_time(self):
         state, ok, why = chronicler({})
         self.assertFalse(ok)
