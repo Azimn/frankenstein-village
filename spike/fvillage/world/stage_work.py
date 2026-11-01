@@ -35,12 +35,94 @@ def _guard(mask):
     return tavern, None
 
 
+def _public_service_verified(tavern, state, ledger, bowl):
+    """A public catering claim needs its original events AND the real bowl.
+
+    Tavern stage attributes are mutable projections. They cannot themselves
+    prove that food was cooked, carried or served by an independent player.
+    """
+    service = state.get("service")
+    show = state.get("performance")
+    witnesses = state.get("witnesses") or []
+    if not (service and show and witnesses and bowl):
+        return False
+    try:
+        witness = next((w for w in witnesses
+                        if w["event_id"] == service["witness_event_id"]), None)
+        if witness is None:
+            return False
+        event = ledger.get_event(service["event_id"])
+        cook = ledger.get_event(service["cook_event_id"])
+        performance = ledger.get_event(show["event_id"])
+        witness_event = ledger.get_event(witness["event_id"])
+        if not _catering_sources_match(
+            state, cook, performance, witness_event,
+            tavern_id=tavern.id, bowl_id=service["bowl_id"],
+            cook_event_id=service["cook_event_id"],
+        ):
+            return False
+        if not (hasattr(event, "get")
+                and event.get("status") == "complete"
+                and event.get("kind") == "village.stage_cater"):
+            return False
+        actor = event.get("actor") or {}
+        payload = event.get("payload") or {}
+        result = event.get("consequence") or {}
+        if not all((
+            event.get("id") == service["event_id"],
+            actor.get("account_id") == service["account_id"],
+            actor.get("mask_id") == service["mask_id"],
+            actor.get("mask") == service["mask"],
+            payload.get("day") == state["day"],
+            payload.get("hour") == service["hour"],
+            payload.get("bowl_id") == service["bowl_id"],
+            payload.get("cook_event_id") == service["cook_event_id"],
+            result.get("day") == state["day"],
+            result.get("hour") == service["hour"],
+            result.get("tavern_room_id") == tavern.id,
+            result.get("bowl_id") == service["bowl_id"],
+            result.get("cook_event_id") == service["cook_event_id"],
+            result.get("performance_event_id") == show["event_id"],
+            result.get("witness_event_id") == witness["event_id"],
+            result.get("witness_count") == service["witness_count"],
+            bowl.id == service["bowl_id"],
+            bowl.location == tavern,
+            bowl.tags.has("food"),
+            int(bowl.db.servings or 0) > 0,
+        )):
+            return False
+        cooked = bowl.db.soup_serving or {}
+        placed = bowl.db.stage_service or {}
+        return (cooked.get("event_id") == service["cook_event_id"]
+                and placed.get("event_id") == service["event_id"]
+                and placed.get("performance_event_id") == show["event_id"]
+                and placed.get("innkeep_account_id") == service["account_id"])
+    except (AttributeError, KeyError, TypeError, ValueError, OverflowError,
+            RuntimeError, StopIteration):
+        return False
+
+
 def status(mask):
     tavern, error = _guard(mask)
     if error:
         return error
     day, _ = _clock()
-    return stage_state.public_lines(tavern.db.village_stage, day)
+    state = stage_state.refresh(tavern.db.village_stage, day)
+    if state["service"]:
+        # Resolve the original object by DBREF and check the exact ID.
+        # Never alter the persistent stage while hiding an unproved claim.
+        try:
+            candidates = search.search_object("#%d" % state["service"]["bowl_id"])
+            bowl = next((obj for obj in candidates
+                         if obj.id == state["service"]["bowl_id"]), None)
+            valid = _public_service_verified(
+                tavern, state, get_event_ledger(), bowl,
+            )
+        except (AttributeError, KeyError, TypeError, ValueError, RuntimeError):
+            valid = False
+        if not valid:
+            state["service"] = None
+    return stage_state.public_lines(state, day)
 
 
 def act(mask, action, tune=None):
