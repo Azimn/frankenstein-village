@@ -62,7 +62,8 @@ def main():
         require(inn.command("soup restrict"),
                 "already has completed signed kitchen work")
         assert "forged market hinge" not in smith.command("inventory").lower()
-        require(smith.command("soup repair"), "carry one real forged iron hinge")
+        require(smith.command("soup repair"),
+                "already has completed signed kitchen work")
         print(f"TELNET_GDD_EDGE02_LATER_DAY_TWO_ACCOUNT_FINITE_KITCHEN_GREEN day={day}")
     finally:
         for client in (inn, smith):
