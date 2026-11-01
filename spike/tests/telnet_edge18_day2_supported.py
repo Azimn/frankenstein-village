@@ -65,7 +65,7 @@ def main():
         require(cot_smith.command("clinic treat supported"), "active healer")
 
         public = smith.command("clinic")
-        require(public, "clinically approved")
+        require(public, "An independent Healer must assess today\'s patient")
         match = re.search(r"village day (\d+):", public, re.IGNORECASE)
         assert match, "Clinic status did not report its actual village day"
         patient_day = int(match.group(1))
@@ -86,6 +86,7 @@ def main():
                     "signed world event")
         require_all(healer.command("clinic certify"),
                     "clinically approve", "signed world event")
+        require(smith.command("clinic"), "clinically approved")
         require(healer.command("clinic certify"),
                 "real smith fitting must be installed before approval")
         require(healer.command("clinic records"), "patient's signed permission")
