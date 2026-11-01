@@ -84,7 +84,10 @@ def normalize(raw):
     history = raw.get("history") or []
     if isinstance(history, Sequence) and not isinstance(history, (str, bytes, bytearray)):
         state["history"] = [
-            copy.deepcopy(row) for row in history[-MAX_HISTORY * 2:]
+            copy.deepcopy(
+                row.deserialize() if callable(getattr(row, "deserialize", None))
+                else dict(row)
+            ) for row in history[-MAX_HISTORY * 2:]
             if hasattr(row, "get") and _positive(row.get("day"))
             and _positive(row.get("day")) < day
         ][-MAX_HISTORY:]
