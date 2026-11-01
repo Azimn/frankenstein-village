@@ -19,13 +19,14 @@ def fresh(day=0):
 
 
 def normalize(raw):
-    value = copy.deepcopy(dict(raw or {}))
+    value = copy.deepcopy(dict(raw)) if isinstance(raw, Mapping) else {}
     try:
         day = max(0, int(value.get("day") or 0))
     except (TypeError, ValueError, OverflowError):
         day = 0
     reports = {}
-    for ident, entry in dict(value.get("reports") or {}).items():
+    raw_reports = value.get("reports")
+    for ident, entry in (raw_reports.items() if isinstance(raw_reports, Mapping) else ()):
         if ident not in SITES or not hasattr(entry, "get"):
             continue
         try:
@@ -40,7 +41,8 @@ def normalize(raw):
             "event_id": event,
         }
     decisions = {}
-    for role, entry in dict(value.get("field_decisions") or {}).items():
+    raw_decisions = value.get("field_decisions")
+    for role, entry in (raw_decisions.items() if isinstance(raw_decisions, Mapping) else ()):
         if role not in {"hound", "wanderer"} or not hasattr(entry, "get"):
             continue
         try:
@@ -66,7 +68,7 @@ def normalize(raw):
     # A later Wanderer check links two completed professional sources without
     # rewriting either original observation. Old snapshots lack this optional
     # entry and remain readable.
-    raw_wanderer = dict(value.get("field_decisions") or {}).get("wanderer") or {}
+    raw_wanderer = raw_decisions.get("wanderer") or {} if isinstance(raw_decisions, Mapping) else {}
     joint = raw_wanderer.get("corroboration") if hasattr(raw_wanderer, "get") else None
     if (hasattr(joint, "get") and "hound" in decisions and "wanderer" in decisions):
         try:
@@ -135,7 +137,7 @@ def normalize(raw):
         "advisory": advisory,
         "caution_notice": _notice(raw_notice, decisions, day),
         "caution_publication_event_id": published_id,
-        "history": list(value.get("history") or [])[-MAX_HISTORY:],
+        "history": _valid_history(value.get("history"))[-MAX_HISTORY:],
     }
 
 
@@ -621,3 +623,23 @@ def publish_caution(raw, *, day, hour, account_id, mask_id, mask,
     state["caution_notice"] = notice
     state["caution_publication_event_id"] = notice["event_id"]
     return state, True, None
+
+
+def _valid_history(raw):
+    """Keep only coherent archived days, never scalar or invented public reports."""
+    if not isinstance(raw, (list, tuple)):
+        return []
+    history = []
+    for prior in raw:
+        if not isinstance(prior, Mapping):
+            continue
+        reports = prior.get("reports")
+        if (not _positive(prior.get("day"))
+                or not isinstance(reports, Mapping)
+                or type(prior.get("completed")) is not bool
+                or any(site not in SITES or not isinstance(entry, Mapping)
+                       for site, entry in reports.items())
+                or prior["completed"] != (len(reports) == len(SITES))):
+            continue
+        history.append(copy.deepcopy(dict(prior)))
+    return history
