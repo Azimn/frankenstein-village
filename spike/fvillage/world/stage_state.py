@@ -30,6 +30,21 @@ def _ident(value):
     return None
 
 
+
+def parse_review_id(value):
+    """Accept only positive signed 64-bit review event IDs, without coercion."""
+    if isinstance(value, bool):
+        return None
+    limit = (1 << 63) - 1
+    if isinstance(value, int):
+        return value if 0 < value <= limit else None
+    if (isinstance(value, str) and 0 < len(value) <= 20
+            and all("0" <= ch <= "9" for ch in value)):
+        parsed = int(value)
+        return parsed if 0 < parsed <= limit else None
+    return None
+
+
 def _time(day, hour):
     d = _ident(day)
     if isinstance(hour, bool):
