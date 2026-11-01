@@ -2587,6 +2587,55 @@ def main() -> int:
             require(out, destination)
         print("TELNET_GDD_EDGE13_WANDERER_CHRONICLER_MAP_GREEN")
 
+        # EDGE-16: separate Chronicler account publishes only the signed,
+        # physical Hound warning at the existing Square board. The ordinary
+        # Hound and Wanderer remain playable without this editorial handoff.
+        out = wanderer.command("survey caution")
+        require(out, "authenticated chronicler")
+        out = c.command("survey caution")
+        require(out, "visit the village square")
+        for move, destination in (
+            ("north", "lamp shop"), ("north", "village square"),
+        ):
+            out = c.command(move)
+            require(out, destination)
+        out = c.command("survey")
+        require_all(out, "houndtester", "survey caution")
+        assert "published a chronicler caution notice" not in out.lower()
+        out = c.command("survey caution")
+        require(out, "examine the real red cord")
+        # The Chronicler must independently see the original cord. A remote
+        # second account merely reading the Hound's board cannot publish.
+        for move, destination in (
+            ("west", "st. lazarus church"), ("west", "churchyard"),
+            ("north", "northern treeline"),
+        ):
+            out = c.command(move)
+            require(out, destination)
+        out = c.command("look cord")
+        require(out, "scarlet cord")
+        for move, destination in (
+            ("south", "churchyard"), ("east", "st. lazarus church"),
+            ("east", "village square"),
+        ):
+            out = c.command(move)
+            require(out, destination)
+        out = c.command("survey caution")
+        require_all(out, "publish a sourced public caution",
+                    "hound's physical marker", "does not prove danger")
+        out = c.command("survey")
+        require_all(out, "chronicler caution notice", "hound's physical",
+                    "not a verified threat")
+        out = c.command("survey caution")
+        require(out, "already published")
+        for move, destination in (
+            ("south", "lamp shop"), ("south", "market lane"),
+        ):
+            out = c.command(move)
+            require(out, destination)
+        print("TELNET_GDD_EDGE16_INDEPENDENT_HOUND_CHRONICLER_CAUTION_GREEN")
+
+
         print("TELNET_PROFESSIONAL_MARKET_CAUSAL_LOOP_GREEN")
         out = c.command("guide")
         require_all(out, "civic material table", "bridgework collect preserve")

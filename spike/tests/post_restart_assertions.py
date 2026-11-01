@@ -1412,6 +1412,29 @@ assert calling_record(_wanderer_field, "wanderer")["participation"]["field_surve
 assert set(_next_survey_day["history"][-1]["field_decisions"]) == {"hound", "wanderer"}
 print("POST_RESTART_GDD_T07_SHARED_CORD_AND_DISTINCT_ACTIONS_GREEN")
 
+_notice = route_board["caution_notice"]
+assert _notice, "Independent Chronicler caution did not survive restart"
+assert _notice["mask"] == "SmokeTester"
+assert _notice["mask_id"] == smoke.id
+assert _notice["source_event_id"] == _actions["hound"]["event_id"]
+assert _notice["source_account_id"] == _actions["hound"]["account_id"]
+assert _notice["source_cord_id"] == _cord.id
+assert _notice["source_mask_id"] == _hound_protect.id
+assert _notice["account_id"] != _notice["source_account_id"]
+assert _notice["source_hour"] <= _notice["hour"]
+_publication = warning_ledger.get_event(_notice["event_id"])
+assert _publication["status"] == "complete"
+assert _publication["kind"] == "village.route_caution_published"
+assert _publication["actor"]["account_id"] == _notice["account_id"]
+assert _publication["actor"]["mask_id"] == smoke.id
+assert _publication["payload"]["source_event_id"] == _actions["hound"]["event_id"]
+assert _publication["consequence"]["square_room_id"] == one("Village Square").id
+assert _publication["consequence"]["publication_event_id"] == _notice["event_id"]
+assert _next_survey_day["history"][-1]["caution_notice"]["event_id"] == _notice["event_id"]
+assert _next_survey_day["caution_notice"] is None
+print("POST_RESTART_GDD_EDGE16_SIGNED_INDEPENDENT_CAUTION_GREEN")
+
+
 # GDD-EDGE-13: the map is a persistent editorial snapshot with two
 # independent real accounts and two completed, causally linked events.
 _map = route_board["advisory"]
