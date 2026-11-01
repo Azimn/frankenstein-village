@@ -125,6 +125,10 @@ WORK = {
         "gathering through commons rather than claiming one occurred.",
     ),
     "detective": (
+        "At the Northern Treeline, look at the original red cord after a "
+        "Hound has signed survey protect. Use survey preserve to sign a "
+        "separate physical trace-custody record; survey custody shows its "
+        "limits. A tied warning is not proof of a culprit.",
         "At Market Lane, inspect the physical crooked scale and use trade inspect "
         "after a different account signs Smith calibration. This records limited "
         "physical evidence, not guilt or an invented culprit.",

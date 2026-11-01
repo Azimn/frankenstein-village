@@ -13,6 +13,8 @@ class CmdSurvey(Command):
         survey corroborate   (Wanderer, after signed Hound protection)
         survey publish       (Chronicler, Village Square; sourced map)
         survey caution       (Chronicler, Village Square; signed Hound marker)
+        survey preserve      (Detective, signed Hound caution marker)
+        survey custody       (read physical custody record at treeline)
 
     Read the board, go to an outstanding district, examine the actual
     landmark and sign a firsthand report. Anyone can contribute. Wanderers,
@@ -34,6 +36,25 @@ class CmdSurvey(Command):
         verb = (self.args or "").strip().lower()
         if verb in {"", "status", "help"}:
             caller.msg(route_work.status_lines())
+            return
+        if verb in {"preserve", "custody"}:
+            from world import route_trace_work
+            if verb == "custody":
+                caller.msg(route_trace_work.status(caller))
+                return
+            result, error = route_trace_work.preserve(caller)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"You preserve an independent Detective trace record "
+                f"(signed event {result['event_id']}, Hound source "
+                f"{result['source_event_id']}). " + result["lines"]
+            )
+            caller.location.msg_contents(
+                f"{caller.key} documents the physical cord without naming a culprit.",
+                exclude=[caller],
+            )
             return
         if verb in {"report", "inspect"}:
             result, error = route_work.report(caller)
@@ -113,4 +134,4 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
-        caller.msg("Use: survey | survey report | survey protect | survey passability | survey publish | survey corroborate | survey caution")
+        caller.msg("Use: survey | survey report | survey protect | survey passability | survey publish | survey corroborate | survey caution | survey preserve | survey custody")

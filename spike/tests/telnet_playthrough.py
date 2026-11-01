@@ -122,6 +122,7 @@ def main() -> int:
     hound = None
     detective = None
     bridge_detective = None
+    detective_trace = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -2575,6 +2576,36 @@ def main() -> int:
         require(out, "no verified current physical source")
         print("TELNET_GDD_EDGE41_LATE_WARNING_AND_FALSE_ADAPTATION_DENIED_GREEN")
 
+        # GDD-EDGE-43: a separate authenticated Detective preserves a
+        # qualified trace from the real Hound-altered treeline cord.
+        require(hound.command("survey preserve"), "Only an active Detective")
+        detective_trace = Client(args.host, args.port)
+        require(detective_trace.sync_login_screen(), "frankenstein village")
+        out = detective_trace.command(
+            f"connect qa_detective_trace {hound_pass}", wait=4.0)
+        require(out, "connected", "account qa_detective_trace")
+        detective_trace.command("charcreate TraceDetectiveTester", wait=3.0)
+        require(detective_trace.command("ic TraceDetectiveTester", wait=4.0),
+                "private room")
+        require(detective_trace.command("calling choose detective"),
+                "detective is now your active calling")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("west", "st. lazarus church"),
+            ("west", "churchyard"), ("north", "northern treeline"),
+        ):
+            require(detective_trace.command(move), destination)
+        require(detective_trace.command("survey preserve"), "Examine the physical red cord")
+        require(detective_trace.command("survey protect"), "Only a Hound")
+        require(detective_trace.command("look cord"), "scarlet cord")
+        out = detective_trace.command("survey preserve")
+        require_all(out, "independent Detective trace record",
+                    "Hound source", "neither tracks nor a culprit")
+        require(detective_trace.command("survey preserve"), "already has a signed")
+        require_all(detective_trace.command("survey custody"),
+                    "qualified physical trace record", "not proof")
+        print("TELNET_GDD_EDGE43_TWO_ACCOUNT_SIGNED_TRACE_CUSTODY_GREEN")
+
         # EDGE-05: a signed Wanderer actually returns from the treeline.
         # A different Innkeep cooks one finite meal and hands over its
         # physical bowl. A remote guest cannot be welcomed by assertion.
@@ -2847,12 +2878,16 @@ def main() -> int:
             print("\nHOUND TRANSCRIPT\n" + "\n".join(hound.transcript))
         if detective is not None:
             print("\nDETECTIVE TRANSCRIPT\n" + "\n".join(detective.transcript))
+        if detective_trace is not None:
+            print("\nDETECTIVE TRACE TRANSCRIPT\n" + "\n".join(detective_trace.transcript))
         raise
     finally:
         if bridge_detective is not None:
             bridge_detective.close()
         if detective is not None:
             detective.close()
+        if detective_trace is not None:
+            detective_trace.close()
         if hound is not None:
             hound.close()
         if wanderer is not None:
