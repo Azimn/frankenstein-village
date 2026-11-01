@@ -5,6 +5,8 @@ teleports, grants a quest reward, or publishes a claim as objective truth.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+
 from django.db import transaction
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
@@ -76,9 +78,9 @@ def status_lines():
         "frayed red cord and use |wsurvey protect|n to tie a visible warning. "
         "An active Wanderer can independently use |wsurvey passability|n "
         "there to record whether the warning was present when inspected. "
-        "Neither action proves why the cord was damaged. After both signed "
-        "actions, the original Wanderer can examine the marker again and "
-        "use |wsurvey corroborate|n to link the two independent sources."
+        "After both signed actions, the original Wanderer may examine the "
+        "cord again and use |wsurvey corroborate|n for an independent check. "
+        "Neither action proves why the cord was damaged."
     )
     if route_surveys.complete(state):
         lines.append(
@@ -208,6 +210,53 @@ def report(mask):
         "completed": route_surveys.complete(current),
     }, None
 
+def _caution_marker(raw):
+    """Read a persisted physical marker without coercing corrupt values.
+
+    None is an unmarked cord. Other non-mappings are not empty evidence and
+    must never be silently replaced with an unmarked state.
+    """
+    if raw is None:
+        return {}
+    return dict(raw) if isinstance(raw, Mapping) else None
+
+
+def _signed_prior_caution(cord, square, marker, day):
+    """Verify a completed earlier Hound event before re-tying this same cord."""
+    if not isinstance(marker, Mapping):
+        return False
+    prior_day = marker.get("day")
+    event_id = marker.get("event_id")
+    account_id = marker.get("account_id")
+    if (any(type(v) is not int or v < 1 for v in
+            (prior_day, event_id, account_id)) or prior_day >= day):
+        return False
+    signed = get_event_ledger().get_event(event_id)
+    if (not isinstance(signed, Mapping) or signed.get("kind") != "village.route_protected"
+            or signed.get("status") != "complete"):
+        return False
+    actor = signed.get("actor")
+    payload = signed.get("payload")
+    effect = signed.get("consequence")
+    if not all(isinstance(value, Mapping) for value in (actor, payload, effect)):
+        return False
+    return (
+        actor.get("account_id") == account_id
+        and type(actor.get("mask_id")) is int and actor["mask_id"] > 0
+        and payload.get("day") == prior_day
+        and payload.get("site") == "red_cord"
+        and payload.get("role") == "hound"
+        and payload.get("action") == "protect"
+        and payload.get("location") == LANDMARKS["red_cord"]["room"]
+        and effect.get("cord_object_id") == cord.id
+        and effect.get("square_room_id") == square.id
+        and effect.get("day") == prior_day
+        and effect.get("role") == "hound"
+        and effect.get("action") == "protect"
+        and effect.get("caution_marked") is True
+    )
+
+
 def field_action(mask, action):
     """Professionally distinct decisions using the existing physical cord.
 
@@ -249,12 +298,20 @@ def field_action(mask, action):
     square = _square()
     if square is None:
         return None, "The Square's existing public route board is missing."
-    marked = bool(getattr(cord.db, "route_caution", None))
     if action == "corroborate":
         return _corroborate(mask, room, cord, square, day, hour)
+    marker = _caution_marker(getattr(cord.db, "route_caution", None))
+    if marker is None:
+        return None, "The physical cord warning record is malformed; ask a keeper to inspect it."
+    marked = bool(marker)
+    if (role == "hound" and marked and marker.get("day") != day
+            and not _signed_prior_caution(cord, square, marker, day)):
+        return None, "The older cord warning has no valid signed source or is already current."
+    prior_event_id = marker.get("event_id") if role == "hound" and marked else None
     current, allowed, why = route_surveys.field_decision(
         square.db.daily_route_survey, day, site, role, action,
         marked, mask.account.id, mask.key, 1,
+        caution_day=marker.get("day") if role == "hound" else None,
     )
     if not allowed:
         return None, why
@@ -266,19 +323,40 @@ def field_action(mask, action):
             now_day, now_hour = _day_hour()
             if (now_day, now_hour) != (day, hour):
                 raise RuntimeError("Village time advanced before this route action.")
-            now_marked = bool(getattr(cord.db, "route_caution", None))
+            now_marker = _caution_marker(getattr(cord.db, "route_caution", None))
+            if now_marker is None:
+                raise RuntimeError("The physical cord warning record became malformed.")
+            now_marked = bool(now_marker)
+            if action == "protect":
+                if (now_marker.get("event_id") if now_marker else None) != prior_event_id:
+                    raise RuntimeError("The original cord marker changed during this action.")
+                if now_marked and not _signed_prior_caution(cord, square, now_marker, day):
+                    raise RuntimeError("The previous cord marker is not a completed signed event.")
             updated, valid, reason = route_surveys.field_decision(
                 square.db.daily_route_survey, day, site, role, action,
                 now_marked, mask.account.id, mask.key, event["id"],
+                caution_day=now_marker.get("day") if role == "hound" else None,
             )
             if not valid:
                 raise RuntimeError(reason)
             if action == "protect":
-                # Reposition the ORIGINAL cord as a truthful visual caution,
-                # no repair, consumed object, invented hazard or new material.
+                # Re-tighten the same cord; preserve bounded historical markers.
+                if now_marker:
+                    raw_history = cord.db.route_caution_history
+                    if raw_history is None:
+                        history = []
+                    elif (isinstance(raw_history, Sequence)
+                          and not isinstance(raw_history, (str, bytes, bytearray))
+                          and all(isinstance(item, Mapping) for item in raw_history)):
+                        history = list(raw_history)
+                    else:
+                        raise RuntimeError("The physical cord caution history is malformed.")
+                    history.append(now_marker)
+                    cord.db.route_caution_history = history[-30:]
                 cord.db.route_caution = {
                     "event_id": event["id"], "account_id": mask.account.id,
                     "mask": mask.key, "day": day,
+                    "prior_caution_event_id": prior_event_id,
                 }
             square.db.daily_route_survey = updated
             record_participation(mask, "field_surveys", calling=role)
@@ -286,6 +364,7 @@ def field_action(mask, action):
                 "cord_object_id": cord.id, "square_room_id": square.id,
                 "site": site, "day": day, "role": role, "action": action,
                 "caution_marked": bool(cord.db.route_caution),
+                "prior_caution_event_id": prior_event_id if action == "protect" else None,
                 "interpretation": (
                     updated["field_decisions"].get("wanderer") or {}
                 ).get("observation"),
@@ -297,6 +376,7 @@ def field_action(mask, action):
         actor=mask,
         payload={"site": site, "day": day, "hour": hour,
                  "role": role, "action": action, "location": room.key,
+                 "prior_caution_event_id": prior_event_id,
                  "harbinger": False, "chronicle_eligible": False},
         consequence=consequence,
     )
@@ -389,9 +469,6 @@ def publish_advisory(mask):
             "version": 1, "day": day}, None
 
 
-
-
-
 def _corroboration_sources(square, cord, day, hour):
     """Validate both completed events and the same actual marked object."""
     state = route_surveys.refresh(square.db.daily_route_survey, day)
@@ -399,7 +476,9 @@ def _corroboration_sources(square, cord, day, hour):
     hound, wanderer = entries.get("hound"), entries.get("wanderer")
     if not hound or not wanderer:
         return None, "Both independent professional field records are required."
-    marker = dict(cord.db.route_caution or {})
+    marker = _caution_marker(getattr(cord.db, "route_caution", None))
+    if marker is None:
+        return None, "The physical cord warning record is malformed."
     if not route_surveys.verify_caution_marker(marker, hound, day):
         return None, "The current physical warning has no matching Hound source today."
     if hound["account_id"] == wanderer["account_id"]:
