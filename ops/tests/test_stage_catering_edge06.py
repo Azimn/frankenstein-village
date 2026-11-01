@@ -322,7 +322,14 @@ class PublicCateringStatusProvenanceTests(unittest.TestCase):
         self.module.search.search_object = lambda dbref: [self.bowl]
 
     def public(self):
-        return self.module.status(object())
+        # The current main status also renders the independent physical rail.
+        # Keep this pure source-provenance test independent of Django/Evennia.
+        import types
+        from unittest import mock
+        fitting = types.ModuleType("world.stage_fitting_work")
+        fitting.public_status = lambda tavern: "Physical stage rail status."
+        with mock.patch.dict(sys.modules, {"world.stage_fitting_work": fitting}):
+            return self.module.status(object())
 
     def test_original_signed_events_and_physical_bowl_are_visible(self):
         self.assertIn("one real cooked soup bowl", self.public())
