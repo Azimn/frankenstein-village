@@ -113,11 +113,14 @@ def main() -> int:
     h = None
     inn = None
     smith = None
+    smith_kitchen = None
     merchant = None
     mystic = None
     performer = None
+    stage_smith = None
     wanderer = None
     hound = None
+    detective = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -1269,6 +1272,27 @@ def main() -> int:
         require(out, "actually witnessed")
         out = inn.command("stage witness")
         require(out, "already witnessed")
+        # GDD-EDGE-06: an actual Performer show and independent Innkeep
+        # produce a signed, physical meal service, not a fake crowd bonus.
+        out = performer.command("stage cater")
+        require(out, "only an active innkeep")
+        out = inn.command("stage cater")
+        require(out, "carry a real cooked soup bowl")
+        out = inn.command("soup prep barley salt")
+        require(out, "shared pantry stock decreases")
+        out = inn.command("soup simmer")
+        require(out, "real, shareable bowl")
+        out = inn.command("stage cater")
+        require_all(out, "one real cooked soup bowl", "physical bowl",
+                    "show event", "no audience was invented")
+        out = inn.command("stage cater")
+        require(out, "carry a real cooked soup bowl")
+        out = performer.command("stage")
+        require_all(out, "provided one real cooked soup bowl",
+                    "cooking event", "1 other player account")
+        out = performer.command("look")
+        require(out, "a bowl of barley and salt soup")
+        print("TELNET_GDD_EDGE06_PERFORMER_INNKEEP_REAL_CATERING_GREEN")
         # T-06: This character was in the village but not in the room when
         # the show actually occurred; arriving within the same hour must
         # never confer a fabricated firsthand audience record.
@@ -1436,6 +1460,51 @@ def main() -> int:
         out = h.command("east")
         require(out, "blood of the vine")
         print("TELNET_HEALER_RENEWABLE_CLINIC_GREEN")
+
+        # EDGE-27: the existing treated clinic visitor is not a music prop.
+        # A Healer must explicitly request consent. A different logged-in
+        # Performer then travels to the real cot and offers actual music.
+        for actor in (h, performer):
+            for direction, destination in (
+                ("west", "village square"),
+                ("west", "st. lazarus church"),
+            ):
+                out = actor.command(direction)
+                require(out, destination)
+        h.read_quiet()
+        performer.read_quiet()
+        out = performer.command("clinic invite")
+        require(out, "only an active healer")
+        out = performer.command("clinic music")
+        require(out, "look at the original clinic cot")
+        out = h.command("look clinic cot")
+        require_all(out, "visiting patient", "clinic")
+        out = h.command("clinic music")
+        require(out, "only an active performer")
+        out = h.command("clinic invite")
+        require_all(out, "voluntarily accepts", "signed consent event")
+        out = h.command("clinic invite")
+        require(out, "already answered")
+        out = performer.command("look clinic cot")
+        require_all(out, "visiting patient", "short, voluntary song")
+        out = performer.command("clinic music")
+        require_all(out, "short piece", "signed music event", "not clinical treatment")
+        out = performer.command("clinic music")
+        require(out, "already received")
+        out = performer.command("clinic")
+        require_all(out, "not a treatment", "signed music event")
+        assert "cold" not in out.lower()
+        assert "healertester" not in out.lower()
+        for actor in (h, performer):
+            for direction, destination in (
+                ("east", "village square"),
+                ("east", "blood of the vine"),
+            ):
+                out = actor.command(direction)
+                require(out, destination)
+        h.read_quiet()
+        performer.read_quiet()
+        print("TELNET_GDD_EDGE27_TWO_ACCOUNT_CONSENTED_CLINIC_MUSIC_GREEN")
 
         # Third structural interdependence case: independent QA accounts each
         # own exactly one mask. The fixture provisions them before telnet so
@@ -1846,7 +1915,11 @@ def main() -> int:
         require(out, "hands grip")
         merchant.close()
         out = smith.command("wrestle quit")
-        require(out, "gone cold", "steps back")
+        # The other player's accept broadcast can arrive late on this socket.
+        # Wait for the actual quit reply without issuing a second quit command.
+        if not any(token in out.lower() for token in ("gone cold", "smithtester steps back")):
+            out += smith.read_quiet(max_wait=4.0, quiet=0.5)
+        require(out, "gone cold", "smithtester steps back")
         merchant = Client(args.host, args.port)
         merchant_banner = merchant.sync_login_screen()
         require(merchant_banner, "frankenstein village")
@@ -1998,6 +2071,42 @@ def main() -> int:
         require(c.command("trade audit"), "already been audited")
         require_all(c.command("agenda"), "independent Chronicler audit", "Merchant decision")
         print("TELNET_GDD_EDGE12_DISTINCT_SIGNED_MARKET_AUDIT_GREEN")
+
+        # GDD-EDGE-33: a different real account investigates the signed hold.
+        # The Merchant can respond, but neither action invents counterfeit
+        # goods, a guilty trader, or a second market inventory.
+        detective = Client(args.host, args.port)
+        require(detective.sync_login_screen(), "frankenstein village")
+        out = detective.command(
+            f"connect qa_detective_inquiry {repair_password}", wait=4.0)
+        require(out, "connected", "account qa_detective_inquiry")
+        detective.command("charcreate DetectiveTester", wait=3.0)
+        require(detective.command("ic DetectiveTester", wait=4.0), "private room")
+        require(detective.command("calling choose detective"),
+                "detective is now your active calling")
+        for direction, expected in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"),
+        ):
+            require(detective.command(direction), expected)
+        require(detective.command("trade investigate"), "First inspect")
+        require(merchant.command("trade investigate"), "active Detective Calling")
+        require(detective.command("trade hold"), "active Merchant Calling")
+        require(detective.command("look market scale"), "two prices")
+        out = detective.command("trade investigate")
+        require_all(out, "Market action signed", "independently examined",
+                    "not a finding of fraud")
+        require(detective.command("trade investigate"),
+                "already been investigated")
+        require(detective.command("trade rebut"), "active Merchant Calling")
+        out = merchant.command("trade rebut")
+        require_all(out, "Market action signed", "rebuttal event",
+                    "remains contested")
+        require(merchant.command("trade rebut"), "already recorded")
+        require_all(detective.command("trade"), "Detective event",
+                    "remains contested")
+        print("TELNET_GDD_EDGE33_TWO_ACCOUNT_SIGNED_MARKET_INQUIRY_GREEN")
         require_all(merchant.command("agenda"),
                     "your merchant market hold remains active", "trade release")
         out = merchant.command("soup procure")
@@ -2027,6 +2136,15 @@ def main() -> int:
                     "your smith calibration", "chronicler can attest")
         out = smith.command("trade calibrate")
         require(out, "already been calibrated")
+        # EDGE-22: reuse the independently authenticated EDGE-33 Detective.
+        require(smith.command("trade inspect"), "Detective Calling")
+        out = detective.command("trade inspect")
+        require_all(out, "signed", "DetectiveTester", "Smith source",
+                    "does not establish")
+        require(detective.command("trade inspect"),
+                "already has an independent custody inquiry")
+        require(merchant.command("trade inspect"), "Detective Calling")
+        print("TELNET_GDD_EDGE22_TWO_ACCOUNT_SIGNED_SCALE_INQUIRY_GREEN")
         out = c.command("trade attest")
         require_all(out, "signed", "attested both source events")
         require_all(c.command("agenda"),
@@ -2077,6 +2195,49 @@ def main() -> int:
         out = smith.command("agent")
         assert agent_json(out)["commands"]["install_market_repair"] == "workshop install"
         print("TELNET_TWO_ACCOUNT_PHYSICAL_MARKET_WORKSHOP_GREEN")
+        # EDGE-05: cook the physical hospitality bowl before the EDGE-02
+        # signed pot restriction. The restriction must remain in force on restart.
+        out = inn.command("soup prep barley salt")
+        require(out, "shared pantry stock decreases")
+        out = inn.command("soup simmer")
+        require(out, "real, shareable bowl")
+
+
+        # GDD-EDGE-02: the Innkeep signs a genuine restriction on day one.
+        # Market and stage require both daily Workshop offcuts on integrated
+        # main. No third day-one forge is allowed for this kitchen fitting.
+        out = inn.command("look soup pot")
+        require(out, "lid hinge is loose")
+        out = inn.command("soup repair")
+        require(out, "active Smith Calling")
+        out = inn.command("soup restrict")
+        require_all(out, "restrict player simmering", "signed world event")
+        out = inn.command("soup restrict")
+        require(out, "already has completed signed kitchen work")
+        out = inn.command("soup simmer")
+        require(out, "restricted until the real kitchen pot is repaired")
+        smith_kitchen = Client(args.host, args.port)
+        require(smith_kitchen.sync_login_screen(), "frankenstein village")
+        out = smith_kitchen.command(
+            f"connect qa_smith_kitchen {repair_password}", wait=4.0)
+        require(out, "connected", "account qa_smith_kitchen")
+        smith_kitchen.command("charcreate KitchenSmithTester", wait=3.0)
+        out = smith_kitchen.command("ic KitchenSmithTester", wait=4.0)
+        require(out, "private room")
+        out = smith_kitchen.command("calling choose smith")
+        require(out, "smith is now your active calling")
+        for direction, expected in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"), ("east", "market workshop"),
+        ):
+            out = smith_kitchen.command(direction)
+            require(out, expected)
+        require(smith_kitchen.command("soup repair"),
+                "physically at The Blood of the Vine")
+        require_all(smith_kitchen.command("workshop"),
+                    "Village day 1", "iron offcuts")
+        print("TELNET_GDD_EDGE02_DAY_ONE_SIGNED_RESTRICTION_GREEN")
 
         for actor in (merchant, smith):
             for direction, expected in (
@@ -2106,6 +2267,70 @@ def main() -> int:
         require_all(out, "pantry day", "Last completed batch: InnkeepTester")
         print("TELNET_GDD_EDGE04_SIGNED_TWO_ACCOUNT_KITCHEN_SUPPLY_GREEN")
         print("TELNET_MARKET_TO_TAVERN_SOUP_SUPPLY_GREEN")
+
+        # EDGE-21: use the second shared Workshop offcut, not a new stock
+        # system. A second Smith account forges a real object, installs it
+        # at the Tavern, and the already-authenticated Performer tests and
+        # plays it independently. Both accounts use ordinary player verbs.
+        out = performer.command("stage")
+        require(out, "stage rail: worn")
+        out = performer.command("stage soundcheck")
+        require(out, "no signed physical stage fitting")
+        stage_smith = Client(args.host, args.port)
+        require(stage_smith.sync_login_screen(), "frankenstein village")
+        stage_password = os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = stage_smith.command(
+            f"connect qa_smith_stage {stage_password}", wait=4.0)
+        require(out, "connected", "account qa_smith_stage")
+        stage_smith.command("charcreate StageSmithTester", wait=3.0)
+        out = stage_smith.command("ic StageSmithTester", wait=4.0)
+        require(out, "private room")
+        out = stage_smith.command("calling choose smith")
+        require(out, "smith is now your active calling")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"), ("east", "market workshop"),
+        ):
+            out = stage_smith.command(move)
+            require(out, destination)
+        out = stage_smith.command("workshop forge")
+        require_all(out, "real transferable iron market hinge",
+                    "0 iron offcut")
+        out = stage_smith.command("inventory")
+        require(out, "forged market hinge")
+        for move, destination in (
+            ("west", "market lane"), ("north", "lamp shop"),
+            ("north", "village square"), ("east", "blood of the vine"),
+        ):
+            out = stage_smith.command(move)
+            require(out, destination)
+        out = stage_smith.command("stage soundcheck")
+        require(out, "active performer")
+        out = performer.command("stage fit")
+        require(out, "active smith")
+        out = stage_smith.command("stage fit")
+        require_all(out, "install the real forged hinge", "signed world event")
+        out = stage_smith.command("inventory")
+        assert "forged market hinge" not in out.lower()
+        out = stage_smith.command("stage fit")
+        require(out, "already has a completed signed stage fitting")
+        out = performer.command("stage acoustic reel")
+        require(out, "no completed performer soundcheck")
+        out = performer.command("stage soundcheck")
+        require_all(out, "independently test", "signed world event")
+        out = performer.command("stage soundcheck")
+        require(out, "already signed")
+        out = performer.command("stage acoustic reel")
+        require_all(out, "actual acoustic reel", "signed world event")
+        out = performer.command("stage acoustic reel")
+        require(out, "already been played")
+        out = performer.command("stage")
+        require_all(out, "stage rail: ready", "2 of 3 acoustic uses remain")
+        out = stage_smith.command("stage acoustic ballad")
+        require(out, "active performer")
+        print("TELNET_GDD_EDGE21_INDEPENDENT_PHYSICAL_STAGE_RAIL_GREEN")
+
 
         # A real Wanderer moves a finite, non-magical parcel between rooms.
         wanderer = Client(args.host, args.port)
@@ -2159,6 +2384,58 @@ def main() -> int:
         assert agent_json(out)["commands"]["ferry_post_delivery"] == "courier deliver"
         print("TELNET_WANDERER_REAL_FERRY_POST_GREEN")
 
+        # GDD-EDGE-31: Merchant spends the remaining finite postbag slot
+        # on an actual parcel, another ordinary account accepts custody,
+        # physically travels the route and signs the source-linked receipt.
+        out = merchant.command("courier consign")
+        require(out, "merchant must consign freight in market lane")
+        for move, destination in (
+            ("west", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"),
+        ):
+            out = merchant.command(move)
+            require(out, destination)
+        out = merchant.command("courier accept")
+        require(out, "active wanderer")
+        out = merchant.command("courier consign")
+        require_all(out, "actual merchant freight", "world event", "0 parcels remain")
+        # The first solo mail delivery used one slot. Freight consumes
+        # the second, never creates a second inventory or phantom stock.
+        out = merchant.command("courier consign")
+        require(out, "shared market postbag is depleted")
+        out = wanderer.command("courier accept")
+        require(out, "active wanderer must accept freight in market lane")
+        for move, destination in (
+            ("west", "blood of the vine"), ("west", "village square"),
+            ("south", "lamp shop"), ("south", "market lane"),
+        ):
+            out = wanderer.command(move)
+            require(out, destination)
+        out = wanderer.command("courier consign")
+        require(out, "active merchant")
+        out = wanderer.command("get freight parcel")
+        require(out, "you can't get that")
+        out = wanderer.command("courier accept")
+        require_all(out, "merchant's physical freight", "consignment")
+        out = wanderer.command("courier accept")
+        require(out, "already carry a post parcel")
+        out = wanderer.command("inventory")
+        require(out, "sealed village mail parcel")
+        for move, destination in (
+            ("north", "lamp shop"), ("north", "village square"),
+            ("east", "blood of the vine"), ("east", "riverside path"),
+        ):
+            out = wanderer.command(move)
+            require(out, destination)
+        out = wanderer.command("courier deliver")
+        require_all(out, "actual parcel enters", "signed")
+        out = wanderer.command("courier")
+        require_all(out, "2 signed recent deliveries", "freight consignment",
+                    "wanderer acceptance")
+        out = wanderer.command("courier deliver")
+        require(out, "must carry an actual sealed parcel")
+        print("TELNET_GDD_EDGE31_MERCHANT_WANDERER_FREIGHT_GREEN")
+
         # GDD T-07: two independent ordinary accounts, same physical cord.
         # Travel, inspect, and act from their real locations. The Wanderer
         # records logistical caution before a Hound physically marks it;
@@ -2176,9 +2453,9 @@ def main() -> int:
         require(out, "examine the physical red cord")
         out = wanderer.command("look cord")
         require_all(out, "scarlet cord", "cut cleanly")
+        out = wanderer.command("survey protect")
         out = wanderer.command("survey corroborate")
         require(out, "both independent professional field records")
-        out = wanderer.command("survey protect")
         require(out, "only a hound")
         out = wanderer.command("survey passability")
         require(out, "record firsthand passability evidence")
@@ -2209,9 +2486,9 @@ def main() -> int:
         require(out, "scarlet cord")
         out = hound.command("survey passability")
         require(out, "only a hound")
+        out = hound.command("survey protect")
         out = hound.command("survey corroborate")
         require(out, "only a hound")
-        out = hound.command("survey protect")
         require_all(out, "tie the original frayed cord", "visible warning", "signed event")
         out = hound.command("survey protect")
         require(out, "already signed today")
@@ -2231,14 +2508,26 @@ def main() -> int:
         require_all(out, "independently rechecked", "hound source", "not that the route is safe")
         print("TELNET_GDD_EDGE38_INDEPENDENT_SIGNED_ROUTE_CORROBORATION_GREEN")
         print("TELNET_GDD_T07_HOUND_WANDERER_SHARED_PHYSICAL_ROUTE_GREEN")
+        # EDGE-41 late-arrival negative: this real show already happened.
+        # A verified Hound cannot rewrite the historical performance.
+        out = hound.command("stage warn")
+        require(out, "visit the real stage")
+        for move, destination in (
+            ("south", "churchyard"), ("east", "st. lazarus church"),
+            ("east", "village square"), ("east", "blood of the vine"),
+        ):
+            out = hound.command(move)
+            require(out, destination)
+        out = hound.command("stage warn")
+        require(out, "cannot retroactively change")
+        out = performer.command("stage adapt indoor")
+        require(out, "no verified current physical source")
+        print("TELNET_GDD_EDGE41_LATE_WARNING_AND_FALSE_ADAPTATION_DENIED_GREEN")
 
         # EDGE-05: a signed Wanderer actually returns from the treeline.
         # A different Innkeep cooks one finite meal and hands over its
         # physical bowl. A remote guest cannot be welcomed by assertion.
-        out = inn.command("soup prep barley salt")
-        require(out, "measure real barley and salt")
-        out = inn.command("soup simmer")
-        require(out, "real, shareable bowl")
+        # The finite cooked bowl was prepared before the EDGE-02 restriction.
         out = inn.command("soup welcome WandererTester")
         require(out, "physically present")
         for move, destination in (
@@ -2261,7 +2550,6 @@ def main() -> int:
         out = inn.command("look soup pot")
         require_all(out, "signed returning-traveler hospitality", "route event")
         print("TELNET_GDD_EDGE05_SIGNED_TWO_ACCOUNT_ARRIVAL_HOSPITALITY_GREEN")
-
 
 
         # GDD-EDGE-13: the Wanderer has signed firsthand evidence; a
@@ -2441,30 +2729,42 @@ def main() -> int:
             print("\nHEALER TRANSCRIPT\n" + "\n".join(h.transcript))
         if inn is not None:
             print("\nINNKEEP TRANSCRIPT\n" + "\n".join(inn.transcript))
+        if smith_kitchen is not None:
+            print("\nKITCHEN SMITH TRANSCRIPT\n" + "\n".join(smith_kitchen.transcript))
         if smith is not None:
             print("\nSMITH TRANSCRIPT\n" + "\n".join(smith.transcript))
         if merchant is not None:
             print("\nMERCHANT TRANSCRIPT\n" + "\n".join(merchant.transcript))
         if mystic is not None:
             print("\nMYSTIC TRANSCRIPT\n" + "\n".join(mystic.transcript))
+        if stage_smith is not None:
+            print("\nSTAGE SMITH TRANSCRIPT\n" + "\n".join(stage_smith.transcript))
         if performer is not None:
             print("\nPERFORMER TRANSCRIPT\n" + "\n".join(performer.transcript))
         if wanderer is not None:
             print("\nWANDERER TRANSCRIPT\n" + "\n".join(wanderer.transcript))
         if hound is not None:
             print("\nHOUND TRANSCRIPT\n" + "\n".join(hound.transcript))
+        if detective is not None:
+            print("\nDETECTIVE TRANSCRIPT\n" + "\n".join(detective.transcript))
         raise
     finally:
+        if detective is not None:
+            detective.close()
         if hound is not None:
             hound.close()
         if wanderer is not None:
             wanderer.close()
+        if stage_smith is not None:
+            stage_smith.close()
         if performer is not None:
             performer.close()
         if mystic is not None:
             mystic.close()
         if merchant is not None:
             merchant.close()
+        if smith_kitchen is not None:
+            smith_kitchen.close()
         if smith is not None:
             smith.close()
         if inn is not None:
