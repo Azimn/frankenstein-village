@@ -88,9 +88,16 @@ class WorkshopTests(unittest.TestCase):
         self.assertEqual(day_one["offcuts"], 0)
         day_two = w.refresh(day_one, 2)
         self.assertEqual(len(day_two["history"]), 1)
+        class SaverHistoryRow(UserDict):
+            def deserialize(self):
+                return dict(self)
+
+            def __deepcopy__(self, memo):
+                raise AssertionError("Never deep-copy a live Attribute parent")
+
         persisted = UserDict(day_two)
         persisted["history"] = UserList(
-            [UserDict(row) for row in day_two["history"]]
+            [SaverHistoryRow(row) for row in day_two["history"]]
         )
         reloaded = w.normalize(persisted)
         self.assertEqual([row["day"] for row in reloaded["history"]], [1])
@@ -106,7 +113,7 @@ class WorkshopTests(unittest.TestCase):
         self.assertEqual(len(day_two["history"][0]["crafts"]), 2)
         second_persisted = UserDict(day_two)
         second_persisted["history"] = UserList(
-            [UserDict(row) for row in day_two["history"]]
+            [SaverHistoryRow(row) for row in day_two["history"]]
         )
         after_second_reload = w.normalize(second_persisted)
         self.assertEqual(
