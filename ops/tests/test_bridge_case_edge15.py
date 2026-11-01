@@ -67,9 +67,93 @@ class BridgeCaseEdge15Tests(unittest.TestCase):
         self.assertEqual(bulletin["observation_event_id"], 90)
         self.assertNotEqual(bulletin["account_id"], exam["account_id"])
         text = " ".join(case.case_lines(published, 3))
-        self.assertIn("bulletin event 102", text)
-        self.assertIn("Detective source 101", text)
+        self.assertNotIn("bulletin event 102", text)
+        self.assertIn("unverified", text)
         self.assertIn("do not identify a culprit", text)
+
+    def test_public_readback_requires_three_completed_actor_bound_events(self):
+        state, ok, why = detective()
+        self.assertTrue(ok, why)
+        state, ok, why = chronicler(state)
+        self.assertTrue(ok, why)
+        state["observations"] = [{
+            "day": 3, "hour": 10, "weather": "clear", "pattern": "daylight",
+            "witnesses": [{
+                "account_id": 11, "mask_id": 111, "mask": "DetectiveTester",
+                "source_event_id": 90,
+            }],
+        }]
+        events = {
+            90: {
+                "id": 90, "status": "complete",
+                "kind": "public_mystery.bridge_plaque.observed",
+                "actor": {"account_id": 11, "mask_id": 111,
+                          "mask": "DetectiveTester"},
+                "payload": {"public_mystery_id": "PUBLIC-BRIDGE-PLAQUE",
+                            "day": 3, "hour": 10, "weather": "clear",
+                            "pattern": "daylight"},
+            },
+            101: source(),
+            102: {
+                "id": 102, "status": "complete",
+                "kind": "village.bridge_case_bulletin",
+                "actor": {"account_id": 22, "mask_id": 222,
+                          "mask": "ChroniclerTester"},
+                "payload": {"day": 3, "hour": 12, "location": "Village Square",
+                            "professional_calling": "chronicler",
+                            "source_event_id": 101},
+                "consequence": {
+                    "case_bulletin_event_id": 102, "source_event_id": 101,
+                    "observation_event_id": 90,
+                    "status": "attributed_evidence_only",
+                },
+            },
+        }
+        def rendered(saved=state, ledger=events):
+            return " ".join(case.case_lines(
+                saved, 3, get_event=lambda ident: ledger.get(ident)))
+        good = rendered()
+        self.assertIn("examination event 101", good)
+        self.assertIn("bulletin event 102", good)
+        self.assertIn("Detective source 101", good)
+        self.assertNotIn("unverified", good)
+        self.assertIn("do not identify a culprit", good)
+        self.assertIn("unverified", rendered(ledger={}))
+        for ident, group, field, bad in (
+            (90, None, "status", "consequence_failed"),
+            (90, "actor", "account_id", 22),
+            (90, "payload", "day", 4),
+            (90, "payload", "pattern", "rainwater"),
+            (101, None, "kind", "village.other"),
+            (101, "actor", "mask_id", 999),
+            (101, "payload", "location", "Village Square"),
+            (101, "payload", "hour", 10),
+            (101, "consequence", "finding", "culprit_proven"),
+            (102, None, "status", "consequence_failed"),
+            (102, "actor", "account_id", 11),
+            (102, "payload", "location", "The Old Stone Bridge"),
+            (102, "payload", "source_event_id", 999),
+            (102, "consequence", "status", "culprit_proven"),
+        ):
+            with self.subTest(event=ident, field=field):
+                forged = copy.deepcopy(events)
+                target = forged[ident] if group is None else forged[ident][group]
+                target[field] = bad
+                public = rendered(ledger=forged)
+                self.assertNotIn("bulletin event 102", public)
+                self.assertIn("unverified", public)
+        for ident in (90, 101, 102):
+            with self.subTest(missing=ident):
+                forged = copy.deepcopy(events)
+                forged.pop(ident)
+                self.assertNotIn("bulletin event 102", rendered(ledger=forged))
+        for field, bad in (("source_event_id", 999),
+                           ("account_id", 11),
+                           ("hour", 10)):
+            with self.subTest(stored=field):
+                forged = copy.deepcopy(state)
+                forged["case_bulletins"][0][field] = bad
+                self.assertNotIn("bulletin event 102", rendered(saved=forged))
 
     def test_json_roundtrip_and_next_day_history_without_resetting_truth(self):
         state, ok, why = detective()
