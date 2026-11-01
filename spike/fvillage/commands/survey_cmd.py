@@ -12,6 +12,7 @@ class CmdSurvey(Command):
         survey passability   (Wanderer, Northern Treeline)
         survey corroborate   (Wanderer, after signed Hound protection)
         survey publish       (Chronicler, Village Square; sourced map)
+        survey caution       (Chronicler, Village Square; signed Hound marker)
 
     Read the board, go to an outstanding district, examine the actual
     landmark and sign a firsthand report. Anyone can contribute. Wanderers,
@@ -70,6 +71,21 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
+        if verb == "caution":
+            result, error = route_work.publish_caution(caller)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"You publish a sourced public caution (event {result['event_id']}) "
+                f"based on the Hound's physical marker (event {result['source_event_id']}). "
+                "This does not prove danger or safety."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} posts a sourced caution at the route board.",
+                exclude=[caller],
+            )
+            return
         if verb in {"protect", "passability", "corroborate"}:
             result, error = route_work.field_action(caller, verb)
             if error:
@@ -97,4 +113,4 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
-        caller.msg("Use: survey | survey report | survey protect | survey passability | survey publish | survey corroborate")
+        caller.msg("Use: survey | survey report | survey protect | survey passability | survey publish | survey corroborate | survey caution")

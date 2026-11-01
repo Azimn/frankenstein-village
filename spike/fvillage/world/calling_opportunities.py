@@ -27,6 +27,9 @@ WORK = {
         "only if that unresolved need remains in the village.",
     ),
     "chronicler": (
+        "After a Hound physically protects the Northern Treeline cord, "
+        "visit the Village Square board and use survey caution to publish "
+        "a source-linked warning. It records uncertainty, not hazard truth.",
         "At Market Lane: inspect the crooked market scale, use trade, and "
         "trade audit after a signed Merchant decision, or trade attest "
         "after a Merchant decision and Smith calibration.",
