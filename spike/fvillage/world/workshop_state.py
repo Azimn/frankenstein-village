@@ -7,6 +7,7 @@ crafting, simulated labor, quest XP, or parallel economy is permitted.
 from __future__ import annotations
 
 import copy
+from collections.abc import Sequence
 
 DAILY_OFFCUTS = 2
 MAX_HISTORY = 28
@@ -81,7 +82,7 @@ def normalize(raw):
                 "mask": str(receipt.get("mask") or "")[:70],
             }
     history = raw.get("history") or []
-    if isinstance(history, (list, tuple)):
+    if isinstance(history, Sequence) and not isinstance(history, (str, bytes, bytearray)):
         state["history"] = [
             copy.deepcopy(row) for row in history[-MAX_HISTORY * 2:]
             if hasattr(row, "get") and _positive(row.get("day"))
