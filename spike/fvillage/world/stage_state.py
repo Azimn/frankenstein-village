@@ -16,22 +16,32 @@ MAX_WITNESSES = 20
 
 
 def _ident(value):
+    """Accept actual positive IDs or ASCII decimal IDs, never truncated floats."""
     if isinstance(value, bool):
         return None
-    try:
-        value = int(value)
-    except (TypeError, ValueError, OverflowError):
-        return None
-    return value if value > 0 else None
+    if isinstance(value, int):
+        return value if value > 0 else None
+    if isinstance(value, str) and value.isascii() and value.isdecimal():
+        try:
+            parsed = int(value)
+        except ValueError:
+            return None
+        return parsed if parsed > 0 else None
+    return None
 
 
 def _time(day, hour):
     d = _ident(day)
     if isinstance(hour, bool):
         return None
-    try:
-        h = int(hour)
-    except (TypeError, ValueError, OverflowError):
+    if isinstance(hour, int):
+        h = hour
+    elif isinstance(hour, str) and hour.isascii() and hour.isdecimal():
+        try:
+            h = int(hour)
+        except ValueError:
+            return None
+    else:
         return None
     return (d, h) if d and 0 <= h <= 23 else None
 
@@ -68,10 +78,10 @@ def fresh(day=1):
 def normalize(raw):
     if not hasattr(raw, "get"):
         return fresh()
-    try:
-        day = max(1, int(raw.get("day") or 1))
-    except (TypeError, ValueError, OverflowError):
-        day = 1
+    day = _ident(raw.get("day"))
+    if day is None:
+        # An invalid persisted day cannot certify any retained stage action.
+        return fresh()
     result = fresh(day)
     for r in _records(raw.get("rehearsals"))[-MAX_REHEARSALS * 2:]:
         if not hasattr(r, "get") or r.get("tune") not in TUNES:
