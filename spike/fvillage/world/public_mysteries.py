@@ -819,6 +819,9 @@ def mystery_lines(player=None, stable_id=MANOR_LIGHTS_ID):
 
     if stable_id == BRIDGE_PLAQUE_ID:
         from world.bridge_case_state import case_lines
-        lines.extend(case_lines(mystery, _clock()[0]))
+        from world.events import get_event_ledger
+        # Public readback must verify canonical events, not trust mutable registry IDs.
+        lines.extend(case_lines(mystery, _clock()[0],
+                                get_event=get_event_ledger().get_event))
     lines.append(definition["unresolved_note"])
     return lines
