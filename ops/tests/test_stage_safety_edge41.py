@@ -416,5 +416,84 @@ class StageSafetyTests(unittest.TestCase):
         self.assertNotIn("attended", lines)
 
 
+
+class StageSafetyMainCompatibilityTests(unittest.TestCase):
+    """Old EDGE-41 state must not erase already-merged review or catering."""
+
+    def test_signed_safety_review_catering_and_restart_coexist(self):
+        state, ok, why = warning()
+        self.assertTrue(ok, why)
+        state, ok, why = decision(state)
+        self.assertTrue(ok, why)
+        state, ok, why = stage.rehearse(
+            state, tune="ballad", **who(account=22, mask=222, event=102))
+        self.assertTrue(ok, why)
+        state, ok, why = stage.perform(
+            state, tune="ballad", audience_account_ids=(33,),
+            **who(account=22, mask=222, event=104))
+        self.assertTrue(ok, why)
+        state, ok, why = stage.witness(
+            state, **who(account=33, mask=333, event=105, name="Chronicler"))
+        self.assertTrue(ok, why)
+        state, ok, why = stage.review(
+            state, verdict="critique", performance_event_id=104,
+            witness_event_id=105,
+            **who(account=33, mask=333, event=106, name="Chronicler"))
+        self.assertTrue(ok, why)
+        state, ok, why = stage.cater(
+            state, bowl_id=777, cook_event_id=90,
+            **who(account=44, mask=444, event=108, name="Innkeep"))
+        self.assertTrue(ok, why)
+        state, ok, why = stage.contest(
+            state, review_event_id=106,
+            **who(account=22, mask=222, event=109, name="Performer"))
+        self.assertTrue(ok, why)
+        restored = stage.normalize(json.loads(json.dumps(state)))
+        self.assertEqual(restored["safety_decision"]["choice"], "indoor")
+        self.assertEqual(restored["performance"]["reviews"][0]["contest_event_id"], 109)
+        self.assertEqual(restored["service"]["bowl_id"], 777)
+        self.assertIn("Hound signed", stage.public_lines(restored, 1))
+        self.assertIn("attributed critique review", stage.public_lines(restored, 1))
+        self.assertIn("real cooked soup bowl", stage.public_lines(restored, 1))
+        next_day = stage.refresh(restored, 2)
+        self.assertIsNone(next_day["service"])
+        self.assertIsNone(next_day["safety_warning"])
+        self.assertEqual(next_day["history"][-1]["service"]["event_id"], 108)
+        self.assertEqual(next_day["history"][-1]["safety_decision"]["event_id"], 101)
+        self.assertIn("Performer contested", stage.archive_lines(next_day, 2))
+
+    def test_forged_catering_or_fractional_review_never_survives_normalize(self):
+        state, ok, why = warning()
+        self.assertTrue(ok, why)
+        state, ok, why = decision(state)
+        self.assertTrue(ok, why)
+        state, ok, why = stage.rehearse(
+            state, tune="reel", **who(account=22, mask=222, event=102))
+        self.assertTrue(ok, why)
+        state, ok, why = stage.perform(
+            state, tune="reel", audience_account_ids=(33,),
+            **who(account=22, mask=222, event=104))
+        self.assertTrue(ok, why)
+        state, ok, why = stage.witness(
+            state, **who(account=33, mask=333, event=105))
+        self.assertTrue(ok, why)
+        forged = copy.deepcopy(state)
+        forged["service"] = {
+            "account_id": 44, "mask_id": 444, "event_id": 108,
+            "bowl_id": 777, "cook_event_id": 90,
+            "performance_event_id": 104, "witness_event_id": 999,
+            "witness_count": 1, "hour": 20,
+        }
+        forged["performance"]["reviews"] = [{
+            "account_id": 33, "mask_id": 333, "event_id": 106.5,
+            "witness_event_id": 105, "performance_event_id": 104,
+            "verdict": "critique",
+        }]
+        normalized = stage.normalize(forged)
+        self.assertIsNone(normalized["service"])
+        self.assertEqual(normalized["performance"]["reviews"], [])
+        self.assertEqual(normalized["safety_decision"]["choice"], "indoor")
+
+
 if __name__ == "__main__":
     unittest.main()
