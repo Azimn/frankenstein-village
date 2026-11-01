@@ -495,5 +495,15 @@ class StageSafetyMainCompatibilityTests(unittest.TestCase):
         self.assertEqual(normalized["safety_decision"]["choice"], "indoor")
 
 
+    def test_main_review_id_parser_remains_strict_after_safety_merge(self):
+        self.assertEqual(stage.parse_review_id(17), 17)
+        self.assertEqual(stage.parse_review_id("17"), 17)
+        self.assertEqual(stage.parse_review_id((1 << 63) - 1), (1 << 63) - 1)
+        for invalid in (None, False, True, 0, -1, 1.2, "1.0",
+                        " 1", "１", "1" * 100, 1 << 63, str(1 << 63)):
+            with self.subTest(invalid=invalid):
+                self.assertIsNone(stage.parse_review_id(invalid))
+
+
 if __name__ == "__main__":
     unittest.main()
