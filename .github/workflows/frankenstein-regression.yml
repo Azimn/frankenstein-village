@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - feature/gdd-edge05-signed-wanderer-innkeep-arrival-20261027
+      - feat/gdd-edge33-signed-market-inquiry-20261027
 
 permissions:
   contents: read

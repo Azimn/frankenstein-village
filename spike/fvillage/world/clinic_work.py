@@ -56,7 +56,30 @@ def status(mask=None):
         if error:
             return error
     day, _ = _clock()
-    return clinic_state.public_lines(room.db.village_clinic, day)
+    lines = clinic_state.public_lines(room.db.village_clinic, day)
+    cot = next((o for o in room.contents if o.key == COT), None)
+    if cot:
+        from world.clinic_comfort_edge27 import public_lines
+        ledger = None
+        treatment = None
+        source = None
+        try:
+            ledger = get_event_ledger()
+            treatment = clinic_state.refresh(room.db.village_clinic, day).get("treatment")
+            if treatment:
+                source = ledger.get_event(treatment["event_id"])
+        except Exception:
+            # A missing ledger is not permission to advertise signed consent.
+            ledger = None
+        lines += "\n" + public_lines(
+            cot.db.clinic_comfort, day,
+            event_lookup=ledger.get_event if ledger is not None else None,
+            treatment=treatment, treatment_event=source,
+            room_id=room.id, cot_id=cot.id,
+        )
+    from world import clinic_cot_work
+    lines += "\n" + clinic_cot_work.status()
+    return lines
 
 
 def confidential_records(mask):
@@ -91,9 +114,14 @@ def act(mask, action, method=None):
     if action not in {"assess", "prepare", "treat", "request_records"}:
         return None, "Use clinic | clinic assess | clinic prepare | clinic treat rest|compress | clinic request records."
     if action == "treat" and method not in clinic_state.METHODS:
-        return None, "Choose clinic treat rest or clinic treat compress."
+        return None, "Choose clinic treat rest, compress or supported."
     if action != "treat" and method is not None:
         return None, "Only the treatment command takes a method."
+    if action == "treat" and method == "supported":
+        from world.clinic_cot_work import supported_rest_ready
+        ready, why = supported_rest_ready(mask)
+        if not ready:
+            return None, why
     day, hour = _clock()
     props = {
         "day": day, "hour": hour, "account_id": mask.account.id,
@@ -120,6 +148,11 @@ def act(mask, action, method=None):
                 raise RuntimeError("The patient, hour or treatment room changed.")
             if active_calling(mask) != "healer":
                 raise RuntimeError("The acting Healer changed Calling.")
+            if action == "treat" and method == "supported":
+                from world.clinic_cot_work import supported_rest_ready
+                ready, why = supported_rest_ready(mask)
+                if not ready:
+                    raise RuntimeError(why)
             if action == "prepare":
                 changed, good, problem = clinic_state.prepare(
                     room.db.village_clinic, day=day)

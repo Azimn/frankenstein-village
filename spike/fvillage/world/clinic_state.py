@@ -8,10 +8,21 @@ from __future__ import annotations
 import copy
 
 CONDITIONS = ("cold", "sprain", "fever")
-METHODS = ("rest", "compress")
+METHODS = ("rest", "compress", "supported")
 MAX_HISTORY = 36
 DAILY_LINEN = 2
 MAX_LINEN = 4
+# Each anonymous daily visitor has an authored preference independent of the
+# Healer. This is a bounded game-state choice, not a new named-person canon fact.
+MUSIC_CHOICES = ("accepts", "declines", "unavailable")
+
+
+def music_preference(day):
+    """Independent day-scoped visitor response, never selected by a player."""
+    if type(day) is not int or day < 1:
+        return None
+    return MUSIC_CHOICES[(day - 1) % len(MUSIC_CHOICES)]
+
 
 
 def ident(value):
@@ -37,7 +48,8 @@ def hour_value(value):
 def _day_state(day):
     return {"day": day, "condition": CONDITIONS[(day - 1) % len(CONDITIONS)],
             "linen": DAILY_LINEN, "assessment": None, "treatment": None,
-            "records_permission": None, "supply": None, "history": []}
+            "records_permission": None, "supply": None, "history": [],
+            "music_preference": music_preference(day)}
 
 
 def normalize(raw):
@@ -146,7 +158,7 @@ def treat(raw, *, day, hour, account_id, mask_id, mask, event_id, method):
     if not actor:
         return state, False, "A signed, present player is required."
     if method not in METHODS:
-        return state, False, "Choose rest or compress."
+        return state, False, "Choose rest, compress or supported."
     if not state["assessment"]:
         return state, False, "A Healer must examine the actual patient first."
     if state["treatment"]:
@@ -154,11 +166,14 @@ def treat(raw, *, day, hour, account_id, mask_id, mask, event_id, method):
     best = {"cold": "rest", "sprain": "compress", "fever": "rest"}
     actor["method"] = method
     actor["assessment_event_id"] = state["assessment"]["event_id"]
-    actor["improvement"] = 25 if method == best[state["condition"]] else 10
+    actor["improvement"] = (30 if method == "supported" else
+                            25 if method == best[state["condition"]] else 10)
     actor["outcome"] = (
+        "The patient rests more comfortably on the inspected, reinforced cot."
+        if method == "supported" else
         "The patient is more comfortable after appropriate care."
-        if actor["improvement"] == 25
-        else "The visitor rests more easily, although the care was less suited to the complaint."
+        if actor["improvement"] == 25 else
+        "The visitor rests more easily, although the care was less suited to the complaint."
     )
     state["treatment"] = actor
     return state, True, None
@@ -241,7 +256,7 @@ def public_lines(raw, day):
         ("Care has been provided."
          if state["treatment"] else
          "Treatment remains available after assessment."),
-        "Healers: clinic assess | clinic prepare | clinic treat rest or clinic treat compress | clinic receive.",
+        "Healers: clinic assess | clinic prepare | clinic treat rest | clinic treat compress | clinic treat supported | clinic receive.",
         "Merchants: clinic procure at Market Lane; carry a real parcel here for Healer acceptance.",
         "The examining Healer may request this patient's permission using "
         "clinic request records, then use clinic records for confidential notes.",

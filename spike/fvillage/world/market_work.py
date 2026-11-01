@@ -10,7 +10,7 @@ from django.db import transaction
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
 
-from world import market_standards
+from world import market_standards, forensic_scale
 from world.callings import active_calling, record_participation
 from world.events import get_event_ledger, publish_world_event
 
@@ -19,6 +19,7 @@ SCALE = "a crooked market scale"
 ACTION_ROLE = {
     "honor": "merchant", "hold": "merchant", "release": "merchant",
     "calibrate": "smith", "attest": "chronicler", "audit": "chronicler",
+    "inspect": "detective",
 }
 
 
@@ -46,9 +47,22 @@ def state_lines():
     if not room:
         return "The Market Lane standards board is missing."
     day, _hour = clock()
-    return "\n".join(market_standards.public_lines(
-        room.db.market_standards, day
-    ))
+    lines = market_standards.public_lines(room.db.market_standards, day)
+    scale = next((o for o in room.contents if o.key == SCALE
+                  and o.db.landmark_id == "market_scale"), None)
+    if scale:
+        # Public readback must never create a missing ledger or trust a stored
+        # row without the original completed Smith and Detective events.
+        try:
+            ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+        except ScriptDB.DoesNotExist:
+            ledger = None
+        lines.append(forensic_scale.public_lines(
+            scale.db.forensic_inspections, day,
+            event_lookup=ledger.get_event if ledger else None,
+            scale_id=scale.id, market_id=room.id,
+        ))
+    return "\n".join(lines)
 
 
 def supply_held():
@@ -71,20 +85,31 @@ def witnessed_scale_today(mask, day):
     ), None)
     if not scale:
         return False
+    # Evennia persistence can contain malformed legacy inspection values.
+    # Reject those as missing evidence, not as a command-crashing exception.
     try:
-        recent = dict(mask.db.landmark_latest_view or {}).get("market_scale") or {}
-        return int(recent.get("day") or 0) == int(day)
+        views = mask.db.landmark_latest_view
+        if not hasattr(views, "get"):
+            return False
+        recent = views.get("market_scale")
+        if not hasattr(recent, "get"):
+            return False
+        inspected_day = recent.get("day")
+        if isinstance(inspected_day, bool):
+            return False
+        return int(inspected_day) == int(day)
     except (ValueError, TypeError, OverflowError):
         return False
 
 
 def perform(mask, action):
     if action not in ACTION_ROLE:
-        return None, "Use trade | trade honor | trade hold | trade release | trade calibrate | trade audit | trade attest."
+        return None, "Use trade | trade honor | trade hold | trade release | trade calibrate | trade audit | trade attest | trade inspect."
     account = getattr(mask, "account", None)
     room = market_room()
     if not account or not room or getattr(mask, "location", None) != room:
         return None, "This professional work must be done in Market Lane."
+    account_id, mask_id = account.id, mask.id
     role = ACTION_ROLE[action]
     if active_calling(mask) != role:
         return None, f"An active {role.title()} Calling must perform that action."
@@ -94,30 +119,48 @@ def perform(mask, action):
             "First inspect the actual crooked market scale here today. "
             "A remembered rumor or an old observation is not sufficient."
         )
+    if action == "inspect":
+        return inspect_scale(mask, room, day, hour)
     # Validate before creating a world event, so ordinary repeated attempts
     # do not add misleading failed-event records.
     _proposed, accepted, error = market_standards.apply(
         room.db.market_standards, action,
-        account_id=account.id, mask_id=mask.id, mask=mask.key,
+        account_id=account_id, mask_id=mask_id, mask=mask.key,
         day=day, hour=hour, event_id=1,
     )
     if not accepted:
         return None, error
+    if action == "attest" and not market_standards.verified_sources(
+            room.db.market_standards, day, get_event_ledger().get_event):
+        return None, (
+            "The Merchant and Smith source events cannot be verified "
+            "against the signed world ledger. No attestation was issued."
+        )
+
     if action == "audit":
         review = market_standards.refresh(room.db.market_standards, day)["review"]
-        source = get_event_ledger().get_event(review["event_id"])
+        source = (get_event_ledger().get_event(review["event_id"])
+                  if review else None)
         if not market_standards.verified_merchant_review(review, source):
             return None, "The Merchant source event is not a verified completed decision."
 
     def consequence(event):
         with transaction.atomic():
+            # Delayed event consequences cannot sign a stale hour or borrow
+            # another authenticated account's authority.
+            if (not getattr(mask, "account", None)
+                    or mask.account.id != account_id or mask.id != mask_id):
+                raise RuntimeError("The market account changed before signing.")
+            if clock() != (day, hour):
+                raise RuntimeError("Village time advanced before the market decision.")
             if mask.location != room or not witnessed_scale_today(mask, day):
                 raise RuntimeError("The witness left the market scale.")
             if active_calling(mask) != role:
                 raise RuntimeError("The acting professional changed Calling.")
+            if action == "attest" and not market_standards.verified_sources(
+                    room.db.market_standards, day, get_event_ledger().get_event):
+                raise RuntimeError("The signed market source events changed.")
             if action == "audit":
-                if clock()[0] != day:
-                    raise RuntimeError("The village day changed before the audit.")
                 current = market_standards.refresh(room.db.market_standards, day)
                 review = current["review"]
                 source = (get_event_ledger().get_event(review["event_id"])
@@ -126,7 +169,7 @@ def perform(mask, action):
                     raise RuntimeError("The Merchant source is no longer verified.")
             changed, valid, problem = market_standards.apply(
                 room.db.market_standards, action,
-                account_id=account.id, mask_id=mask.id, mask=mask.key,
+                account_id=account_id, mask_id=mask_id, mask=mask.key,
                 day=day, hour=hour, event_id=event["id"],
             )
             if not valid:
@@ -150,17 +193,106 @@ def perform(mask, action):
                 ),
             }
 
-    event = publish_world_event(
-        "village.market_" + action, actor=mask,
-        payload={
-            "action": action, "day": day, "hour": hour,
-            "location": MARKET, "professional_calling": role,
-            "harbinger": False, "chronicle_eligible": False,
-        },
-        consequence=consequence,
-    )
+    try:
+        event = publish_world_event(
+            "village.market_" + action, actor=mask,
+            payload={
+                "action": action, "day": day, "hour": hour,
+                "location": MARKET, "professional_calling": role,
+                "harbinger": False, "chronicle_eligible": False,
+            },
+            consequence=consequence,
+        )
+    except RuntimeError as error:
+        # The signed event was rejected; present a recoverable player error.
+        return None, str(error)
     record_participation(mask, "market_" + action, calling=role)
     return {
         "event_id": event["id"], "action": action,
         "lines": state_lines(),
     }, None
+
+
+def inspect_scale(mask, room, day, hour):
+    """Detective observes an actual calibrated scale, not an invented culprit."""
+    scale = next((obj for obj in room.contents
+                  if obj.key == SCALE
+                  and obj.db.landmark_id == "market_scale"
+                  and obj.access(mask, "view", default=True)), None)
+    if scale is None:
+        return None, "The physical market scale is unavailable."
+    state = market_standards.refresh(room.db.market_standards, day)
+    calibration = state.get("calibration") if state["day"] == day else None
+    source_id = calibration.get("event_id") if calibration else None
+    ledger = get_event_ledger()
+    source = ledger.get_event(source_id) if source_id else None
+
+    def evaluate(event_id):
+        return forensic_scale.inspect(
+            scale.db.forensic_inspections,
+            calibration=calibration, source_event=source,
+            account_id=mask.account.id, mask_id=mask.id, mask=mask.key,
+            day=day, hour=hour, event_id=event_id,
+            scale_id=scale.id, market_id=room.id,
+        )
+
+    _preview, valid, reason = evaluate(1)
+    if not valid:
+        return None, reason
+
+    account_id, mask_id = mask.account.id, mask.id
+
+    def consequence(event):
+        with transaction.atomic():
+            now_day, now_hour = clock()
+            if (now_day, now_hour) != (day, hour):
+                raise RuntimeError("Village time changed before the forensic inquiry.")
+            if (not getattr(mask, "account", None)
+                    or mask.account.id != account_id or mask.id != mask_id
+                    or mask.location != room or scale.location != room
+                    or not witnessed_scale_today(mask, day)
+                    or active_calling(mask) != "detective"):
+                raise RuntimeError("The investigator lost physical access or authority.")
+            now_state = market_standards.refresh(room.db.market_standards, day)
+            now_calibration = (
+                now_state.get("calibration") if now_state["day"] == day else None
+            )
+            now_source_id = (
+                now_calibration.get("event_id") if now_calibration else None
+            )
+            now_source = ledger.get_event(now_source_id) if now_source_id else None
+            changed, accepted, problem = forensic_scale.inspect(
+                scale.db.forensic_inspections,
+                calibration=now_calibration, source_event=now_source,
+                account_id=mask.account.id, mask_id=mask.id, mask=mask.key,
+                day=day, hour=hour, event_id=event["id"],
+                scale_id=scale.id, market_id=room.id,
+            )
+            if not accepted:
+                raise RuntimeError(problem)
+            scale.db.forensic_inspections = changed
+            return {
+                "scale_object_id": scale.id,
+                "market_room_id": room.id,
+                "smith_source_event_id": now_source_id,
+                "finding": forensic_scale.FINDING,
+                "day": day,
+            }
+
+    try:
+        event = publish_world_event(
+        forensic_scale.INQUIRY_KIND, actor=mask,
+        payload={
+            "action": "inspect", "day": day, "hour": hour,
+            "location": MARKET, "scale_object_id": scale.id,
+            "smith_source_event_id": source_id,
+            "professional_calling": "detective",
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    except RuntimeError as error:
+        return None, str(error)
+    record_participation(mask, "market_forensic_inspections", calling="detective")
+    return {"event_id": event["id"], "action": "inspect",
+            "lines": state_lines()}, None
