@@ -151,6 +151,68 @@ class BridgeCaseEdge15Tests(unittest.TestCase):
             self.assertFalse(ok, (group, field, why))
             self.assertEqual(unchanged, state)
 
+    def test_physical_witness_and_observation_event_require_strict_identity(self):
+        for bad in (11.0, True):
+            with self.subTest(account=bad):
+                observed = observation()
+                observed["witnesses"][0]["account_id"] = bad
+                _state, ok, _why = detective(observed=observed)
+                self.assertFalse(ok)
+        for bad in (111.0, True):
+            with self.subTest(mask=bad):
+                observed = observation()
+                observed["witnesses"][0]["mask_id"] = bad
+                self.assertFalse(detective(observed=observed)[1])
+        observed = observation()
+        observed["day"] = 3.0
+        self.assertFalse(detective(observed=observed)[1])
+        observed = observation()
+        observed["source_event_id"] = 101
+        self.assertFalse(detective(observed=observed)[1])
+        self.assertFalse(detective(observed=observation(), event=90)[1])
+
+    def test_public_bulletin_requires_exact_signed_integer_source(self):
+        state, ok, why = detective()
+        self.assertTrue(ok, why)
+        for group, field, bad in (
+            ("actor", "account_id", 11.0),
+            ("actor", "mask_id", 111.0),
+            ("payload", "observation_event_id", 90.0),
+            ("consequence", "case_exam_event_id", 101.0),
+            ("consequence", "observation_event_id", 90.0),
+        ):
+            with self.subTest(group=group, field=field):
+                forged = source()
+                forged[group][field] = bad
+                changed, ok, _why = chronicler(state, signed=forged)
+                self.assertFalse(ok)
+                self.assertEqual(changed, state)
+        forged = source()
+        forged["id"] = 101.0
+        self.assertFalse(chronicler(state, signed=forged)[1])
+        changed, ok, _why = chronicler(state, event=101)
+        self.assertFalse(ok)
+        self.assertEqual(changed, state)
+
+    def test_tampered_persisted_examination_cannot_publish(self):
+        state, ok, why = detective()
+        self.assertTrue(ok, why)
+        for key, bad in (("account_id", 11.0),
+                         ("mask_id", 111.0),
+                         ("event_id", 101.0),
+                         ("observation_event_id", 90.0),
+                         ("hour", 11.0),
+                         ("day", 3.0)):
+            with self.subTest(field=key):
+                altered = copy.deepcopy(state)
+                altered["case_examinations"][0][key] = bad
+                changed, ok, _why = chronicler(altered)
+                self.assertFalse(ok)
+                self.assertEqual(changed, altered)
+        altered = copy.deepcopy(state)
+        altered["case_examinations"][0]["hour"] = 13
+        self.assertFalse(chronicler(altered, hour=12)[1])
+
     def test_no_publication_without_source_or_with_wrong_time(self):
         state, ok, why = chronicler({})
         self.assertFalse(ok)
