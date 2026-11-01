@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - feature/gdd-edge-06-stage-catering-20261026
 
 permissions:
   contents: read
