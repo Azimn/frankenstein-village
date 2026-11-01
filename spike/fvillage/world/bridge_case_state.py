@@ -19,7 +19,7 @@ def _time(day, hour):
 
 
 def _actor(account_id, mask_id, mask, event_id):
-    return _id(account_id) and _id(mask_id) and _id(event_id) and bool(str(mask or "").strip())
+    return _id(account_id) and _id(mask_id) and _id(event_id) and isinstance(mask, str) and bool(mask.strip())
 
 
 def examine(state, *, day, hour, account_id, mask_id, mask, event_id, observation):
@@ -27,15 +27,19 @@ def examine(state, *, day, hour, account_id, mask_id, mask, event_id, observatio
     result = copy.deepcopy(state or {})
     if not _time(day, hour) or not _actor(account_id, mask_id, mask, event_id):
         return result, False, "Invalid signed examination identity or village time."
-    if not isinstance(observation, Mapping) or observation.get("day") != day:
+    if (not isinstance(observation, Mapping)
+            or type(observation.get("day")) is not int
+            or observation["day"] != day):
         return result, False, "Inspect the actual bridge plaque today first."
-    if not _id(observation.get("source_event_id")):
+    if (not _id(observation.get("source_event_id"))
+            or observation["source_event_id"] == event_id):
         return result, False, "The physical observation lacks a signed ledger source."
     if observation.get("pattern") not in {"daylight", "lamplight", "rainwater"}:
         return result, False, "The physical observation has no recognized pattern."
     if not any(
-        isinstance(w, Mapping) and w.get("account_id") == account_id
-        and w.get("mask_id") == mask_id
+        isinstance(w, Mapping) and _id(w.get("account_id"))
+        and _id(w.get("mask_id")) and w["account_id"] == account_id
+        and w["mask_id"] == mask_id
         for w in (observation.get("witnesses") or [])
     ):
         return result, False, "You must personally witness the physical plaque."
@@ -58,32 +62,48 @@ def publish(state, *, day, hour, account_id, mask_id, mask, event_id, source):
     result = copy.deepcopy(state or {})
     if not _time(day, hour) or not _actor(account_id, mask_id, mask, event_id):
         return result, False, "Invalid bulletin identity or village time."
-    exams = [x for x in result.get("case_examinations") or [] if x.get("day") == day]
+    exams = [x for x in result.get("case_examinations") or []
+             if isinstance(x, Mapping) and type(x.get("day")) is int
+             and x["day"] == day]
     if len(exams) != 1:
         return result, False, "A signed Detective examination is required today."
     exam = exams[0]
     if any(x.get("day") == day for x in result.get("case_bulletins") or []):
         return result, False, "A public case bulletin is already signed today."
+    if (not _actor(exam.get("account_id"), exam.get("mask_id"),
+                   exam.get("mask"), exam.get("event_id"))
+            or not _id(exam.get("observation_event_id"))
+            or exam["event_id"] == exam["observation_event_id"]
+            or not _time(exam.get("day"), exam.get("hour"))
+            or exam["hour"] > hour
+            or event_id in {exam["event_id"], exam["observation_event_id"]}):
+        return result, False, "The persisted examination source is malformed or out of order."
     if account_id == exam.get("account_id"):
         return result, False, "An independent account must publish the Detective's findings."
     if not isinstance(source, Mapping) or source.get("status") != "complete":
         return result, False, "The Detective source event is not complete."
-    if source.get("kind") != "village.bridge_plaque_examined" or source.get("id") != exam.get("event_id"):
+    if (source.get("kind") != "village.bridge_plaque_examined"
+            or not _id(source.get("id")) or source["id"] != exam["event_id"]):
         return result, False, "The Detective source event does not match this case."
     actor = source.get("actor") or {}
     payload = source.get("payload") or {}
     consequence = source.get("consequence") or {}
     if (
-        actor.get("account_id") != exam.get("account_id")
-        or actor.get("mask_id") != exam.get("mask_id")
+        not _id(actor.get("account_id"))
+        or actor["account_id"] != exam["account_id"]
+        or not _id(actor.get("mask_id"))
+        or actor["mask_id"] != exam["mask_id"]
         or actor.get("mask") != exam.get("mask")
         or payload.get("professional_calling") != "detective"
         or payload.get("location") != "The Old Stone Bridge"
         or payload.get("day") != day
         or payload.get("hour") != exam.get("hour")
-        or payload.get("observation_event_id") != exam.get("observation_event_id")
-        or consequence.get("case_exam_event_id") != exam.get("event_id")
-        or consequence.get("observation_event_id") != exam.get("observation_event_id")
+        or not _id(payload.get("observation_event_id"))
+        or payload["observation_event_id"] != exam["observation_event_id"]
+        or not _id(consequence.get("case_exam_event_id"))
+        or consequence["case_exam_event_id"] != exam["event_id"]
+        or not _id(consequence.get("observation_event_id"))
+        or consequence["observation_event_id"] != exam["observation_event_id"]
         or consequence.get("pattern") != exam.get("pattern")
         or consequence.get("finding") != "physical_marks_only"
     ):
