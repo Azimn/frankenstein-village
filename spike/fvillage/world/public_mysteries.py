@@ -358,13 +358,58 @@ def observe_bridge(player, *, day=None, hour=None, weather=None):
                      if obs.get("key") == key), None)
     if existing is not None:
         result = observations[existing]
-        if not any(item.get("mask_id") == witness["mask_id"]
-                   for item in result.get("witnesses") or []):
-            result["witnesses"].append(witness)
-            mystery["observations"] = observations
-            _save(mystery)
-            _metric(witness_links=1)
-        return copy.deepcopy(result)
+        if any(item.get("mask_id") == witness["mask_id"]
+               and item.get("account_id") == witness["account_id"]
+               for item in result.get("witnesses") or []):
+            return copy.deepcopy(result)
+
+        # A second firsthand witness needs their OWN signed source. Sharing
+        # the first visitor's event ID would falsely attribute their eyes
+        # and account to the later Detective.
+        from world.events import publish_world_event
+
+        def consequence(event):
+            from django.db import transaction
+            with transaction.atomic():
+                if (getattr(player, "location", None) is None
+                        or player.location.key != "The Old Stone Bridge"
+                        or not getattr(player, "has_account", False)
+                        or _player_ref(player) != witness
+                        or _clock() != (int(day), int(hour))
+                        or _weather() != weather):
+                    raise ValueError("The second witness left the physical source.")
+                fresh = get_public_mystery(BRIDGE_PLAQUE_ID)
+                rows = copy.deepcopy(list(fresh.get("observations") or []))
+                match = next((row for row in rows if row.get("key") == key), None)
+                if (match is None or match.get("source_event_id") != result.get("source_event_id")
+                        or match.get("pattern") != state["pattern"]
+                        or any(item.get("account_id") == witness["account_id"]
+                                   and item.get("mask_id") == witness["mask_id"]
+                                   for item in match.get("witnesses") or [])):
+                    raise ValueError("The bridge observation changed before witness signing.")
+                match.setdefault("witnesses", []).append(
+                    dict(witness, source_event_id=event["id"])
+                )
+                fresh["observations"] = rows
+                _save(fresh)
+                _metric(witness_links=1)
+                return {"source_event_id":event["id"], "pattern":state["pattern"]}
+
+        publish_world_event(
+            "public_mystery.bridge_plaque.observed",
+            actor=player,
+            payload={
+                "public_mystery_id":BRIDGE_PLAQUE_ID,
+                "day":int(day), "hour":int(hour), "weather":weather,
+                "pattern":state["pattern"], "publicity":"private",
+                "harbinger":False, "chronicle_eligible":False,
+            },
+            consequence=consequence,
+        )
+        fresh = get_public_mystery(BRIDGE_PLAQUE_ID)
+        return copy.deepcopy(next(
+            row for row in fresh["observations"] if row.get("key") == key
+        ))
 
     from world.events import publish_world_event
     event = publish_world_event(
@@ -380,7 +425,7 @@ def observe_bridge(player, *, day=None, hour=None, weather=None):
     record = {
         "key": key, "day": int(day), "hour": int(hour), "weather": weather,
         "detail": state["detail"], "pattern": state["pattern"],
-        "witnesses": [witness], "source_event_id": event["id"],
+        "witnesses": [dict(witness, source_event_id=event["id"])], "source_event_id": event["id"],
     }
     observations.append(record)
     mystery["observations"] = observations[-MAX_OBSERVATIONS:]
@@ -522,27 +567,64 @@ def examine_bridge_case(player):
     actor = _player_ref(player)
     observations = [
         row for row in mystery.get("observations") or []
-        if row.get("day") == day
+        if type(row.get("day")) is int and row["day"] == day
         and any(w.get("account_id") == actor["account_id"]
                 and w.get("mask_id") == actor["mask_id"]
                 for w in row.get("witnesses") or [])
     ]
     if not observations:
         return None, "Look at the physical plaque today before filing a case examination."
-    # Evennia may return SaverDict wrappers for nested persisted records.
-    observation = dict(observations[-1])
-    observation["witnesses"] = [dict(w) for w in observation.get("witnesses") or []]
-    observation_id = observation.get("source_event_id")
-    if type(observation_id) is not int or observation_id < 1:
+    # Bind the Detective to their own signed observation, not the first
+    # witness's shared row event. Legacy unsigned secondary witnesses fail
+    # actor verification rather than being grandfathered into evidence.
+    observation = copy.deepcopy(dict(observations[-1]))
+    witnesses = [dict(w) for w in observation.get("witnesses") or []]
+    own = next((w for w in witnesses
+                if w.get("account_id") == actor["account_id"]
+                and w.get("mask_id") == actor["mask_id"]), None)
+    if own is None:
+        return None, "The Detective has no firsthand bridge witness."
+    observation_id = own.get("source_event_id", observation.get("source_event_id"))
+    original_id = observation.get("source_event_id")
+    if (type(observation_id) is not int or observation_id < 1
+            or type(original_id) is not int or original_id < 1):
         return None, "The physical observation has no valid signed event ID."
-    signed_observation = get_event_ledger().get_event(observation_id)
-    payload = (signed_observation or {}).get("payload") or {}
-    if (not signed_observation or signed_observation.get("status") != "complete"
-            or signed_observation.get("kind") != "public_mystery.bridge_plaque.observed"
-            or payload.get("public_mystery_id") != BRIDGE_PLAQUE_ID
-            or payload.get("day") != day
-            or payload.get("pattern") != observation.get("pattern")):
-        return None, "The physical observation lacks a matching completed source."
+
+    ledger = get_event_ledger()
+    signed_observation = ledger.get_event(observation_id)
+    original = ledger.get_event(original_id)
+
+    def valid_source(event, expected):
+        if not event or event.get("status") != "complete":
+            return False
+        payload, signed_actor = event.get("payload") or {}, event.get("actor") or {}
+        return (
+            event.get("kind") == "public_mystery.bridge_plaque.observed"
+            and type(event.get("id")) is int
+            and type(expected.get("source_event_id")) is int
+            and event["id"] == expected["source_event_id"]
+            and type(signed_actor.get("account_id")) is int
+            and type(signed_actor.get("mask_id")) is int
+            and signed_actor["account_id"] == expected.get("account_id")
+            and signed_actor["mask_id"] == expected.get("mask_id")
+            and signed_actor.get("mask") == expected.get("mask")
+            and payload.get("public_mystery_id") == BRIDGE_PLAQUE_ID
+            and type(payload.get("day")) is int and payload["day"] == day
+            and type(payload.get("hour")) is int
+            and payload["hour"] == observation.get("hour")
+            and payload.get("weather") == observation.get("weather")
+            and payload.get("pattern") == observation.get("pattern")
+        )
+
+    first = next((w for w in witnesses
+                  if w.get("source_event_id", original_id) == original_id), None)
+    if (first is None
+            or not valid_source(original, dict(first, source_event_id=original_id))
+            or not valid_source(signed_observation,
+                                dict(own, source_event_id=observation_id))):
+        return None, "The physical observation lacks a matching completed actor-bound source."
+    observation["source_event_id"] = observation_id
+    observation["witnesses"] = [own]
     _, ok, error = examine(
         mystery, day=day, hour=hour, account_id=actor["account_id"],
         mask_id=actor["mask_id"], mask=actor["mask"],
