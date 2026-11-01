@@ -224,6 +224,33 @@ assert innkeep_record["participation"]["kitchen_acceptances"] == 1
 print("POST_RESTART_GDD_EDGE04_SIGNED_TWO_ACCOUNT_KITCHEN_SUPPLY_GREEN")
 print("POST_RESTART_SHARED_SOUP_WORKPLACE_GREEN")
 
+# GDD-EDGE-02: the first real restart must preserve the original
+# day-one Innkeep restriction. No Smith repair or third day-one offcut is
+# fabricated to make the source chain pass.
+from world import kitchen_repair_edge02, kitchen_repair_work
+_kitchen_pot = one("a communal soup pot")
+_kitchen_state = kitchen_repair_edge02.normalize(_kitchen_pot.db.kitchen_repair)
+assert _kitchen_state["condition"] == "restricted", _kitchen_state
+assert _kitchen_state["repair"] is None
+_kitchen_inn = _kitchen_state["restriction"]
+assert _kitchen_inn["mask_id"] == innkeep_tester.id
+assert _kitchen_inn["day"] == 1
+_kitchen_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+_kitchen_restrict_event = _kitchen_ledger.get_event(_kitchen_inn["event_id"])
+assert _kitchen_restrict_event["kind"] == "professional.innkeep_kitchen_restriction"
+assert _kitchen_restrict_event["status"] == "complete"
+assert _kitchen_restrict_event["actor"]["account_id"] == _kitchen_inn["account_id"]
+assert _kitchen_restrict_event["consequence"]["condition"] == "restricted"
+assert not [row for row in _kitchen_ledger.db.events
+            if row.get("kind") == "professional.smith_kitchen_repair"
+            and row.get("payload", {}).get("pot_id") == _kitchen_pot.id
+            and row.get("status") == "complete"], (
+    "A kitchen repair was falsely completed before the later-day Smith"
+)
+assert not kitchen_repair_work.player_simmer_allowed(_kitchen_pot)
+assert "restricted" in kitchen_repair_work.status().lower()
+print("POST_RESTART_GDD_EDGE02_DAY_ONE_UNREPAIRED_RESTRICTION_GREEN")
+
 # EDGE-01: the same physical batch and existing pantry history survive an
 # actual Evennia stop/start with consent and independent publication intact.
 from world import soup_receipts
@@ -1757,6 +1784,17 @@ assert {row["mask"] for row in _work_docket["crafts"]} == {"SmithTester", "Stage
 assert _work_docket["installation"] is not None
 _repair_craft = next(row for row in _work_docket["crafts"] if row["mask"] == "SmithTester")
 _stage_craft = next(row for row in _work_docket["crafts"] if row["mask"] == "StageSmithTester")
+# Cross-check the two physical day-one crafts against the immutable signed ledger.
+_edge02_day_one_forges = [
+    event for event in warning_ledger.db.events
+    if event.get("kind") == "village.market_hinge_forged"
+    and event.get("status") == "complete"
+    and event.get("payload", {}).get("day") == 1
+]
+assert len(_edge02_day_one_forges) == _workshop_rules.DAILY_OFFCUTS
+assert {row["event_id"] for row in _work_docket["crafts"]} == {
+    event["id"] for event in _edge02_day_one_forges
+}, "Physical day-one crafts diverge from signed source events"
 assert _stage_craft["item_id"] != _repair_craft["item_id"]
 assert _stage_craft["event_id"] != _repair_craft["event_id"]
 _repair_install = _work_docket["installation"]

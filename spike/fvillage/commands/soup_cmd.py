@@ -16,6 +16,8 @@ class CmdSoup(Command):
         soup procure             (Merchant, Market Lane)
         soup deliver             (solo/courier fallback with signed crate)
         soup accept              (Innkeep verifies a separate Merchant crate)
+        soup restrict            (Innkeep, unsafe pot lid)
+        soup repair              (Smith, real forged hinge in inventory)
 
     The kitchen has finite pantry supplies, a renewing daily baseline,
     a permanent work log and individual recipe notebooks. Prepared packets
@@ -37,6 +39,23 @@ class CmdSoup(Command):
         raw = (self.args or "").strip().lower()
         if raw in ("", "stock", "status"):
             caller.msg(soup_kitchen.status(caller))
+            return
+        if raw in ("restrict", "repair"):
+            from world import kitchen_repair_work
+            action = kitchen_repair_work.restrict if raw == "restrict" else kitchen_repair_work.repair
+            result, error = action(caller)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                ("You restrict player simmering at the real communal pot. "
+                 if raw == "restrict" else
+                 "You install and consume the physical forged hinge; player simmering resumes. ")
+                + f"Signed world event {result['event_id']}."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} completes a physical kitchen {raw} action.",
+                exclude=[caller])
             return
         if raw == "notebook":
             caller.msg(soup_kitchen.recipe_notes(caller))
@@ -162,5 +181,6 @@ class CmdSoup(Command):
         caller.msg(
             "Use soup | soup prep <base> <seasoning> | soup simmer | "
             "soup notebook | soup receipt [event] | soup publish [event] | "
-            "soup receipts | soup procure | soup deliver | soup accept."
+            "soup receipts | soup procure | soup deliver | soup accept | "
+            "soup restrict | soup repair."
         )

@@ -67,13 +67,14 @@ def pot_description():
         f"quality {done['quality']} (world event {done['cook_event_id']})."
         if done else " No player-made batch has been recorded."
     )
+    from world import kitchen_repair_work
     return (
         "A large, shared iron soup pot sits beside the Blood of the Vine's "
         "working kitchen fire. Bram's ordinary pantry renews each village day "
         "whether or not players are present; it is not anyone's private business. "
         f"Pantry day {state['day']}: {listed}. "
         f"The main hearth is {'warm' if fire else 'low'}."
-        + last +
+        + last + " " + kitchen_repair_work.status() +
         " Use soup prep <turnip|barley> <thyme|salt|pepper>, soup simmer, "
         "soup notebook, soup receipt/publish/receipts for consented records, "
         "soup accept after a Merchant handoff, or use signed solo soup deliver."
@@ -159,6 +160,10 @@ def simmer(mask):
         return None, err
     if active_calling(mask) != "innkeep":
         return None, "An active Innkeep is needed to simmer a batch."
+    from world import kitchen_repair_work
+    pot = kitchen_repair_work._pot()
+    if not kitchen_repair_work.player_simmer_allowed(pot):
+        return None, "Player simmering is restricted until the real kitchen pot is repaired."
     packets = _held(mask, "soup_preparation")
     if not packets:
         return None, "Carry one real prepared packet; use soup prep first."
@@ -180,6 +185,13 @@ def simmer(mask):
         return None, "You already carry three soup bowls; serve or eat them first."
 
     def consequence(event):
+        # Recheck signed pot service when the world event is actually applied.
+        # A rollback between command preflight and consequence cannot cook.
+        if (mask.location != tavern
+                or active_calling(mask) != "innkeep"
+                or kitchen_repair_work._pot() != pot
+                or not kitchen_repair_work.player_simmer_allowed(pot)):
+            raise RuntimeError("The physical kitchen pot is not cleared for player simmering.")
         if packet.location != mask or not packet.db.soup_preparation:
             raise RuntimeError("The reserved ingredients were moved or consumed.")
         bowl = create_object(

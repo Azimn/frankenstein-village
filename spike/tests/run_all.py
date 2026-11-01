@@ -226,7 +226,7 @@ def main() -> int:
                 "import os\n"
                 "from evennia.utils import create\n"
                 "from evennia.accounts.models import AccountDB\n"
-                "for key in ('qa_smith_repair', 'qa_smith_stage', 'qa_merchant_repair', 'qa_mystic_study', 'qa_performer_stage', 'qa_wanderer_mail', 'qa_hound_protection', 'qa_detective_inquiry', 'qa_smith_cot'):\n"
+                "for key in ('qa_smith_repair', 'qa_smith_stage', 'qa_merchant_repair', 'qa_mystic_study', 'qa_performer_stage', 'qa_wanderer_mail', 'qa_hound_protection', 'qa_detective_inquiry', 'qa_smith_cot', 'qa_smith_kitchen'):\n"
                 "    account = AccountDB.objects.filter(db_key=key).first()\n"
                 "    if account is None:\n"
                 "        account = create.create_account(\n"
@@ -582,6 +582,35 @@ def main() -> int:
             restored_env["FV_EDGE18_AUTH_NEGATIVE_PHASE"] = "restore"
             run([evennia, "shell"], cwd=game, env=restored_env,
                 input_text=forged_fixture)
+            # EDGE-02: after T-13 and EDGE-18 authenticated-negative checks finish,
+            # let an ordinary Smith spend a genuinely later-day offcut and
+            # repair the day-one Innkeep restriction. No clock rewind, extra
+            # Workshop resource, privileged player action or synthetic event.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge02_later_day_kitchen.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=140,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            edge02_restart = (
+                checkout / "spike" / "tests" /
+                "edge02_later_day_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge02_restart)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            edge02_second_env = dict(env)
+            edge02_second_env["FV_EDGE02_SECOND_RESTART"] = "1"
+            run([evennia, "shell"], cwd=game, env=edge02_second_env,
+                input_text=edge02_restart)
+
         except Exception:
             dump_logs(game)
             raise

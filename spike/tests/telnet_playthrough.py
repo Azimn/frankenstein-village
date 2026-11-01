@@ -113,6 +113,7 @@ def main() -> int:
     h = None
     inn = None
     smith = None
+    smith_kitchen = None
     merchant = None
     mystic = None
     performer = None
@@ -2174,6 +2175,42 @@ def main() -> int:
         assert agent_json(out)["commands"]["install_market_repair"] == "workshop install"
         print("TELNET_TWO_ACCOUNT_PHYSICAL_MARKET_WORKSHOP_GREEN")
 
+        # GDD-EDGE-02: the Innkeep signs a genuine restriction on day one.
+        # Market and stage require both daily Workshop offcuts on integrated
+        # main. No third day-one forge is allowed for this kitchen fitting.
+        out = inn.command("look soup pot")
+        require(out, "lid hinge is loose")
+        out = inn.command("soup repair")
+        require(out, "active Smith Calling")
+        out = inn.command("soup restrict")
+        require_all(out, "restrict player simmering", "signed world event")
+        out = inn.command("soup restrict")
+        require(out, "already has completed signed kitchen work")
+        out = inn.command("soup simmer")
+        require(out, "restricted until the real kitchen pot is repaired")
+        smith_kitchen = Client(args.host, args.port)
+        require(smith_kitchen.sync_login_screen(), "frankenstein village")
+        out = smith_kitchen.command(
+            f"connect qa_smith_kitchen {repair_password}", wait=4.0)
+        require(out, "connected", "account qa_smith_kitchen")
+        smith_kitchen.command("charcreate KitchenSmithTester", wait=3.0)
+        out = smith_kitchen.command("ic KitchenSmithTester", wait=4.0)
+        require(out, "private room")
+        out = smith_kitchen.command("calling choose smith")
+        require(out, "smith is now your active calling")
+        for direction, expected in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"), ("east", "market workshop"),
+        ):
+            out = smith_kitchen.command(direction)
+            require(out, expected)
+        require(smith_kitchen.command("soup repair"),
+                "physically at The Blood of the Vine")
+        require_all(smith_kitchen.command("workshop"),
+                    "Village day 1", "iron offcuts")
+        print("TELNET_GDD_EDGE02_DAY_ONE_SIGNED_RESTRICTION_GREEN")
+
         for actor in (merchant, smith):
             for direction, expected in (
                 ("north", "lamp shop"),
@@ -2610,6 +2647,8 @@ def main() -> int:
             print("\nHEALER TRANSCRIPT\n" + "\n".join(h.transcript))
         if inn is not None:
             print("\nINNKEEP TRANSCRIPT\n" + "\n".join(inn.transcript))
+        if smith_kitchen is not None:
+            print("\nKITCHEN SMITH TRANSCRIPT\n" + "\n".join(smith_kitchen.transcript))
         if smith is not None:
             print("\nSMITH TRANSCRIPT\n" + "\n".join(smith.transcript))
         if merchant is not None:
@@ -2642,6 +2681,8 @@ def main() -> int:
             mystic.close()
         if merchant is not None:
             merchant.close()
+        if smith_kitchen is not None:
+            smith_kitchen.close()
         if smith is not None:
             smith.close()
         if inn is not None:
