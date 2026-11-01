@@ -532,7 +532,10 @@ def examine_bridge_case(player):
     # Evennia may return SaverDict wrappers for nested persisted records.
     observation = dict(observations[-1])
     observation["witnesses"] = [dict(w) for w in observation.get("witnesses") or []]
-    signed_observation = get_event_ledger().get_event(observation.get("source_event_id"))
+    observation_id = observation.get("source_event_id")
+    if type(observation_id) is not int or observation_id < 1:
+        return None, "The physical observation has no valid signed event ID."
+    signed_observation = get_event_ledger().get_event(observation_id)
     payload = (signed_observation or {}).get("payload") or {}
     if (not signed_observation or signed_observation.get("status") != "complete"
             or signed_observation.get("kind") != "public_mystery.bridge_plaque.observed"
@@ -542,8 +545,8 @@ def examine_bridge_case(player):
         return None, "The physical observation lacks a matching completed source."
     _, ok, error = examine(
         mystery, day=day, hour=hour, account_id=actor["account_id"],
-        mask_id=actor["mask_id"], mask=actor["mask"], event_id=1,
-        observation=observation,
+        mask_id=actor["mask_id"], mask=actor["mask"],
+        event_id=observation_id + 1, observation=observation,
     )
     if not ok:
         return None, error
@@ -593,12 +596,17 @@ def publish_bridge_case(player):
     exams = [x for x in mystery.get("case_examinations") or [] if x.get("day") == day]
     if len(exams) != 1:
         return None, "A signed Detective examination is required today."
-    source = get_event_ledger().get_event(exams[0]["event_id"])
+    exam_id = exams[0].get("event_id")
+    observation_id = exams[0].get("observation_event_id")
+    if (type(exam_id) is not int or exam_id < 1
+            or type(observation_id) is not int or observation_id < 1):
+        return None, "The examination lacks valid signed source IDs."
+    source = get_event_ledger().get_event(exam_id)
     actor = _player_ref(player)
     _, ok, error = publish(
         mystery, day=day, hour=hour, account_id=actor["account_id"],
-        mask_id=actor["mask_id"], mask=actor["mask"], event_id=1,
-        source=source,
+        mask_id=actor["mask_id"], mask=actor["mask"],
+        event_id=max(exam_id, observation_id) + 1, source=source,
     )
     if not ok:
         return None, error
