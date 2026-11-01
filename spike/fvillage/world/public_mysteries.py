@@ -375,8 +375,12 @@ def observe_bridge(player, *, day=None, hour=None, weather=None):
                         or player.location.key != "The Old Stone Bridge"
                         or not getattr(player, "has_account", False)
                         or _player_ref(player) != witness
-                        or _clock() != (int(day), int(hour))
-                        or _weather() != weather):
+                        # Legacy synthetic, accountless world-assertion witnesses
+                        # can inspect explicit test weather/time. Real account
+                        # witnesses must match the canonical live clock/weather.
+                        or (witness["account_id"] is not None
+                            and (_clock() != (int(day), int(hour))
+                                 or _weather() != weather))):
                     raise ValueError("The second witness left the physical source.")
                 fresh = get_public_mystery(BRIDGE_PLAQUE_ID)
                 rows = copy.deepcopy(list(fresh.get("observations") or []))
