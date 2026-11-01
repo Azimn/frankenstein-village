@@ -129,5 +129,36 @@ class StageCommandCompatibilityTests(unittest.TestCase):
                 self.assertIn(command, message)
 
 
+
+class CallingDiscoveryMainCompatibilityTests(unittest.TestCase):
+    """Prevent old EDGE-41 source from erasing already merged player work leads."""
+
+    def test_main_work_leads_and_edge41_safety_remain_discoverable(self):
+        source = (Path(__file__).resolve().parents[2] /
+                  "spike/fvillage/world/calling_opportunities.py")
+        tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+        definitions = [node.value for node in tree.body
+                       if isinstance(node, ast.Assign)
+                       and any(isinstance(t, ast.Name) and t.id == "WORK"
+                               for t in node.targets)]
+        self.assertEqual(len(definitions), 1)
+        work = ast.literal_eval(definitions[0])
+        required = {
+            "innkeep": ("soup accept", "soup repair", "stage cater"),
+            "chronicler": ("trade audit", "trade attest"),
+            "smith": ("clinic brace", "soup repair"),
+            "healer": ("clinic certify", "clinic invite"),
+            "merchant": ("clinic procure", "soup accept"),
+            "performer": ("stage cater", "clinic music", "stage adapt indoor"),
+            "detective": ("trade inspect", "trade investigate"),
+            "hound": ("stage warn", "survey protect"),
+        }
+        for calling, commands in required.items():
+            text = " ".join(work[calling])
+            for command in commands:
+                with self.subTest(calling=calling, command=command):
+                    self.assertIn(command, text)
+
+
 if __name__ == "__main__":
     unittest.main()
