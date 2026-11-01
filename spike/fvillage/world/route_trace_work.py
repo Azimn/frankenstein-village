@@ -87,7 +87,18 @@ def status(mask):
     room, cord = _site(mask)
     if cord is None:
         return "Visit the Northern Treeline to inspect its physical cord."
-    return route_trace_custody.public_lines(cord.db.route_trace_custody)
+    record = route_trace_custody.normalize(cord.db.route_trace_custody)
+    if record is None:
+        return route_trace_custody.public_lines(None)
+    day, hour = _clock()
+    source, error = _hound_source(cord, room, day, hour)
+    if error:
+        return route_trace_custody.public_lines(None)
+    detective = get_event_ledger().get_event(record["event_id"])
+    return route_trace_custody.verified_public_lines(
+        record, source, detective, cord_id=cord.id,
+        room=room.key, caution=cord.db.route_caution,
+    )
 
 
 def preserve(mask):
@@ -166,4 +177,4 @@ def preserve(mask):
     )
     record_participation(mask, "route_trace_preserved", calling="detective")
     return {"event_id": event["id"], "source_event_id": source_id,
-            "lines": route_trace_custody.public_lines(cord.db.route_trace_custody)}, None
+            "lines": status(mask)}, None
