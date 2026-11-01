@@ -212,5 +212,80 @@ class ArrivalHospitalityTests(unittest.TestCase):
         self.assertFalse(arrival.welcome(next_state, **second)[1])
 
 
+    def test_public_pot_history_requires_original_completed_source_chain(self):
+        state, kw = fixture()
+        committed, ok, reason = arrival.welcome(state, **kw)
+        self.assertTrue(ok, reason)
+        signed_welcome = {
+            "id": 90,
+            "kind": "professional.innkeep_wanderer_arrival_welcome",
+            "status": "complete",
+            "actor": {"account_id": 20, "mask_id": 21, "mask": "InnkeepTester"},
+            "payload": {
+                "day": 1, "hour": 21, "tavern_room_id": 3,
+                "guest_mask_id": 32, "guest_account_id": 31,
+                "route_event_id": 80, "cook_event_id": 61, "bowl_id": 77,
+            },
+            "consequence": {
+                "tavern_room_id": 3, "bowl_id": 77, "route_event_id": 80,
+                "cook_event_id": 61, "wanderer_account_id": 31,
+                "innkeep_account_id": 20,
+                "service": "physical_bowl_transferred",
+            },
+        }
+        events = {80: kw["route_event"], 61: kw["bowl_event"],
+                  90: signed_welcome}
+        line = arrival.verified_public_welcome(
+            json.loads(json.dumps(committed))["history"], events.get
+        )
+        self.assertIn("signed returning-traveler hospitality", line.lower())
+        self.assertIn("route event 80", line)
+        self.assertIn("welcome event 90", line)
+        self.assertIn("does not certify route safety", line)
+
+        # Mutable pantry records cannot create public claims by themselves.
+        for field, bad in (("event_id", 90.0),
+                           ("route_event_id", 80.0),
+                           ("wanderer_account_id", 20),
+                           ("bowl_id", 77.0),
+                           ("service", "free_ration")):
+            with self.subTest(receipt_field=field):
+                changed = copy.deepcopy(committed)
+                changed["history"][0]["arrival_welcome"][field] = bad
+                self.assertEqual(
+                    arrival.verified_public_welcome(changed["history"], events.get),
+                    "",
+                )
+
+        for event_id, part, field, bad in (
+            (90, "", "status", "consequence_failed"),
+            (90, "actor", "account_id", 99),
+            (90, "payload", "route_event_id", 999),
+            (90, "consequence", "service", "imagined"),
+            (80, "actor", "mask_id", 999),
+            (80, "consequence", "interpretation", "marked_caution"),
+            (61, "actor", "account_id", 999),
+            (61, "consequence", "bowl_id", 999),
+        ):
+            with self.subTest(event_id=event_id, field=field):
+                changed = copy.deepcopy(events)
+                target = changed[event_id] if not part else changed[event_id][part]
+                target[field] = bad
+                self.assertEqual(
+                    arrival.verified_public_welcome(
+                        committed["history"], changed.get
+                    ), "",
+                )
+        self.assertEqual(
+            arrival.verified_public_welcome(
+                committed["history"], lambda event_id: None
+            ), "",
+        )
+        self.assertEqual(
+            arrival.verified_public_welcome([], events.get), "",
+        )
+
+
+
 if __name__ == "__main__":
     unittest.main()
