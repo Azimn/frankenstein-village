@@ -314,6 +314,84 @@ def verify_signed_field_source(event, entry, role, day, hour, cord_id, square_id
     )
 
 
+
+def verify_signed_corroboration(raw, event, hound_event, wanderer_event, *,
+                                day, hour, cord_id, square_id, marker):
+    """Only a completed, source-linked physical recheck may appear publicly.
+
+    Persisted route-board metadata is an index, not proof. Require the three
+    canonical events, independent ordinary accounts and the actual cord.
+    """
+    if (type(day) is not int or day < 1 or type(hour) is not int
+            or not 0 <= hour <= 23 or type(cord_id) is not int
+            or cord_id < 1 or type(square_id) is not int or square_id < 1):
+        return False
+    state = normalize(raw)
+    if state["day"] != day:
+        return False
+    hound = state["field_decisions"].get("hound")
+    wanderer = state["field_decisions"].get("wanderer")
+    joint = (wanderer or {}).get("corroboration")
+    if (not hound or not wanderer or not joint
+            or hound["account_id"] == wanderer["account_id"]
+            or not verify_caution_marker(marker, hound, day)
+            or not verify_signed_field_source(
+                hound_event, hound, "hound", day, hour, cord_id, square_id)
+            or not verify_signed_field_source(
+                wanderer_event, wanderer, "wanderer", day, hour, cord_id, square_id)):
+        return False
+    if not hasattr(event, "get"):
+        return False
+    actor = event.get("actor") or {}
+    payload = event.get("payload") or {}
+    effect = event.get("consequence") or {}
+    if not all(hasattr(part, "get") for part in (actor, payload, effect)):
+        return False
+    if (type(event.get("id")) is not int
+            or event["id"] != joint["event_id"]
+            or event["id"] in {hound["event_id"], wanderer["event_id"]}
+            or event.get("status") != "complete"
+            or event.get("kind") != "village.route_caution_corroborated"):
+        return False
+    source_hour = payload.get("hour")
+    hound_hour = (hound_event.get("payload") or {}).get("hour")
+    wanderer_hour = (wanderer_event.get("payload") or {}).get("hour")
+    return (
+        type(actor.get("account_id")) is int
+        and actor["account_id"] == wanderer["account_id"] == joint["account_id"]
+        and actor.get("mask") == wanderer["mask"] == joint["mask"]
+        and type(actor.get("mask_id")) is int and actor["mask_id"] > 0
+        and payload.get("site") == "red_cord"
+        and payload.get("role") == "wanderer"
+        and payload.get("action") == "corroborate"
+        and payload.get("location") == "The Northern Treeline"
+        and type(payload.get("day")) is int and payload["day"] == day
+        and type(source_hour) is int
+        and type(hound_hour) is int and type(wanderer_hour) is int
+        and max(hound_hour, wanderer_hour) <= source_hour <= hour
+        and type(payload.get("cord_object_id")) is int
+        and payload["cord_object_id"] == cord_id
+        and type(payload.get("hound_source_event_id")) is int
+        and payload["hound_source_event_id"] == joint["hound_event_id"] == hound["event_id"]
+        and type(payload.get("wanderer_source_event_id")) is int
+        and payload["wanderer_source_event_id"] == wanderer["event_id"]
+        and effect.get("site") == "red_cord"
+        and type(effect.get("day")) is int and effect["day"] == day
+        and effect.get("role") == "wanderer"
+        and effect.get("action") == "corroborate"
+        and type(effect.get("cord_object_id")) is int
+        and effect["cord_object_id"] == cord_id
+        and type(effect.get("square_room_id")) is int
+        and effect["square_room_id"] == square_id
+        and type(effect.get("hound_source_event_id")) is int
+        and effect["hound_source_event_id"] == hound["event_id"]
+        and type(effect.get("wanderer_source_event_id")) is int
+        and effect["wanderer_source_event_id"] == wanderer["event_id"]
+        and effect.get("physical_caution_present") is True
+        and joint.get("observation") == "marked_caution"
+    )
+
+
 def field_lines(raw):
     """Source-limited public record; a professional report is not a hazard oracle."""
     state = normalize(raw)
