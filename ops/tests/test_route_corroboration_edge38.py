@@ -151,6 +151,58 @@ class Edge38Tests(unittest.TestCase):
         self.assertEqual(later["field_decisions"], {})
         self.assertEqual(later["history"][-1]["field_decisions"]["wanderer"]["corroboration"]["event_id"], 103)
 
+    def test_signed_later_day_hound_retie_preserves_prior_corroboration(self):
+        first, _ = prepared()
+        first, ok, why = r.corroborate(
+            first, 4, "red_cord", 102, 31, "Wanderer", 103
+        )
+        self.assertTrue(ok, why)
+        persisted = json.loads(json.dumps(first))
+        next_day = r.refresh(persisted, 5)
+        retied, ok, why = r.field_decision(
+            next_day, 5, "red_cord", "hound", "protect", True,
+            32, "Hound", 104, caution_day=4,
+        )
+        self.assertTrue(ok, why)
+        self.assertTrue(retied["field_decisions"]["hound"]["retied_previous_day"])
+        self.assertTrue(any("re-tied" in line for line in r.field_lines(retied)))
+        self.assertEqual(
+            retied["history"][-1]["field_decisions"]["wanderer"]
+            ["corroboration"]["event_id"], 103,
+        )
+        self.assertEqual(r.normalize(json.loads(json.dumps(retied))), retied)
+        for caution_day in (None, 5, 6, 0, True, 4.0):
+            with self.subTest(caution_day=caution_day):
+                denied, allowed, _ = r.field_decision(
+                    next_day, 5, "red_cord", "hound", "protect", True,
+                    32, "Hound", 104, caution_day=caution_day,
+                )
+                self.assertFalse(allowed)
+                self.assertEqual(denied, next_day)
+
+    def test_reconciled_route_adapter_keeps_both_canonical_services(self):
+        import ast
+        source = (Path(__file__).resolve().parents[2]
+                  / "spike/fvillage/world/route_work.py").read_text(
+                      encoding="utf-8"
+                  )
+        tree = ast.parse(source)
+        names = {node.name for node in tree.body
+                 if isinstance(node, ast.FunctionDef)}
+        self.assertTrue({
+            "_caution_marker", "_signed_prior_caution",
+            "publish_advisory", "_corroboration_sources", "_corroborate",
+        }.issubset(names))
+        field = next(node for node in tree.body
+                     if isinstance(node, ast.FunctionDef)
+                     and node.name == "field_action")
+        calls = {node.func.id for node in ast.walk(field)
+                 if isinstance(node, ast.Call)
+                 and isinstance(node.func, ast.Name)}
+        self.assertIn("_corroborate", calls)
+        self.assertIn("_signed_prior_caution", calls)
+
+
     def test_unverified_joint_metadata_does_not_survive_normalization(self):
         state, _ = prepared()
         state["field_decisions"]["wanderer"]["corroboration"] = {
