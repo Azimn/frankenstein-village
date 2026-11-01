@@ -244,5 +244,156 @@ class BridgeCaseEdge15Tests(unittest.TestCase):
         self.assertEqual(duplicate, signed)
 
 
+
+class BridgeWitnessAdapterTests(unittest.TestCase):
+    """Execute the actual Evennia adapter functions with only IO mocked."""
+
+    def test_second_witness_signs_own_source_and_detective_rejects_forgery(self):
+        import ast
+        from contextlib import nullcontext
+        from types import ModuleType, SimpleNamespace
+        from unittest.mock import patch
+
+        source_path = Path(__file__).resolve().parents[2] / (
+            "spike/fvillage/world/public_mysteries.py"
+        )
+        tree = ast.parse(source_path.read_text(encoding="utf-8"))
+        names = {"observe_bridge", "examine_bridge_case"}
+        functions = [node for node in tree.body
+                     if isinstance(node, ast.FunctionDef) and node.name in names]
+        self.assertEqual({node.name for node in functions}, names)
+
+        first = {"account_id": 22, "mask_id": 222, "mask": "FirstWitness",
+                 "source_event_id": 90}
+        second = {"account_id": 11, "mask_id": 111, "mask": "DetectiveTester"}
+        row = {
+            "key": "3:10:clear:daylight", "day": 3, "hour": 10,
+            "weather": "clear", "pattern": "daylight", "detail": "screws",
+            "source_event_id": 90, "witnesses": [first],
+        }
+        registry = {"id": "PUBLIC-BRIDGE-PLAQUE", "observations": [row]}
+        events = {
+            90: {
+                "id": 90, "status": "complete",
+                "kind": "public_mystery.bridge_plaque.observed",
+                "actor": {"account_id": 22, "mask_id": 222,
+                          "mask": "FirstWitness"},
+                "payload": {
+                    "public_mystery_id": "PUBLIC-BRIDGE-PLAQUE",
+                    "day": 3, "hour": 10, "weather": "clear",
+                    "pattern": "daylight",
+                },
+            },
+        }
+        published = []
+
+        def get_mystery(_ident):
+            return copy.deepcopy(registry)
+
+        def save(updated):
+            registry.clear()
+            registry.update(copy.deepcopy(updated))
+
+        def ref(player):
+            return {"account_id": player.account.id,
+                    "mask_id": player.id, "mask": player.key}
+
+        def publish(kind, *, actor, payload, consequence=None):
+            event_id = max(events) + 1
+            event = {"id": event_id, "status": "complete", "kind": kind,
+                     "actor": ref(actor), "payload": payload}
+            if consequence is not None:
+                event["consequence"] = consequence(event)
+            events[event_id] = event
+            published.append(event_id)
+            return event
+
+        player = SimpleNamespace(
+            id=111, key="DetectiveTester",
+            account=SimpleNamespace(id=11), has_account=True,
+            location=SimpleNamespace(key="The Old Stone Bridge"),
+        )
+        env = {
+            "copy": copy, "BRIDGE_PLAQUE_ID": "PUBLIC-BRIDGE-PLAQUE",
+            "get_public_mystery": get_mystery, "_save": save,
+            "_metric": lambda **kw: None, "_player_ref": ref,
+            "_clock": lambda: (3, 10), "_weather": lambda: "clear",
+            "bridge_plaque_state": lambda *args: {
+                "pattern": "daylight", "detail": "screws",
+            },
+        }
+        exec(compile(ast.Module(body=functions, type_ignores=[]),
+                     str(source_path), "exec"), env)
+
+        world_events = ModuleType("world.events")
+        world_events.publish_world_event = publish
+        world_events.get_event_ledger = lambda: SimpleNamespace(
+            get_event=lambda event_id: copy.deepcopy(events.get(event_id))
+        )
+        callings = ModuleType("world.callings")
+        callings.active_calling = lambda _player: "detective"
+        django = ModuleType("django")
+        django_db = ModuleType("django.db")
+        django_db.transaction = SimpleNamespace(atomic=nullcontext)
+        django.db = django_db
+        modules = {
+            "world.events": world_events, "world.callings": callings,
+            "django": django, "django.db": django_db,
+        }
+
+        with patch.dict(sys.modules, modules):
+            observed = env["observe_bridge"](player, day=3, hour=10,
+                                             weather="clear")
+            self.assertEqual(observed["source_event_id"], 90)
+            self.assertEqual(observed["witnesses"][1]["source_event_id"], 91)
+            self.assertEqual(events[91]["actor"]["account_id"], 11)
+            self.assertEqual(len(published), 1)
+            env["observe_bridge"](player, day=3, hour=10, weather="clear")
+            self.assertEqual(len(published), 1, "repeat look must not double-sign")
+
+            saved = json.loads(json.dumps(registry))
+            self.assertEqual(saved["observations"][0]["source_event_id"], 90)
+            event, error = env["examine_bridge_case"](player)
+            self.assertIsNone(error)
+            self.assertEqual(event["id"], 92)
+            self.assertEqual(registry["case_examinations"][0]
+                             ["observation_event_id"], 91)
+
+            # A fresh village day would be needed for a second examination.
+            # Reset only the isolated test fixture, never the canonical ledger.
+            registry.pop("case_examinations")
+            for invalid in ("unsigned", "borrowed", "forged_actor",
+                            "failed", "wrong_pattern", "float_id"):
+                with self.subTest(invalid=invalid):
+                    registry["observations"] = copy.deepcopy(saved["observations"])
+                    events[91]["status"] = "complete"
+                    events[91]["actor"] = ref(player)
+                    events[91]["payload"]["pattern"] = "daylight"
+                    if invalid == "unsigned":
+                        registry["observations"][0]["witnesses"][1].pop(
+                            "source_event_id"
+                        )
+                    elif invalid == "borrowed":
+                        registry["observations"][0]["witnesses"][1][
+                            "source_event_id"] = 90
+                    elif invalid == "forged_actor":
+                        events[91]["actor"]["account_id"] = 22
+                    elif invalid == "failed":
+                        events[91]["status"] = "consequence_failed"
+                    elif invalid == "wrong_pattern":
+                        events[91]["payload"]["pattern"] = "rainwater"
+                    elif invalid == "float_id":
+                        registry["observations"][0]["witnesses"][1][
+                            "source_event_id"] = 91.0
+                    before = copy.deepcopy(registry)
+                    count = len(published)
+                    denied, reason = env["examine_bridge_case"](player)
+                    self.assertIsNone(denied)
+                    self.assertIn("source", reason)
+                    self.assertEqual(registry, before)
+                    self.assertEqual(len(published), count)
+
+
+
 if __name__ == "__main__":
     unittest.main()
