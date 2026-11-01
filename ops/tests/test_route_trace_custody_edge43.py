@@ -20,6 +20,51 @@ def preserve(raw=None, **overrides):
     return trace.preserve(raw, **args)
 
 
+
+
+def signed_public_fixture():
+    record, okay, why = preserve()
+    assert okay, why
+    source = {
+        "id": 31, "kind": "village.route_protected", "status": "complete",
+        "actor": {"account_id": 7, "mask_id": 70, "mask": "HoundTester"},
+        "payload": {
+            "site": "red_cord", "role": "hound", "action": "protect",
+            "location": "Northern Treeline", "day": 3, "hour": 13,
+        },
+        "consequence": {
+            "cord_object_id": 90, "site": "red_cord", "role": "hound",
+            "action": "protect", "caution_marked": True,
+        },
+    }
+    detective = {
+        "id": 32, "kind": "village.route_trace_preserved",
+        "status": "complete",
+        "actor": {"account_id": 8, "mask_id": 80, "mask": "DetectiveTester"},
+        "payload": {
+            "site": "red_cord", "professional_calling": "detective",
+            "location": "Northern Treeline", "day": 3, "hour": 14,
+            "cord_object_id": 90, "hound_source_event_id": 31,
+        },
+        "consequence": {
+            "cord_object_id": 90, "hound_source_event_id": 31,
+            "hound_account_id": 7, "detective_account_id": 8,
+            "late_arrival": False, "observed_condition": "tied_caution",
+        },
+    }
+    caution = {
+        "event_id": 31, "account_id": 7,
+        "mask": "HoundTester", "day": 3,
+    }
+    return record, source, detective, caution
+
+
+def public_projection(record, source, detective, caution, *, cord_id=90):
+    return trace.verified_public_lines(
+        record, source, detective, cord_id=cord_id,
+        room="Northern Treeline", caution=caution,
+    )
+
 class RouteTraceCustodyTests(unittest.TestCase):
     def test_independent_hound_and_detective_preserve_qualified_record(self):
         row, okay, why = preserve()
@@ -105,6 +150,88 @@ class RouteTraceCustodyTests(unittest.TestCase):
     def test_no_custody_does_not_claim_a_crime_or_preservation(self):
         self.assertIn("No independent", trace.public_lines(None))
         self.assertIsNone(trace.normalize({"event_id": 1}))
+
+
+    def test_public_readback_requires_both_completed_signed_events(self):
+        record, source, detective, caution = signed_public_fixture()
+        output = public_projection(record, source, detective, caution)
+        self.assertIn("Detective event 32", output)
+        self.assertIn("Hound source 31", output)
+        self.assertIn("neither tracks nor a culprit", output)
+
+    def test_public_readback_rejects_missing_failed_and_foreign_events(self):
+        from copy import deepcopy
+        record, source, detective, caution = signed_public_fixture()
+        for part, change in (
+            ("source", None),
+            ("detective", None),
+            ("source", {"status": "consequence_failed"}),
+            ("detective", {"status": "consequence_failed"}),
+            ("source", {"kind": "village.route_inspected"}),
+            ("detective", {"kind": "village.route_inspected"}),
+            ("source", {"id": "31"}),
+            ("detective", {"id": True}),
+            ("source", {"actor": {"account_id": 99, "mask_id": 70, "mask": "HoundTester"}}),
+            ("detective", {"actor": {"account_id": 8, "mask_id": 88, "mask": "DetectiveTester"}}),
+            ("detective", {"actor": {"account_id": 8, "mask_id": 80, "mask": "Impostor"}}),
+        ):
+            with self.subTest(part=part, change=change):
+                s, d = deepcopy(source), deepcopy(detective)
+                if part == "source":
+                    s = None if change is None else {**s, **change}
+                else:
+                    d = None if change is None else {**d, **change}
+                output = public_projection(record, s, d, caution)
+                self.assertNotIn("Detective event 32", output)
+
+    def test_public_readback_rejects_forged_site_time_source_and_consequence(self):
+        from copy import deepcopy
+        record, source, detective, caution = signed_public_fixture()
+        for part, section, field, forged in (
+            ("source", "payload", "location", "Village Square"),
+            ("source", "payload", "day", 4),
+            ("source", "payload", "hour", 14),
+            ("source", "consequence", "cord_object_id", 99),
+            ("source", "consequence", "caution_marked", False),
+            ("detective", "payload", "location", "Village Square"),
+            ("detective", "payload", "day", 4),
+            ("detective", "payload", "hour", 13),
+            ("detective", "payload", "hound_source_event_id", 55),
+            ("detective", "payload", "professional_calling", "hound"),
+            ("detective", "consequence", "detective_account_id", 99),
+            ("detective", "consequence", "observed_condition", "untouched"),
+        ):
+            with self.subTest(part=part, field=field):
+                s, d = deepcopy(source), deepcopy(detective)
+                target = s if part == "source" else d
+                target[section][field] = forged
+                self.assertNotIn(
+                    "Detective event 32",
+                    public_projection(record, s, d, caution),
+                )
+        self.assertNotIn(
+            "Detective event 32",
+            public_projection(record, source, detective, caution, cord_id=99),
+        )
+        forged_caution = {**caution, "event_id": 66}
+        self.assertNotIn(
+            "Detective event 32",
+            public_projection(record, source, detective, forged_caution),
+        )
+
+    def test_public_readback_survives_json_roundtrip_without_trusting_raw_ids(self):
+        record, source, detective, caution = signed_public_fixture()
+        restore = lambda value: json.loads(json.dumps(value))
+        self.assertIn(
+            "Detective event 32",
+            public_projection(*(restore(v) for v in (record, source, detective, caution))),
+        )
+        forged = {**record, "event_id": 888}
+        self.assertNotIn(
+            "Detective event 888",
+            public_projection(forged, source, detective, caution),
+        )
+
 
 
 if __name__ == "__main__":
