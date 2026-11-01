@@ -5,12 +5,15 @@ canonical event ledger and existing Calling participation. No second ledger.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+
 from django.db import transaction
+from evennia.scripts.models import ScriptDB
 from evennia.utils import search
 
 from world import kitchen_repair_edge02 as rules
 from world.callings import active_calling, record_participation
-from world.events import get_event_ledger, publish_world_event
+from world.events import LEDGER_KEY, get_event_ledger, publish_world_event
 from world import soup_kitchen, workshop_work
 
 POT_KEY = "a communal soup pot"
@@ -37,15 +40,63 @@ def _access(mask, calling):
     return tavern, pot, None
 
 
+def _prior_completed_pot_event(pot, kinds):
+    """A mutable pot Attribute cannot erase signed physical work.
+
+    Read existing canonical history without creating a new ledger. Corrupt
+    history fails closed rather than permitting a second finite installation.
+    """
+    try:
+        ledger = ScriptDB.objects.get(db_key=LEDGER_KEY)
+    except ScriptDB.DoesNotExist:
+        return False, None
+    records = ledger.db.events
+    if not isinstance(records, Sequence) or isinstance(records, (str, bytes)):
+        return True, "The signed kitchen history is unavailable."
+    for event in records:
+        if not isinstance(event, Mapping):
+            return True, "The signed kitchen history is malformed."
+        if event.get("status") != "complete" or event.get("kind") not in kinds:
+            continue
+        payload = event.get("payload")
+        if not isinstance(payload, Mapping):
+            return True, "A completed kitchen event has no readable source."
+        if payload.get("pot_id") == pot.id:
+            return True, "This pot already has completed signed kitchen work."
+    return False, None
+
+
+def _rollback_blocker(pot):
+    state = rules.normalize(pot.db.kitchen_repair)
+    if state["condition"] == "loose":
+        return _prior_completed_pot_event(
+            pot, ("professional.innkeep_kitchen_restriction",
+                  "professional.smith_kitchen_repair"))
+    if state["condition"] == "restricted":
+        return _prior_completed_pot_event(
+            pot, ("professional.smith_kitchen_repair",))
+    return False, None
+
+
 def status():
     pot = _pot()
-    return rules.public_lines(pot.db.kitchen_repair if pot else {"condition": "invalid"})
+    if pot is None:
+        return rules.public_lines({"condition": "invalid"})
+    prior, _reason = _rollback_blocker(pot)
+    if prior:
+        return "The pot's repair record conflicts with signed physical history; service is unavailable."
+    return rules.public_lines(pot.db.kitchen_repair)
 
 
 def restrict(mask):
     tavern, pot, error = _access(mask, "innkeep")
     if error:
         return None, error
+    prior, reason = _prior_completed_pot_event(
+        pot, ("professional.innkeep_kitchen_restriction",
+              "professional.smith_kitchen_repair"))
+    if prior:
+        return None, reason
     day, hour = soup_kitchen._clock()
     preview, okay, reason = rules.restrict(
         pot.db.kitchen_repair, day=day, hour=hour,
@@ -56,6 +107,11 @@ def restrict(mask):
 
     def consequence(event):
         with transaction.atomic():
+            prior, reason = _prior_completed_pot_event(
+                pot, ("professional.innkeep_kitchen_restriction",
+                      "professional.smith_kitchen_repair"))
+            if prior:
+                raise RuntimeError(reason)
             if (soup_kitchen._clock() != (day, hour)
                     or mask.location != tavern
                     or active_calling(mask) != "innkeep"):
@@ -139,6 +195,10 @@ def repair(mask):
     tavern, pot, error = _access(mask, "smith")
     if error:
         return None, error
+    prior, reason = _prior_completed_pot_event(
+        pot, ("professional.smith_kitchen_repair",))
+    if prior:
+        return None, reason
     items = [obj for obj in mask.contents
              if obj.key == workshop_work.FITTING
              and hasattr(obj.db.forged_market_part, "get")]
@@ -159,6 +219,10 @@ def repair(mask):
 
     def consequence(event):
         with transaction.atomic():
+            prior, reason = _prior_completed_pot_event(
+                pot, ("professional.smith_kitchen_repair",))
+            if prior:
+                raise RuntimeError(reason)
             if (soup_kitchen._clock() != (day, hour)
                     or mask.location != tavern
                     or active_calling(mask) != "smith"
