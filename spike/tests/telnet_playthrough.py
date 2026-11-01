@@ -1933,9 +1933,9 @@ def main() -> int:
         assert agent_json(out)["commands"]["install_market_repair"] == "workshop install"
         print("TELNET_TWO_ACCOUNT_PHYSICAL_MARKET_WORKSHOP_GREEN")
 
-        # GDD-EDGE-02: the original soup pot needs a genuine Innkeep
-        # restriction and a separate Smith's consumed physical iron fitting.
-        # This uses the Workshop's remaining offcut, not free repair progress.
+        # GDD-EDGE-02: the Innkeep signs a genuine restriction on day one.
+        # Market and stage require both daily Workshop offcuts on integrated
+        # main. No third day-one forge is allowed for this kitchen fitting.
         out = inn.command("look soup pot")
         require(out, "lid hinge is loose")
         out = inn.command("soup repair")
@@ -1963,32 +1963,11 @@ def main() -> int:
         ):
             out = smith_kitchen.command(direction)
             require(out, expected)
-        out = smith_kitchen.command("soup repair")
-        require(out, "physically at The Blood of the Vine")
-        out = smith_kitchen.command("workshop forge")
-        require_all(out, "real transferable iron market hinge",
-                    "0 iron offcuts remain")
-        for direction, expected in (
-            ("west", "market lane"), ("north", "lamp shop"),
-            ("north", "village square"), ("east", "blood of the vine"),
-        ):
-            out = smith_kitchen.command(direction)
-            require(out, expected)
-        out = smith_kitchen.command("soup repair")
-        require_all(out, "install and consume the physical forged hinge",
-                    "signed world event")
-        out = inn.command("look soup pot")
-        require_all(out, "physically repaired by kitchensmithtester",
-                    "signed event")
-        out = inn.command("soup simmer")
-        require(out, "carry one real prepared packet")
-        out = inn.command("soup restrict")
-        require(out, "already restricted, repaired, or invalid")
-        out = smith_kitchen.command("inventory")
-        assert "forged market hinge" not in out.lower(), out
-        out = smith_kitchen.command("soup repair")
-        require(out, "carry one real forged iron hinge")
-        print("TELNET_GDD_EDGE02_TWO_ACCOUNT_PHYSICAL_KITCHEN_REPAIR_GREEN")
+        require(smith_kitchen.command("soup repair"),
+                "physically at The Blood of the Vine")
+        require_all(smith_kitchen.command("workshop"),
+                    "Village day 1", "iron offcuts")
+        print("TELNET_GDD_EDGE02_DAY_ONE_SIGNED_RESTRICTION_GREEN")
 
         for actor in (merchant, smith):
             for direction, expected in (

@@ -506,6 +506,34 @@ def main() -> int:
             day4_restart_env["FV_T13_DAY4_RESTART"] = "1"
             run([evennia, "shell"], cwd=game, env=day4_restart_env,
                 input_text=day4_assertions)
+            # EDGE-02: only after the day-four T-13 checks are finished,
+            # let an ordinary Smith spend a genuinely later-day offcut and
+            # repair the day-one Innkeep restriction. No clock rewind, extra
+            # Workshop resource, privileged player action or synthetic event.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge02_later_day_kitchen.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=140,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            edge02_restart = (
+                checkout / "spike" / "tests" /
+                "edge02_later_day_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge02_restart)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            edge02_second_env = dict(env)
+            edge02_second_env["FV_EDGE02_SECOND_RESTART"] = "1"
+            run([evennia, "shell"], cwd=game, env=edge02_second_env,
+                input_text=edge02_restart)
         except Exception:
             dump_logs(game)
             raise

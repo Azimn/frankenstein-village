@@ -188,92 +188,32 @@ assert _soup_bowl.db.servings == 0, "Consumed bowl refilled across restart"
 assert one("a communal soup pot").location == _tavern_soup
 print("POST_RESTART_SHARED_SOUP_WORKPLACE_GREEN")
 
-# GDD-EDGE-02: after a real Evennia restart, the original physical pot
-# retains a distinct Innkeep restriction and Smith's signed repair, and
-# both Workshop stock and the carried fitting were actually consumed.
-from world import kitchen_repair_edge02, workshop_state
+# GDD-EDGE-02: the first real restart must preserve the original
+# day-one Innkeep restriction. No Smith repair or third day-one offcut is
+# fabricated to make the source chain pass.
+from world import kitchen_repair_edge02, kitchen_repair_work
 _kitchen_pot = one("a communal soup pot")
 _kitchen_state = kitchen_repair_edge02.normalize(_kitchen_pot.db.kitchen_repair)
-assert _kitchen_state["condition"] == "working", _kitchen_state
+assert _kitchen_state["condition"] == "restricted", _kitchen_state
+assert _kitchen_state["repair"] is None
 _kitchen_inn = _kitchen_state["restriction"]
-_kitchen_fix = _kitchen_state["repair"]
-_kitchen_smith = one("KitchenSmithTester")
 assert _kitchen_inn["mask_id"] == innkeep_tester.id
-assert _kitchen_fix["mask_id"] == _kitchen_smith.id
-assert _kitchen_inn["account_id"] != _kitchen_fix["account_id"]
-assert AccountDB.objects.filter(id=_kitchen_inn["account_id"]).exists()
-assert AccountDB.objects.filter(id=_kitchen_fix["account_id"]).exists()
-assert calling_record(innkeep_tester, "innkeep")["participation"]["kitchen_restrictions"] == 1
-assert calling_record(_kitchen_smith, "smith")["participation"]["kitchen_repairs"] == 1
+assert _kitchen_inn["day"] == 1
 _kitchen_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
 _kitchen_restrict_event = _kitchen_ledger.get_event(_kitchen_inn["event_id"])
-_kitchen_forge_event = _kitchen_ledger.get_event(_kitchen_fix["forge_event_id"])
-_kitchen_repair_event = _kitchen_ledger.get_event(_kitchen_fix["event_id"])
-assert _kitchen_restrict_event["status"] == "complete"
 assert _kitchen_restrict_event["kind"] == "professional.innkeep_kitchen_restriction"
+assert _kitchen_restrict_event["status"] == "complete"
 assert _kitchen_restrict_event["actor"]["account_id"] == _kitchen_inn["account_id"]
 assert _kitchen_restrict_event["consequence"]["condition"] == "restricted"
-assert _kitchen_forge_event["status"] == "complete"
-assert _kitchen_forge_event["kind"] == "village.market_hinge_forged"
-assert _kitchen_forge_event["consequence"]["item_id"] == _kitchen_fix["item_id"]
-assert _kitchen_repair_event["status"] == "complete"
-assert _kitchen_repair_event["kind"] == "professional.smith_kitchen_repair"
-assert _kitchen_repair_event["actor"]["account_id"] == _kitchen_fix["account_id"]
-assert _kitchen_repair_event["payload"]["restriction_event_id"] == _kitchen_inn["event_id"]
-assert _kitchen_repair_event["payload"]["forge_event_id"] == _kitchen_fix["forge_event_id"]
-assert _kitchen_repair_event["consequence"]["consumed_item_id"] == _kitchen_fix["item_id"]
-assert _kitchen_repair_event["consequence"]["condition"] == "working"
-assert not [obj for obj in search.search_object("a forged market hinge")
-            if obj.id == _kitchen_fix["item_id"]], "Consumed fitting survived restart"
-_kitchen_workshop = one("The Market Workshop")
-_kitchen_docket = workshop_state.normalize(_kitchen_workshop.db.repair_docket)
-_kitchen_crafts = list(_kitchen_docket["crafts"])
-for _old_day in _kitchen_docket["history"]:
-    _kitchen_crafts.extend(_old_day.get("crafts") or [])
-assert any(row["item_id"] == _kitchen_fix["item_id"]
-           for row in _kitchen_crafts), "The finite Workshop source vanished"
-if _kitchen_docket["day"] == _kitchen_fix["day"]:
-    assert _kitchen_docket["offcuts"] == 0, "The Workshop offcut was refunded"
-# Adversarial persistence rollback: the original completed world events
-# must prevent another restriction or fitting if the mutable pot state is
-# reset or rewound after a genuine server restart.
-from world import kitchen_repair_work
-_saved_kitchen_attribute = _kitchen_pot.db.kitchen_repair
-try:
-    _kitchen_pot.db.kitchen_repair = None
-    _prior, _why = kitchen_repair_work._prior_completed_pot_event(
-        _kitchen_pot, ("professional.innkeep_kitchen_restriction",
-                       "professional.smith_kitchen_repair"))
-    assert _prior, "Erasing pot Attribute hid original signed restriction"
-    assert "conflicts with signed physical history" in kitchen_repair_work.status()
-    assert not kitchen_repair_work.player_simmer_allowed(_kitchen_pot), (
-        "Erased signed restriction reopened actual player simmering")
-    _kitchen_pot.db.kitchen_repair = {
-        "condition": "restricted", "restriction": _kitchen_inn, "repair": None}
-    _prior, _why = kitchen_repair_work._prior_completed_pot_event(
-        _kitchen_pot, ("professional.smith_kitchen_repair",))
-    assert _prior, "Rewinding pot Attribute hid completed Smith fitting"
-    assert "conflicts with signed physical history" in kitchen_repair_work.status()
-    assert not kitchen_repair_work.player_simmer_allowed(_kitchen_pot), (
-        "Rewound signed Smith repair reopened actual player simmering")
-    _forged_working = dict(_saved_kitchen_attribute)
-    _forged_working["repair"] = dict(
-        _kitchen_fix, event_id=_kitchen_inn["event_id"])
-    _kitchen_pot.db.kitchen_repair = _forged_working
-    assert kitchen_repair_edge02.normalize(
-        _kitchen_pot.db.kitchen_repair)["condition"] == "working"
-    assert not kitchen_repair_work.player_simmer_allowed(_kitchen_pot), (
-        "Shape-valid forged Smith event ID reopened player simmering")
-    assert "conflicts with signed physical history" in kitchen_repair_work.status(), (
-        "Forged Smith event was advertised as a physical repair")
-finally:
-    _kitchen_pot.db.kitchen_repair = _saved_kitchen_attribute
-assert kitchen_repair_work.player_simmer_allowed(_kitchen_pot), (
-    "Original signed Smith repair did not restore legitimate simmering")
-assert "physically repaired" in kitchen_repair_work.status()
-print("POST_RESTART_GDD_EDGE02_SIGNED_SIMMER_SOURCE_GATE_GREEN")
-print("POST_RESTART_GDD_EDGE02_SIGNED_ROLLBACK_REFUSAL_GREEN")
-print("POST_RESTART_GDD_EDGE02_SIGNED_PHYSICAL_KITCHEN_REPAIR_GREEN")
+assert not [row for row in _kitchen_ledger.db.events
+            if row.get("kind") == "professional.smith_kitchen_repair"
+            and row.get("payload", {}).get("pot_id") == _kitchen_pot.id
+            and row.get("status") == "complete"], (
+    "A kitchen repair was falsely completed before the later-day Smith"
+)
+assert not kitchen_repair_work.player_simmer_allowed(_kitchen_pot)
+assert "restricted" in kitchen_repair_work.status().lower()
+print("POST_RESTART_GDD_EDGE02_DAY_ONE_UNREPAIRED_RESTRICTION_GREEN")
 
 
 population = list(search.search_tag("resident", category="system"))
