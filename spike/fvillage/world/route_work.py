@@ -62,11 +62,39 @@ def status_lines():
                 f"* {spec['room']}: not yet inspected. Find "
                 f"{spec['key']} and examine it."
             )
-    lines.extend(route_surveys.field_lines(state))
+    ledger = get_event_ledger()
+    # A normalized board claim alone is not a completed route recheck. The
+    # current physical cord and all three original ledger events must agree.
+    public_field_state = state
+    entries = state["field_decisions"]
+    joint = (entries.get("wanderer") or {}).get("corroboration")
+    if joint:
+        cord = next((
+            obj for obj in search.search_object(LANDMARKS["red_cord"]["key"])
+            if getattr(getattr(obj, "location", None), "key", None)
+            == LANDMARKS["red_cord"]["room"]
+            and getattr(obj.db, "landmark_id", None) == "red_cord"
+        ), None)
+        hound = entries.get("hound") or {}
+        wanderer = entries.get("wanderer") or {}
+        signed = bool(cord) and route_surveys.verify_signed_corroboration(
+            state, ledger.get_event(joint["event_id"]),
+            ledger.get_event(hound.get("event_id")),
+            ledger.get_event(wanderer.get("event_id")),
+            day=day, hour=_hour, cord_id=cord.id, square_id=square.id,
+            marker=_caution_marker(getattr(cord.db, "route_caution", None)),
+        )
+        if not signed:
+            public_entries = dict(entries)
+            public_wanderer = dict(wanderer)
+            public_wanderer.pop("corroboration", None)
+            public_entries["wanderer"] = public_wanderer
+            public_field_state = dict(state, field_decisions=public_entries)
+            lines.append("The stored route corroboration is unverified; no signed recheck is displayed.")
+    lines.extend(route_surveys.field_lines(public_field_state))
     # Persisted advisory text is not proof that a Chronicler event completed.
     public_state = state
     item = state.get("advisory")
-    ledger = get_event_ledger()
     if item and not route_surveys.verified_advisory_publication(
         state, ledger.get_event(item["event_id"]), square_id=square.id,
     ):
