@@ -181,5 +181,6 @@ class CmdSoup(Command):
         caller.msg(
             "Use soup | soup prep <base> <seasoning> | soup simmer | "
             "soup notebook | soup receipt [event] | soup publish [event] | "
-            "soup receipts | soup procure | soup deliver | soup accept | "\n            "soup restrict | soup repair."
+            "soup receipts | soup procure | soup deliver | soup accept | "
+            "soup restrict | soup repair."
         )
