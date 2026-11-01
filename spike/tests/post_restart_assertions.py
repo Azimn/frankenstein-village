@@ -264,6 +264,8 @@ try:
         _kitchen_pot.db.kitchen_repair)["condition"] == "working"
     assert not kitchen_repair_work.player_simmer_allowed(_kitchen_pot), (
         "Shape-valid forged Smith event ID reopened player simmering")
+    assert "conflicts with signed physical history" in kitchen_repair_work.status(), (
+        "Forged Smith event was advertised as a physical repair")
 finally:
     _kitchen_pot.db.kitchen_repair = _saved_kitchen_attribute
 assert kitchen_repair_work.player_simmer_allowed(_kitchen_pot), (
