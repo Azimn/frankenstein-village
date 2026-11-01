@@ -8,63 +8,24 @@ incomplete to complete. Incomplete days become explicit historical outcomes.
 from __future__ import annotations
 
 import copy
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 
 SITES = ("grave_marker", "red_cord", "market_scale", "river_gauge")
 MAX_HISTORY = 30
 
 
 def fresh(day=0):
-    return {"day": int(day), "reports": {}, "field_decisions": {},
-            "caution_notice": None, "caution_publication_event_id": None,
-            "history": []}
-
-
-
-def _positive(value):
-    if isinstance(value, bool):
-        return None
-    try:
-        value = int(value)
-    except (TypeError, ValueError, OverflowError):
-        return None
-    return value if value > 0 else None
-
-
-def _notice(raw, decisions, day):
-    """Reject malformed persisted editorial claims, including stale source links."""
-    if not isinstance(raw, Mapping) or "hound" not in decisions:
-        return None
-    keys = ("account_id", "mask_id", "event_id", "source_event_id",
-            "source_account_id", "source_mask_id", "source_cord_id")
-    ids = {key: _positive(raw.get(key)) for key in keys}
-    if not all(ids.values()):
-        return None
-    try:
-        hour = int(raw.get("hour"))
-        source_hour = int(raw.get("source_hour"))
-    except (TypeError, ValueError, OverflowError):
-        return None
-    if (isinstance(raw.get("hour"), bool)
-            or isinstance(raw.get("source_hour"), bool)
-            or not (0 <= source_hour <= hour <= 23)
-            or ids["account_id"] == ids["source_account_id"]
-            or ids["source_event_id"] != decisions["hound"]["event_id"]
-            or ids["source_account_id"] != decisions["hound"]["account_id"]
-            or _positive(raw.get("day")) != day):
-        return None
-    return {**ids, "day": day, "hour": hour, "source_hour": source_hour,
-            "mask": str(raw.get("mask") or "")[:70]}
+    return {"day": int(day), "reports": {}, "field_decisions": {}, "advisory": None, "caution_notice": None, "caution_publication_event_id": None, "history": []}
 
 
 def normalize(raw):
-    value = copy.deepcopy(dict(raw)) if isinstance(raw, Mapping) else {}
+    value = copy.deepcopy(dict(raw or {}))
     try:
         day = max(0, int(value.get("day") or 0))
     except (TypeError, ValueError, OverflowError):
         day = 0
     reports = {}
-    for ident, entry in (value.get("reports").items() if isinstance(value.get("reports"), Mapping) else ()):
+    for ident, entry in dict(value.get("reports") or {}).items():
         if ident not in SITES or not hasattr(entry, "get"):
             continue
         try:
@@ -79,7 +40,7 @@ def normalize(raw):
             "event_id": event,
         }
     decisions = {}
-    for role, entry in (value.get("field_decisions").items() if isinstance(value.get("field_decisions"), Mapping) else ()):
+    for role, entry in dict(value.get("field_decisions") or {}).items():
         if role not in {"hound", "wanderer"} or not hasattr(entry, "get"):
             continue
         try:
@@ -102,42 +63,79 @@ def normalize(raw):
             decisions[role]["retied_previous_day"] = entry.get("retied_previous_day") is True
         if role == "wanderer":
             decisions[role]["observation"] = observation
-    # Persisted Evennia sequence wrappers are valid, but strings, scalars and
-    # malformed history entries cannot become public previous-day evidence.
-    history = []
-    raw_history = value.get("history")
-    if (isinstance(raw_history, Sequence)
-            and not isinstance(raw_history, (str, bytes, bytearray))):
-        for prior in raw_history:
-            if not isinstance(prior, Mapping):
-                continue
-            prior_reports = prior.get("reports")
-            prior_completed = prior.get("completed")
-            if (not _positive(prior.get("day"))
-                    or not isinstance(prior_reports, Mapping)
-                    or type(prior_completed) is not bool
-                    or any(site not in SITES or not isinstance(entry, Mapping)
-                           for site, entry in prior_reports.items())
-                    or prior_completed != (len(prior_reports) == len(SITES))):
-                continue
-            history.append(copy.deepcopy(dict(prior)))
-    # A damaged editorial notice must not re-open an already consumed daily
-    # publication slot. The canonical event remains the provenance authority;
-    # this is only a durable replay guard on the existing Square record.
+    # A later Wanderer check links two completed professional sources without
+    # rewriting either original observation. Old snapshots lack this optional
+    # entry and remain readable.
+    raw_wanderer = dict(value.get("field_decisions") or {}).get("wanderer") or {}
+    joint = raw_wanderer.get("corroboration") if hasattr(raw_wanderer, "get") else None
+    if (hasattr(joint, "get") and "hound" in decisions and "wanderer" in decisions):
+        try:
+            joint_id = int(joint["event_id"])
+            source_id = int(joint["hound_event_id"])
+            joint_account = int(joint["account_id"])
+        except (KeyError, TypeError, ValueError, OverflowError):
+            pass
+        else:
+            if (not any(isinstance(joint.get(k), bool) for k in
+                        ("event_id", "hound_event_id", "account_id"))
+                    and joint_id > 0
+                    and source_id == decisions["hound"]["event_id"]
+                    and joint_account == decisions["wanderer"]["account_id"]
+                    and joint_account != decisions["hound"]["account_id"]
+                    and joint_id not in {source_id, decisions["wanderer"]["event_id"]}
+                    and joint.get("observation") == "marked_caution"):
+                decisions["wanderer"]["corroboration"] = {
+                    "event_id": joint_id, "hound_event_id": source_id,
+                    "account_id": joint_account,
+                    "mask": decisions["wanderer"]["mask"],
+                    "observation": "marked_caution",
+                }
+    # A map is an attributed editorial snapshot, never a live hazard oracle.
+    advisory = None
+    item = value.get("advisory")
+    if hasattr(item, "get"):
+        try:
+            publisher = int(item["account_id"])
+            event_id = int(item["event_id"])
+            source_account = int(item["source_account_id"])
+            source_event = int(item["source_event_id"])
+            source_day = int(item["source_day"])
+            version = int(item["version"])
+        except (TypeError, ValueError, KeyError, OverflowError):
+            pass
+        else:
+            if (all(not isinstance(item.get(k), bool) for k in (
+                    "account_id", "event_id", "source_account_id",
+                    "source_event_id", "source_day", "version"))
+                    and min(publisher, event_id, source_account, source_event) > 0
+                    and publisher != source_account and source_day == day
+                    and event_id != source_event and version == 1
+                    and item.get("observation") in {"unmarked", "marked_caution"}
+                    and decisions.get("wanderer") is not None
+                    and decisions["wanderer"]["account_id"] == source_account
+                    and decisions["wanderer"]["event_id"] == source_event
+                    and decisions["wanderer"]["observation"] == item["observation"]):
+                advisory = {
+                    "account_id": publisher, "mask": str(item.get("mask") or "")[:70],
+                    "event_id": event_id, "version": version, "site": "red_cord",
+                    "source_account_id": source_account,
+                    "source_event_id": source_event, "source_day": source_day,
+                    "source_mask": str(item.get("source_mask") or "")[:70],
+                    "observation": item["observation"],
+                }
     raw_notice = value.get("caution_notice")
     published_id = _positive(value.get("caution_publication_event_id"))
     if not published_id and isinstance(raw_notice, Mapping):
-        # Backfill pre-guard records, including notices with damaged source
-        # fields. Fail closed rather than silently permitting a second event.
         if _positive(raw_notice.get("day")) == day:
             published_id = _positive(raw_notice.get("event_id"))
     return {
         "day": day,
         "reports": reports,
         "field_decisions": decisions,
+        "advisory": advisory,
         "caution_notice": _notice(raw_notice, decisions, day),
         "caution_publication_event_id": published_id,
-        "history": history[-MAX_HISTORY:],
+        "history": list(value.get("history") or [])[-MAX_HISTORY:],
     }
 
 
@@ -154,6 +152,7 @@ def refresh(raw, day):
             "completed": len(state["reports"]) == len(SITES),
             "reports": copy.deepcopy(state["reports"]),
             "field_decisions": copy.deepcopy(state["field_decisions"]),
+            "advisory": copy.deepcopy(state["advisory"]),
             "caution_notice": copy.deepcopy(state["caution_notice"]),
             "caution_publication_event_id": state["caution_publication_event_id"],
         }
@@ -162,6 +161,7 @@ def refresh(raw, day):
     state["day"] = day
     state["reports"] = {}
     state["field_decisions"] = {}
+    state["advisory"] = None
     state["caution_notice"] = None
     state["caution_publication_event_id"] = None
     return state
@@ -220,6 +220,7 @@ def field_decision(raw, day, site, role, action, caution_marked,
     if role in state["field_decisions"]:
         return state, False, "That professional field action is already signed today."
     if role == "hound" and caution_marked:
+        # Existing physical marker can be re-tightened on a later day only.
         if type(caution_day) is not int or not 0 < caution_day < day:
             return state, False, "The frayed cord is already tied as a visible caution marker."
     entry = {
@@ -235,6 +236,359 @@ def field_decision(raw, day, site, role, action, caution_marked,
     return state, True, None
 
 
+def corroborate(raw, day, site, marker_event_id, account_id, mask, event_id):
+    """A Wanderer independently rechecks a Hound's physical caution marker.
+
+    Ledger and actual-object verification belong to route_work. This pure
+    transition only accepts the two existing signed field roles, the exact
+    physical marker source, and the original Wanderer's account. No invented
+    hazard, repaired cord, new resource, or retroactive report is created.
+    """
+    state = refresh(raw, day)
+    if day < state["day"]:
+        return state, False, "A later village day is already recorded."
+    if site != "red_cord":
+        return state, False, "Corroboration requires the physical treeline cord."
+    hound = state["field_decisions"].get("hound")
+    wanderer = state["field_decisions"].get("wanderer")
+    if not hound or not wanderer:
+        return state, False, "Both professional field observations must exist today."
+    if "corroboration" in wanderer:
+        return state, False, "This independent route check is already signed today."
+    for val in (marker_event_id, account_id, event_id):
+        if type(val) is not int or val < 1:
+            return state, False, "Valid independent account and event sources are required."
+    if marker_event_id != hound["event_id"]:
+        return state, False, "The physical warning does not match the Hound's source."
+    if account_id != wanderer["account_id"] or account_id == hound["account_id"]:
+        return state, False, "A separate Wanderer account must verify the Hound's work."
+    if mask != wanderer["mask"]:
+        return state, False, "The original Wanderer must sign their own follow-up."
+    if event_id in {marker_event_id, wanderer["event_id"]}:
+        return state, False, "Corroboration needs its own signed event."
+    wanderer["corroboration"] = {
+        "event_id": event_id, "hound_event_id": marker_event_id,
+        "account_id": account_id, "mask": wanderer["mask"],
+        "observation": "marked_caution",
+    }
+    return state, True, None
+
+
+def verify_caution_marker(marker, hound, day):
+    """Reject a forged or stale physical warning, including mapping-backed DB."""
+    if not hasattr(marker, "get") or not hasattr(hound, "get"):
+        return False
+    return (
+        type(marker.get("day")) is int and marker["day"] == day
+        and type(marker.get("event_id")) is int
+        and marker["event_id"] == hound.get("event_id")
+        and type(marker.get("account_id")) is int
+        and marker["account_id"] == hound.get("account_id")
+        and marker.get("mask") == hound.get("mask")
+    )
+
+
+def verify_signed_field_source(event, entry, role, day, hour, cord_id, square_id):
+    """Check the completed canonical ledger, not a field-board assertion."""
+    if not hasattr(event, "get") or not hasattr(entry, "get"):
+        return False
+    if role not in {"hound", "wanderer"}:
+        return False
+    actor = event.get("actor") or {}
+    payload = event.get("payload") or {}
+    effect = event.get("consequence") or {}
+    if not all(hasattr(item, "get") for item in (actor, payload, effect)):
+        return False
+    action = "protect" if role == "hound" else "passability"
+    kind = ("village.route_protected" if role == "hound"
+            else "village.route_passability_observed")
+    source_hour = payload.get("hour")
+    return (
+        type(event.get("id")) is int and event["id"] == entry.get("event_id")
+        and event.get("status") == "complete" and event.get("kind") == kind
+        and type(actor.get("account_id")) is int
+        and actor["account_id"] == entry.get("account_id")
+        and actor.get("mask") == entry.get("mask")
+        and payload.get("role") == role and payload.get("action") == action
+        and payload.get("site") == "red_cord"
+        and payload.get("location") == "The Northern Treeline"
+        and type(payload.get("day")) is int and payload["day"] == day
+        and type(source_hour) is int and 0 <= source_hour <= hour <= 23
+        and effect.get("site") == "red_cord"
+        and effect.get("role") == role and effect.get("action") == action
+        and type(effect.get("day")) is int and effect["day"] == day
+        and type(effect.get("cord_object_id")) is int
+        and effect["cord_object_id"] == cord_id
+        and type(effect.get("square_room_id")) is int
+        and effect["square_room_id"] == square_id
+        and (effect.get("caution_marked") is True if role == "hound"
+             else effect.get("interpretation") == entry.get("observation"))
+    )
+
+
+
+def verify_signed_corroboration(raw, event, hound_event, wanderer_event, *,
+                                day, hour, cord_id, square_id, marker):
+    """Only a completed, source-linked physical recheck may appear publicly.
+
+    Persisted route-board metadata is an index, not proof. Require the three
+    canonical events, independent ordinary accounts and the actual cord.
+    """
+    if (type(day) is not int or day < 1 or type(hour) is not int
+            or not 0 <= hour <= 23 or type(cord_id) is not int
+            or cord_id < 1 or type(square_id) is not int or square_id < 1):
+        return False
+    state = normalize(raw)
+    if state["day"] != day:
+        return False
+    hound = state["field_decisions"].get("hound")
+    wanderer = state["field_decisions"].get("wanderer")
+    joint = (wanderer or {}).get("corroboration")
+    if (not hound or not wanderer or not joint
+            or hound["account_id"] == wanderer["account_id"]
+            or not verify_caution_marker(marker, hound, day)
+            or not verify_signed_field_source(
+                hound_event, hound, "hound", day, hour, cord_id, square_id)
+            or not verify_signed_field_source(
+                wanderer_event, wanderer, "wanderer", day, hour, cord_id, square_id)):
+        return False
+    if not hasattr(event, "get"):
+        return False
+    actor = event.get("actor") or {}
+    payload = event.get("payload") or {}
+    effect = event.get("consequence") or {}
+    if not all(hasattr(part, "get") for part in (actor, payload, effect)):
+        return False
+    if (type(event.get("id")) is not int
+            or event["id"] != joint["event_id"]
+            or event["id"] in {hound["event_id"], wanderer["event_id"]}
+            or event.get("status") != "complete"
+            or event.get("kind") != "village.route_caution_corroborated"):
+        return False
+    source_hour = payload.get("hour")
+    hound_hour = (hound_event.get("payload") or {}).get("hour")
+    wanderer_hour = (wanderer_event.get("payload") or {}).get("hour")
+    return (
+        type(actor.get("account_id")) is int
+        and actor["account_id"] == wanderer["account_id"] == joint["account_id"]
+        and actor.get("mask") == wanderer["mask"] == joint["mask"]
+        and type(actor.get("mask_id")) is int and actor["mask_id"] > 0
+        and payload.get("site") == "red_cord"
+        and payload.get("role") == "wanderer"
+        and payload.get("action") == "corroborate"
+        and payload.get("location") == "The Northern Treeline"
+        and type(payload.get("day")) is int and payload["day"] == day
+        and type(source_hour) is int
+        and type(hound_hour) is int and type(wanderer_hour) is int
+        and max(hound_hour, wanderer_hour) <= source_hour <= hour
+        and type(payload.get("cord_object_id")) is int
+        and payload["cord_object_id"] == cord_id
+        and type(payload.get("hound_source_event_id")) is int
+        and payload["hound_source_event_id"] == joint["hound_event_id"] == hound["event_id"]
+        and type(payload.get("wanderer_source_event_id")) is int
+        and payload["wanderer_source_event_id"] == wanderer["event_id"]
+        and effect.get("site") == "red_cord"
+        and type(effect.get("day")) is int and effect["day"] == day
+        and effect.get("role") == "wanderer"
+        and effect.get("action") == "corroborate"
+        and type(effect.get("cord_object_id")) is int
+        and effect["cord_object_id"] == cord_id
+        and type(effect.get("square_room_id")) is int
+        and effect["square_room_id"] == square_id
+        and type(effect.get("hound_source_event_id")) is int
+        and effect["hound_source_event_id"] == hound["event_id"]
+        and type(effect.get("wanderer_source_event_id")) is int
+        and effect["wanderer_source_event_id"] == wanderer["event_id"]
+        and effect.get("physical_caution_present") is True
+        and joint.get("observation") == "marked_caution"
+    )
+
+
+def field_lines(raw):
+    """Source-limited public record; a professional report is not a hazard oracle."""
+    state = normalize(raw)
+    entries = state["field_decisions"]
+    lines = []
+    if "hound" in entries:
+        hound = entries["hound"]
+        lines.append(
+            f"The Northern Treeline's frayed cord was "
+            f"{'re-tied' if hound.get('retied_previous_day') else 'tied'} as a caution marker "
+            f"by {hound['mask']} (signed event {hound['event_id']}). "
+            "This does not repair the cord or establish what damaged it."
+        )
+    if state["caution_notice"]:
+        notice = state["caution_notice"]
+        lines.append(
+            f"{notice['mask']} published a Chronicler caution notice "
+            f"(event {notice['event_id']}) based on the Hound's physical "
+            f"cord marker (event {notice['source_event_id']}). "
+            "This reports an observed warning, not a verified threat or safe route."
+        )
+    if "wanderer" in entries:
+        traveler = entries["wanderer"]
+        label = "marked caution" if traveler["observation"] == "marked_caution" else "unmarked cord"
+        lines.append(
+            f"{traveler['mask']} recorded a Wanderer's passage observation: "
+            f"{label} (signed event {traveler['event_id']}). "
+            "It describes the observed route at that time, not guaranteed safety."
+        )
+    joint = (entries.get("wanderer") or {}).get("corroboration")
+    if joint and "hound" in entries:
+        lines.append(
+            f"{joint['mask']} independently rechecked the Hound's visible "
+            f"caution marker (Wanderer event {joint['event_id']}, "
+            f"Hound source {joint['hound_event_id']}). "
+            "This confirms the marker was present, not that the route is safe."
+        )
+    return lines
+
+
+def publish_advisory(raw, day, account_id, mask, event_id, source_event_id):
+    """One Chronicler edition from another account's signed Wanderer fieldwork.
+
+    The source is the existing firsthand, daily passability record. A later
+    Hound warning cannot retroactively alter what the Wanderer saw. The
+    edition is finite to one per village day and archived at rollover.
+    """
+    state = refresh(raw, day)
+    if day < state["day"]:
+        return state, False, "A later village day is already recorded."
+    source = state["field_decisions"].get("wanderer")
+    if source is None:
+        return state, False, "A Wanderer's signed firsthand route observation is required."
+    if state["advisory"] is not None:
+        return state, False, "Today's sourced map advisory is already published."
+    try:
+        values = (account_id, event_id, source_event_id)
+        if any(isinstance(value, bool) for value in values):
+            raise ValueError("Boolean identifiers are not accounts or events")
+        account_id, event_id, source_event_id = (int(value) for value in values)
+    except (TypeError, ValueError, OverflowError):
+        return state, False, "Signed account and event identifiers are required."
+    if min(account_id, event_id, source_event_id) < 1 or event_id == source_event_id:
+        return state, False, "Signed account and event identifiers are required."
+    if source["account_id"] == account_id:
+        return state, False, "An independent Chronicler account must edit this field report."
+    if source_event_id != source["event_id"]:
+        return state, False, "The cited Wanderer source event does not match the actual survey."
+    state["advisory"] = {
+        "version": 1, "site": "red_cord", "account_id": account_id,
+        "mask": str(mask)[:70], "event_id": event_id,
+        "source_account_id": source["account_id"],
+        "source_mask": source["mask"], "source_event_id": source_event_id,
+        "source_day": state["day"], "observation": source["observation"],
+    }
+    return state, True, None
+
+
+
+def verified_advisory_publication(raw, event, *, square_id):
+    """A saved editorial claim is not signed without its completed ledger act.
+
+    Stay pure: the Evennia adapter fetches the canonical event, and this
+    predicate refuses mismatched actor, source, day, room or consequence.
+    """
+    state = normalize(raw)
+    item = state["advisory"]
+    if not item or not hasattr(event, "get"):
+        return False
+    actor, payload, consequence = (
+        event.get("actor"), event.get("payload"), event.get("consequence")
+    )
+    if not all(hasattr(value, "get") for value in (actor, payload, consequence)):
+        return False
+    def same_positive(actual, expected):
+        return type(actual) is int and actual > 0 and actual == expected
+    return (
+        same_positive(square_id, consequence.get("square_room_id"))
+        and same_positive(event.get("id"), item["event_id"])
+        and event.get("status") == "complete"
+        and event.get("kind") == "village.route_map_published"
+        and same_positive(actor.get("account_id"), item["account_id"])
+        and actor.get("mask") == item["mask"]
+        and payload.get("site") == item["site"] == "red_cord"
+        and same_positive(payload.get("day"), item["source_day"])
+        and item["source_day"] == state["day"]
+        and same_positive(payload.get("version"), item["version"])
+        and same_positive(payload.get("source_event_id"), item["source_event_id"])
+        and same_positive(payload.get("source_account_id"), item["source_account_id"])
+        and same_positive(consequence.get("day"), item["source_day"])
+        and same_positive(consequence.get("version"), item["version"])
+        and same_positive(consequence.get("source_event_id"), item["source_event_id"])
+        and same_positive(consequence.get("source_account_id"), item["source_account_id"])
+        and consequence.get("observation") == item["observation"]
+    )
+
+
+def advisory_lines(raw):
+    state = normalize(raw)
+    item = state["advisory"]
+    if item is None:
+        lines = ["No Chronicler route map edition has been published today. "
+                 "A Chronicler can use survey publish in the Village Square "
+                 "after an independent Wanderer signs survey passability."]
+        traveler = state["field_decisions"].get("wanderer")
+        if traveler:
+            lines.append(
+                f"Solo fallback: {traveler['mask']}'s firsthand Wanderer report "
+                f"(signed event {traveler['event_id']}) remains publicly readable "
+                "on this board even without a Chronicler. It is an observation, "
+                "not an edited map or a safety guarantee."
+            )
+        else:
+            lines.append(
+                "Solo fallback: any player may inspect and sign the public "
+                "district landmarks with survey report. No Chronicler or "
+                "invented map is required for those real contributions."
+            )
+        return lines
+    label = "marked caution" if item["observation"] == "marked_caution" else "unmarked cord"
+    return [
+        f"Public route map v{item['version']} for day {item['source_day']}: "
+        f"Chronicler {item['mask']} (signed event {item['event_id']}) edited "
+        f"{item['source_mask']}'s firsthand {label} report "
+        f"(source event {item['source_event_id']}). "
+        "This dated account is not a current safety guarantee or proof of a hazard."
+    ]
+
+
+def _positive(value):
+    """Accept genuine positive integer IDs or ASCII decimal strings only."""
+    if type(value) is int:
+        return value if value > 0 else None
+    if isinstance(value, str) and value.isascii() and value.isdecimal():
+        parsed = int(value)
+        return parsed if parsed > 0 else None
+    return None
+
+def _notice(raw, decisions, day):
+    """Reject malformed persisted editorial claims, including stale source links."""
+    if not isinstance(raw, Mapping) or "hound" not in decisions:
+        return None
+    keys = ("account_id", "mask_id", "event_id", "source_event_id",
+            "source_account_id", "source_mask_id", "source_cord_id")
+    ids = {key: _positive(raw.get(key)) for key in keys}
+    if not all(ids.values()):
+        return None
+    if type(raw.get("hour")) is not int or type(raw.get("source_hour")) is not int:
+        return None
+    try:
+        hour = int(raw.get("hour"))
+        source_hour = int(raw.get("source_hour"))
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if (isinstance(raw.get("hour"), bool)
+            or isinstance(raw.get("source_hour"), bool)
+            or not (0 <= source_hour <= hour <= 23)
+            or ids["account_id"] == ids["source_account_id"]
+            or ids["event_id"] == ids["source_event_id"]
+            or ids["source_event_id"] != decisions["hound"]["event_id"]
+            or ids["source_account_id"] != decisions["hound"]["account_id"]
+            or _positive(raw.get("day")) != day):
+        return None
+    return {**ids, "day": day, "hour": hour, "source_hour": source_hour,
+            "mask": str(raw.get("mask") or "")[:70]}
 
 def publish_caution(raw, *, day, hour, account_id, mask_id, mask,
                     event_id, source_event_id, source_account_id,
@@ -267,35 +621,3 @@ def publish_caution(raw, *, day, hour, account_id, mask_id, mask,
     state["caution_notice"] = notice
     state["caution_publication_event_id"] = notice["event_id"]
     return state, True, None
-
-
-def field_lines(raw):
-    """Source-limited public record; a professional report is not a hazard oracle."""
-    state = normalize(raw)
-    entries = state["field_decisions"]
-    lines = []
-    if "hound" in entries:
-        hound = entries["hound"]
-        lines.append(
-            f"The Northern Treeline's frayed cord was "
-            f"{'re-tied' if hound.get('retied_previous_day') else 'tied'} as a caution marker "
-            f"by {hound['mask']} (signed event {hound['event_id']}). "
-            "This does not repair the cord or establish what damaged it."
-        )
-    if state["caution_notice"]:
-        notice = state["caution_notice"]
-        lines.append(
-            f"{notice['mask']} published a Chronicler caution notice "
-            f"(event {notice['event_id']}) based on the Hound's physical "
-            f"cord marker (event {notice['source_event_id']}). "
-            "This reports an observed warning, not a verified threat or safe route."
-        )
-    if "wanderer" in entries:
-        traveler = entries["wanderer"]
-        label = "marked caution" if traveler["observation"] == "marked_caution" else "unmarked cord"
-        lines.append(
-            f"{traveler['mask']} recorded a Wanderer's passage observation: "
-            f"{label} (signed event {traveler['event_id']}). "
-            "It describes the observed route at that time, not guaranteed safety."
-        )
-    return lines

@@ -59,6 +59,17 @@ class CautionNoticeTests(unittest.TestCase):
                     _, ok, _ = self.publish(**{key: value})
                     self.assertFalse(ok)
 
+    def test_fractional_and_boolean_provenance_cannot_be_signed(self):
+        for field in ("account_id", "mask_id", "event_id", "source_event_id",
+                      "source_account_id", "source_mask_id", "source_cord_id"):
+            for bad in (1.5, "1.5", True):
+                with self.subTest(field=field, bad=bad):
+                    _, ok, _ = self.publish(**{field: bad})
+                    self.assertFalse(ok)
+        for field in ("hour", "source_hour"):
+            _, ok, _ = self.publish(**{field: 10.5})
+            self.assertFalse(ok)
+
     def test_duplicate_publication_rejected(self):
         self.s, ok, _ = self.publish()
         self.assertTrue(ok)

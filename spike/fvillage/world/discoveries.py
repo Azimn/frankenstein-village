@@ -8,7 +8,6 @@ a supernatural explanation.
 from __future__ import annotations
 
 import copy
-from collections.abc import Mapping
 
 MAX_DISCOVERIES = 16
 
@@ -100,16 +99,6 @@ def capture(looker, physical, ident):
     # An old first visit is never sufficient evidence of a NEW day's patrol.
     latest = dict(getattr(looker.db, "landmark_latest_view", None) or {})
     latest[ident] = {"day": day, "hour": hour}
-    if ident == "red_cord":
-        # A prior look in the same hour cannot attest a later Hound marker.
-        marker = getattr(getattr(physical, "db", None), "route_caution", None)
-        if (isinstance(marker, Mapping)
-                and type(marker.get("event_id")) is int
-                and marker["event_id"] > 0
-                and type(marker.get("day")) is int
-                and marker["day"] == day):
-            latest[ident]["route_caution_event_id"] = marker["event_id"]
-            latest[ident]["route_caution_cord_id"] = getattr(physical, "id", None)
     looker.db.landmark_latest_view = {
         key: value for key, value in latest.items() if key in LANDMARKS
     }

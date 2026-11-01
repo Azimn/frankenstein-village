@@ -88,7 +88,7 @@ class MasterGDDProgramTests(unittest.TestCase):
             with self.subTest(string=string):
                 self.assertIn(string,self.plan)
 
-    def test_source_pair_register_has_all_45_with_evidence_unverified(self):
+    def test_source_pair_register_preserves_candidate_evidence_without_acceptance(self):
         register=json.loads(
             (ROOT/"ops/MASTER_GDD_45_EDGE_REGISTER_2026-10-25.json").read_text(encoding="utf-8")
         )
@@ -104,12 +104,12 @@ class MasterGDDProgramTests(unittest.TestCase):
                          ("Innkeep","Merchant","V"))
         for edge in edges:
             self.assertFalse(edge["verified_complete"])
-            for key in ("ordinary_player_discovery_proof", "two_account_test",
-                        "post_restart_test"):
-                proof=edge[key]
-                self.assertTrue(proof is None or
-                                (isinstance(proof,str) and proof.startswith("CANDIDATE:")),
-                                (edge["id"],key,proof))
+            for field in ("ordinary_player_discovery_proof",
+                          "two_account_test", "post_restart_test"):
+                evidence = edge[field]
+                if evidence is not None:
+                    self.assertIsInstance(evidence, str)
+                    self.assertTrue(evidence.startswith("candidate:"), edge["id"])
             self.assertIsNone(edge["uncoached_gameplay_evidence"])
             self.assertGreater(len(edge["design_contract"]),60)
 
