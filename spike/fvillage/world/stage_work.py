@@ -120,6 +120,82 @@ def act(mask, action, tune=None):
     return {"event_id": event["id"], "action": action, "tune": tune}, None
 
 
+
+def _catering_sources_match(state, cook, performance, witness, *,
+                            tavern_id, bowl_id, cook_event_id):
+    """Verify the original signed show, its *own* witness and cooked bowl.
+
+    Persisted stage rows are projections, never substitutes for the completed
+    canonical world events. In particular a real witness of another show must
+    not authorize catering this performance.
+    """
+    show = state.get("performance")
+    sources = state.get("witnesses") or []
+    if not show or not sources:
+        return False
+    source = sources[0]
+
+    def completed(event, kind, event_id):
+        return (hasattr(event, "get")
+                and event.get("status") == "complete"
+                and event.get("kind") == kind
+                and event.get("id") == event_id)
+
+    if not (completed(cook, "professional.innkeep_soup_cooked",
+                      cook_event_id)
+            and completed(performance, "village.stage_perform",
+                          show.get("event_id"))
+            and completed(witness, "village.stage_witness",
+                          source.get("event_id"))):
+        return False
+
+    day, hour = state.get("day"), show.get("hour")
+    show_actor = performance.get("actor") or {}
+    show_payload = performance.get("payload") or {}
+    show_result = performance.get("consequence") or {}
+    witness_actor = witness.get("actor") or {}
+    witness_payload = witness.get("payload") or {}
+    witness_result = witness.get("consequence") or {}
+    cook_payload = cook.get("payload") or {}
+    cook_result = cook.get("consequence") or {}
+
+    if not all((
+        show_actor.get("account_id") == show.get("account_id"),
+        show_actor.get("mask_id") == show.get("mask_id"),
+        show_actor.get("mask") == show.get("mask"),
+        show_payload.get("day") == day,
+        show_payload.get("hour") == hour,
+        show_payload.get("tune") == show.get("tune"),
+        show_result.get("day") == day,
+        show_result.get("hour") == hour,
+        show_result.get("tune") == show.get("tune"),
+        show_result.get("tavern_room_id") == tavern_id,
+        show_result.get("performance_event_id") == show.get("event_id"),
+        witness_actor.get("account_id") == source.get("account_id"),
+        witness_actor.get("mask_id") == source.get("mask_id"),
+        witness_actor.get("mask") == source.get("mask"),
+        source.get("account_id") != show.get("account_id"),
+        source.get("account_id") in show.get("eligible_audience_ids", []),
+        witness_payload.get("day") == day,
+        witness_payload.get("hour") == hour,
+        witness_result.get("day") == day,
+        witness_result.get("hour") == hour,
+        witness_result.get("tavern_room_id") == tavern_id,
+        witness_result.get("performance_event_id") == show.get("event_id"),
+        show.get("event_id") < source.get("event_id"),
+        cook_result.get("bowl_id") == bowl_id,
+        cook_result.get("pantry_room_id") == tavern_id,
+    )):
+        return False
+
+    # An actual cooked bowl may have been prepared earlier and transferred,
+    # but a future signed cook event cannot supply a past public show.
+    cooked_day, cooked_hour = cook_payload.get("day"), cook_payload.get("hour")
+    return (type(cooked_day) is int and type(cooked_hour) is int
+            and 1 <= cooked_day <= day and 0 <= cooked_hour <= 23
+            and (cooked_day < day or cooked_hour <= hour))
+
+
 def cater(mask):
     """Innkeep places one actual cooked bowl at a genuinely witnessed show.
 
@@ -150,32 +226,23 @@ def cater(mask):
         return None, "The bowl has no valid signed cooking source."
 
     def source_valid():
-        ledger = get_event_ledger()
-        cook = ledger.get_event(cook_event_id)
-        if (not cook or cook.get("status") != "complete"
-                or cook.get("kind") != "professional.innkeep_soup_cooked"
-                or (cook.get("consequence") or {}).get("bowl_id") != bowl.id):
+        try:
+            ledger = get_event_ledger()
+            state = stage_state.refresh(tavern.db.village_stage, day)
+            show = state["performance"]
+            if not show or not state["witnesses"]:
+                return False
+            return _catering_sources_match(
+                state,
+                ledger.get_event(cook_event_id),
+                ledger.get_event(show["event_id"]),
+                ledger.get_event(state["witnesses"][0]["event_id"]),
+                tavern_id=tavern.id, bowl_id=bowl.id,
+                cook_event_id=cook_event_id,
+            )
+        except (AttributeError, KeyError, TypeError, ValueError, RuntimeError):
+            # Unavailable or damaged canonical source never authorizes service.
             return False
-        state = stage_state.refresh(tavern.db.village_stage, day)
-        show = state["performance"]
-        if not show:
-            return False
-        performance = ledger.get_event(show["event_id"])
-        if (not performance or performance.get("status") != "complete"
-                or performance.get("kind") != "village.stage_perform"
-                or (performance.get("actor") or {}).get("account_id")
-                != show["account_id"]):
-            return False
-        if not state["witnesses"]:
-            return False
-        source = state["witnesses"][0]
-        witness = ledger.get_event(source["event_id"])
-        return bool(
-            witness and witness.get("status") == "complete"
-            and witness.get("kind") == "village.stage_witness"
-            and (witness.get("actor") or {}).get("account_id")
-            == source["account_id"]
-        )
 
     if not source_valid():
         return None, "The bowl, performance or firsthand audience source cannot be verified."
