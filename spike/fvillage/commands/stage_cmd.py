@@ -12,6 +12,9 @@ class CmdStage(Command):
         stage perform ballad
         stage perform reel
         stage witness
+        stage warn              (Hound after signed treeline protection)
+        stage adapt indoor      (independent Performer chooses indoor show)
+        stage adapt cancel      (independent Performer cancels show)
         stage cater             (Innkeep with a real cooked bowl)
         stage fit                (Smith with real Workshop hinge)
         stage soundcheck         (independent Performer)
@@ -34,6 +37,27 @@ class CmdStage(Command):
         raw = (self.args or "").strip().lower().split()
         if not raw or raw in (["status"], ["help"]):
             self.caller.msg(stage_work.status(self.caller))
+            return
+        if raw == ["warn"] or (len(raw) == 2 and raw[0] == "adapt"):
+            action = "warn" if raw == ["warn"] else "adapt"
+            choice = raw[1] if action == "adapt" else None
+            result, error = stage_work.safety_action(self.caller, action, choice)
+            if error:
+                self.caller.msg(error)
+                return
+            if action == "warn":
+                message = ("You bring a verified, firsthand treeline caution to "
+                           "the stage (world event %s). The Performer must decide "
+                           "whether to proceed indoors or cancel." % result["event_id"])
+            else:
+                message = ("You sign the stage's %s decision after the Hound's "
+                           "verified warning (world event %s)."
+                           % (result["choice"], result["event_id"]))
+            self.caller.msg(message)
+            self.caller.location.msg_contents(
+                "%s takes part in the Tavern stage's %s." % (self.caller.key, action),
+                exclude=[self.caller],
+            )
             return
         if raw == ["cater"]:
             result, error = stage_work.cater(self.caller)
@@ -78,7 +102,7 @@ class CmdStage(Command):
         elif raw == ["contest"]:
             result, error = stage_work.act(self.caller, "contest")
         else:
-            self.caller.msg("Use stage, stage rehearse ballad (or reel), stage perform ballad (or reel), stage witness, stage archive, stage review praise (or critique), stage cater, stage fit, stage soundcheck, stage acoustic ballad (or reel), or stage contest <review event>.")
+            self.caller.msg("Use stage; stage rehearse ballad or stage rehearse reel; stage perform ballad or stage perform reel; stage witness; stage warn; stage adapt indoor or stage adapt cancel; stage archive; stage review praise or stage review critique; stage cater; stage fit; stage soundcheck; stage acoustic ballad or stage acoustic reel; stage contest <review event>.")
             return
         if error:
             self.caller.msg(error)

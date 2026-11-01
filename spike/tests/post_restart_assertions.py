@@ -1523,6 +1523,15 @@ assert active_calling(_stage_performer) == "performer"
 assert _stage["performance"] is not None, "The performance vanished after restart"
 assert _stage["performance"]["mask_id"] == _stage_performer.id
 assert _stage["performance"]["tune"] == "ballad"
+# EDGE-41: rejected late Hound warning must not fabricate a warning,
+# cancellation, adaptation, or mutate the already witnessed show.
+assert _stage["safety_warning"] is None
+assert _stage["safety_decision"] is None
+assert _stage["performance"]["safety_mode"] == "normal"
+assert not any(e.get("kind") in {"village.stage_warned", "village.stage_adapted"}
+               and e.get("status") == "complete"
+               for e in warning_ledger.db.events or [])
+print("POST_RESTART_GDD_EDGE41_LATE_WARNING_REJECTION_PERSISTED_GREEN")
 assert len(_stage["witnesses"]) == 2
 assert {w["mask"] for w in _stage["witnesses"]} == {"InnkeepTester", "SmokeTester"}
 # GDD T-06: HealerTester left the room before the show, arrived afterward,

@@ -97,6 +97,8 @@ WORK = {
         "then stage perform the rehearsed piece. Other real visitors can "
         "stage witness during that hour; the signed performance remains in "
         "the public Tavern history.",
+        "If a Hound has firsthand signed a treeline caution, use stage adapt "
+        "indoor or stage adapt cancel to decide how the real show proceeds.",
         "After a Healer has treated a real St. Lazarus visitor and signed "
         "a consented invitation, go to the Church, look at the clinic cot "
         "and use clinic music. Companionship is not a medical cure.",
@@ -123,8 +125,11 @@ WORK = {
     "hound": (
         "At the Northern Treeline, examine the frayed red cord and use "
         "survey protect to tie its loose end into a real caution marker. "
-        "The physical change is one-time; it cannot be repeated after "
-        "someone else has already protected the route.",
+        "The same cord can be re-tightened after a new firsthand "
+        "inspection on a later village day, never twice in one day.",
+        "After signing survey protect on the real treeline cord, travel to "
+        "the Blood of the Vine and use stage warn before a public show. "
+        "An independent Performer decides whether to play indoors or cancel.",
         "Use survey and perform signed firsthand inspections in the "
         "churchyard, treeline, market and riverside districts.",
         "Talk to residents you physically encounter during their "
