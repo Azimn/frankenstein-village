@@ -152,6 +152,12 @@ class RouteTraceCustodyTests(unittest.TestCase):
         self.assertIsNone(trace.normalize({"event_id": 1}))
 
 
+    def test_first_hound_event_id_is_a_valid_distinct_source(self):
+        record, okay, why = preserve(source_event_id=1, event_id=2)
+        self.assertTrue(okay, why)
+        self.assertEqual(record["source_event_id"], 1)
+        self.assertEqual(record["event_id"], 2)
+
     def test_public_readback_requires_both_completed_signed_events(self):
         record, source, detective, caution = signed_public_fixture()
         output = public_projection(record, source, detective, caution)
