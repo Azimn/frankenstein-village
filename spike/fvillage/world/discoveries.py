@@ -110,6 +110,15 @@ def capture(looker, physical, ident):
                 and marker["day"] == day):
             latest[ident]["route_caution_event_id"] = marker["event_id"]
             latest[ident]["route_caution_cord_id"] = getattr(physical, "id", None)
+        # Bind a later firsthand look to the actual installed repair.
+        # Earlier hazard inspection must not authorize a postrepair test.
+        fitting = getattr(getattr(physical, "db", None),
+                          "route_fitting_install", None)
+        if (isinstance(fitting, Mapping)
+                and type(fitting.get("install_event_id")) is int
+                and fitting["install_event_id"] > 0):
+            latest[ident]["route_fitting_install_event_id"] = fitting["install_event_id"]
+            latest[ident]["route_fitting_cord_id"] = getattr(physical, "id", None)
     looker.db.landmark_latest_view = {
         key: value for key, value in latest.items() if key in LANDMARKS
     }
