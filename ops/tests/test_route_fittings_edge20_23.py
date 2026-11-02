@@ -107,10 +107,12 @@ class RouteFittingProofTests(unittest.TestCase):
                 (10, None, "kind", "village.unrelated"),
                 (10, "actor", "account_id", 7),
                 (10, "actor", "mask_id", 70),
+                (10, "actor", "mask", ""),
                 (10, "payload", "day", 5),
                 (10, "payload", "hour", 15),
                 (20, None, "status", "consequence_failed"),
                 (20, "payload", "calling", "merchant"),
+                (20, "actor", "mask", ""),
                 (20, "payload", "table_id", 901),
                 (20, "consequence", "item_id", 601),
                 (30, None, "status", "consequence_failed"),
@@ -178,6 +180,7 @@ class RouteFittingProofTests(unittest.TestCase):
             (40, "actor", "account_id", 7),
             (40, "payload", "install_event_id", 99),
             (40, "payload", "target_id", 999),
+            (40, "payload", "hour", 13),
             (40, "consequence", "tested", False),
         ):
             changed = copy.deepcopy(events)
