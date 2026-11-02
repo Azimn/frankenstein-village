@@ -417,7 +417,10 @@ class Edge10SourceVerification(unittest.TestCase):
                     del altered[event_id]
                 else:
                     for field, patch in edits.items():
-                        altered[event_id][field].update(patch)
+                        if field in ("actor", "payload", "consequence"):
+                            altered[event_id][field].update(patch)
+                        else:
+                            altered[event_id][field] = patch
                 board = " ".join(market.public_lines(saved, 1, altered.get))
                 self.assertNotIn("attested both source events", board)
                 self.assertNotIn("Merchant source 10, Smith source 12", board)
