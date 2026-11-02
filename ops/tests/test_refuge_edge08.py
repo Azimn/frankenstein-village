@@ -2,6 +2,8 @@
 import copy
 import json
 from collections import UserDict, UserList
+from types import SimpleNamespace
+import ast
 import sys
 import unittest
 from pathlib import Path
@@ -668,6 +670,79 @@ class RefugeRules(unittest.TestCase):
         self.assertFalse(serve(raw="forged")[2])
         self.assertIn("requires inspection",
                       r.public_lines({"history": [{"event_id": True}]}))
+
+
+class OriginalCordSelection(unittest.TestCase):
+    """B04-P1 regression: physical identity, not first same-key lookup."""
+
+    def test_unique_original_cord_decoy_and_duplicate(self):
+        room = SimpleNamespace(contents=[])
+        key = "a frayed red cord"
+
+        def cord(object_id, landmark="red_cord", *, in_room=True):
+            return SimpleNamespace(
+                id=object_id, key=key,
+                location=room if in_room else None,
+                db=SimpleNamespace(landmark_id=landmark),
+            )
+
+        original = cord(301)
+        decoy = cord(302, "unmarked_copy")
+        self.assertIsNone(r.select_original_cord(None, key=key))
+        self.assertIsNone(r.select_original_cord(room, key=key))
+        room.contents = [decoy, original]  # decoy-first must not win
+        self.assertIs(r.select_original_cord(room, key=key), original)
+        room.contents = [original, decoy]
+        self.assertIs(r.select_original_cord(room, key=key), original)
+        room.contents = [decoy]
+        self.assertIsNone(r.select_original_cord(room, key=key))
+        room.contents = [original, cord(303)]  # two marked originals
+        self.assertIsNone(r.select_original_cord(room, key=key))
+        room.contents = [cord(301, in_room=False)]
+        self.assertIsNone(r.select_original_cord(room, key=key))
+        room.contents = [cord(True)]  # booleans are not object IDs
+        self.assertIsNone(r.select_original_cord(room, key=key))
+        room.contents = [cord(301.5)]
+        self.assertIsNone(r.select_original_cord(room, key=key))
+        room.contents = [original]
+        self.assertIs(r.select_original_cord(room, key=key), original)
+
+    def test_wrong_physical_cord_id_cannot_authorize_signed_food(self):
+        source, marker, dispatch, token = fixture()
+        self.assertTrue(r.protection_valid(source, marker, 301))
+        self.assertFalse(r.protection_valid(source, marker, 302))
+        self.assertFalse(r.can_dispatch(
+            None, source, marker, cord_id=302, day=3, hour=11,
+            hound_account_id=101, hound_mask_id=201)[0])
+        state, food, accepted, _ = serve(cord_id=302)
+        self.assertFalse(accepted)
+        self.assertIsNone(state)
+        self.assertEqual(food, soup_state.pantry(None, 3))
+        self.assertFalse(r.dispatch_valid(
+            dispatch, token, source, marker, 302, 401))
+
+    def test_production_selector_and_consequence_recheck_are_wired(self):
+        # Source-executing AST inspection without importing Evennia or Django.
+        path = Path(__file__).resolve().parents[2] / "spike/fvillage/world/refuge_work.py"
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        funcs = {node.name: node for node in tree.body
+                 if isinstance(node, ast.FunctionDef)}
+        self.assertIn("_cord", funcs)
+        calls = [node for node in ast.walk(funcs["_cord"])
+                 if isinstance(node, ast.Call)]
+        self.assertTrue(any(
+            isinstance(call.func, ast.Attribute)
+            and call.func.attr == "select_original_cord"
+            and isinstance(call.func.value, ast.Name)
+            and call.func.value.id == "refuge_state"
+            for call in calls))
+        for name in ("dispatch", "serve"):
+            self.assertIn(name, funcs)
+            cord_calls = [node for node in ast.walk(funcs[name])
+                          if isinstance(node, ast.Call)
+                          and isinstance(node.func, ast.Name)
+                          and node.func.id == "_cord"]
+            self.assertGreaterEqual(len(cord_calls), 2, name)
 
 
 if __name__ == "__main__":
