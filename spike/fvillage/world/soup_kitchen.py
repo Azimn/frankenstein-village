@@ -75,9 +75,12 @@ def pot_description():
             # Read existing canonical evidence. Looking at the pot must never
             # create a new world ledger or authenticate a mutable Attribute.
             ledger = ScriptDB.objects.get(db_key=LEDGER_KEY)
-            arrival_line = arrival_hospitality.verified_public_welcome(
-                state["history"], ledger.get_event,
-            )
+            square = _room("Village Square")
+            if square is not None:
+                arrival_line = arrival_hospitality.verified_public_welcome(
+                    state["history"], ledger.get_event,
+                    square_room_id=square.id,
+                )
         except (ScriptDB.DoesNotExist, AttributeError, TypeError, ValueError):
             arrival_line = ""
     return (
