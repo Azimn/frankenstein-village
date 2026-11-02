@@ -177,7 +177,7 @@ def status(mask):
             state["service"] = None
     # EDGE-40: only a unique physical platform and completed canonical
     # rehearsal, performance, witness and inquiry may appear in public status.
-    if state["inquiries"]:
+    if state.get("inquiries"):
         platform = _original_platform(tavern)
         ledger = get_event_ledger()
         verified, problem = _verified_performance(tavern, state, ledger, day)
