@@ -1471,8 +1471,8 @@ def main() -> int:
         stage_detective.command("charcreate StageDetectiveTester", wait=3.0)
         out = stage_detective.command("ic StageDetectiveTester", wait=4.0)
         require(out, "private room")
-        out = stage_detective.command("calling choose stage_detective")
-        require(out, "stage_detective is now your active calling")
+        out = stage_detective.command("calling choose detective")
+        require(out, "detective is now your active calling")
         for move, destination in (
             ("down", "inn common room"), ("east", "inn hallway"),
             ("south", "village square"), ("east", "blood of the vine"),
@@ -1490,10 +1490,10 @@ def main() -> int:
         out = stage_detective.command("stage investigate")
         require(out, "already investigated")
         out = stage_detective.command("stage")
-        require_all(out, "1 independent stage_detective stage inquiry",
-                    "stage_detectivetester", "not proof of an alibi")
+        require_all(out, "1 independent detective stage inquiry",
+                    "stagedetectivetester", "not proof of an alibi")
         out = performer.command("stage")
-        require_all(out, "1 other player account", "1 independent stage_detective")
+        require_all(out, "1 other player account", "1 independent detective")
         print("TELNET_GDD_EDGE40_INDEPENDENT_SIGNED_STAGE_INQUIRY_GREEN")
         stage_detective.close()
         stage_detective = None
