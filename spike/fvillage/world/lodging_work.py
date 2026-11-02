@@ -94,6 +94,9 @@ def act(mask, action):
         "mask_id": mask.id, "mask": mask.key,
         "register_id": register.id, "room_id": tavern.id,
     }
+    # Preflight is a pure validation, not a ledger reservation. A fixed ID=1
+    # collides with the first real Innkeep disclosure and blocks the Detective.
+    preview_id = lodging_state.preview_event_id(register.db.lodging_inquiry)
     source_id = None
     if action == "inquire":
         state = lodging_state.normalize(register.db.lodging_inquiry)
@@ -106,12 +109,12 @@ def act(mask, action):
         if not lodging_state.source_is_valid(source, row):
             return None, "The original signed Innkeep disclosure cannot be verified."
         preview, okay, reason = lodging_state.inquire(
-            register.db.lodging_inquiry, event_id=1,
+            register.db.lodging_inquiry, event_id=preview_id,
             source_event_id=source_id, **common
         )
     else:
         preview, okay, reason = lodging_state.disclose(
-            register.db.lodging_inquiry, event_id=1, **common
+            register.db.lodging_inquiry, event_id=preview_id, **common
         )
     if not okay:
         return None, reason
