@@ -130,9 +130,6 @@ class RiverEvidenceTests(unittest.TestCase):
         self.assertIn("later dated record", " ".join(evidence.public_lines(state, 33)))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class RiverPublicProvenanceTests(unittest.TestCase):
     """Public readback must not trust signed-looking persisted gauge fields."""
@@ -274,3 +271,7 @@ class RiverPublicProvenanceTests(unittest.TestCase):
         fake["review"]["event_id"] = 999
         self.assertIn("recorded firsthand", self.public(state=fake))
         self.assertNotIn("preserved a separate", self.public(state=fake))
+
+
+if __name__ == "__main__":
+    unittest.main()
