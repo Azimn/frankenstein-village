@@ -449,6 +449,9 @@ class Edge10SourceVerification(unittest.TestCase):
             def __getitem__(self, key):
                 return self.value[key]
 
+            def __contains__(self, key):
+                return key in self.value
+
         attested, ok, error = signed(self.state, "attest", 11, 14)
         self.assertTrue(ok, error)
         ledger = copy.deepcopy(self.ledger)
@@ -559,6 +562,7 @@ class Edge10SourceVerification(unittest.TestCase):
                 ),
                 "SCALE": "a crooked market scale",
                 "forensic_scale": None,
+                "logger": SimpleNamespace(log_warn=lambda *_args: None),
             }
             exec(compile(module, str(path), "exec"), namespace)
             return namespace["state_lines"]()
