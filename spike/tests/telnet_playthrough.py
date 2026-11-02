@@ -1286,6 +1286,19 @@ def main() -> int:
         require_all(out, "rm 6", "lodging disclose", "lodging inquire")
         out = inn.command("lodging inquire")
         require(out, "active detective calling")
+        # An anonymous register entry is NOT a GDD-EDGE-07 initiating source.
+        # The Innkeep voluntarily finds and carries the original physical
+        # Room Six note before authorizing a privacy-bounded disclosure.
+        out = inn.command("lodging disclose")
+        require(out, "first find and take your own unclaimed physical note")
+        out = inn.command("north")
+        require(out, "tavern back hall")
+        out = inn.command("look room six door")
+        require(out, "folded note")
+        out = inn.command("take note")
+        require(out, "before anyone else can")
+        out = inn.command("south")
+        require(out, "blood of the vine")
         out = inn.command("lodging disclose")
         require_all(out, "redacted room six", "signed world event")
         out = inn.command("lodging disclose")
