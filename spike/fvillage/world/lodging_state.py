@@ -1,0 +1,362 @@
+"""Pure, privacy-bounded Innkeep and Detective inquiry on the original Tavern register.
+
+No guest identity, room access, culprit, or supernatural claim is generated.
+The finite public authorization is one redacted entry per village day.
+"""
+from __future__ import annotations
+
+import copy
+from collections.abc import Sequence
+
+MAX_RECORDS = 32
+MAX_AGE_HOURS = 48
+SCOPE = "room_six_entry_redacted"
+
+
+def positive(value):
+    """Accept persisted positive integer IDs without truncating forged fractions."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value > 0 else None
+    if isinstance(value, str) and value.isdecimal():
+        number = int(value)
+        return number if number > 0 else None
+    return None
+
+
+def valid_time(day, hour):
+    d = positive(day)
+    if isinstance(hour, bool):
+        return None
+    if isinstance(hour, int):
+        h = hour
+    elif isinstance(hour, str) and hour.isdecimal():
+        h = int(hour)
+    else:
+        return None
+    return (d, h) if d and 0 <= h <= 23 else None
+
+
+def absolute(day, hour):
+    return (day - 1) * 24 + hour
+
+
+def fresh():
+    return {"records": [], "last_day": 0, "last_hour": 0}
+
+
+def normalize(raw):
+    state = fresh()
+    if not hasattr(raw, "get"):
+        return state
+    # Evennia persists list-like Attributes, but damaged saved state may be
+    # a scalar, string or mapping. Never let it crash ordinary public readback.
+    records = raw.get("records")
+    if not isinstance(records, Sequence) or isinstance(records, (str, bytes, bytearray)):
+        return state
+    seen_days, seen_events = set(), set()
+    for item in records[-MAX_RECORDS * 2:]:
+        if not hasattr(item, "get") or item.get("scope") != SCOPE:
+            continue
+        t = valid_time(item.get("day"), item.get("hour"))
+        ids = [positive(item.get(k)) for k in
+               ("account_id", "mask_id", "event_id", "register_id", "room_id")]
+        if not t or not all(ids) or t[0] in seen_days or ids[2] in seen_events:
+            continue
+        row = {
+            "day": t[0], "hour": t[1],
+            "account_id": ids[0], "mask_id": ids[1], "event_id": ids[2],
+            "register_id": ids[3], "room_id": ids[4],
+            "mask": str(item.get("mask") or "")[:70],
+            "scope": SCOPE, "inquiry": None,
+        }
+        inquiry = item.get("inquiry")
+        if (hasattr(inquiry, "get")
+                and inquiry.get("finding") == "qualified_register_observation"):
+            it = valid_time(inquiry.get("day"), inquiry.get("hour"))
+            ii = [positive(inquiry.get(k)) for k in
+                  ("account_id", "mask_id", "event_id", "source_event_id")]
+            if (it and all(ii) and ii[0] != ids[0] and ii[2] != ids[2]
+                    and ii[3] == ids[2]
+                    and 0 <= absolute(*it) - absolute(*t) <= MAX_AGE_HOURS):
+                row["inquiry"] = {
+                    "day": it[0], "hour": it[1], "account_id": ii[0],
+                    "mask_id": ii[1], "event_id": ii[2],
+                    "source_event_id": ii[3],
+                    "mask": str(inquiry.get("mask") or "")[:70],
+                    "finding": "qualified_register_observation",
+                }
+        state["records"].append(row)
+        seen_days.add(t[0])
+        seen_events.add(ids[2])
+    state["records"] = state["records"][-MAX_RECORDS:]
+    times = []
+    for row in state["records"]:
+        times.append((row["day"], row["hour"]))
+        if row["inquiry"]:
+            times.append((row["inquiry"]["day"], row["inquiry"]["hour"]))
+    if times:
+        state["last_day"], state["last_hour"] = max(times)
+    return state
+
+
+def preview_event_id(raw):
+    """Choose a non-reserving, collision-free ID for pure preflight checks.
+
+    The actual world-event ID is assigned by the canonical ledger inside
+    publish_world_event. This provisional value is never persisted or signed.
+    """
+    state = normalize(raw)
+    used = [row["event_id"] for row in state["records"]]
+    used.extend(row["inquiry"]["event_id"] for row in state["records"]
+                if row["inquiry"])
+    return max(used, default=0) + 1
+
+
+def _guard(state, day, hour, account_id, mask_id, event_id, register_id, room_id):
+    now = valid_time(day, hour)
+    ids = [positive(x) for x in
+           (account_id, mask_id, event_id, register_id, room_id)]
+    if not now or not all(ids):
+        return "A real account, original register and valid village time are required."
+    if now < (state["last_day"], state["last_hour"]):
+        return "The village clock cannot be rewound behind signed register work."
+    if any(row["event_id"] == ids[2] or
+           (row["inquiry"] and row["inquiry"]["event_id"] == ids[2])
+           for row in state["records"]):
+        return "That signed event was already used."
+    return None
+
+
+def disclose(raw, *, day, hour, account_id, mask_id, mask, event_id,
+             register_id, room_id):
+    state = normalize(raw)
+    error = _guard(state, day, hour, account_id, mask_id, event_id,
+                   register_id, room_id)
+    if error:
+        return state, False, error
+    if any(row["day"] == day for row in state["records"]):
+        return state, False, "The Innkeep already authorized one redacted entry today."
+    state["records"].append({
+        "day": day, "hour": hour, "account_id": account_id,
+        "mask_id": mask_id, "mask": str(mask)[:70],
+        "event_id": event_id, "register_id": register_id,
+        "room_id": room_id, "scope": SCOPE, "inquiry": None,
+    })
+    state["records"] = state["records"][-MAX_RECORDS:]
+    state["last_day"], state["last_hour"] = day, hour
+    return state, True, None
+
+
+def inquire(raw, *, day, hour, account_id, mask_id, mask, event_id,
+            register_id, room_id, source_event_id):
+    state = normalize(raw)
+    error = _guard(state, day, hour, account_id, mask_id, event_id,
+                   register_id, room_id)
+    if error:
+        return state, False, error
+    source_id = positive(source_event_id)
+    row = next((r for r in state["records"]
+                if r["event_id"] == source_id), None)
+    if row is None:
+        return state, False, "No signed Innkeep disclosure matches that source."
+    if (row["register_id"], row["room_id"]) != (register_id, room_id):
+        return state, False, "The disclosure concerns another physical register."
+    if row["account_id"] == account_id:
+        return state, False, "The same account cannot sign both professional roles."
+    if row["inquiry"]:
+        return state, False, "That redacted entry already has a signed inquiry."
+    age = absolute(day, hour) - absolute(row["day"], row["hour"])
+    if age < 0:
+        return state, False, "The inquiry cannot precede its actual disclosure."
+    if age > MAX_AGE_HOURS:
+        return state, False, "The disclosure is stale; seek a new daily authorization."
+    row["inquiry"] = {
+        "day": day, "hour": hour, "account_id": account_id,
+        "mask_id": mask_id, "mask": str(mask)[:70],
+        "event_id": event_id, "source_event_id": source_id,
+        "finding": "qualified_register_observation",
+    }
+    state["last_day"], state["last_hour"] = day, hour
+    return state, True, None
+
+
+def found_note_valid(event, *, account_id, mask_id, note_id, door_id, hall_id):
+    """Verify an actually taken Room Six note, without identifying its author.
+
+    The canonical note_found event is the initiating physical-property source.
+    Looking at the anonymous register alone is not a GDD-EDGE-07 source.
+    """
+    if not hasattr(event, "get"):
+        return False
+    actor, payload = event.get("actor"), event.get("payload")
+    if not hasattr(actor, "get") or not hasattr(payload, "get"):
+        return False
+    return (
+        event.get("kind") == "room_six.note_found"
+        and event.get("status") == "complete"
+        and positive(event.get("id")) is not None
+        and positive(actor.get("account_id")) == positive(account_id)
+        and positive(actor.get("mask_id")) == positive(mask_id)
+        and positive(payload.get("note_id")) == positive(note_id)
+        and positive(payload.get("door_id")) == positive(door_id)
+        and positive(payload.get("hall_id")) == positive(hall_id)
+        and all(positive(value) for value in
+                (account_id, mask_id, note_id, door_id, hall_id))
+    )
+
+
+def source_is_valid(event, row, event_lookup=None):
+    """Require the Innkeep receipt AND its earlier signed physical note."""
+
+    if not hasattr(event, "get") or not hasattr(row, "get"):
+        return False
+    actor, payload, consequence = (
+        event.get("actor"), event.get("payload"), event.get("consequence")
+    )
+    if not all(hasattr(x, "get") for x in (actor, payload, consequence)):
+        return False
+    note_id = positive(payload.get("note_id"))
+    note_event_id = positive(payload.get("source_event_id"))
+    door_id = positive(payload.get("door_id"))
+    hall_id = positive(payload.get("hall_id"))
+    disclosure_id = positive(event.get("id"))
+    if (not all((note_id, note_event_id, door_id, hall_id, disclosure_id))
+            or not callable(event_lookup)
+            or note_event_id >= disclosure_id):
+        return False
+    try:
+        note_event = event_lookup(note_event_id)
+    except Exception:
+        return False
+    if (not found_note_valid(
+            note_event, account_id=row.get("account_id"),
+            mask_id=row.get("mask_id"), note_id=note_id,
+            door_id=door_id, hall_id=hall_id)
+            or positive(note_event.get("id")) != note_event_id):
+        return False
+    return (
+        event.get("kind") == "village.lodging_disclosure"
+        and event.get("status") == "complete"
+        and positive(event.get("id")) == row.get("event_id")
+        and positive(actor.get("account_id")) == row.get("account_id")
+        and positive(actor.get("mask_id")) == row.get("mask_id")
+        and actor.get("mask") == row.get("mask")
+        and payload.get("calling") == "innkeep"
+        and payload.get("scope") == SCOPE
+        and payload.get("day") == row.get("day")
+        and payload.get("hour") == row.get("hour")
+        and payload.get("register_id") == row.get("register_id")
+        and payload.get("room_id") == row.get("room_id")
+        and payload.get("source_event_id") == note_event_id
+        and consequence.get("note_id") == note_id
+        and consequence.get("door_id") == door_id
+        and consequence.get("hall_id") == hall_id
+        and consequence.get("day") == row.get("day")
+        and consequence.get("hour") == row.get("hour")
+        and consequence.get("scope") == SCOPE
+        and consequence.get("register_id") == row.get("register_id")
+        and consequence.get("room_id") == row.get("room_id")
+        and consequence.get("source_event_id") == note_event_id
+    )
+
+
+def inquiry_is_valid(event, row):
+    """Check a persisted Detective claim against its own completed event."""
+    if not hasattr(event, "get") or not hasattr(row, "get"):
+        return False
+    inquiry = row.get("inquiry")
+    if not hasattr(inquiry, "get"):
+        return False
+    actor, payload, consequence = (
+        event.get("actor"), event.get("payload"), event.get("consequence")
+    )
+    if not all(hasattr(x, "get") for x in (actor, payload, consequence)):
+        return False
+    source_id = row.get("event_id")
+    inquiry_id = inquiry.get("event_id")
+    source_time = valid_time(row.get("day"), row.get("hour"))
+    inquiry_time = valid_time(inquiry.get("day"), inquiry.get("hour"))
+    if (not source_time or not inquiry_time
+            or positive(source_id) != source_id
+            or positive(inquiry_id) != inquiry_id
+            or inquiry_id <= source_id
+            or inquiry.get("source_event_id") != source_id
+            or inquiry.get("account_id") == row.get("account_id")
+            or not 0 <= absolute(*inquiry_time) - absolute(*source_time) <= MAX_AGE_HOURS):
+        return False
+    return (
+        event.get("kind") == "village.lodging_inquiry"
+        and event.get("status") == "complete"
+        and positive(event.get("id")) == inquiry_id
+        and positive(actor.get("account_id")) == inquiry.get("account_id")
+        and positive(actor.get("mask_id")) == inquiry.get("mask_id")
+        and actor.get("mask") == inquiry.get("mask")
+        and payload.get("calling") == "detective"
+        and payload.get("scope") == SCOPE
+        and payload.get("day") == inquiry.get("day")
+        and payload.get("hour") == inquiry.get("hour")
+        and payload.get("register_id") == row.get("register_id")
+        and payload.get("room_id") == row.get("room_id")
+        and payload.get("source_event_id") == source_id
+        and consequence.get("scope") == SCOPE
+        and consequence.get("day") == inquiry.get("day")
+        and consequence.get("hour") == inquiry.get("hour")
+        and consequence.get("register_id") == row.get("register_id")
+        and consequence.get("room_id") == row.get("room_id")
+        and consequence.get("source_event_id") == source_id
+        and consequence.get("finding") == "qualified_register_observation"
+    )
+
+
+def public_lines(raw, *, event_lookup=None, register_id=None, room_id=None):
+    state = normalize(raw)
+    lines = [
+        "The Tavern guest register: professional inquiry",
+        "The Room Six entry exists in the original register. No guest identity is established.",
+        "An Innkeep must first physically find the unclaimed Room Six note, then may authorize a redacted disclosure once per village day.",
+        "A different Detective must look at the same register, then use lodging inquire within 48 hours.",
+        "No disclosure grants room access or proves who wrote the entry.",
+    ]
+    if state["records"]:
+        row = state["records"][-1]
+        # Persisted Attributes are not evidence. Read the canonical ledger
+        # without creating it, and verify this exact physical register.
+        source = None
+        if (callable(event_lookup)
+                and positive(register_id) == row["register_id"]
+                and positive(room_id) == row["room_id"]):
+            try:
+                source = event_lookup(row["event_id"])
+            except Exception:
+                source = None
+        if not source_is_valid(source, row, event_lookup):
+            lines.append(
+                "A stored register authorization cannot be verified against "
+                "completed world events; no signed disclosure or inquiry is shown."
+            )
+        else:
+            lines.append("Latest redacted authorization: village day %s, event %s." %
+                         (row["day"], row["event_id"]))
+            if row["inquiry"]:
+                inquiry_event = None
+                try:
+                    inquiry_event = event_lookup(row["inquiry"]["event_id"])
+                except Exception:
+                    pass
+                if inquiry_is_valid(inquiry_event, row):
+                    lines.append(
+                        "Independent qualified inquiry: signed event %s, source %s." %
+                        (row["inquiry"]["event_id"], row["event_id"])
+                    )
+                else:
+                    lines.append(
+                        "Stored Detective inquiry cannot be verified; "
+                        "no signed independent inquiry is shown."
+                    )
+            else:
+                lines.append("No independent Detective inquiry is recorded for that entry.")
+    else:
+        lines.append("No signed redacted authorization has been made.")
+    return "\n".join(lines)

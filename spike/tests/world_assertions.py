@@ -569,6 +569,14 @@ wrong_target, wrong_target_error = submit_healer_finding(
 assert wrong_target is None
 assert "well" in wrong_target_error.lower()
 
+# A test-only Healer mask has no authenticated account. It may assess
+# privately but cannot mint an attributable public-health source.
+anonymous_finding, anonymous_error = submit_healer_finding(
+    healer_assessor, mushrooms,
+)
+assert anonymous_finding is None
+assert "logged-in healer account" in anonymous_error.lower()
+
 premature_record, premature_record_error = publish_public_warning(
     nonhealer_assessor,
 )

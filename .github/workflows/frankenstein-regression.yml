@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - feature/gdd-edge40-stage-detective-20261027 # temporary exact-head QA; remove before integration
 
 permissions:
   contents: read
