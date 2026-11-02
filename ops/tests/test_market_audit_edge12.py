@@ -48,7 +48,33 @@ class Edge12MarketAuditTests(unittest.TestCase):
         self.assertTrue(market.suspended(audited, 1))
         self.assertEqual(audited["audit"]["review_event_id"], 10)
         self.assertEqual(audited["audit"]["review_choice"], "hold")
-        self.assertIn("independently audited Merchant hold", " ".join(market.public_lines(audited, 1)))
+        merchant_event = source(held["review"])
+        merchant_event["consequence"].update({
+            "market_distribution_held": True, "calibration_event_id": None,
+        })
+        audit = audited["audit"]
+        audit_event = {
+            "id": audit["event_id"], "status": "complete",
+            "kind": "village.market_audit",
+            "actor": {
+                "account_id": audit["account_id"],
+                "mask_id": audit["mask_id"], "mask": audit["mask"],
+            },
+            "payload": {
+                "action": "audit", "day": audit["day"], "hour": audit["hour"],
+                "location": "Market Lane", "professional_calling": "chronicler",
+            },
+            "consequence": {
+                "action": "audit", "market_distribution_held": True,
+                "review_event_id": held["review"]["event_id"],
+                "calibration_event_id": None,
+            },
+        }
+        ledger = {10: merchant_event, 11: audit_event}
+        self.assertIn(
+            "independently audited Merchant hold",
+            " ".join(market.public_lines(audited, 1, ledger.get)),
+        )
         self.assertIn("independent Chronicler audit", " ".join(market.personal_agenda(audited, 1, 107)))
         self.assertIsNone(held["audit"])
         fixed, ok, error = sign(audited, "calibrate", account=8, event=12)
