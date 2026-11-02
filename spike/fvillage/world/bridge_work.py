@@ -122,7 +122,7 @@ def status_lines(mask):
             "The saved bridge record needs source review. No new response "
             "or upkeep can be signed from an unsupported record."
         )
-        return "\\n".join(lines)
+        return "\n".join(lines)
     if state["resolution"] is not None:
         signed = state["resolution"]
         lines.append(
