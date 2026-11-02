@@ -4,6 +4,31 @@ from __future__ import annotations
 from world import soup_state
 
 TREELINE = "The Northern Treeline"
+
+
+def select_original_cord(room, *, key):
+    """Select exactly one original physical red cord, never the first lookalike.
+
+    The landmark marker is the canonical physical-object type used by the
+    existing world. A same-key decoy is not that object; two typed originals
+    are ambiguous and must not authorize a signed dispatch or pantry spend.
+    This helper does not mutate the room or its objects.
+    """
+    if room is None:
+        return None
+    try:
+        contents = list(room.contents)
+    except (TypeError, ValueError, AttributeError):
+        return None
+    matches = [
+        obj for obj in contents
+        if getattr(obj, "key", None) == key
+        and getattr(getattr(obj, "db", None), "landmark_id", None) == "red_cord"
+        and getattr(obj, "location", None) is room
+        and type(getattr(obj, "id", None)) is int
+        and obj.id > 0
+    ]
+    return matches[0] if len(matches) == 1 else None
 MAX_RECEIPTS = 24
 
 
