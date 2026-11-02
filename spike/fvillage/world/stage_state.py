@@ -7,6 +7,7 @@ accounts may explicitly witness it during that village hour.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping
 
 TUNES = ("ballad", "reel")
 MAX_HISTORY = 32
@@ -321,6 +322,53 @@ def investigate(raw, *, day, hour, account_id, mask_id, mask, event_id,
         ),
     })
     return state, True, None
+
+def verified_public_inquiry(row, event, *, day, tavern_room_id,
+                            stage_object_id, performance, witness_event_ids):
+    """Authorize a public Detective claim only from its completed world event."""
+    if (not isinstance(row, Mapping) or not isinstance(event, Mapping)
+            or not isinstance(performance, Mapping)
+            or type(tavern_room_id) is not int
+            or type(stage_object_id) is not int
+            or type(day) is not int
+            or not isinstance(witness_event_ids, (list, tuple))):
+        return False
+    actor, payload, consequence = (
+        event.get("actor"), event.get("payload"), event.get("consequence"))
+    if not all(isinstance(v, Mapping)
+               for v in (actor, payload, consequence)):
+        return False
+    source_id = performance.get("event_id")
+    ids = sorted(witness_event_ids)
+    return (
+        type(event.get("id")) is int
+        and event["id"] == row.get("event_id")
+        and event["id"] > source_id
+        and event.get("status") == "complete"
+        and event.get("kind") == "village.stage_investigated"
+        and actor.get("account_id") == row.get("account_id")
+        and actor.get("mask_id") == row.get("mask_id")
+        and actor.get("mask") == row.get("mask")
+        and row.get("account_id") != performance.get("account_id")
+        and row.get("source_event_id") == source_id
+        and row.get("stage_object_id") == stage_object_id
+        and sorted(row.get("witness_event_ids", [])) == ids
+        and payload.get("day") == day
+        and payload.get("hour") == row.get("hour")
+        and payload.get("tavern_room_id") == tavern_room_id
+        and payload.get("stage_object_id") == stage_object_id
+        and payload.get("source_performance_event_id") == source_id
+        and payload.get("verified_witness_event_ids") == ids
+        and consequence.get("tavern_room_id") == tavern_room_id
+        and consequence.get("stage_object_id") == stage_object_id
+        and consequence.get("performance_event_id") == source_id
+        and consequence.get("witness_event_ids") == ids
+        and consequence.get("independent_detective_account_id") ==
+            row.get("account_id")
+        and consequence.get("inquiry_event_id") == row.get("event_id")
+        and consequence.get("conclusion") == "signed_show_not_alibi"
+    )
+
 
 def public_lines(raw, day):
     state = refresh(raw, day)
