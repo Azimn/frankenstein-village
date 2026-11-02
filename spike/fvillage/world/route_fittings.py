@@ -146,8 +146,10 @@ def verified_install(saved, get_event, *, kind, target_id, room_id,
         and positive(sa.get("mask_id"))
         and sa.get("account_id") != ia.get("account_id")
         and sa.get("mask_id") != ia.get("mask_id")
+        and isinstance(sa.get("mask"), str) and bool(sa["mask"])
         and positive(fa.get("account_id"))
         and positive(fa.get("mask_id"))
+        and isinstance(fa.get("mask"), str) and bool(fa["mask"])
         and fp.get("calling") == "smith"
         and fp.get("kind") == kind
         and fp.get("location") == "Market Lane"
@@ -227,6 +229,8 @@ def verified_test(saved, test, get_event, *, cord_id, room_id, table_id, day):
                 and positive(payload.get("day"))
                 and payload["day"] >= saved["day"] and payload["day"] <= day
                 and hour_valid(payload.get("hour"))
+                and (payload["day"], payload["hour"]) >=
+                    (saved["day"], saved["hour"])
                 and effect.get("tested") is True
                 and effect.get("target_id") == cord_id
                 and effect.get("install_event_id") == saved["install_event_id"])
