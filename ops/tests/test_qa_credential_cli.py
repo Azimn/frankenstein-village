@@ -9,6 +9,9 @@ from contextlib import redirect_stderr, redirect_stdout
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
+import socket
+import threading
+import time
 
 
 RUNNER = Path(__file__).resolve().parents[2] / "spike" / "tests" / "run_all.py"
@@ -42,6 +45,59 @@ class TestRunnerPassword(unittest.TestCase):
         self.assertIn("CLIENT_PROGRESS_BEFORE_TIMEOUT", output.getvalue())
         self.assertIn("exceeded 1s", errors.getvalue())
 
+
+
+class TestTelnetReadQuiet(unittest.TestCase):
+    def test_ansi_only_chunk_does_not_end_wait_before_actual_reply(self):
+        """A negotiation/formatting chunk must not masquerade as command output."""
+        path = Path(__file__).resolve().parents[2] / "spike/tests/telnet_playthrough.py"
+        telnet_spec = importlib.util.spec_from_file_location("fv_telnet_client", path)
+        telnet = importlib.util.module_from_spec(telnet_spec)
+        telnet_spec.loader.exec_module(telnet)
+        client_sock, server_sock = socket.socketpair()
+        client_sock.settimeout(0.05)
+        client = telnet.Client.__new__(telnet.Client)
+        client.sock = client_sock
+        client.transcript = []
+
+        def deliver():
+            server_sock.sendall(b"\x1b[0m")
+            time.sleep(0.38)
+            server_sock.sendall(b"Accusation is now public\n")
+
+        thread = threading.Thread(target=deliver, daemon=True)
+        thread.start()
+        try:
+            response = client.read_quiet(max_wait=1.2, quiet=0.18)
+            self.assertIn("Accusation is now public", response)
+        finally:
+            thread.join(timeout=1)
+            client_sock.close()
+            server_sock.close()
+
+
+    def test_no_reply_waits_full_budget_and_does_not_invent_success(self):
+        """An open socket with no server response is a bounded failure, not success."""
+        path = Path(__file__).resolve().parents[2] / "spike/tests/telnet_playthrough.py"
+        telnet_spec = importlib.util.spec_from_file_location("fv_telnet_no_reply", path)
+        telnet = importlib.util.module_from_spec(telnet_spec)
+        telnet_spec.loader.exec_module(telnet)
+        client_sock, server_sock = socket.socketpair()
+        client_sock.settimeout(0.05)
+        client = telnet.Client.__new__(telnet.Client)
+        client.sock = client_sock
+        client.transcript = []
+        try:
+            started = time.monotonic()
+            response = client.read_quiet(max_wait=0.5, quiet=0.1)
+            elapsed = time.monotonic() - started
+            self.assertEqual(response, "")
+            self.assertGreaterEqual(elapsed, 0.45)
+            self.assertLess(elapsed, 2.0)
+            self.assertEqual(client.transcript, [])
+        finally:
+            client_sock.close()
+            server_sock.close()
 
 
 class TestEvenniaReplayCleanup(unittest.TestCase):

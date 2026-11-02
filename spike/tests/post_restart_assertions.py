@@ -2570,3 +2570,102 @@ for _edge15_field, _edge15_bad in (
     assert "unverified" in _edge15_text
 print("POST_RESTART_GDD_EDGE15_FORGED_PUBLIC_READBACK_SUPPRESSED_GREEN")
 print("POST_RESTART_GDD_EDGE15_DISTINCT_SIGNED_BRIDGE_CASE_GREEN")
+
+
+# B08 EDGE-20/23: actual original physical objects and three completed
+# source events remain verified after a genuine server stop and restart.
+from world import route_fitting_work as _b08_work, route_fittings as _b08_rules
+_b08_table = _b08_work._table()
+assert _b08_table is not None
+_b08_day, _b08_hour = _b08_work._clock()
+for _b08_kind in _b08_rules.KINDS:
+    _b08_room, _b08_target = _b08_work._target(_b08_kind)
+    assert _b08_room is not None and _b08_target is not None
+    assert _b08_work._verified_target(
+        _b08_kind, _b08_room, _b08_target, _b08_table, _b08_day,
+        _b08_hour
+    ), f"EDGE-20/23 signed physical {_b08_kind} fitting lost across restart"
+    _b08_saved = _b08_target.db.route_fitting_install
+    assert _b08_saved["smith_account_id"] != _b08_saved["source_account_id"]
+    assert _b08_work._ledger(_b08_saved["install_event_id"])["status"] == "complete"
+    assert _b08_work._ledger(_b08_saved["source_event_id"])["status"] == "complete"
+    assert _b08_work._ledger(_b08_saved["forge_event_id"])["status"] == "complete"
+    _b08_display = _b08_room.get_display_desc()
+    assert f"{_b08_kind}: physically fitted" in _b08_display
+    # A forged source on a disposable copy must not appear as signed.
+    _b08_forged = dict(_b08_saved, source_event_id=99999999)
+    assert not _b08_rules.verified_install(
+        _b08_forged, _b08_work._ledger, kind=_b08_kind,
+        target_id=_b08_target.id, room_id=_b08_room.id,
+        table_id=_b08_table.id, day=_b08_day, hour=_b08_hour)
+    # B18: completed physical installation cannot appear before its hour.
+    if _b08_saved["hour"] > 0:
+        assert not _b08_work._verified_target(
+            _b08_kind, _b08_room, _b08_target, _b08_table,
+            _b08_saved["day"], _b08_saved["hour"] - 1)
+assert _b08_rules.verified_test(
+    _b08_work._target("cord")[1].db.route_fitting_install,
+    _b08_work._target("cord")[1].db.route_fitting_test,
+    _b08_work._ledger,
+    cord_id=_b08_work._target("cord")[1].id,
+    room_id=_b08_work._target("cord")[0].id,
+    table_id=_b08_table.id, day=_b08_day, hour=_b08_hour)
+_b18_cord = _b08_work._target("cord")[1]
+_b18_test = _b08_work._ledger(_b18_cord.db.route_fitting_test["event_id"])
+_b18_test_day = _b18_test["payload"]["day"]
+_b18_test_hour = _b18_test["payload"]["hour"]
+if _b18_test_hour > 0:
+    assert not _b08_rules.verified_test(
+        _b18_cord.db.route_fitting_install,
+        _b18_cord.db.route_fitting_test, _b08_work._ledger,
+        cord_id=_b18_cord.id, room_id=_b08_work._target("cord")[0].id,
+        table_id=_b08_table.id, day=_b18_test_day,
+        hour=_b18_test_hour - 1)
+print("POST_RESTART_B18_FUTURE_HOUR_PUBLIC_ROUTE_REFUSED_GREEN")
+# B15: use a real persisted, unconsumed Smith fitting and its completed
+# ledger receipt after server restart. Rewinding the query clock by one
+# hour cannot promote a future-hour forge into a valid carried fitting.
+_b15_smith = one("KitchenSmithTester")
+_b15_items = [
+    item for item in _b15_smith.contents
+    if item.db.route_fitting_kind == "span"
+]
+assert len(_b15_items) == 1, "Missing the independent Smith's physical fitting"
+_b15_item = _b15_items[0]
+_b15_receipt = _b08_work._ledger(_b15_item.db.route_fitting_forge_event)
+assert _b15_receipt["status"] == "complete"
+_b15_forge_day = _b15_receipt["payload"]["day"]
+_b15_forge_hour = _b15_receipt["payload"]["hour"]
+assert _b15_forge_hour > 0, "Expected same-day forge after hour zero"
+assert _b15_item in _b08_work._carried(
+    _b15_smith, "span", _b08_table.id, _b15_forge_day, _b15_forge_hour)
+_b15_item_id = _b15_item.id
+_b15_original_span = _b08_work._target("span")[1].db.route_fitting_install
+_b15_original_stock = _b08_table.db.route_fitting_stock
+assert not _b08_work._carried(
+    _b15_smith, "span", _b08_table.id,
+    _b15_forge_day, _b15_forge_hour - 1), (
+    "B15: a future-hour completed forge was accepted after clock rewind")
+assert _b15_item.id == _b15_item_id and _b15_item.location == _b15_smith
+assert _b08_work._target("span")[1].db.route_fitting_install == _b15_original_span
+assert _b08_table.db.route_fitting_stock == _b15_original_stock
+# The Evennia shell runs after the telnet clients disconnect. The mask's
+# transient .account is therefore not an authenticated session. Verify its
+# durable owner and the original signed forge actor without manufacturing a
+# live account or claiming that an offline install call tested authentication.
+_b15_smith_account_id = AccountDB.objects.get(
+    username__iexact="qa_smith_kitchen").id
+assert _b15_smith.account is None, (
+    "B16: expected the ordinary Smith's telnet session to be disconnected")
+assert _b15_receipt["actor"]["account_id"] == _b15_smith_account_id
+assert _b15_receipt["actor"]["mask_id"] == _b15_smith.id
+assert _b15_receipt["consequence"]["item_id"] == _b15_item_id
+assert _b15_receipt["payload"]["table_id"] == _b08_table.id
+assert _b15_item.db.route_fitting_forge_event == _b15_receipt["id"]
+assert _b15_item.id == _b15_item_id and _b15_item.location == _b15_smith
+assert _b08_work._target("span")[1].db.route_fitting_install == _b15_original_span
+assert _b08_table.db.route_fitting_stock == _b15_original_stock
+print("POST_RESTART_B15_FUTURE_HOUR_FORGE_REFUSED_GREEN")
+
+print("POST_RESTART_GDD_EDGE20_VERIFIED_PHYSICAL_SPAN_GREEN")
+print("POST_RESTART_GDD_EDGE23_VERIFIED_TESTED_CORD_GREEN")

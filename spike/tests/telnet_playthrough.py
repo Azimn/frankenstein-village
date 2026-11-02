@@ -42,7 +42,11 @@ class Client:
                 chunks.append(chunk)
                 last_data = time.monotonic()
             except socket.timeout:
-                if chunks and time.monotonic() - last_data >= quiet:
+                # ANSI-only or telnet negotiation bytes are not a reply.
+                # Keep waiting for printable output without resending a
+                # potentially consequential command.
+                if (chunks and time.monotonic() - last_data >= quiet
+                        and clean(b"".join(chunks)).strip()):
                     break
         out = clean(b"".join(chunks))
         if out:
@@ -2997,6 +3001,106 @@ def main() -> int:
         out = c.command("west")
         require(out, "blood of the vine")
         print("TELNET_BRANCHING_BRIDGE_CASE_GREEN")
+
+        # B08 EDGE-20/23: two original field sources and a third, independent
+        # ordinary Smith account physically consumes two finite fittings.
+        # This uses existing Wanderer gauge and Hound cord ledger events.
+        out = stage_smith.command("bridgefit install span")
+        require(out, "stand at the original bridge")
+        for move, destination in (
+            ("west", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"),
+        ):
+            require(stage_smith.command(move), destination)
+        out = stage_smith.command("bridgefit forge span")
+        require_all(out, "forge a finite physical span", "signed world event")
+        out = stage_smith.command("bridgefit forge cord")
+        require(out, "carry only one unfinished")
+        require(stage_smith.command("inventory"), "forged bridge-span fitting")
+        for move, destination in (
+            ("north", "lamp shop"), ("north", "village square"),
+            ("east", "blood of the vine"), ("east", "riverside path"),
+            ("east", "old stone bridge"),
+        ):
+            require(stage_smith.command(move), destination)
+        out = stage_smith.command("bridgefit cross")
+        require(out, "not been physically fitted")
+        out = stage_smith.command("drop forged bridge-span fitting")
+        require(out, "forged bridge-span fitting")
+        out = stage_smith.command("bridgefit install span")
+        require(out, "carry a genuine smith-forged fitting")
+        out = stage_smith.command("get forged bridge-span fitting")
+        require(out, "forged bridge-span fitting")
+        out = stage_smith.command("bridgefit install span")
+        require_all(out, "physically fitted", "signed world event")
+        out = stage_smith.command("inventory")
+        assert "forged bridge-span fitting" not in out.lower()
+        out = stage_smith.command("bridgefit install span")
+        require(out, "installed already")
+        out = stage_smith.command("bridgefit")
+        require_all(out, "span: physically fitted", "cord: no installed")
+        out = stage_smith.command("look")
+        require(out, "span: physically fitted")
+        out = stage_smith.command("bridgefit cross")
+        require(out, "cross the repaired inspection span")
+        require(stage_smith.command("look"), "riverside path")
+        for move, destination in (
+            ("west", "blood of the vine"), ("west", "village square"),
+            ("south", "lamp shop"), ("south", "market lane"),
+        ):
+            require(stage_smith.command(move), destination)
+        # Two independently authenticated Smith accounts share one finite
+        # Market Lane stock. A third same-day withdrawal must fail.
+        require(smith_kitchen.command("west"), "market lane")
+        out = smith_kitchen.command("bridgefit forge span")
+        require_all(out, "forge a finite physical span", "signed world event")
+        require(smith_kitchen.command("inventory"), "forged bridge-span fitting")
+        out = stage_smith.command("bridgefit forge span")
+        require(out, "no matching physical fittings remain today")
+        # The later-day EDGE-02 client reuses this actual Smith character.
+        # Return by the real east exit rather than leaving the account in
+        # Market Lane after this independent finite-stock contention test.
+        # This preserves its original Workshop starting-location contract.
+        require(smith_kitchen.command("east"), "market workshop")
+        require(smith_kitchen.command("workshop"), "iron offcuts")
+        print("TELNET_B08_TWO_SMITH_FINITE_STOCK_CONTENTION_GREEN")
+        out = stage_smith.command("bridgefit forge cord")
+        require_all(out, "forge a finite physical cord", "signed world event")
+        require(stage_smith.command("inventory"), "forged red-cord anchor")
+        for move, destination in (
+            ("north", "lamp shop"), ("north", "village square"),
+            ("west", "st. lazarus church"), ("west", "churchyard"),
+            ("north", "northern treeline"),
+        ):
+            require(stage_smith.command(move), destination)
+        # Both original field workers returned to the Tavern for other
+        # independent gameplay. Re-enter the actual treeline before testing.
+        for field_worker in (wanderer, hound):
+            for move, destination in (
+                ("west", "village square"), ("west", "st. lazarus church"),
+                ("west", "churchyard"), ("north", "northern treeline"),
+            ):
+                require(field_worker.command(move), destination)
+        out = wanderer.command("bridgefit install cord")
+        require(out, "active smith")
+        out = hound.command("bridgefit test cord")
+        require(out, "no completed signed smith")
+        out = stage_smith.command("bridgefit install cord")
+        require_all(out, "physically fitted", "signed world event")
+        out = stage_smith.command("inventory")
+        assert "forged red-cord anchor" not in out.lower()
+        out = hound.command("bridgefit test cord")
+        require(out, "examine the original repaired red cord after installation")
+        require(hound.command("look cord"), "scarlet cord")
+        out = hound.command("bridgefit test cord")
+        require_all(out, "hound tests the local", "signed world event")
+        out = hound.command("bridgefit test cord")
+        require(out, "tested already")
+        out = hound.command("look")
+        require_all(out, "cord: physically fitted", "independently hound-tested")
+        print("TELNET_GDD_EDGE20_SMITH_WANDERER_FINITE_SPAN_GREEN")
+        print("TELNET_GDD_EDGE23_SMITH_HOUND_LOCAL_CORD_GREEN")
+
         out = c.command("journal discoveries")
         require_all(out,
                     "weathered grave marker", "frayed red cord",

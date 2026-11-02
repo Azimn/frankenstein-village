@@ -35,7 +35,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         # any commands you add below will overload the default ones.
         #
         from commands.agent_context import CmdAgentContext
-        from commands.bridge_cmd import CmdBridgeWork
+        from commands.bridge_cmd import CmdBridgeWork, CmdBridgeFitting
         from commands.market_cmd import CmdTrade
         from commands.mystic_cmd import CmdMystic
         from commands.soup_cmd import CmdSoup
@@ -54,6 +54,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
 
         self.add(CmdAgentContext())
         self.add(CmdBridgeWork())
+        self.add(CmdBridgeFitting())
         self.add(CmdTrade())
         self.add(CmdMystic())
         self.add(CmdSoup())
