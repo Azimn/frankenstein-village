@@ -148,6 +148,18 @@ class BridgeProvenanceTests(unittest.TestCase):
                     forged, lambda ident: events.get(ident),
                     bridge_room_id=300))
 
+    def test_scalar_saved_bridge_state_is_not_a_clean_unsettled_record(self):
+        _, events = fixture()
+        for raw in (7, True, False, 0, "invalid"):
+            with self.subTest(raw=raw):
+                safe, valid = verify(raw, events)
+                self.assertFalse(valid)
+                self.assertIsNone(safe["resolution"])
+                self.assertIn("cannot be verified", proof.public_line(
+                    raw, lambda event_id: events.get(event_id),
+                    bridge_room_id=300,
+                ))
+
     def test_real_giftable_kit_requires_completed_physical_collection(self):
         _, events = fixture()
         kit = {"item_id": 200, "source_event_id": 81,
