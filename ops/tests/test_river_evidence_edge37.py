@@ -265,6 +265,11 @@ class RiverPublicProvenanceTests(unittest.TestCase):
         event["actor"] = "fake actor"
         self.assertNotIn("preserved a separate",
                          self.public(review_event=event))
+        source = json.loads(json.dumps(self.witness_event))
+        source["payload"] = "forged payload"
+        text = self.public(witness_event=source)
+        self.assertNotIn("recorded firsthand", text)
+        self.assertNotIn("preserved a separate", text)
 
     def test_first_signed_event_one_allows_distinct_detective_event_two(self):
         state, ok, reason = witness(event_id=1)
