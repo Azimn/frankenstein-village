@@ -132,3 +132,145 @@ class RiverEvidenceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RiverPublicProvenanceTests(unittest.TestCase):
+    """Public readback must not trust signed-looking persisted gauge fields."""
+
+    def setUp(self):
+        observed, ok, reason = witness()
+        self.assertTrue(ok, reason)
+        self.state, ok, reason = compare(observed)
+        self.assertTrue(ok, reason)
+        w, d = self.state["witness"], self.state["review"]
+        self.witness_event = {
+            "id": w["event_id"], "kind": "village.river_gauge_witnessed",
+            "status": "complete",
+            "actor": {"account_id": w["account_id"],
+                      "mask_id": w["mask_id"], "mask": w["mask"]},
+            "payload": {"calling": "wanderer", "day": w["day"],
+                        "hour": w["hour"], "object_id": 900,
+                        "room_id": 800, "location": "Riverside Path",
+                        "source_event_id": None},
+            "consequence": {"gauge_object_id": 900, "room_id": 800,
+                            "account_id": w["account_id"],
+                            "witness_event_id": w["event_id"],
+                            "review_event_id": None, "source_event_id": None},
+        }
+        self.review_event = {
+            "id": d["event_id"], "kind": "village.river_evidence_compared",
+            "status": "complete",
+            "actor": {"account_id": d["account_id"],
+                      "mask_id": d["mask_id"], "mask": d["mask"]},
+            "payload": {"calling": "detective", "day": d["day"],
+                        "hour": d["hour"], "object_id": 900,
+                        "room_id": 800, "location": "Riverside Path",
+                        "source_event_id": w["event_id"]},
+            "consequence": {"gauge_object_id": 900, "room_id": 800,
+                            "account_id": d["account_id"],
+                            "witness_event_id": w["event_id"],
+                            "review_event_id": d["event_id"],
+                            "source_event_id": w["event_id"]},
+        }
+
+    def public(self, state=None, witness_event=None, review_event=None,
+               gauge_id=900, room_id=800):
+        return " ".join(evidence.verified_public_lines(
+            self.state if state is None else state, 3,
+            gauge_id=gauge_id, room_id=room_id,
+            witness_event=(self.witness_event if witness_event is None
+                           else witness_event),
+            review_event=(self.review_event if review_event is None
+                          else review_event),
+        ))
+
+    def test_two_completed_events_project_bounded_public_claims(self):
+        text = self.public()
+        self.assertIn("Wanderer Wanderer recorded", text)
+        self.assertIn("Detective Detective preserved", text)
+        self.assertIn("does not establish", text)
+        restored = json.loads(json.dumps(self.state))
+        self.assertEqual(self.public(restored), text)
+
+    def test_missing_source_event_suppresses_both_claims(self):
+        text = " ".join(evidence.verified_public_lines(
+            self.state, 3, gauge_id=900, room_id=800,
+            witness_event=None, review_event=self.review_event))
+        self.assertNotIn("recorded firsthand", text)
+        self.assertNotIn("preserved a separate", text)
+
+    def test_forged_failed_or_foreign_wanderer_suppresses_both(self):
+        variants = (
+            ("status", "failed"),
+            ("kind", "village.river_evidence_compared"),
+            ("id", 999),
+            ("actor.account_id", 999),
+            ("actor.mask_id", 999),
+            ("actor.mask", "Forged"),
+            ("payload.calling", "detective"),
+            ("payload.hour", 20),
+            ("payload.object_id", 901),
+            ("payload.room_id", 801),
+            ("payload.location", "Village Square"),
+            ("consequence.gauge_object_id", 901),
+            ("consequence.witness_event_id", 999),
+            ("consequence.account_id", 999),
+        )
+        for key, value in variants:
+            event = json.loads(json.dumps(self.witness_event))
+            if "." in key:
+                part, field = key.split(".")
+                event[part][field] = value
+            else:
+                event[key] = value
+            with self.subTest(key=key):
+                text = self.public(witness_event=event)
+                self.assertNotIn("recorded firsthand", text)
+                self.assertNotIn("preserved a separate", text)
+
+    def test_forged_failed_or_foreign_detective_suppresses_only_review(self):
+        variants = (
+            ("status", "failed"),
+            ("kind", "village.river_gauge_witnessed"),
+            ("id", 999),
+            ("actor.account_id", 999),
+            ("actor.mask_id", 999),
+            ("actor.mask", "Forged"),
+            ("payload.calling", "wanderer"),
+            ("payload.hour", 10),
+            ("payload.object_id", 901),
+            ("payload.room_id", 801),
+            ("payload.source_event_id", 999),
+            ("consequence.review_event_id", 999),
+            ("consequence.source_event_id", 999),
+            ("consequence.account_id", 999),
+        )
+        for key, value in variants:
+            event = json.loads(json.dumps(self.review_event))
+            if "." in key:
+                part, field = key.split(".")
+                event[part][field] = value
+            else:
+                event[key] = value
+            with self.subTest(key=key):
+                text = self.public(review_event=event)
+                self.assertIn("recorded firsthand", text)
+                self.assertNotIn("preserved a separate", text)
+
+    def test_foreign_physical_gauge_and_malformed_event_fail_closed(self):
+        for kw in ({"gauge_id": 901}, {"room_id": 801},
+                   {"gauge_id": True}, {"room_id": None}):
+            with self.subTest(kw=kw):
+                text = self.public(**kw)
+                self.assertNotIn("recorded firsthand", text)
+                self.assertNotIn("preserved a separate", text)
+        event = json.loads(json.dumps(self.review_event))
+        event["actor"] = "fake actor"
+        self.assertNotIn("preserved a separate",
+                         self.public(review_event=event))
+
+    def test_mutated_persisted_signature_does_not_invent_ledger_event(self):
+        fake = json.loads(json.dumps(self.state))
+        fake["review"]["event_id"] = 999
+        self.assertIn("recorded firsthand", self.public(state=fake))
+        self.assertNotIn("preserved a separate", self.public(state=fake))
