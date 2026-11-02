@@ -23,10 +23,10 @@ WORK = {
         "After a real Performer show and signed audience witness at the Tavern, "
         "cook a real soup bowl and use stage cater during the same village hour "
         "to place it in public service. No show or audience means no demand claim.",
-        "A Hound with a signed physical treeline dispatch can come to "
-        "the Tavern. Use soup refuge <hound mask> while the Hound is "
-        "present to spend real finite pantry stock on a traveler.",
-        "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
+        "At the Blood of the Vine, inspect the original guest register. "
+        "Use lodging disclose to authorize only a redacted Room Six entry "
+        "for a separate Detective, never private guest identities.",
+        "A Hound with a signed physical treeline dispatch can come to "\n        "the Tavern. Use soup refuge <hound mask> while the Hound is "\n        "present to spend real finite pantry stock on a traveler.",\n        "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
         "only if that unresolved need remains in the village.",
     ),
     "chronicler": (
@@ -131,6 +131,9 @@ WORK = {
         "gathering through commons rather than claiming one occurred.",
     ),
     "detective": (
+        "At the Blood of the Vine, look at the original guest register. "
+        "After a separate Innkeep signs lodging disclose, use lodging inquire "
+        "within 48 village hours to preserve a qualified observation.",
         "At the Northern Treeline, look at the original red cord after a "
         "Hound has signed survey protect. Use survey preserve to sign a "
         "separate physical trace-custody record; survey custody shows its "

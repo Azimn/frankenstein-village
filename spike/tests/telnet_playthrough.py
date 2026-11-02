@@ -121,6 +121,7 @@ def main() -> int:
     wanderer = None
     hound = None
     detective = None
+    lodging_detective = None
     bridge_detective = None
     detective_trace = None
     river_detective = None
@@ -1274,6 +1275,69 @@ def main() -> int:
         out = inn.command("eat homemade soup")
         require(out, "all gone")
         print("TELNET_SHARED_SOUP_RECIPE_CRAFTING_GREEN")
+
+        # EDGE-07: the original physical Tavern register, a limited
+        # Innkeep disclosure and a separate authenticated Detective inquiry.
+        out = inn.command("lodging")
+        require_all(out, "guest register", "no signed redacted authorization")
+        out = inn.command("lodging disclose")
+        require(out, "look at the original guest register first")
+        out = inn.command("look register")
+        require_all(out, "rm 6", "lodging disclose", "lodging inquire")
+        out = inn.command("lodging inquire")
+        require(out, "active detective calling")
+        # An anonymous register entry is NOT a GDD-EDGE-07 initiating source.
+        # The Innkeep voluntarily finds and carries the original physical
+        # Room Six note before authorizing a privacy-bounded disclosure.
+        out = inn.command("lodging disclose")
+        require(out, "first find and take your own unclaimed physical note")
+        out = inn.command("north")
+        require(out, "tavern back hall")
+        out = inn.command("look room six door")
+        require(out, "folded note")
+        out = inn.command("take note")
+        require(out, "before anyone else can")
+        out = inn.command("south")
+        require(out, "blood of the vine")
+        out = inn.command("lodging disclose")
+        require_all(out, "redacted room six", "signed world event")
+        out = inn.command("lodging disclose")
+        require(out, "already authorized")
+
+        lodging_detective = Client(args.host, args.port)
+        require(lodging_detective.sync_login_screen(), "frankenstein village")
+        detective_pw = os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = lodging_detective.command(
+            f"connect qa_detective_lodging {detective_pw}", wait=4.0
+        )
+        require(out, "connected", "account qa_detective_lodging")
+        out = lodging_detective.command("substrate")
+        require_all(out, "account substrate: ai", "disclosure gate is complete")
+        lodging_detective.command("charcreate LodgingDetectiveTester", wait=3.0)
+        out = lodging_detective.command("ic LodgingDetectiveTester", wait=4.0)
+        require(out, "private room")
+        out = lodging_detective.command("calling choose detective")
+        require_all(out, "detective is now your active calling", "apprentice rank")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("east", "blood of the vine"),
+        ):
+            out = lodging_detective.command(move)
+            require(out, destination)
+        out = lodging_detective.command("lodging inquire")
+        require(out, "look at the original guest register first")
+        out = lodging_detective.command("look register")
+        require_all(out, "rm 6", "lodging inquire")
+        out = lodging_detective.command("lodging disclose")
+        require(out, "active innkeep calling")
+        out = lodging_detective.command("lodging inquire")
+        require_all(out, "independent qualified register observation",
+                    "verified innkeep source", "does not prove who wrote")
+        out = lodging_detective.command("lodging inquire")
+        require(out, "no unused signed innkeep disclosure")
+        out = inn.command("lodging")
+        require_all(out, "independent qualified inquiry", "source")
+        print("TELNET_GDD_EDGE07_INDEPENDENT_SIGNED_REGISTER_INQUIRY_GREEN")
 
         # A distinct Performer account exercises the real Tavern stage.
         performer = Client(args.host, args.port)
@@ -2927,6 +2991,8 @@ def main() -> int:
             print("\nHOUND TRANSCRIPT\n" + "\n".join(hound.transcript))
         if detective is not None:
             print("\nDETECTIVE TRANSCRIPT\n" + "\n".join(detective.transcript))
+        if lodging_detective is not None:
+            print("\nLODGING DETECTIVE TRANSCRIPT\n" + "\n".join(lodging_detective.transcript))
         if detective_trace is not None:
             print("\nDETECTIVE TRACE TRANSCRIPT\n" + "\n".join(detective_trace.transcript))
         if river_detective is not None:
@@ -2939,6 +3005,8 @@ def main() -> int:
             bridge_detective.close()
         if detective is not None:
             detective.close()
+        if lodging_detective is not None:
+            lodging_detective.close()
         if detective_trace is not None:
             detective_trace.close()
         if hound is not None:
