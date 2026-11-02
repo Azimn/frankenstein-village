@@ -1619,6 +1619,29 @@ from world.market_standards import verified_sources as _market_verified_sources
 assert _market_verified_sources(
     _market_live, _market_live["day"], warning_ledger.get_event
 ), "Signed Merchant and Smith receipts do not support the Chronicler attestation"
+# B10: re-read the real completed ledger after a genuine server stop/restart.
+# No synthetic receipt may turn an unverified signature into public fact.
+from world.market_standards import public_lines as _market_signed_public_lines
+_market_signed_text = " ".join(_market_signed_public_lines(
+    _market_live, _market_live["day"], warning_ledger.get_event,
+))
+assert "physically recalibrated" in _market_signed_text
+assert f"Merchant {merchant_tester.key}" in _market_signed_text
+assert f"Smith {smith_tester.key}" in _market_signed_text
+assert "attested both source events" in _market_signed_text
+
+def _market_missing_smith_source(event_id):
+    if event_id == _market_live["calibration"]["event_id"]:
+        return None
+    return warning_ledger.get_event(event_id)
+
+_market_hostile_text = " ".join(_market_signed_public_lines(
+    _market_live, _market_live["day"], _market_missing_smith_source,
+))
+assert "cannot be verified" in _market_hostile_text
+assert f"Smith {smith_tester.key} calibrated" not in _market_hostile_text
+assert "attested both source events" not in _market_hostile_text
+print("POST_RESTART_GDD_EDGE10_VERIFIED_PUBLIC_READBACK_GREEN")
 assert _market_live["attestation"]["review_event_id"] == _market_live["review"]["event_id"]
 assert _market_live["attestation"]["calibration_event_id"] == _market_live["calibration"]["event_id"]
 

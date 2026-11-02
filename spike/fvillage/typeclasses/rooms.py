@@ -62,10 +62,13 @@ class SpikeRoom(DefaultRoom):
             if line:
                 desc = f"{desc}\n{line}"
         if self.key == "Market Lane":
-            from world.market_standards import public_lines
-            from world.market_work import clock
-            day, _hour = clock()
-            desc = f"{desc}\n{public_lines(self.db.market_standards, day)[1]}"
+            from world.market_work import state_lines
+            # The room look must use the same ledger-verified status as trade
+            # and the physical scale. Do not call public_lines without the
+            # canonical event lookup and accidentally suppress valid work.
+            lines = state_lines().splitlines()
+            if len(lines) > 1:
+                desc = f"{desc}\n{lines[1]}"
         if self.key == "The Old Stone Bridge":
             from world.bridge_choices import public_line
             desc = f"{desc}\n{public_line(self.db.bridge_inquiry)}"

@@ -321,13 +321,165 @@ def verified_sources(raw, day, event_lookup):
     return True
 
 
-def public_lines(raw, day):
-    state = refresh(raw, day)
+def _signed_public_event(row, action, role, state, event_lookup):
+    """Recheck one persisted market decision against its completed world event.
+
+    This is read-only. Docket rows alone cannot establish public history, and
+    the existing world ledger remains the sole event authority.
+    """
+    if not isinstance(row, Mapping) or not callable(event_lookup):
+        return False
+    event_id = row.get("event_id")
+    if type(event_id) is not int or event_id < 1:
+        return False
+    try:
+        event = event_lookup(event_id)
+    except Exception:
+        return False
+    # Evennia's persistent Attribute containers can be SaverDict-style
+    # wrappers rather than collections.abc.Mapping instances. The existing
+    # canonical verified_sources verifier already accepts read-only get()
+    # containers; do not reject genuine completed events after persistence.
+    # All signed fields and physical consequences are still checked below.
+    if not hasattr(event, "get"):
+        return False
+    actor, payload, consequence = (
+        event.get("actor"), event.get("payload"), event.get("consequence")
+    )
+    if not all(hasattr(part, "get") for part in (actor, payload, consequence)):
+        return False
+    if any(type(row.get(key)) is not int for key in
+           ("account_id", "mask_id", "event_id", "day", "hour")):
+        return False
+    if not (row["account_id"] > 0 and row["mask_id"] > 0
+            and row["day"] > 0 and 0 <= row["hour"] < 24):
+        return False
+    if (type(event.get("id")) is not int or event["id"] != event_id
+            or event.get("kind") != "village.market_" + action
+            or event.get("status") != "complete"
+            or type(actor.get("account_id")) is not int
+            or actor["account_id"] != row["account_id"]
+            or type(actor.get("mask_id")) is not int
+            or actor["mask_id"] != row["mask_id"]
+            or actor.get("mask") != row.get("mask")
+            or payload.get("action") != action
+            or payload.get("professional_calling") != role
+            or payload.get("location") != "Market Lane"
+            or type(payload.get("day")) is not int
+            or payload["day"] != row["day"]
+            or type(payload.get("hour")) is not int
+            or payload["hour"] != row["hour"]
+            or consequence.get("action") != action):
+        return False
+    # Source links and finite holds describe the state at event commit time.
+    review = state.get("review")
+    calibration = state.get("calibration")
+    release = state.get("release")
+    expected_held = bool(
+        review and review.get("choice") == "hold"
+        and review["event_id"] <= event_id
+        and not (calibration and calibration["event_id"] <= event_id)
+        and not (release and release["event_id"] <= event_id)
+    )
+    if (type(consequence.get("market_distribution_held")) is not bool
+            or consequence["market_distribution_held"] is not expected_held):
+        return False
+    for link, source in (
+            ("review_event_id", review), ("calibration_event_id", calibration)):
+        if link not in consequence:
+            return False
+        expected = (
+            source["event_id"]
+            if source and source["event_id"] <= event_id else None
+        )
+        actual = consequence[link]
+        if expected is None:
+            if actual is not None:
+                return False
+        elif type(actual) is not int or actual != expected:
+            return False
+    return True
+
+
+def _verified_public_day(raw, event_lookup):
+    """Return only ledger-backed signatures, without changing saved history."""
+    state = normalize(raw)
+    safe = fresh(state["day"])
+    review = state["review"]
+    calibration = state["calibration"]
+    if review and _signed_public_event(
+            review, review["choice"], "merchant", state, event_lookup):
+        safe["review"] = review
+    if calibration and _signed_public_event(
+            calibration, "calibrate", "smith", state, event_lookup):
+        safe["calibration"] = calibration
+
+    release = state["release"]
+    if (release and safe["review"] and safe["review"]["choice"] == "hold"
+            and release["event_id"] > safe["review"]["event_id"]
+            and _signed_public_event(
+                release, "release", "merchant", state, event_lookup)):
+        safe["release"] = release
+
+    audit = state["audit"]
+    if (audit and safe["review"]
+            and audit["review_event_id"] == safe["review"]["event_id"]
+            and audit["review_choice"] == safe["review"]["choice"]
+            and audit["account_id"] != safe["review"]["account_id"]
+            and audit["event_id"] > safe["review"]["event_id"]
+            and audit["hour"] >= safe["review"]["hour"]
+            and _signed_public_event(
+                audit, "audit", "chronicler", state, event_lookup)):
+        safe["audit"] = audit
+
+    attestation = state["attestation"]
+    if (attestation and safe["review"] and safe["calibration"]
+            and len({safe["review"]["account_id"],
+                     safe["calibration"]["account_id"],
+                     attestation["account_id"]}) == 3
+            and attestation["event_id"] > max(
+                safe["review"]["event_id"], safe["calibration"]["event_id"])
+            and verified_sources(state, state["day"], event_lookup)
+            and _signed_public_event(
+                attestation, "attest", "chronicler", state, event_lookup)):
+        safe["attestation"] = attestation
+    return safe
+
+
+def public_lines(raw, day, event_lookup=None):
+    """Read-only public projection; unsupported signatures never become facts."""
+    original = refresh(raw, day)
+    state = _verified_public_day(original, event_lookup)
+    state["history"] = [
+        _verified_public_day(prior, event_lookup)
+        for prior in original["history"]
+    ]
+    unverified_current = any(
+        original[name] and not state[name]
+        for name in ("review", "calibration", "release", "audit", "attestation")
+    )
     lines = ["|wMarket Lane: standards and trades|n"]
     if state["day"] > int(day):
         lines.append("A later village record is already held; the clock cannot be rewound.")
         return lines
-    if suspended(state, day):
+    if unverified_current:
+        lines.append(
+            "Some saved market signatures cannot be verified against completed "
+            "world events. Unsupported public claims are withheld; the finite "
+            "material table and existing hold rules remain authoritative."
+        )
+    # A missing/forged Chronicler publication must not erase an independently
+    # verified Merchant decision or physical Smith calibration. Conversely,
+    # an unverified *core* market action cannot be used to infer the public
+    # scale condition from a partially filtered docket. The actual supply
+    # gate continues to use the original authoritative state.
+    core_unverified = any(
+        original[name] and not state[name]
+        for name in ("review", "calibration", "release")
+    )
+    if core_unverified:
+        pass  # The warning above is the only defensible scale status.
+    elif suspended(state, day):
         lines.append(
             "Distribution of civic construction kits is temporarily on hold. "
             "The Merchant challenged the crooked scale's disputed weights. "
