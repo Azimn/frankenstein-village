@@ -122,7 +122,10 @@ def verified_install(saved, get_event, *, kind, target_id, room_id,
             or saved["target_id"] != target_id
             or saved["target_room_id"] != room_id
             or not positive(day) or saved["day"] > day
-            or saved["smith_account_id"] == saved["source_account_id"]):
+            or saved["smith_account_id"] == saved["source_account_id"]
+            or not (saved["source_event_id"] < saved["install_event_id"]
+                    and saved["forge_event_id"] < saved["install_event_id"]
+                    and saved["source_event_id"] != saved["forge_event_id"])):
         return False
     install = _event(get_event, saved["install_event_id"],
                      "village.route_fitting_installed")
@@ -234,6 +237,7 @@ def verified_test(saved, test, get_event, *, cord_id, room_id, table_id, day):
         return False
     test = record(test)
     if (not positive(test.get("event_id"))
+            or test["event_id"] <= saved["install_event_id"]
             or test.get("install_event_id") != saved["install_event_id"]):
         return False
     event = _event(get_event, test["event_id"], "village.route_fitting_tested")
