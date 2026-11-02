@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import copy
 
+from django.db import transaction
 from evennia import create_object
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
 
-from world import soup_state, hearth_state
+from world import soup_state, hearth_state, soup_supply_edge04, arrival_hospitality, route_surveys
 from world.callings import active_calling, record_participation
-from world.events import publish_world_event
+from world.events import LEDGER_KEY, publish_world_event, get_event_ledger
 
 TAVERN = "The Blood of the Vine"
 MARKET = "Market Lane"
@@ -66,15 +67,29 @@ def pot_description():
         f"quality {done['quality']} (world event {done['cook_event_id']})."
         if done else " No player-made batch has been recorded."
     )
+    from world import kitchen_repair_work
+    arrival_line = ""
+    if any(getattr(row, "get", lambda _key: None)("arrival_welcome")
+           for row in state["history"]):
+        try:
+            # Read existing canonical evidence. Looking at the pot must never
+            # create a new world ledger or authenticate a mutable Attribute.
+            ledger = ScriptDB.objects.get(db_key=LEDGER_KEY)
+            arrival_line = arrival_hospitality.verified_public_welcome(
+                state["history"], ledger.get_event,
+            )
+        except (ScriptDB.DoesNotExist, AttributeError, TypeError, ValueError):
+            arrival_line = ""
     return (
         "A large, shared iron soup pot sits beside the Blood of the Vine's "
         "working kitchen fire. Bram's ordinary pantry renews each village day "
         "whether or not players are present; it is not anyone's private business. "
         f"Pantry day {state['day']}: {listed}. "
         f"The main hearth is {'warm' if fire else 'low'}."
-        + last +
+        + last + " " + kitchen_repair_work.status() + arrival_line +
         " Use soup prep <turnip|barley> <thyme|salt|pepper>, soup simmer, "
-        "soup notebook, or coordinate a Merchant delivery."
+        "soup notebook, soup receipt/publish/receipts for consented records, "
+        "soup accept after a Merchant handoff, or use signed solo soup deliver."
     )
 
 
@@ -157,6 +172,10 @@ def simmer(mask):
         return None, err
     if active_calling(mask) != "innkeep":
         return None, "An active Innkeep is needed to simmer a batch."
+    from world import kitchen_repair_work
+    pot = kitchen_repair_work._pot()
+    if not kitchen_repair_work.player_simmer_allowed(pot):
+        return None, "Player simmering is restricted until the real kitchen pot is repaired."
     packets = _held(mask, "soup_preparation")
     if not packets:
         return None, "Carry one real prepared packet; use soup prep first."
@@ -178,6 +197,13 @@ def simmer(mask):
         return None, "You already carry three soup bowls; serve or eat them first."
 
     def consequence(event):
+        # Recheck signed pot service when the world event is actually applied.
+        # A rollback between command preflight and consequence cannot cook.
+        if (mask.location != tavern
+                or active_calling(mask) != "innkeep"
+                or kitchen_repair_work._pot() != pot
+                or not kitchen_repair_work.player_simmer_allowed(pot)):
+            raise RuntimeError("The physical kitchen pot is not cleared for player simmering.")
         if packet.location != mask or not packet.db.soup_preparation:
             raise RuntimeError("The reserved ingredients were moved or consumed.")
         bowl = create_object(
@@ -235,6 +261,148 @@ def simmer(mask):
     return {"event_id": event["id"], **recipe}, None
 
 
+
+def welcome(mask, guest_name):
+    """Give one genuinely cooked bowl to a separately signed returning Wanderer.
+
+    The source is the original daily Square route record and completed world
+    event, not a story about a traveler. The Tavern's existing cooked-batch
+    history is the only hospitality receipt store.
+    """
+    tavern, error = _access(mask, TAVERN)
+    if error:
+        return None, error
+    if active_calling(mask) != "innkeep":
+        return None, "An active Innkeep must offer a real cooked serving."
+    guests = [
+        obj for obj in tavern.contents
+        if obj is not mask and obj.key.casefold() == guest_name.casefold()
+        and getattr(obj, "account", None) is not None
+    ]
+    if len(guests) != 1:
+        return None, "The named guest must be physically present in the Tavern."
+    guest = guests[0]
+    if guest.account.id == mask.account.id:
+        return None, "Hospitality requires a different player's account."
+    try:
+        if not guest.account.sessions.all():
+            return None, "The returning Wanderer must be connected in the Tavern."
+    except (AttributeError, TypeError):
+        return None, "The returning Wanderer must be connected in the Tavern."
+    if active_calling(guest) != "wanderer":
+        return None, "This arrival service requires an active Wanderer."
+    bowls = [
+        obj for obj in _held(mask, "soup_serving")
+        if int(getattr(obj.db, "servings", 0) or 0) == 1
+    ]
+    if not bowls:
+        return None, "Cook and carry a real uneaten soup bowl before welcoming a traveler."
+    bowl = bowls[0]
+    serving = dict(bowl.db.soup_serving or {})
+    if serving.get("maker_id") != mask.id:
+        return None, "The Innkeep must offer a bowl they actually cooked."
+    if not bowl.tags.has("food") or not bowl.tags.has("consumable"):
+        return None, "The offered object is not an edible soup serving."
+    square = _room("Village Square")
+    if square is None:
+        return None, "The original public route record is missing."
+    day, hour = _clock()
+    route_state = route_surveys.refresh(square.db.daily_route_survey, day)
+    if route_state["day"] != day:
+        return None, "The route record is dated later than the arrival."
+    entry = dict(route_state["field_decisions"].get("wanderer") or {})
+    route_id = entry.get("event_id")
+    ledger = get_event_ledger()
+    route_event = ledger.get_event(route_id) if type(route_id) is int else None
+    cook_id = serving.get("event_id")
+    bowl_event = ledger.get_event(cook_id) if type(cook_id) is int else None
+    if (not bowl_event or not hasattr(bowl_event.get("consequence"), "get")
+            or not hasattr(bowl_event.get("payload"), "get")
+            or bowl_event["consequence"].get("bowl_id") != bowl.id
+            or serving.get("prep_event_id")
+            != bowl_event["payload"].get("prep_event_id")):
+        return None, "The physical bowl has no matching signed cooking source."
+    kwargs = {
+        "day": day, "hour": hour,
+        "innkeep_account_id": mask.account.id, "innkeep_mask_id": mask.id,
+        "wanderer_account_id": guest.account.id, "wanderer_mask_id": guest.id,
+        "wanderer_mask": guest.key, "route_entry": entry,
+        "route_event": route_event, "bowl_event": bowl_event,
+        "bowl_id": bowl.id, "square_room_id": square.id,
+        "tavern_room_id": tavern.id,
+    }
+    if (type(route_id) is not int or route_id < 1
+            or type(cook_id) is not int or cook_id < 1):
+        return None, "Both route and cooked-bowl sources need signed event IDs."
+    # A real first route event may be ID 1. Preflight is not a ledger write.
+    preview_event_id = max(route_id, cook_id) + 1
+    _preview, okay, reason = arrival_hospitality.welcome(
+        tavern.db.soup_pantry, event_id=preview_event_id, **kwargs,
+    )
+    if not okay:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            if (_clock() != (day, hour) or mask.location != tavern
+                    or guest.location != tavern or bowl.location != mask
+                    or not mask.account or not guest.account
+                    or mask.account.id == guest.account.id
+                    or active_calling(mask) != "innkeep"
+                    or active_calling(guest) != "wanderer"
+                    or int(bowl.db.servings or 0) != 1
+                    or dict(bowl.db.soup_serving or {}) != serving
+                    or not bowl.tags.has("food")
+                    or not bowl.tags.has("consumable")):
+                raise RuntimeError("The physical guest, serving or village time changed.")
+            try:
+                if not guest.account.sessions.all():
+                    raise RuntimeError("The returning Wanderer disconnected.")
+            except (AttributeError, TypeError):
+                raise RuntimeError("The returning Wanderer disconnected.")
+            fresh_route = route_surveys.refresh(square.db.daily_route_survey, day)
+            if fresh_route["day"] != day:
+                raise RuntimeError("The route record changed before the welcome.")
+            current_entry = dict(fresh_route["field_decisions"].get("wanderer") or {})
+            current_id = current_entry.get("event_id")
+            current_route = ledger.get_event(current_id) if type(current_id) is int else None
+            current_bowl = ledger.get_event(serving.get("event_id"))
+            changed, accepted, why = arrival_hospitality.welcome(
+                tavern.db.soup_pantry, event_id=event["id"],
+                **{**kwargs, "route_entry": current_entry,
+                   "route_event": current_route, "bowl_event": current_bowl},
+            )
+            if not accepted:
+                raise RuntimeError(why)
+            if not bowl.move_to(guest, quiet=True):
+                raise RuntimeError("The real soup bowl could not be handed over.")
+            tavern.db.soup_pantry = changed
+            return {
+                "tavern_room_id": tavern.id, "bowl_id": bowl.id,
+                "route_event_id": current_entry["event_id"],
+                "cook_event_id": serving["event_id"],
+                "wanderer_account_id": guest.account.id,
+                "innkeep_account_id": mask.account.id,
+                "service": "physical_bowl_transferred",
+            }
+
+    event = publish_world_event(
+        "professional.innkeep_wanderer_arrival_welcome", actor=mask,
+        payload={
+            "day": day, "hour": hour, "tavern_room_id": tavern.id,
+            "guest_mask_id": guest.id, "guest_account_id": guest.account.id,
+            "route_event_id": route_id, "cook_event_id": cook_id,
+            "bowl_id": bowl.id, "harbinger": False,
+            "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    record_participation(mask, "arrival_hospitality", calling="innkeep")
+    return {
+        "event_id": event["id"], "guest": guest.key,
+        "route_event_id": route_id, "bowl_id": bowl.id,
+    }, None
+
 def procure(mask):
     market, err = _access(mask, MARKET)
     if err:
@@ -257,6 +425,8 @@ def procure(mask):
             "day": day, "market_id": market.id,
             "procurement_event_id": event["id"],
             "merchant_id": mask.id,
+            "merchant_account_id": mask.account.id,
+            "merchant": mask.key,
         }
         crate.db.desc = (
             "A real crate with two turnip portions for the Blood of the Vine. "
@@ -269,6 +439,7 @@ def procure(mask):
     event = publish_world_event(
         "professional.merchant_kitchen_procurement", actor=mask,
         payload={"day": day, "hour": hour, "market_room_id": market.id,
+                 "professional_calling": "merchant",
                  "chronicle_eligible": False, "harbinger": False},
         consequence=consequence)
     record_participation(mask, "kitchen_procurements", calling="merchant")
@@ -276,36 +447,274 @@ def procure(mask):
             "remaining": next_stock["remaining"]}, None
 
 
-def deliver(mask):
+def _verified_crate(mask, crate, *, day, distinct):
+    """Resolve the source from the canonical ledger, never from item claims."""
+    raw = crate.db.soup_delivery
+    try:
+        source_id = dict(raw or {}).get("procurement_event_id")
+    except (TypeError, ValueError):
+        return None, "The crate has no valid procurement receipt."
+    if type(source_id) is not int or source_id <= 0:
+        return None, "The crate has no signed procurement event."
+    market = _room(MARKET)
+    if market is None:
+        return None, "The original market authority is unavailable."
+    source = get_event_ledger().get_event(source_id)
+    account = getattr(mask, "account", None)
+    okay, reason = soup_supply_edge04.verify_procurement(
+        source, raw, crate_id=crate.id, market_id=market.id, day=day,
+        receiving_account_id=getattr(account, "id", None),
+        require_distinct=distinct,
+    )
+    return (source, None) if okay else (None, reason)
+
+
+def _complete_delivery(mask, *, professional):
     tavern, err = _access(mask, TAVERN)
     if err:
         return None, err
+    if professional and active_calling(mask) != "innkeep":
+        return None, "An active Innkeep must accept a Merchant's kitchen crate."
     crates = _held(mask, "soup_delivery")
     if not crates:
         return None, "Bring a physical kitchen root crate from Market Lane."
+    if len(crates) != 1:
+        return None, "Carry exactly one kitchen root crate for a receipt."
     crate = crates[0]
     day, hour = _clock()
-    result, okay = soup_state.deliver(tavern.db.soup_pantry, day)
+    source, reason = _verified_crate(
+        mask, crate, day=day, distinct=professional
+    )
+    if reason:
+        return None, reason
+    proposed, okay = soup_state.deliver(tavern.db.soup_pantry, day)
     if not okay:
         return None, "The pantry already has enough turnips for now."
-    source = dict(crate.db.soup_delivery or {})
-    if day < int(source.get("day") or 0):
-        return None, "The crate's procurement lies in the future."
 
     def consequence(event):
-        if crate.location != mask or not crate.db.soup_delivery:
-            raise RuntimeError("The delivery crate was moved or consumed.")
-        tavern.db.soup_pantry = result
-        crate.delete()
-        return {"turnip_stock": result["stock"]["turnip"],
-                "procurement_event_id": source.get("procurement_event_id")}
+        # Both stock and physical custody are checked again under the same
+        # database transaction. A stale preflight must never mint produce.
+        with transaction.atomic():
+            if crate.location != mask or not crate.db.soup_delivery:
+                raise RuntimeError("The kitchen crate was moved or consumed.")
+            if mask.location != tavern:
+                raise RuntimeError("The courier left the tavern.")
+            if professional and active_calling(mask) != "innkeep":
+                raise RuntimeError("The receiving Innkeep changed Calling.")
+            checked, problem = _verified_crate(
+                mask, crate, day=day, distinct=professional
+            )
+            if problem or checked["id"] != source["id"]:
+                raise RuntimeError(problem or "The source changed during receipt.")
+            current, valid = soup_state.deliver(tavern.db.soup_pantry, day)
+            if not valid:
+                raise RuntimeError("The pantry has no remaining capacity.")
+            tavern.db.soup_pantry = current
+            consumed_crate_id = crate.id
+            crate.delete()
+            return {
+                "turnip_stock": current["stock"]["turnip"],
+                "procurement_event_id": source["id"],
+                "merchant_account_id": source["actor"]["account_id"],
+                "receiving_account_id": mask.account.id,
+                "crate_id": consumed_crate_id, "pantry_room_id": tavern.id,
+            }
 
     event = publish_world_event(
-        "village.kitchen_delivery", actor=mask,
-        payload={"day": day, "hour": hour,
-                 "crate_id": crate.id,
-                 "procurement_event_id": source.get("procurement_event_id"),
-                 "chronicle_eligible": False, "harbinger": False},
-        consequence=consequence)
+        "professional.innkeep_kitchen_acceptance" if professional
+        else "village.kitchen_delivery",
+        actor=mask,
+        payload={
+            "day": day, "hour": hour, "crate_id": crate.id,
+            "procurement_event_id": source["id"],
+            "merchant_account_id": source["actor"]["account_id"],
+            "professional_calling": "innkeep" if professional else None,
+            "pantry_room_id": tavern.id,
+            "chronicle_eligible": False, "harbinger": False,
+        },
+        consequence=consequence,
+    )
+    if professional:
+        record_participation(mask, "kitchen_acceptances", calling="innkeep")
     return {"event_id": event["id"],
-            "turnips": result["stock"]["turnip"]}, None
+            "source_event_id": source["id"],
+            "turnips": event["consequence"]["turnip_stock"]}, None
+
+
+def accept(mask):
+    """Independent Innkeep receipt after a Merchant physically gives a crate."""
+    return _complete_delivery(mask, professional=True)
+
+
+def deliver(mask):
+    """Ordinary solo/courier fallback with the same signed-source safeguards."""
+    return _complete_delivery(mask, professional=False)
+
+
+def _receipt_sources(batch_id, tavern, day):
+    from world.events import get_event_ledger
+    state = soup_state.pantry(tavern.db.soup_pantry, day)
+    row = next(
+        (item for item in state["history"]
+         if item.get("cook_event_id") == batch_id), None
+    )
+    if row is None:
+        return state, None, None, None, None
+    ledger = get_event_ledger()
+    cooked = ledger.get_event(batch_id)
+    prepared = ledger.get_event(row["prep_event_id"])
+    consent = row.get("consent") or {}
+    consent_event = ledger.get_event(consent["event_id"]) if consent else None
+    return state, row, cooked, prepared, consent_event
+
+
+def _receipt_batch_id(tavern, day, requested):
+    state = soup_state.pantry(tavern.db.soup_pantry, day)
+    if requested is not None:
+        try:
+            value = int(requested)
+        except (TypeError, ValueError):
+            return None
+        return value if value > 0 else None
+    return state["history"][-1]["cook_event_id"] if state["history"] else None
+
+
+def receipt_lines(mask):
+    tavern, error = _access(mask, TAVERN)
+    if error:
+        return error
+    from world.soup_receipts import public_lines
+    day, _hour = _clock()
+    return public_lines(tavern.db.soup_pantry, day)
+
+
+def authorize_house_receipt(mask, requested=None):
+    """The actual cooking Innkeep explicitly releases only batch facts."""
+    tavern, error = _access(mask, TAVERN)
+    if error:
+        return None, error
+    if active_calling(mask) != "innkeep":
+        return None, "An active Innkeep must authorize the house receipt."
+    from world import soup_receipts
+    from world.events import get_event_ledger
+    from django.db import transaction
+    day, hour = _clock()
+    batch_id = _receipt_batch_id(tavern, day, requested)
+    if batch_id is None:
+        return None, "Cook a real batch first or supply its cooking event ID."
+    state, row, cooked, prepared, _consent = _receipt_sources(
+        batch_id, tavern, day
+    )
+    if row is None:
+        return None, "No such cooked batch is in the tavern pantry."
+    actor = {
+        "account_id": mask.account.id, "mask_id": mask.id, "mask": mask.key,
+    }
+    trial_id = max(batch_id + 1, int(get_event_ledger().db.next_event_id or 1))
+    _trial, _receipt, problem = soup_receipts.authorize(
+        state, batch_id=batch_id, actor=actor, day=day, hour=hour,
+        event_id=trial_id, cooked=cooked, prepared=prepared,
+    )
+    if problem:
+        return None, problem
+
+    def consequence(event):
+        with transaction.atomic():
+            refreshed, current, actual_cooked, actual_prepared, _ = (
+                _receipt_sources(batch_id, tavern, day)
+            )
+            if mask.location != tavern or active_calling(mask) != "innkeep":
+                raise RuntimeError("The authorizing Innkeep left the kitchen.")
+            changed, receipt, reason = soup_receipts.authorize(
+                refreshed, batch_id=batch_id, actor=actor, day=day,
+                hour=hour, event_id=event["id"], cooked=actual_cooked,
+                prepared=actual_prepared,
+            )
+            if reason:
+                raise RuntimeError(reason)
+            tavern.db.soup_pantry = changed
+            return {"cook_event_id": batch_id, "scope": receipt["scope"]}
+
+    event = publish_world_event(
+        "professional.innkeep_house_receipt_disclosed", actor=mask,
+        payload={
+            "cook_event_id": batch_id, "day": day, "hour": hour,
+            "scope": "public_kitchen_batch_only",
+            "chronicle_eligible": False, "harbinger": False,
+        },
+        consequence=consequence,
+    )
+    record_participation(mask, "house_receipts_disclosed", calling="innkeep")
+    return {"event_id": event["id"], "cook_event_id": batch_id}, None
+
+
+def publish_house_receipt(mask, requested=None):
+    """An independent Chronicler signs a bounded public kitchen account."""
+    tavern, error = _access(mask, TAVERN)
+    if error:
+        return None, error
+    if active_calling(mask) != "chronicler":
+        return None, "An active Chronicler must publish a house receipt."
+    from world import soup_receipts
+    from world.events import get_event_ledger
+    from django.db import transaction
+    day, hour = _clock()
+    batch_id = _receipt_batch_id(tavern, day, requested)
+    if batch_id is None:
+        return None, "No cooked batch is available for publication."
+    state, row, cooked, prepared, consent_event = _receipt_sources(
+        batch_id, tavern, day
+    )
+    if row is None:
+        return None, "No such cooked batch is in the tavern pantry."
+    actor = {
+        "account_id": mask.account.id, "mask_id": mask.id, "mask": mask.key,
+    }
+    trial_id = max(
+        batch_id + 1, int(get_event_ledger().db.next_event_id or 1)
+    )
+    _trial, _published, problem = soup_receipts.publish(
+        state, batch_id=batch_id, actor=actor, day=day, hour=hour,
+        event_id=trial_id, cooked=cooked, prepared=prepared,
+        consent_event=consent_event,
+    )
+    if problem:
+        return None, problem
+
+    def consequence(event):
+        with transaction.atomic():
+            refreshed, current, actual_cooked, actual_prepared, actual_consent = (
+                _receipt_sources(batch_id, tavern, day)
+            )
+            if mask.location != tavern or active_calling(mask) != "chronicler":
+                raise RuntimeError("The publishing Chronicler left the tavern.")
+            changed, published, reason = soup_receipts.publish(
+                refreshed, batch_id=batch_id, actor=actor, day=day,
+                hour=hour, event_id=event["id"], cooked=actual_cooked,
+                prepared=actual_prepared, consent_event=actual_consent,
+            )
+            if reason:
+                raise RuntimeError(reason)
+            tavern.db.soup_pantry = changed
+            return {
+                "cook_event_id": batch_id,
+                "consent_event_id": published["consent_event_id"],
+                "scope": published["scope"],
+            }
+
+    event = publish_world_event(
+        "professional.chronicler_house_receipt_published", actor=mask,
+        payload={
+            "cook_event_id": batch_id,
+            "consent_event_id": row["consent"]["event_id"],
+            "day": day, "hour": hour,
+            "scope": "public_kitchen_batch_only",
+            "chronicle_eligible": False, "harbinger": False,
+        },
+        consequence=consequence,
+    )
+    record_participation(mask, "house_receipts_published", calling="chronicler")
+    return {
+        "event_id": event["id"], "cook_event_id": batch_id,
+        "consent_event_id": row["consent"]["event_id"],
+    }, None
