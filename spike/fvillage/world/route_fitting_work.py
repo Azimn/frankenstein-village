@@ -303,8 +303,10 @@ def test_cord(mask):
         latest = dict(mask.db.landmark_latest_view or {}).get("red_cord") or {}
     except (TypeError, ValueError):
         latest = {}
-    if latest.get("day") != day:
-        return None, "Examine the original red cord here today first."
+    if not route_fittings.verified_post_install_view(
+            latest, day=day, hour=hour, install_hour=saved["hour"],
+            install_event_id=saved["install_event_id"], cord_id=cord.id):
+        return None, "Examine the original repaired red cord after installation."
     account_id = mask.account.id
     install_id = saved["install_event_id"]
 
@@ -321,8 +323,10 @@ def test_cord(mask):
                 recent = dict(mask.db.landmark_latest_view or {}).get("red_cord") or {}
             except (TypeError, ValueError):
                 recent = {}
-            if recent.get("day") != day:
-                raise RuntimeError("The Hound's physical inspection changed.")
+            if not route_fittings.verified_post_install_view(
+                    recent, day=day, hour=hour, install_hour=saved["hour"],
+                    install_event_id=install_id, cord_id=cord.id):
+                raise RuntimeError("The Hound's postrepair physical inspection changed.")
             cord.db.route_fitting_test = {
                 "event_id": event["id"], "install_event_id": install_id}
             record_participation(mask, "route_fittings_tested", calling="hound")
