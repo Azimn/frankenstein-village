@@ -135,6 +135,24 @@ class RouteFittingProofTests(unittest.TestCase):
                     changed = dict(state, **{field: value})
                     self.assertFalse(verify(changed, events))
 
+    def test_original_sources_and_forge_must_precede_installed_event_id(self):
+        for kind in f.KINDS:
+            state, events = fixture(kind)
+            late_source = copy.deepcopy(events)
+            late_source[31] = copy.deepcopy(late_source.pop(10))
+            late_source[31]["id"] = 31
+            if kind == "span":
+                late_source[31]["consequence"]["witness_event_id"] = 31
+            late_source[30]["payload"]["source_event_id"] = 31
+            late_source[30]["consequence"]["source_event_id"] = 31
+            self.assertFalse(verify(dict(state, source_event_id=31), late_source))
+            late_forge = copy.deepcopy(events)
+            late_forge[32] = copy.deepcopy(late_forge.pop(20))
+            late_forge[32]["id"] = 32
+            late_forge[30]["payload"]["forge_event_id"] = 32
+            late_forge[30]["consequence"]["forge_event_id"] = 32
+            self.assertFalse(verify(dict(state, forge_event_id=32), late_forge))
+
     def test_finite_stock_conserves_two_units_and_refuses_rewind(self):
         for kind in f.KINDS:
             state, error = f.withdraw(None, 4, kind)
@@ -201,6 +219,11 @@ class RouteFittingProofTests(unittest.TestCase):
         row = {"event_id": 40, "install_event_id": 30}
         kwargs = dict(cord_id=401, room_id=402, table_id=900, day=4)
         self.assertTrue(f.verified_test(state, row, events.get, **kwargs))
+        earlier = copy.deepcopy(events)
+        earlier[29] = copy.deepcopy(earlier.pop(40))
+        earlier[29]["id"] = 29
+        self.assertFalse(f.verified_test(
+            state, dict(row, event_id=29), earlier.get, **kwargs))
         for event_id, group, key, value in (
             (40, None, "status", "consequence_failed"),
             (40, "actor", "account_id", 7),
