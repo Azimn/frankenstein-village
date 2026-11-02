@@ -206,6 +206,26 @@ def verified_install(saved, get_event, *, kind, target_id, room_id,
     )
 
 
+def verified_post_install_view(latest, *, day, hour, install_hour,
+                               install_event_id, cord_id):
+    """Require a firsthand view of this exact installed physical cord.
+
+    A look at the original hazard before Smith installation cannot count
+    as an inspection of the repaired object, even within the same hour.
+    """
+    latest = record(latest)
+    return bool(
+        positive(day) and hour_valid(hour) and hour_valid(install_hour)
+        and positive(install_event_id) and positive(cord_id)
+        and type(latest.get("day")) is int and latest["day"] == day
+        and hour_valid(latest.get("hour"))
+        and install_hour <= latest["hour"] <= hour
+        and type(latest.get("route_fitting_install_event_id")) is int
+        and latest["route_fitting_install_event_id"] == install_event_id
+        and type(latest.get("route_fitting_cord_id")) is int
+        and latest["route_fitting_cord_id"] == cord_id
+    )
+
 def verified_test(saved, test, get_event, *, cord_id, room_id, table_id, day):
     if not verified_install(saved, get_event, kind="cord", target_id=cord_id,
                             room_id=room_id, table_id=table_id, day=day):
