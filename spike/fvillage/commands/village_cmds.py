@@ -1742,6 +1742,8 @@ class CmdMystery(Command):
         mystery
         mystery manor
         mystery bridge
+        mystery bridge examine  (Detective at the plaque)
+        mystery bridge publish  (Chronicler in Village Square)
     """
 
     key = "mystery"
@@ -1759,6 +1761,23 @@ class CmdMystery(Command):
         )
 
         arg = (self.args or "").strip()
+        if arg.lower() == "bridge examine":
+            from world.public_mysteries import examine_bridge_case
+            event, error = examine_bridge_case(self.caller)
+            self.caller.msg(error or (
+                f"Detective examination event {event['id']} signed from "
+                "firsthand physical marks. No culprit is established."
+            ))
+            return
+        if arg.lower() == "bridge publish":
+            from world.public_mysteries import publish_bridge_case
+            event, error = publish_bridge_case(self.caller)
+            self.caller.msg(error or (
+                f"Chronicler case bulletin event {event['id']} published "
+                "with the signed independent Detective source. "
+                "The culprit remains unknown."
+            ))
+            return
         stable_id = MANOR_LIGHTS_ID if not arg else resolve_subject(arg)
         if not stable_id:
             self.caller.msg(
