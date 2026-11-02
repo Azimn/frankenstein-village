@@ -47,16 +47,19 @@ def state_lines():
     if not room:
         return "The Market Lane standards board is missing."
     day, _hour = clock()
-    lines = market_standards.public_lines(room.db.market_standards, day)
+    # Resolve the existing canonical ledger once, read-only. An absent ledger
+    # cannot turn stored market signatures into public evidence.
+    try:
+        ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+    except ScriptDB.DoesNotExist:
+        ledger = None
+    lines = market_standards.public_lines(
+        room.db.market_standards, day,
+        event_lookup=ledger.get_event if ledger else None,
+    )
     scale = next((o for o in room.contents if o.key == SCALE
                   and o.db.landmark_id == "market_scale"), None)
     if scale:
-        # Public readback must never create a missing ledger or trust a stored
-        # row without the original completed Smith and Detective events.
-        try:
-            ledger = ScriptDB.objects.get(db_key="world_event_ledger")
-        except ScriptDB.DoesNotExist:
-            ledger = None
         lines.append(forensic_scale.public_lines(
             scale.db.forensic_inspections, day,
             event_lookup=ledger.get_event if ledger else None,
