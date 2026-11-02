@@ -32,9 +32,9 @@ def _clock():
 
 
 def _cord(room):
-    return next((obj for obj in room.contents
-                 if obj.key == CORD and getattr(obj.db, "landmark_id", None) == "red_cord"),
-                None)
+    # A same-key decoy cannot be selected, and two marked originals are
+    # ambiguous even if either has a superficially valid signed event.
+    return refuge_state.select_original_cord(room, key=CORD)
 
 
 def dispatch(mask):
@@ -76,7 +76,8 @@ def dispatch(mask):
 
     def consequence(event):
         with transaction.atomic():
-            if mask.location != room or cord.location != room:
+            if (mask.location != room or cord.location != room
+                    or _cord(room) is not cord):
                 raise RuntimeError("The Hound or original cord left the scene.")
             if not refuge_state.same_actor(
                     getattr(getattr(mask, "account", None), "id", None),
@@ -197,6 +198,7 @@ def serve(mask, hound_name):
         with transaction.atomic():
             if (mask.location != tavern or hound.location != tavern
                     or item.location != hound or cord.location != cord_room
+                    or _cord(cord_room) is not cord
                     or active_calling(mask) != "innkeep"
                     or active_calling(hound) != "hound"
                     or _clock() != (day, hour)):
