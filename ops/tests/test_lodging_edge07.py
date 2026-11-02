@@ -236,6 +236,56 @@ class LodgingEdge07Tests(unittest.TestCase):
         self.assertIn("No independent Detective inquiry", rendered)
         self.assertNotIn("Independent qualified inquiry: signed", rendered)
 
+    def test_first_real_event_id_one_allows_independent_detective_preview(self):
+        # The first completed Innkeep event in a clean Evennia ledger can be 1.
+        first, okay, error = rules.disclose(
+            None, **worker(event=1))
+        self.assertTrue(okay, error)
+        before = copy.deepcopy(first)
+        self.assertEqual(rules.preview_event_id(first), 2)
+        # Reproduce the old adapter's fixed-ID preview failure.
+        _, okay, error = rules.inquire(
+            first, **inquiry(event=1, source=1))
+        self.assertFalse(okay)
+        self.assertIn("already used", error)
+        # The new adapter must use the pure, non-reserving preview ID.
+        preview, okay, error = rules.inquire(
+            first, **inquiry(event=rules.preview_event_id(first), source=1))
+        self.assertTrue(okay, error)
+        self.assertEqual(first, before)
+        self.assertEqual(preview["records"][0]["inquiry"]["event_id"], 2)
+        self.assertEqual(rules.preview_event_id(preview), 3)
+        # The actual ledger may assign any distinct later ID at consequence.
+        committed, okay, error = rules.inquire(
+            first, **inquiry(event=57, source=1))
+        self.assertTrue(okay, error)
+        self.assertEqual(committed["records"][0]["inquiry"]["event_id"], 57)
+        self.assertEqual(rules.preview_event_id(committed), 58)
+
+    def test_preview_preserves_daily_limit_and_clock_guards(self):
+        self.assertEqual(rules.preview_event_id(None), 1)
+        later, okay, error = rules.disclose(
+            self.state, **worker(day=2, hour=18, event=101))
+        self.assertTrue(okay, error)
+        self.assertEqual(rules.preview_event_id(later), 102)
+        _, okay, error = rules.disclose(
+            self.state, **worker(event=rules.preview_event_id(self.state),
+                                 hour=19))
+        self.assertFalse(okay)
+        self.assertIn("already authorized", error)
+        _, okay, error = rules.inquire(
+            self.state, **inquiry(
+                event=rules.preview_event_id(self.state), hour=17))
+        self.assertFalse(okay)
+        self.assertIn("rewound", error)
+
+    def test_adapter_does_not_use_fixed_preview_event_id(self):
+        adapter = (Path(__file__).resolve().parents[2] /
+                   "spike/fvillage/world/lodging_work.py").read_text()
+        self.assertIn("lodging_state.preview_event_id(", adapter)
+        self.assertIn("event_id=preview_id", adapter)
+        self.assertNotIn("event_id=1,", adapter)
+
     def test_one_disclosure_per_day_is_finite(self):
         before = copy.deepcopy(self.state)
         after, okay, error = rules.disclose(
