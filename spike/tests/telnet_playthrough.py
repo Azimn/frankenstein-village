@@ -118,6 +118,7 @@ def main() -> int:
     mystic = None
     performer = None
     stage_smith = None
+    stage_detective = None
     wanderer = None
     hound = None
     clinic_detective = None
@@ -1455,6 +1456,49 @@ def main() -> int:
         out = performer.command("agent")
         assert agent_json(out)["commands"]["public_stage"] == "stage"
         print("TELNET_RENEWABLE_PERFORMER_AND_REAL_AUDIENCE_GREEN")
+
+        # EDGE-40: an independently authenticated Detective arrives only
+        # after the actual show. Inspecting the platform cannot turn this
+        # late arrival into an audience witness or an automatic alibi.
+        out = performer.command("stage investigate")
+        require(out, "only an active detective")
+        stage_detective = Client(args.host, args.port)
+        require(stage_detective.sync_login_screen(), "frankenstein village")
+        out = stage_detective.command(
+            f"connect qa_detective_stage {os.environ['FV_QA_REPAIR_PASSWORD']}",
+            wait=4.0,
+        )
+        require(out, "connected", "account qa_detective_stage")
+        stage_detective.command("charcreate StageDetectiveTester", wait=3.0)
+        out = stage_detective.command("ic StageDetectiveTester", wait=4.0)
+        require(out, "private room")
+        out = stage_detective.command("calling choose detective")
+        require(out, "detective is now your active calling")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("east", "blood of the vine"),
+        ):
+            out = stage_detective.command(move)
+            require(out, destination)
+        out = stage_detective.command("look performance platform")
+        require_all(out, "raised wooden stage", "stage investigate")
+        out = stage_detective.command("stage witness")
+        require(out, "only an audience member present for the actual performance")
+        out = stage_detective.command("stage investigate")
+        require_all(out, "independent detective timeline",
+                    "performance source", "2 verified audience witness",
+                    "does not prove an alibi")
+        out = stage_detective.command("stage investigate")
+        require(out, "already investigated")
+        out = stage_detective.command("stage")
+        require_all(out, "1 independent detective stage inquiry",
+                    "stagedetectivetester", "not proof of an alibi")
+        out = performer.command("stage")
+        require_all(out, "2 other player account", "1 independent detective")
+        print("TELNET_GDD_EDGE40_INDEPENDENT_SIGNED_STAGE_INQUIRY_GREEN")
+        stage_detective.close()
+        stage_detective = None
+
 
         # The Healer's return generated an unsolicited room-arrival broadcast
         # for the Innkeep. Drain that queued notification before requesting
@@ -3046,6 +3090,8 @@ def main() -> int:
             print("\nSTAGE SMITH TRANSCRIPT\n" + "\n".join(stage_smith.transcript))
         if performer is not None:
             print("\nPERFORMER TRANSCRIPT\n" + "\n".join(performer.transcript))
+        if stage_detective is not None:
+            print("\nSTAGE DETECTIVE TRANSCRIPT\n" + "\n".join(stage_detective.transcript))
         if wanderer is not None:
             print("\nWANDERER TRANSCRIPT\n" + "\n".join(wanderer.transcript))
         if hound is not None:
@@ -3062,6 +3108,8 @@ def main() -> int:
             print("\nRIVER DETECTIVE TRANSCRIPT\n" + "\n".join(river_detective.transcript))
         raise
     finally:
+        if stage_detective is not None:
+            stage_detective.close()
         if clinic_detective is not None:
             clinic_detective.close()
         if river_detective is not None:

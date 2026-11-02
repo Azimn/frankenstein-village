@@ -88,7 +88,7 @@ class MasterGDDProgramTests(unittest.TestCase):
             with self.subTest(string=string):
                 self.assertIn(string,self.plan)
 
-    def test_source_pair_register_has_all_45_with_evidence_unverified(self):
+    def test_source_pair_register_preserves_candidate_evidence_without_acceptance(self):
         register=json.loads(
             (ROOT/"ops/MASTER_GDD_45_EDGE_REGISTER_2026-10-25.json").read_text(encoding="utf-8")
         )
