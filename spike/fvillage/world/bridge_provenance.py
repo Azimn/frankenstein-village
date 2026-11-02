@@ -198,7 +198,14 @@ def verified_state(raw, get_event, *, bridge_room_id=None):
     seen_ids = set()
     seen_account_days = set()
     valid = True
-    for raw_check in list(original.get("checks") or [])[-bridge_choices.MAX_CHECKS:]:
+    saved_checks = original.get("checks") or []
+    if isinstance(saved_checks, (str, bytes)) or hasattr(saved_checks, "get"):
+        return safe, False
+    try:
+        checks = list(saved_checks)
+    except (TypeError, ValueError):
+        return safe, False
+    for raw_check in checks[-bridge_choices.MAX_CHECKS:]:
         check = _get(raw_check)
         signature = (check.get("account_id"), check.get("day"))
         event_id = check.get("event_id")
