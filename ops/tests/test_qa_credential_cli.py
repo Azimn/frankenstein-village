@@ -76,6 +76,30 @@ class TestTelnetReadQuiet(unittest.TestCase):
             server_sock.close()
 
 
+    def test_no_reply_waits_full_budget_and_does_not_invent_success(self):
+        """An open socket with no server response is a bounded failure, not success."""
+        path = Path(__file__).resolve().parents[2] / "spike/tests/telnet_playthrough.py"
+        telnet_spec = importlib.util.spec_from_file_location("fv_telnet_no_reply", path)
+        telnet = importlib.util.module_from_spec(telnet_spec)
+        telnet_spec.loader.exec_module(telnet)
+        client_sock, server_sock = socket.socketpair()
+        client_sock.settimeout(0.05)
+        client = telnet.Client.__new__(telnet.Client)
+        client.sock = client_sock
+        client.transcript = []
+        try:
+            started = time.monotonic()
+            response = client.read_quiet(max_wait=0.5, quiet=0.1)
+            elapsed = time.monotonic() - started
+            self.assertEqual(response, "")
+            self.assertGreaterEqual(elapsed, 0.45)
+            self.assertLess(elapsed, 2.0)
+            self.assertEqual(client.transcript, [])
+        finally:
+            client_sock.close()
+            server_sock.close()
+
+
 class TestEvenniaReplayCleanup(unittest.TestCase):
     def test_cleanup_failure_keeps_original_player_failure(self):
         output = io.StringIO()
