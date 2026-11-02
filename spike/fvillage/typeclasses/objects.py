@@ -232,6 +232,17 @@ class Register(DefaultObject):
         self.db.desc = REGISTER_DESC
         self.aliases.add(["guest book", "guestbook", "book"])
 
+    def get_display_desc(self, looker=None, **kwargs):
+        # This advertises an ordinary player action, not private guest facts.
+        return (self.db.desc or "") + (
+            "\n\nProfessional inquiry: an Innkeep may look here and use "
+            "'lodging disclose' for a redacted entry. A different Detective "
+            "may look here and use 'lodging inquire'. The Innkeep must first "
+            "personally find and carry the original unclaimed note from the "
+            "Room Six door. Neither action reveals "
+            "a guest identity or proves who wrote the entry."
+        )
+
     def at_desc(self, looker=None):
         desc = self.db.desc or ""
         if looker and looker.has_account:
@@ -856,21 +867,17 @@ class ClinicCot(DefaultObject):
 
     def get_display_desc(self, looker=None, **kwargs):
         from world.clinic_work import status, _clock
-        # The observation is earned only by looking at this original cot
-        # while physically present, never by reading a remote status report.
         if (looker is not None and getattr(looker, "account", None)
                 and looker.location == self.location):
             day, _hour = _clock()
             looker.db.clinic_cot_seen = {
-                "cot_id": self.id, "room_id": self.location.id, "day": day,
+                "day": day, "cot_id": self.id, "room_id": self.location.id,
             }
         return (
             "A real cot shelters the day's visiting patient in the "
             "Church dispensary. The patient is visible, but confidential "
             "case notes are not public. Only an active Healer can file care, "
-            "and the patient's permission is needed for private notes. "
-            "A Detective may examine this cot and use clinic investigate "
-            "after a signed Healer assessment, preserving only a procedural timeline.\n"
+            "and the patient's permission is needed for private notes.\n"
             + status(looker)
         )
 
