@@ -52,6 +52,35 @@ def fixture():
     return state, kw
 
 
+def signed_public_events(kw):
+    signed_welcome = {
+        "id": 90,
+        "kind": "professional.innkeep_wanderer_arrival_welcome",
+        "status": "complete",
+        "actor": {"account_id": 20, "mask_id": 21, "mask": "InnkeepTester"},
+        "payload": {
+            "day": 1, "hour": 21, "tavern_room_id": 3,
+            "guest_mask_id": 32, "guest_account_id": 31,
+            "route_event_id": 80, "cook_event_id": 61, "bowl_id": 77,
+        },
+        "consequence": {
+            "tavern_room_id": 3, "bowl_id": 77, "route_event_id": 80,
+            "cook_event_id": 61, "wanderer_account_id": 31,
+            "innkeep_account_id": 20,
+            "service": "physical_bowl_transferred",
+        },
+    }
+    events = {80: kw["route_event"], 61: kw["bowl_event"],
+              90: signed_welcome}
+    return events
+
+
+def public_welcome(history, get_event, *, square_room_id=2):
+    return arrival.verified_public_welcome(
+        history, get_event, square_room_id=square_room_id,
+    )
+
+
 class ArrivalHospitalityTests(unittest.TestCase):
     def test_two_accounts_transfer_signed_meal_and_survive_json_restart(self):
         state, kw = fixture()
@@ -216,26 +245,8 @@ class ArrivalHospitalityTests(unittest.TestCase):
         state, kw = fixture()
         committed, ok, reason = arrival.welcome(state, **kw)
         self.assertTrue(ok, reason)
-        signed_welcome = {
-            "id": 90,
-            "kind": "professional.innkeep_wanderer_arrival_welcome",
-            "status": "complete",
-            "actor": {"account_id": 20, "mask_id": 21, "mask": "InnkeepTester"},
-            "payload": {
-                "day": 1, "hour": 21, "tavern_room_id": 3,
-                "guest_mask_id": 32, "guest_account_id": 31,
-                "route_event_id": 80, "cook_event_id": 61, "bowl_id": 77,
-            },
-            "consequence": {
-                "tavern_room_id": 3, "bowl_id": 77, "route_event_id": 80,
-                "cook_event_id": 61, "wanderer_account_id": 31,
-                "innkeep_account_id": 20,
-                "service": "physical_bowl_transferred",
-            },
-        }
-        events = {80: kw["route_event"], 61: kw["bowl_event"],
-                  90: signed_welcome}
-        line = arrival.verified_public_welcome(
+        events = signed_public_events(kw)
+        line = public_welcome(
             json.loads(json.dumps(committed))["history"], events.get
         )
         self.assertIn("signed returning-traveler hospitality", line.lower())
@@ -253,7 +264,7 @@ class ArrivalHospitalityTests(unittest.TestCase):
                 changed = copy.deepcopy(committed)
                 changed["history"][0]["arrival_welcome"][field] = bad
                 self.assertEqual(
-                    arrival.verified_public_welcome(changed["history"], events.get),
+                    public_welcome(changed["history"], events.get),
                     "",
                 )
 
@@ -272,17 +283,80 @@ class ArrivalHospitalityTests(unittest.TestCase):
                 target = changed[event_id] if not part else changed[event_id][part]
                 target[field] = bad
                 self.assertEqual(
-                    arrival.verified_public_welcome(
+                    public_welcome(
                         committed["history"], changed.get
                     ), "",
                 )
         self.assertEqual(
-            arrival.verified_public_welcome(
+            public_welcome(
                 committed["history"], lambda event_id: None
             ), "",
         )
         self.assertEqual(
-            arrival.verified_public_welcome([], events.get), "",
+            public_welcome([], events.get), "",
+        )
+
+
+
+    def test_public_readback_rejects_forged_original_square_cord_and_day(self):
+        state, kw = fixture()
+        committed, accepted, reason = arrival.welcome(state, **kw)
+        self.assertTrue(accepted, reason)
+        persisted = json.loads(json.dumps(committed))
+        events = signed_public_events(kw)
+
+        class GetOnlyLedger:
+            def __init__(self, rows):
+                self.rows = rows
+
+            def get_event(self, event_id):
+                return self.rows.get(event_id)
+
+        self.assertIn(
+            "Signed returning-traveler hospitality",
+            public_welcome(persisted["history"], GetOnlyLedger(events).get_event),
+        )
+        # These are completed-source mutations after a legitimate transfer.
+        # Neither a mutable pantry row nor an archived event may upgrade them.
+        for field, bad in (
+            ("square_room_id", None),
+            ("square_room_id", True),
+            ("square_room_id", 0),
+            ("square_room_id", 99),
+            ("cord_object_id", None),
+            ("cord_object_id", True),
+            ("cord_object_id", 0),
+            ("cord_object_id", 9.0),
+            ("day", None),
+            ("day", True),
+            ("day", 2),
+        ):
+            with self.subTest(source_field=field, forged_value=bad):
+                changed = copy.deepcopy(events)
+                changed[80]["consequence"][field] = bad
+                self.assertEqual(
+                    public_welcome(persisted["history"],
+                                   GetOnlyLedger(changed).get_event),
+                    "",
+                )
+        for field in ("square_room_id", "cord_object_id", "day"):
+            with self.subTest(missing_source_field=field):
+                changed = copy.deepcopy(events)
+                del changed[80]["consequence"][field]
+                self.assertEqual(
+                    public_welcome(persisted["history"], changed.get), "",
+                )
+        self.assertEqual(
+            public_welcome(persisted["history"], events.get, square_room_id=99),
+            "",
+        )
+        self.assertEqual(
+            public_welcome(persisted["history"], events.get, square_room_id=None),
+            "",
+        )
+        self.assertEqual(
+            public_welcome(persisted["history"], events.get, square_room_id=True),
+            "",
         )
 
 

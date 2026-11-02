@@ -350,7 +350,20 @@ assert _route_source["kind"] == "village.route_passability_observed"
 assert _route_source["actor"]["account_id"] == _welcome["wanderer_account_id"]
 assert _route_source["payload"]["location"] == "The Northern Treeline"
 assert _route_source["payload"]["day"] == _welcome["day"]
+assert _route_source["consequence"]["square_room_id"] == one("Village Square").id
+assert type(_route_source["consequence"]["cord_object_id"]) is int
+assert _route_source["consequence"]["cord_object_id"] > 0
+assert _route_source["consequence"]["day"] == _welcome["day"]
 assert innkeep_record["participation"]["arrival_hospitality"] == 1
+from world import soup_kitchen
+_public_pot_after_restart = soup_kitchen.pot_description()
+assert "Signed returning-traveler hospitality" in _public_pot_after_restart, (
+    "Physical Tavern soup pot failed signed public projection after restart"
+)
+assert f"route event {_welcome['route_event_id']}" in _public_pot_after_restart
+assert f"welcome event {_welcome['event_id']}" in _public_pot_after_restart
+assert "does not certify route safety" in _public_pot_after_restart
+print("POST_RESTART_GDD_EDGE05_VERIFIED_PUBLIC_POT_READBACK_GREEN")
 print("POST_RESTART_GDD_EDGE05_SIGNED_TWO_ACCOUNT_ARRIVAL_HOSPITALITY_GREEN")
 
 

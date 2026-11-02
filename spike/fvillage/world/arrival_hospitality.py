@@ -131,14 +131,17 @@ def welcome(raw, *, day, hour, innkeep_account_id, innkeep_mask_id,
     return state, True, None
 
 
-def verified_public_welcome(history, get_event):
+def verified_public_welcome(history, get_event, *, square_room_id=None):
     """Return public, source-backed history, never an assertion from mutable soup data.
 
     This is a read-only projection of completed canonical events. A stale or
     forged batch Attribute cannot manufacture a public hospitality claim.
     The actual bowl may later be eaten; signed transfer remains historical.
     """
-    if not isinstance(history, (list, tuple)) or not callable(get_event):
+    # A historical route must resolve to the actual public Square. A caller
+    # without that world-object identity cannot certify a public readback.
+    if (not isinstance(history, (list, tuple)) or not callable(get_event)
+            or _id(square_room_id) is None):
         return ""
     for batch in reversed(history):
         row = _map(batch)
@@ -217,6 +220,10 @@ def verified_public_welcome(history, get_event):
                 or rresult.get("site") != "red_cord"
                 or rresult.get("role") != "wanderer"
                 or rresult.get("action") != "passability"
+                or type(rresult.get("day")) is not int
+                or rresult["day"] != receipt["day"]
+                or _id(rresult.get("square_room_id")) != square_room_id
+                or _id(rresult.get("cord_object_id")) is None
                 or rresult.get("interpretation") != receipt.get("route_observation")
                 or type(rresult.get("caution_marked")) is not bool
                 or rresult["caution_marked"] != (
