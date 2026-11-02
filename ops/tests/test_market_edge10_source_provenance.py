@@ -584,8 +584,8 @@ class Edge10SourceVerification(unittest.TestCase):
 
         root = Path(__file__).resolve().parents[2]
         expected = (
-            "Market Lane: standards and trades\\n"
-            "The market scale has been physically recalibrated today.\\n"
+            "Market Lane: standards and trades\n"
+            "The market scale has been physically recalibrated today.\n"
             "Merchant Player5 and Smith Player9 have signed evidence."
         )
         market_module = ModuleType("world.market_work")
