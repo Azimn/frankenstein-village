@@ -29,6 +29,7 @@ class BridgeCollectBoundaryTests(unittest.TestCase):
             db=types.SimpleNamespace(bridge_inquiry=None),
         )
         self.table = types.SimpleNamespace(
+            id=500,
             location=self.market,
             db=types.SimpleNamespace(bridge_material_stock={
                 "day": 2, "remaining": {"preserve": 2, "display": 2}
