@@ -57,7 +57,8 @@ def status(mask=None):
             return error
     day, _ = _clock()
     lines = clinic_state.public_lines(room.db.village_clinic, day)
-    cot = next((o for o in room.contents if o.key == COT), None)
+    from world.clinic_inquiry_work import _cot
+    cot = _cot(room)
     if cot:
         from world.clinic_comfort_edge27 import public_lines
         ledger = None
@@ -81,8 +82,7 @@ def status(mask=None):
     lines += "\n" + clinic_cot_work.status()
     # Preserve main's clinic comfort and supported-rest pathways while
     # adding EDGE-28 to the unique original physical cot only.
-    from world.clinic_inquiry_work import _cot
-    original = _cot(room)
+    original = cot
     if original is None:
         lines += "\nThe clinic inquiry register requires original physical cot verification."
     else:
