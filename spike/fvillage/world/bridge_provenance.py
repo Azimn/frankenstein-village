@@ -111,13 +111,13 @@ def _resolution(row, get_event, bridge_room_id):
     result = _get(event.get("consequence"))
     source_id = _id(result.get("source_event_id"))
     item_id = _id(result.get("consumed_item_id"))
-    if (actor.get("account_id") != row["account_id"]
-            or actor.get("mask_id") != row["mask_id"]
+    if (_id(actor.get("account_id")) != row["account_id"]
+            or _id(actor.get("mask_id")) != row["mask_id"]
             or actor.get("mask") != row["mask"]
             or payload.get("choice") != row["choice"]
             or payload.get("location") != BRIDGE
-            or payload.get("day") != row["day"]
-            or payload.get("hour") != row["hour"]
+            or _id(payload.get("day")) != row["day"]
+            or _hour(payload.get("hour")) != row["hour"]
             or result.get("choice") != row["choice"]
             or type(result.get("signed_upkeep")) is not int
             or result["signed_upkeep"] != 0
@@ -161,12 +161,14 @@ def _upkeep(row, resolution, get_event):
     payload = _get(event.get("payload"))
     result = _get(event.get("consequence"))
     return bool(
-        actor.get("account_id") == row["account_id"]
-        and actor.get("mask_id") == row["mask_id"]
+        _id(actor.get("account_id")) == row["account_id"]
+        and _id(actor.get("mask_id")) == row["mask_id"]
         and payload.get("choice") is None
         and payload.get("location") == BRIDGE
-        and payload.get("day") == row["day"]
+        and _id(payload.get("day")) == row["day"]
         and _hour(payload.get("hour")) is not None
+        and (row["day"] != resolution["day"]
+             or payload["hour"] >= resolution["hour"])
         and result.get("choice") == resolution["choice"]
         and type(result.get("signed_upkeep")) is int
         and 1 <= result["signed_upkeep"] <= bridge_choices.MAX_CHECKS
@@ -185,7 +187,8 @@ def verified_state(raw, get_event, *, bridge_room_id=None):
     empty = {"resolution": None, "checks": []}
     row = _get(original.get("resolution"))
     if not row:
-        return empty, not bool(original.get("checks"))
+        return empty, (original.get("resolution") is None
+                       and not bool(original.get("checks")))
     if not _resolution(row, get_event, bridge_room_id):
         return empty, False
     resolution = state["resolution"]
@@ -199,8 +202,8 @@ def verified_state(raw, get_event, *, bridge_room_id=None):
         check = _get(raw_check)
         signature = (check.get("account_id"), check.get("day"))
         event_id = check.get("event_id")
-        if (event_id in seen_ids or signature in seen_account_days
-                or not _upkeep(check, resolution, get_event)):
+        if (not _upkeep(check, resolution, get_event)
+                or event_id in seen_ids or signature in seen_account_days):
             valid = False
             continue
         seen_ids.add(event_id)
