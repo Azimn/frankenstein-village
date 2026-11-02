@@ -70,8 +70,8 @@ class SpikeRoom(DefaultRoom):
             if len(lines) > 1:
                 desc = f"{desc}\n{lines[1]}"
         if self.key == "The Old Stone Bridge":
-            from world.bridge_choices import public_line
-            desc = f"{desc}\n{public_line(self.db.bridge_inquiry)}"
+            from world.bridge_work import public_line
+            desc = f"{desc}\n{public_line(self)}"
         return desc
 
 
