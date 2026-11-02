@@ -74,7 +74,7 @@ class SpikeRoom(DefaultRoom):
             desc = f"{desc}\n{public_line(self)}"
         if self.key in {"The Old Stone Bridge", "The Northern Treeline"}:
             from world.route_fitting_work import status as fitting_status
-            desc = f"{desc}\\n{fitting_status()}"
+            desc = f"{desc}\n{fitting_status()}"
         return desc
 
 
