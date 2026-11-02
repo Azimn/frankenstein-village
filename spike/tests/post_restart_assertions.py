@@ -2650,11 +2650,13 @@ _b15_fake_target = _b15_namespace(
     location=_b15_smith.location,
     db=_b15_namespace(route_fitting_install=None))
 _b15_before_events = len(_b08_work.get_event_ledger().db.events or [])
-with _b15_patch.object(_b08_work, "_target",
-                       return_value=(_b15_smith.location, _b15_fake_target)), \\
-     _b15_patch.object(_b08_work, "_source", return_value=_b15_source), \\
-     _b15_patch.object(_b08_work, "_clock",
-                       return_value=(_b15_forge_day, _b15_forge_hour - 1)):
+with (
+    _b15_patch.object(_b08_work, "_target",
+                      return_value=(_b15_smith.location, _b15_fake_target)),
+    _b15_patch.object(_b08_work, "_source", return_value=_b15_source),
+    _b15_patch.object(_b08_work, "_clock",
+                      return_value=(_b15_forge_day, _b15_forge_hour - 1)),
+):
     _b15_result, _b15_error = _b08_work.install(_b15_smith, "span")
 assert _b15_result is None and "genuine Smith-forged" in _b15_error
 assert len(_b08_work.get_event_ledger().db.events or []) == _b15_before_events
