@@ -105,16 +105,16 @@ def _carried(mask, kind, table_id, day, hour):
                 hour=hour)]
 
 
-def _verified_target(kind, room, target, table, day):
+def _verified_target(kind, room, target, table, day, hour):
     return route_fittings.verified_install(
         target.db.route_fitting_install, _ledger, kind=kind,
         target_id=target.id, room_id=room.id,
-        table_id=table.id, day=day)
+        table_id=table.id, day=day, hour=hour)
 
 
 def status():
     table = _table()
-    day, _hour = _clock()
+    day, hour = _clock()
     lines = ["|wPhysical route fittings|n",
              "A signed survey is evidence, not a repair or a guarantee of safety."]
     for kind in route_fittings.KINDS:
@@ -123,7 +123,7 @@ def status():
             lines.append(f"{kind}: original site or civic material table unavailable.")
             continue
         raw = target.db.route_fitting_install
-        valid = _verified_target(kind, room, target, table, day)
+        valid = _verified_target(kind, room, target, table, day, hour)
         if valid:
             lines.append(f"{kind}: physically fitted, completed-ledger verified. "
                          f"Signed installation {raw['install_event_id']}.")
@@ -134,7 +134,7 @@ def status():
                 tested = route_fittings.verified_test(
                     raw, target.db.route_fitting_test, _ledger,
                     cord_id=target.id, room_id=room.id,
-                    table_id=table.id, day=day)
+                    table_id=table.id, day=day, hour=hour)
                 lines.append("The local red-cord anchor was "
                              + ("independently Hound-tested." if tested
                                 else "not yet independently tested."))
@@ -294,7 +294,7 @@ def test_cord(mask):
         return None, "Inspect the original red cord at the Northern Treeline."
     day, hour = _clock()
     saved = cord.db.route_fitting_install
-    if not _verified_target("cord", room, cord, table, day):
+    if not _verified_target("cord", room, cord, table, day, hour):
         return None, "There is no completed signed Smith cord installation to test."
     if saved["smith_account_id"] == mask.account.id:
         return None, "The independent Hound must use a different account."
@@ -318,7 +318,7 @@ def test_cord(mask):
                     or not mask.account or mask.account.id != account_id
                     or active_calling(mask) != "hound" or _clock() != (day, hour)
                     or cord.db.route_fitting_test is not None
-                    or not _verified_target("cord", room, cord, table, day)
+                    or not _verified_target("cord", room, cord, table, day, hour)
                     or cord.db.route_fitting_install["install_event_id"] != install_id):
                 raise RuntimeError("The original repaired cord or Hound changed.")
             try:
@@ -355,11 +355,11 @@ def cross(mask):
     room, target = _target("span")
     table = _table()
     destination = _room("Riverside Path")
-    day, _hour = _clock()
+    day, hour = _clock()
     if (not getattr(mask, "account", None) or not room or not target
             or not table or not destination or mask.location != room):
         return None, "Stand at the Old Stone Bridge to cross its inspection span."
-    if not _verified_target("span", room, target, table, day):
+    if not _verified_target("span", room, target, table, day, hour):
         return None, "The inspection span has not been physically fitted and verified."
     if not mask.move_to(destination):
         return None, "The repaired inspection crossing could not be traversed."
