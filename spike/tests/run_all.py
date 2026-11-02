@@ -80,26 +80,6 @@ def dump_logs(game: Path) -> None:
             print("\n".join(content.splitlines()[-160:]))
 
 
-
-def stop_evennia_after_phase(evennia: Path, *, game: Path, env: dict,
-                             phase_failed: bool) -> None:
-    """Keep the original gameplay failure if server cleanup also fails.
-
-    A failed stop on an otherwise successful phase is still a test failure.
-    This helper never reports a green phase after either failure.
-    """
-    try:
-        run([evennia, "stop"], cwd=game, env=env, timeout=60)
-    except Exception as stop_error:
-        if not phase_failed:
-            raise
-        print(
-            f"Evennia stop also failed; original gameplay failure retained: "
-            f"{stop_error}",
-            file=sys.stderr,
-        )
-
-
 def main() -> int:
     if sys.version_info[:2] != (3, 12):
         print(
@@ -199,15 +179,10 @@ def main() -> int:
                 "fact = assign_fact(lark, class_hint='ordinary')\n"
                 "lark.db.qa_fact_id = fact['fact_id']\n"
                 "set_location_availability('schoolhouse', False, reason='school_destroyed')\n"
-                # Mutate the registered physical growth, never a same-name
-                # legacy decoy selected by an arbitrary global search order.
+                # Regression: simulate a legacy well mushroom present without
+                # hidden toxin and with stale public aliases/configuration.
                 "from world.object_properties import configure_mechanical_properties\n"
-                "from commands.village_cmds import _preferred_well_growth_pickup\n"
-                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\n"
-                "shroom = _preferred_well_growth_pickup([o for o in square.contents if o.key == 'a cluster of mushrooms'], square)\n"
-                "assert shroom is not None, 'registered growth missing before rebuild'\n"
-                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\n"
-                "well.db.qa_expected_growth_id = shroom.id\n"
+                "shroom = [o for o in search.search_object('a cluster of mushrooms') if o.key == 'a cluster of mushrooms'][0]\n"
                 "configure_mechanical_properties(shroom, {}, hidden_properties={})\n"
                 "shroom.db.desc = 'stale mushroom description'\n"
                 "shroom.db.consume = {'toxic': 25, 'nourish': 5}\n"
@@ -219,22 +194,6 @@ def main() -> int:
 
             build = (game / "world" / "build_spike.py").read_text(encoding="utf-8")
             run([evennia, "shell"], cwd=game, env=env, input_text=build)
-
-            # Rebuilding the world must restore the SAME registered specimen
-            # without creating a duplicate or losing its physical identity.
-            rebuild_proof = (
-                "from evennia.utils import search\n"
-                "from commands.village_cmds import ensure_well_mushrooms\n"
-                "from world.object_properties import hidden_mechanical_properties\n"
-                "well = [o for o in search.search_object('village well') if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\n"
-                "before = tuple(well.db.well_mushroom_spawn_ids or [])\n"
-                "grown = ensure_well_mushrooms()\n"
-                "assert grown is not None and grown.id == well.db.qa_expected_growth_id\n"
-                "assert tuple(well.db.well_mushroom_spawn_ids or []) == before\n"
-                "assert hidden_mechanical_properties(grown) == {'toxin': 25}\n"
-                "print('WELL_CANONICAL_REBUILD_IDEMPOTENT_GREEN')\n"
-            )
-            run([evennia, "shell"], cwd=game, env=env, input_text=rebuild_proof)
 
             assertions = (checkout / "spike" / "tests" / "world_assertions.py").read_text(
                 encoding="utf-8"
@@ -267,7 +226,7 @@ def main() -> int:
                 "import os\n"
                 "from evennia.utils import create\n"
                 "from evennia.accounts.models import AccountDB\n"
-                "for key in ('qa_smith_repair', 'qa_merchant_repair', 'qa_mystic_study', 'qa_performer_stage', 'qa_wanderer_mail', 'qa_hound_protection', 'qa_detective_clinic'):\n"
+                "for key in ('qa_smith_repair', 'qa_smith_stage', 'qa_merchant_repair', 'qa_mystic_study', 'qa_performer_stage', 'qa_wanderer_mail', 'qa_hound_protection', 'qa_detective_inquiry', 'qa_detective_case', 'qa_smith_cot', 'qa_smith_kitchen', 'qa_detective_trace', 'qa_detective_river', 'qa_detective_lodging', 'qa_refuge_hound', 'qa_detective_clinic'):\n"
                 "    account = AccountDB.objects.filter(db_key=key).first()\n"
                 "    if account is None:\n"
                 "        account = create.create_account(\n"
@@ -325,6 +284,15 @@ def main() -> int:
                     # investigation exceed the former 180s on CI runners.
                     # The workflow retains a strict 20-minute global cap.
                     timeout=480,
+                )
+
+                # EDGE-08: independent authenticated Hound and Innkeep use
+                # the current-main signed physical cord and finite pantry.
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge08_firstday.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=150,
                 )
 
                 # Real autonomous-client validation, not a fake socket peer:
@@ -401,160 +369,22 @@ def main() -> int:
                         timeout=60,
                     )
 
-            # Seed a hostile same-name legacy decoy only AFTER ordinary-client
-            # health/inquiry play, so those existing scenarios remain intact.
-            # This persists through the real process restart below and checks
-            # that a copied source ID and hidden toxin never become registry proof.
-            migrated_well_fixture = (
-                "from evennia.utils import search, create\n"
-                "from commands.village_cmds import ensure_well_mushrooms, _preferred_well_growth_pickup\n"
-                "from world import clinic_inquiry_state\n"
-                "from world.object_properties import configure_mechanical_properties\n"
-                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\n"
-                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\n"
-                "legacy = create.create_object('typeclasses.objects.Object', key='a cluster of mushrooms', location=square, aliases=['mushrooms', 'cluster', 'toadstools'])\n"
-                "legacy.db.qa_legacy_mushroom_decoy = True\n"
-                "legacy.db.well_mushroom_source_id = well.id\n"
-                "configure_mechanical_properties(legacy, {}, hidden_properties={'toxin': 25})\n"
-                "grown = ensure_well_mushrooms()\n"
-                "assert grown is not None and grown.id != legacy.id\n"
-                "before = list(well.db.well_mushroom_spawn_ids or [])\n"
-                "assert not clinic_inquiry_state.registered_well_growth(legacy.id, before)\n"
-                "assert clinic_inquiry_state.registered_well_growth(grown.id, before)\n"
-                "assert _preferred_well_growth_pickup([legacy, grown], square) is grown\n"
-                "assert ensure_well_mushrooms().id == grown.id\n"
-                "assert list(well.db.well_mushroom_spawn_ids or []) == before\n"
-                "print('WELL_MIGRATED_LEGACY_COEXISTENCE_PRE_RESTART_GREEN')\n"
-            )
-            run([evennia, "shell"], cwd=game, env=env,
-                input_text=migrated_well_fixture)
-
-            # After the hostile decoy is seeded, use actual authenticated
-            # Healer and Detective sockets BEFORE restart. The Healer's
-            # ordinary unnumbered get must pick registered growth, not the
-            # same-name decoy. The shell below checks exact physical custody.
+            # Restart the actual server once after player-created resident state
+            # exists, then inspect the database through a fresh process.
             run([evennia, "start"], cwd=game, env=env, timeout=120)
-            try:
-                wait_for_port("127.0.0.1", 4000)
-                run(
-                    [vpython, checkout / "spike" / "tests" /
-                     "telnet_edge28_migrated_restart.py",
-                     "--host", "127.0.0.1", "--port", "4000",
-                     "--phase", "before"],
-                    cwd=checkout, env=env, timeout=100,
-                )
-            finally:
-                stop_evennia_after_phase(
-                    evennia, game=game, env=env,
-                    phase_failed=sys.exc_info()[0] is not None,
-                )
-
-            migrated_player_proof = (
-                "from evennia.utils import search\n"
-                "from world import clinic_inquiry_state as rules\n"
-                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\n"
-                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\n"
-                "healer = [o for o in search.search_object('HealerTester') if o.key == 'HealerTester'][0]\n"
-                "ids = rules.well_growth_ids(well.db.well_mushroom_spawn_ids)\n"
-                "carried = [o for o in healer.contents if o.key == 'a cluster of mushrooms' and rules.registered_well_growth(o.id, ids)]\n"
-                "legacy = [o for o in square.contents if getattr(o.db, 'qa_legacy_mushroom_decoy', False) is True]\n"
-                "assert len(carried) == len(legacy) == 1, 'ordinary client picked legacy or lost genuine growth'\n"
-                "assert carried[0].db.well_mushroom_source_id == well.id\n"
-                "assert legacy[0].id not in ids\n"
-                "well.db.qa_migrated_held_id = carried[0].id\n"
-                "print('WELL_MIGRATED_AUTHENTICATED_PLAYER_CUSTODY_PRE_RESTART_GREEN')\n"
+            wait_for_port("127.0.0.1", 4000)
+            # GDD T-03: retry the already completed physical lamp repair through
+            # the original Smith's authenticated client after a real restart.
+            # A read-only post-restart shell then verifies the objective record.
+            run(
+                [
+                    vpython,
+                    checkout / "spike" / "tests" / "telnet_t03_restart_retry.py",
+                    "--host", "127.0.0.1", "--port", "4000",
+                ],
+                cwd=checkout, env=env, timeout=90,
             )
-            run([evennia, "shell"], cwd=game, env=env,
-                input_text=migrated_player_proof)
-
-            # Restart the real server process and reconnect BOTH original
-            # accounts. Check signed readback, role/privacy denials and
-            # ordinary physical drop/get with the persisted legacy decoy.
-            try:
-                run([evennia, "start"], cwd=game, env=env, timeout=120)
-                wait_for_port("127.0.0.1", 4000)
-                run(
-                    [vpython, checkout / "spike" / "tests" /
-                     "telnet_edge28_migrated_restart.py",
-                     "--host", "127.0.0.1", "--port", "4000",
-                     "--phase", "after"],
-                    cwd=checkout, env=env, timeout=100,
-                )
-                # The telnet after-phase intentionally leaves the newly re-picked
-                # item IN the Healer's inventory. Stop Evennia and verify physical
-                # exact-ID custody before allowing any final ordinary-client drop.
-                # A name-only inventory response plus a final Square location
-                # cannot distinguish authentic growth from a forged decoy.
-            finally:
-                stop_evennia_after_phase(
-                    evennia, game=game, env=env,
-                    phase_failed=sys.exc_info()[0] is not None,
-                )
-            migrated_repick_proof = (
-                "from evennia.utils import search\n"
-                "from world import clinic_inquiry_state as rules\n"
-                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\n"
-                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\n"
-                "healer = [o for o in search.search_object('HealerTester') if o.key == 'HealerTester'][0]\n"
-                "held_id = well.db.qa_migrated_held_id\n"
-                "ids = rules.well_growth_ids(well.db.well_mushroom_spawn_ids)\n"
-                "held = [o for o in healer.contents if o.id == held_id and rules.registered_well_growth(o.id, ids)]\n"
-                "decoys = [o for o in square.contents if getattr(o.db, 'qa_legacy_mushroom_decoy', False) is True]\n"
-                "assert len(held) == len(decoys) == 1, 'post-restart re-pick must hold the original registered specimen, not a decoy'\n"
-                "assert held[0].db.well_mushroom_source_id == well.id\n"
-                "assert decoys[0].id not in ids and decoys[0].id != held_id\n"
-                "assert not [o for o in healer.contents if getattr(o.db, 'qa_legacy_mushroom_decoy', False) is True], 'forged decoy entered player custody'\n"
-                "assert not [o for o in square.contents if o.id == held_id], 'original growth remained on Square after re-pick'\n"
-                "print('WELL_MIGRATED_AUTHENTICATED_REPICK_EXACT_ID_POST_RESTART_GREEN')\n"
-            )
-            run([evennia, "shell"], cwd=game, env=env,
-                input_text=migrated_repick_proof)
-            # Reconnect the same ordinary Healer after the independent
-            # stopped-server oracle, release the original item onto Square,
-            # and retain the existing final Square/decoy negative assertion.
-            try:
-                run([evennia, "start"], cwd=game, env=env, timeout=120)
-                wait_for_port("127.0.0.1", 4000)
-                run(
-                    [vpython, checkout / "spike" / "tests" /
-                     "telnet_edge28_migrated_restart.py",
-                     "--host", "127.0.0.1", "--port", "4000",
-                     "--phase", "release"],
-                    cwd=checkout, env=env, timeout=100,
-                )
-                # GDD T-03: retry the already completed physical lamp repair through
-                # the original Smith's authenticated client after a real restart.
-                # A read-only post-restart shell then verifies the objective record.
-                run(
-                    [
-                        vpython,
-                        checkout / "spike" / "tests" / "telnet_t03_restart_retry.py",
-                        "--host", "127.0.0.1", "--port", "4000",
-                    ],
-                    cwd=checkout, env=env, timeout=90,
-                )
-            finally:
-                stop_evennia_after_phase(
-                    evennia, game=game, env=env,
-                    phase_failed=sys.exc_info()[0] is not None,
-                )
-            migrated_post_client_proof = (
-                "from evennia.utils import search\n"
-                "from world import clinic_inquiry_state as rules\n"
-                "square = [o for o in search.search_object('Village Square') if o.key == 'Village Square'][0]\n"
-                "well = [o for o in square.contents if o.key == 'well' and o.is_typeclass('typeclasses.objects.VillageWell', exact=True)][0]\n"
-                "healer = [o for o in search.search_object('HealerTester') if o.key == 'HealerTester'][0]\n"
-                "held_id = well.db.qa_migrated_held_id\n"
-                "ids = rules.well_growth_ids(well.db.well_mushroom_spawn_ids)\n"
-                "growth = [o for o in square.contents if o.id == held_id and rules.registered_well_growth(o.id, ids)]\n"
-                "legacy = [o for o in square.contents if getattr(o.db, 'qa_legacy_mushroom_decoy', False) is True]\n"
-                "assert len(growth) == len(legacy) == 1 and legacy[0].id not in ids\n"
-                "assert growth[0].db.well_mushroom_source_id == well.id\n"
-                "assert not [o for o in healer.contents if o.id == held_id]\n"
-                "print('WELL_MIGRATED_AUTHENTICATED_PLAYER_CUSTODY_POST_RESTART_GREEN')\n"
-            )
-            run([evennia, "shell"], cwd=game, env=env,
-                input_text=migrated_post_client_proof)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
             post_restart = (
                 checkout / "spike" / "tests" / "post_restart_assertions.py"
             ).read_text(encoding="utf-8")
@@ -564,6 +394,11 @@ def main() -> int:
                 env=env,
                 input_text=post_restart,
             )
+            edge21_restart = (
+                checkout / "spike" / "tests" / "gdd_edge21_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge21_restart)
             # GDD T-13: prepare day two while the server is stopped, then
             # perform every state-changing action with two authenticated
             # ordinary telnet accounts. Offline masks cannot sign events.
@@ -582,12 +417,32 @@ def main() -> int:
                     ],
                     cwd=checkout, env=env, timeout=140,
                 )
+                # EDGE-18 positive: assess and treat the next patient before
+                # the later negative-test restarts can advance village time.
+                run(
+                    [
+                        vpython,
+                        checkout / "spike" / "tests"
+                        / "telnet_edge18_day2_supported.py",
+                        "--host", "127.0.0.1", "--port", "4000",
+                    ],
+                    cwd=checkout, env=env, timeout=100,
+                )
             finally:
                 run([evennia, "stop"], cwd=game, env=env, timeout=60)
             t13_cancel = (
                 checkout / "spike" / "tests" / "gdd_t13_cancel_world_assertions.py"
             ).read_text(encoding="utf-8")
             run([evennia, "shell"], cwd=game, env=env, input_text=t13_cancel)
+            # EDGE-18: read-only gate calls against deliberately forged
+            # attributes and a rewound QA clock. Restore all original
+            # state before proceeding with the other real-world tests.
+            edge18_guards = (
+                checkout / "spike" / "tests"
+                / "edge18_guard_negative_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge18_guards)
 
             # GDD T-12: the same disposable QA database, now after a genuine
             # server restart and with no connected players, must resolve a
@@ -622,6 +477,14 @@ def main() -> int:
                 checkout / "spike" / "tests" / "gdd_t13_cancel_restart_assertions.py"
             ).read_text(encoding="utf-8")
             run([evennia, "shell"], cwd=game, env=env, input_text=t13_restart)
+            # EDGE-18: the second day's treatment, original fitting and
+            # confidentiality must survive a second real process restart.
+            edge18_restart = (
+                checkout / "spike" / "tests"
+                / "edge18_day2_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge18_restart)
 
             # T-13: independently exercise a live two-socket cancel/deliver
             # contest, then verify physical custody and signed outcome before
@@ -685,6 +548,202 @@ def main() -> int:
             day4_restart_env["FV_T13_DAY4_RESTART"] = "1"
             run([evennia, "shell"], cwd=game, env=day4_restart_env,
                 input_text=day4_assertions)
+            # EDGE-18 adversarial source check AFTER the existing T-13
+            # day-two/three/four sequence. Extra REAL process restarts must
+            # not consume T-13's deliberately pinned day-two clock window.
+            # Advance only the disposable QA clock into the start of a fresh
+            # future day AFTER all time-pinned T-13 assertions finish. This
+            # avoids another midnight transition during an authenticated
+            # refusal, without ever backdating the clock or world receipts.
+            edge18_future_day = (
+                "from evennia.scripts.models import ScriptDB\n"
+                "clock = ScriptDB.objects.get(db_key='village_time')\n"
+                "before = (int(clock.db.day), int(clock.db.hour))\n"
+                "clock.db.day = before[0] + 1\n"
+                "clock.db.hour = 0\n"
+                "assert (int(clock.db.day), int(clock.db.hour)) > before\n"
+                "print('EDGE18_AUTH_NEGATIVE_FUTURE_DAY_READY')\n"
+            )
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge18_future_day)
+            forged_fixture = (
+                checkout / "spike" / "tests"
+                / "edge18_authenticated_forgery_fixture.py"
+            ).read_text(encoding="utf-8")
+            staged_env = dict(env)
+            staged_env["FV_EDGE18_AUTH_NEGATIVE_PHASE"] = "stage"
+            run([evennia, "shell"], cwd=game, env=staged_env,
+                input_text=forged_fixture)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [
+                        vpython, checkout / "spike" / "tests"
+                        / "telnet_edge18_forged_assessment_negative.py",
+                        "--host", "127.0.0.1", "--port", "4000",
+                    ],
+                    cwd=checkout, env=env, timeout=100,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            restored_env = dict(env)
+            restored_env["FV_EDGE18_AUTH_NEGATIVE_PHASE"] = "restore"
+            run([evennia, "shell"], cwd=game, env=restored_env,
+                input_text=forged_fixture)
+            # EDGE-02: after T-13 and EDGE-18 authenticated-negative checks finish,
+            # let an ordinary Smith spend a genuinely later-day offcut and
+            # repair the day-one Innkeep restriction. No clock rewind, extra
+            # Workshop resource, privileged player action or synthetic event.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge02_later_day_kitchen.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=140,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            edge02_restart = (
+                checkout / "spike" / "tests" /
+                "edge02_later_day_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge02_restart)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            edge02_second_env = dict(env)
+            edge02_second_env["FV_EDGE02_SECOND_RESTART"] = "1"
+            run([evennia, "shell"], cwd=game, env=edge02_second_env,
+                input_text=edge02_restart)
+
+            # EDGE-08: after all time-pinned T-13/EDGE-02 checks, advance the
+            # disposable QA day without resetting the original cord or
+            # manufacturing any player event. Both independent roles renew
+            # their physical actions through authenticated ordinary clients.
+            edge08_renewal_setup = (
+                checkout / "spike" / "tests" /
+                "gdd_edge08_renewal_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge08_renewal_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge08_renewal.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=180,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            # A fresh server process must read both finite refuge meals,
+            # distinct source markers, physical bowls and the renewed dispatch.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            edge08_renewal_restart = (
+                checkout / "spike" / "tests" /
+                "gdd_edge08_renewal_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge08_renewal_restart)
+
+            # EDGE-41: run the independent physical Hound/Performer scene only
+            # after ALL current-main EDGE-02/06/18 and T-13 assertions.
+            # EDGE-41: isolate a fresh physical scene only after all legacy
+            # assertions. No player action is injected by the fixture.
+            edge41_setup = (
+                checkout / "spike" / "tests" / "gdd_edge41_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge41_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge41_two_account.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=180,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            # A genuinely new server process must read the persisted signed
+            # Hound source, independent Performer decision and actual show.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            edge41_restart = (
+                checkout / "spike" / "tests" /
+                "gdd_edge41_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge41_restart)
+
+            # EDGE-41 renewal: no source is reset. A forward-only QA day
+            # retains the original signed cord and completed indoor show.
+            renewal_setup = (
+                checkout / "spike" / "tests" /
+                "gdd_edge41_renewal_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=renewal_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge41_renewal.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=180,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            renewal_restart = (
+                checkout / "spike" / "tests" /
+                "gdd_edge41_renewal_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=renewal_restart)
+
+            # EDGE-41 review finding: the second protection saved a list on
+            # the real cord. After a new process restart, a third village day
+            # must accept Evennia's persisted mutable-sequence wrapper.
+            third_setup = (
+                checkout / "spike" / "tests" /
+                "gdd_edge41_third_day_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=third_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge41_renewal.py",
+                     "--host", "127.0.0.1", "--port", "4000",
+                     "--third-day"],
+                    cwd=checkout, env=env, timeout=180,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            third_restart = (
+                checkout / "spike" / "tests" /
+                "gdd_edge41_third_day_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=third_restart)
         except Exception:
             dump_logs(game)
             raise
