@@ -12,6 +12,7 @@ class CmdStage(Command):
         stage perform ballad
         stage perform reel
         stage witness
+        stage investigate      (Detective, independently signed performance timeline)
         stage warn              (Hound after signed treeline protection)
         stage adapt indoor      (independent Performer chooses indoor show)
         stage adapt cancel      (independent Performer cancels show)
@@ -37,6 +38,23 @@ class CmdStage(Command):
         raw = (self.args or "").strip().lower().split()
         if not raw or raw in (["status"], ["help"]):
             self.caller.msg(stage_work.status(self.caller))
+            return
+        if raw == ["investigate"]:
+            result, error = stage_work.investigate(self.caller)
+            if error:
+                self.caller.msg(error)
+                return
+            self.caller.msg(
+                f"You inspect the physical Tavern stage and file an independent "
+                f"Detective timeline (signed event {result['event_id']}, "
+                f"performance source {result['source_event_id']}, "
+                f"{result['witness_count']} verified audience witness(es)). "
+                "A signed show does not prove an alibi or innocence."
+            )
+            self.caller.location.msg_contents(
+                f"{self.caller.key} examines the actual stage and files "
+                "a qualified Detective inquiry.", exclude=[self.caller],
+            )
             return
         if raw == ["warn"] or (len(raw) == 2 and raw[0] == "adapt"):
             action = "warn" if raw == ["warn"] else "adapt"
@@ -102,7 +120,7 @@ class CmdStage(Command):
         elif raw == ["contest"]:
             result, error = stage_work.act(self.caller, "contest")
         else:
-            self.caller.msg("Use stage; stage rehearse ballad or stage rehearse reel; stage perform ballad or stage perform reel; stage witness; stage warn; stage adapt indoor or stage adapt cancel; stage archive; stage review praise or stage review critique; stage cater; stage fit; stage soundcheck; stage acoustic ballad or stage acoustic reel; stage contest <review event>.")
+            self.caller.msg("Use stage; stage rehearse ballad or stage rehearse reel; stage perform ballad or stage perform reel; stage witness; stage warn; stage adapt indoor or stage adapt cancel; stage archive; stage review praise or stage review critique; stage cater; stage fit; stage soundcheck; stage acoustic ballad or stage acoustic reel; stage contest <review event>; stage investigate.")
             return
         if error:
             self.caller.msg(error)
