@@ -14,22 +14,26 @@ SCOPE = "room_six_entry_redacted"
 
 
 def positive(value):
+    """Accept persisted positive integer IDs without truncating forged fractions."""
     if isinstance(value, bool):
         return None
-    try:
+    if isinstance(value, int):
+        return value if value > 0 else None
+    if isinstance(value, str) and value.isdecimal():
         number = int(value)
-    except (TypeError, ValueError, OverflowError):
-        return None
-    return number if number > 0 else None
+        return number if number > 0 else None
+    return None
 
 
 def valid_time(day, hour):
     d = positive(day)
     if isinstance(hour, bool):
         return None
-    try:
+    if isinstance(hour, int):
+        h = hour
+    elif isinstance(hour, str) and hour.isdecimal():
         h = int(hour)
-    except (TypeError, ValueError, OverflowError):
+    else:
         return None
     return (d, h) if d and 0 <= h <= 23 else None
 
