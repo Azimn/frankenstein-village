@@ -156,6 +156,27 @@ class RouteFittingProofTests(unittest.TestCase):
             self.assertIsNone(corrupt)
             self.assertIn("review", error)
 
+    def test_hound_must_reinspect_original_cord_after_smith_install(self):
+        proof = dict(day=4, hour=14, route_fitting_install_event_id=30,
+                     route_fitting_cord_id=401)
+        kwargs = dict(day=4, hour=14, install_hour=14,
+                      install_event_id=30, cord_id=401)
+        self.assertTrue(f.verified_post_install_view(proof, **kwargs))
+        for change in (
+            {"route_fitting_install_event_id": None},
+            {"route_fitting_install_event_id": 29},
+            {"route_fitting_cord_id": 999},
+            {"day": 3},
+            {"hour": 13},
+            {"hour": True},
+        ):
+            with self.subTest(change=change):
+                self.assertFalse(f.verified_post_install_view(
+                    dict(proof, **change), **kwargs))
+        self.assertFalse(f.verified_post_install_view(
+            {"day": 4, "hour": 14}, **kwargs))
+        self.assertFalse(f.verified_post_install_view(True, **kwargs))
+
     def test_hound_post_install_test_requires_original_source_and_separate_account(self):
         state, events = fixture("cord")
         events[40] = {
