@@ -57,51 +57,6 @@ def state_lines():
         room.db.market_standards, day,
         event_lookup=ledger.get_event if ledger else None,
     )
-    # TEMPORARY B10 CI diagnostic, remove before independent handoff.
-    # Log only disposable-test event metadata, never public-facing details.
-    if any("cannot be verified" in line for line in lines):
-        state = market_standards.normalize(room.db.market_standards)
-        debug = []
-        for field, action, role in (
-            ("review", state["review"]["choice"] if state["review"] else None, "merchant"),
-            ("calibration", "calibrate", "smith"),
-            ("audit", "audit", "chronicler"),
-            ("attestation", "attest", "chronicler"),
-        ):
-            row = state[field]
-            if not row:
-                continue
-            event = ledger.get_event(row["event_id"]) if ledger else None
-            actor = event.get("actor") if hasattr(event, "get") else None
-            payload = event.get("payload") if hasattr(event, "get") else None
-            result = event.get("consequence") if hasattr(event, "get") else None
-            debug.append({
-                "field": field, "event_id": row["event_id"],
-                "event_type": type(event).__name__,
-                "actor_type": type(actor).__name__,
-                "payload_type": type(payload).__name__,
-                "result_type": type(result).__name__,
-                "status": event.get("status") if hasattr(event, "get") else None,
-                "kind": event.get("kind") if hasattr(event, "get") else None,
-                "actor_matches": bool(hasattr(actor, "get")
-                    and actor.get("account_id") == row["account_id"]
-                    and actor.get("mask_id") == row["mask_id"]
-                    and actor.get("mask") == row["mask"]),
-                "payload_matches": bool(hasattr(payload, "get")
-                    and payload.get("action") == action
-                    and payload.get("professional_calling") == role
-                    and payload.get("day") == row["day"]
-                    and payload.get("hour") == row["hour"]),
-                "result": {
-                    k: result.get(k) for k in (
-                        "action", "market_distribution_held",
-                        "review_event_id", "calibration_event_id")
-                } if hasattr(result, "get") else None,
-                "verified": market_standards._signed_public_event(
-                    row, action, role, state,
-                    ledger.get_event if ledger else None),
-            })
-        logger.log_warn("B10_PROVENANCE_DIAG " + repr(debug))
     scale = next((o for o in room.contents if o.key == SCALE
                   and o.db.landmark_id == "market_scale"), None)
     if scale:
