@@ -3057,6 +3057,12 @@ def main() -> int:
         require(smith_kitchen.command("inventory"), "forged bridge-span fitting")
         out = stage_smith.command("bridgefit forge span")
         require(out, "no matching physical fittings remain today")
+        # The later-day EDGE-02 client reuses this actual Smith character.
+        # Return by the real east exit rather than leaving the account in
+        # Market Lane after this independent finite-stock contention test.
+        # This preserves its original Workshop starting-location contract.
+        require(smith_kitchen.command("east"), "market workshop")
+        require(smith_kitchen.command("workshop"), "iron offcuts")
         print("TELNET_B08_TWO_SMITH_FINITE_STOCK_CONTENTION_GREEN")
         out = stage_smith.command("bridgefit forge cord")
         require_all(out, "forge a finite physical cord", "signed world event")
