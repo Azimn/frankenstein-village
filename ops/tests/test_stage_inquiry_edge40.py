@@ -294,6 +294,19 @@ class StagePublicInquiryProvenanceTests(unittest.TestCase):
         self.assertFalse(self.valid(witness_event_ids=[]))
         self.assertFalse(self.valid(day=2))
 
+    def test_malformed_public_source_and_witness_ids_fail_closed(self):
+        for bad_source in (None, "11", True, 0):
+            show = copy.deepcopy(self.state["performance"])
+            show["event_id"] = bad_source
+            with self.subTest(source=bad_source):
+                self.assertFalse(self.valid(performance=show))
+        for bad_ids in ([True], ["12"], [0]):
+            with self.subTest(ids=bad_ids):
+                self.assertFalse(self.valid(witness_event_ids=bad_ids))
+        row = copy.deepcopy(self.row)
+        row["witness_event_ids"] = "forged"
+        self.assertFalse(self.valid(row=row))
+
     def test_mutated_persisted_inquiry_is_not_authority(self):
         row = copy.deepcopy(self.row)
         row["event_id"] = 999
