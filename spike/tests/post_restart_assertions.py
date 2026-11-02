@@ -1314,7 +1314,7 @@ print("POST_RESTART_SIGNED_TAVERN_PERFORMANCE_GREEN")
 # consequence must survive a real Evennia server restart.
 from world.lodging_state import normalize as _lodging_norm, source_is_valid as _lodging_source
 _lodging_register = one("register")
-_lodging_detective = one("DetectiveTester")
+_lodging_detective = one("LodgingDetectiveTester")
 assert _lodging_register.location == _stage_tavern
 assert _lodging_register.typeclass_path == "typeclasses.objects.Register"
 assert active_calling(innkeep_tester) == "innkeep"
