@@ -384,6 +384,28 @@ class LodgingEdge07Tests(unittest.TestCase):
         self.assertEqual(restored["last_day"], 1)
         self.assertEqual(restored["last_hour"], 19)
 
+    def test_fractional_signed_identifiers_and_hours_fail_closed(self):
+        for key, value in (
+            ("account_id", 11.9), ("mask_id", 111.5),
+            ("event_id", 100.1), ("register_id", 401.5),
+            ("room_id", 301.5), ("day", 1.5), ("hour", 18.9),
+        ):
+            args = worker(day=2, event=101)
+            args[key] = value
+            _, okay, _ = rules.disclose(self.state, **args)
+            self.assertFalse(okay, key)
+        self.assertIsNone(rules.positive(1.9))
+        self.assertIsNone(rules.valid_time(1, 19.5))
+        self.assertEqual(rules.positive("101"), 101)
+        self.assertEqual(rules.valid_time("2", "19"), (2, 19))
+        row = self.state["records"][0]
+        damaged = copy.deepcopy(row)
+        damaged["event_id"] = 100.9
+        self.assertEqual(rules.normalize({"records": [damaged]})["records"], [])
+        signed = signed_source(row)
+        signed["actor"]["account_id"] = 11.9
+        self.assertFalse(rules.source_is_valid(signed, row))
+
     def test_invalid_identity_time_and_malformed_history_fail_closed(self):
         for key, value in [
             ("account_id", True), ("mask_id", 0),
