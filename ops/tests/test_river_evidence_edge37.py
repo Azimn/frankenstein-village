@@ -266,6 +266,14 @@ class RiverPublicProvenanceTests(unittest.TestCase):
         self.assertNotIn("preserved a separate",
                          self.public(review_event=event))
 
+    def test_first_signed_event_one_allows_distinct_detective_event_two(self):
+        state, ok, reason = witness(event_id=1)
+        self.assertTrue(ok, reason)
+        review, ok, reason = compare(state, event_id=2, source_event_id=1)
+        self.assertTrue(ok, reason)
+        self.assertEqual(review["witness"]["event_id"], 1)
+        self.assertEqual(review["review"]["event_id"], 2)
+
     def test_mutated_persisted_signature_does_not_invent_ledger_event(self):
         fake = json.loads(json.dumps(self.state))
         fake["review"]["event_id"] = 999
