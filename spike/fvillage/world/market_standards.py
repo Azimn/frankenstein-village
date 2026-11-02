@@ -460,9 +460,20 @@ def public_lines(raw, day, event_lookup=None):
     if unverified_current:
         lines.append(
             "Some saved market signatures cannot be verified against completed "
-            "world events. Public claims are withheld; the finite material "
-            "table and existing hold rules remain authoritative."
+            "world events. Unsupported public claims are withheld; the finite "
+            "material table and existing hold rules remain authoritative."
         )
+    # A missing/forged Chronicler publication must not erase an independently
+    # verified Merchant decision or physical Smith calibration. Conversely,
+    # an unverified *core* market action cannot be used to infer the public
+    # scale condition from a partially filtered docket. The actual supply
+    # gate continues to use the original authoritative state.
+    core_unverified = any(
+        original[name] and not state[name]
+        for name in ("review", "calibration", "release")
+    )
+    if core_unverified:
+        pass  # The warning above is the only defensible scale status.
     elif suspended(state, day):
         lines.append(
             "Distribution of civic construction kits is temporarily on hold. "
