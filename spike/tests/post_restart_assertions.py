@@ -2631,6 +2631,36 @@ assert not _b08_work._carried(
 assert _b15_item.id == _b15_item_id and _b15_item.location == _b15_smith
 assert _b08_work._target("span")[1].db.route_fitting_install == _b15_original_span
 assert _b08_table.db.route_fitting_stock == _b15_original_stock
+# Exercise the actual production install preflight with an authenticated
+# ordinary Smith and the genuine persisted item. Only the site/source
+# fixtures are isolated so the already-installed original bridge is untouched.
+from types import SimpleNamespace as _b15_namespace
+from unittest.mock import patch as _b15_patch
+_b15_span_saved = _b08_work._target("span")[1].db.route_fitting_install
+_b15_source = {
+    "event_id": _b15_span_saved["source_event_id"],
+    "account_id": _b15_span_saved["source_account_id"],
+    "mask_id": 999999,
+    "object_id": _b15_span_saved["source_object_id"],
+    "room_id": _b15_span_saved["source_room_id"],
+}
+assert _b15_source["account_id"] != _b15_smith.account.id
+_b15_fake_target = _b15_namespace(
+    id=_b08_work._target("span")[1].id,
+    location=_b15_smith.location,
+    db=_b15_namespace(route_fitting_install=None))
+_b15_before_events = len(_b08_work.get_event_ledger().db.events or [])
+with _b15_patch.object(_b08_work, "_target",
+                       return_value=(_b15_smith.location, _b15_fake_target)), \\
+     _b15_patch.object(_b08_work, "_source", return_value=_b15_source), \\
+     _b15_patch.object(_b08_work, "_clock",
+                       return_value=(_b15_forge_day, _b15_forge_hour - 1)):
+    _b15_result, _b15_error = _b08_work.install(_b15_smith, "span")
+assert _b15_result is None and "genuine Smith-forged" in _b15_error
+assert len(_b08_work.get_event_ledger().db.events or []) == _b15_before_events
+assert _b15_fake_target.db.route_fitting_install is None
+assert _b15_item.id == _b15_item_id and _b15_item.location == _b15_smith
+assert _b08_table.db.route_fitting_stock == _b15_original_stock
 print("POST_RESTART_B15_FUTURE_HOUR_FORGE_REFUSED_GREEN")
 
 print("POST_RESTART_GDD_EDGE20_VERIFIED_PHYSICAL_SPAN_GREEN")
