@@ -620,6 +620,39 @@ def main() -> int:
             run([evennia, "shell"], cwd=game, env=edge02_second_env,
                 input_text=edge02_restart)
 
+            # EDGE-08: after all time-pinned T-13/EDGE-02 checks, advance the
+            # disposable QA day without resetting the original cord or
+            # manufacturing any player event. Both independent roles renew
+            # their physical actions through authenticated ordinary clients.
+            edge08_renewal_setup = (
+                checkout / "spike" / "tests" /
+                "gdd_edge08_renewal_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge08_renewal_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge08_renewal.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=180,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            # A fresh server process must read both finite refuge meals,
+            # distinct source markers, physical bowls and the renewed dispatch.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            edge08_renewal_restart = (
+                checkout / "spike" / "tests" /
+                "gdd_edge08_renewal_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge08_renewal_restart)
+
             # EDGE-41: run the independent physical Hound/Performer scene only
             # after ALL current-main EDGE-02/06/18 and T-13 assertions.
             # EDGE-41: isolate a fresh physical scene only after all legacy
