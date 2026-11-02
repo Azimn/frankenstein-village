@@ -77,7 +77,7 @@ def verify(state, events):
     return f.verified_install(
         state, events.get, kind=state.get("kind"),
         target_id=state.get("target_id"),
-        room_id=state.get("target_room_id"), table_id=900, day=4)
+        room_id=state.get("target_room_id"), table_id=900, day=4, hour=14)
 
 
 class RouteFittingProofTests(unittest.TestCase):
@@ -97,7 +97,7 @@ class RouteFittingProofTests(unittest.TestCase):
                     state, events.get, kind=kind,
                     target_id=state["target_id"] + 1,
                     room_id=state["target_room_id"],
-                    table_id=900, day=4))
+                    table_id=900, day=4, hour=14))
 
     def test_forged_failed_wrong_role_account_and_physical_source_refused(self):
         for kind in f.KINDS:
@@ -248,7 +248,7 @@ class RouteFittingProofTests(unittest.TestCase):
             },
         }
         row = {"event_id": 40, "install_event_id": 30}
-        kwargs = dict(cord_id=401, room_id=402, table_id=900, day=4)
+        kwargs = dict(cord_id=401, room_id=402, table_id=900, day=4, hour=15)
         self.assertTrue(f.verified_test(state, row, events.get, **kwargs))
         earlier = copy.deepcopy(events)
         earlier[29] = copy.deepcopy(earlier.pop(40))
@@ -267,6 +267,67 @@ class RouteFittingProofTests(unittest.TestCase):
             target = changed[event_id] if group is None else changed[event_id][group]
             target[key] = value
             self.assertFalse(f.verified_test(state, row, changed.get, **kwargs))
+
+    def test_b18_future_hour_install_public_readback_fails_closed(self):
+        """Completed receipts must not claim a future same-day physical repair."""
+        for kind in f.KINDS:
+            state, events = fixture(kind)
+            kwargs = dict(kind=kind, target_id=state["target_id"],
+                          room_id=state["target_room_id"], table_id=900)
+            with self.subTest(kind=kind):
+                self.assertFalse(f.verified_install(
+                    state, events.get, day=4, hour=13, **kwargs))
+                self.assertTrue(f.verified_install(
+                    state, events.get, day=4, hour=14, **kwargs))
+                self.assertTrue(f.verified_install(
+                    state, events.get, day=5, hour=0, **kwargs))
+                for bad in (None, True, -1, 24, "13"):
+                    self.assertFalse(f.verified_install(
+                        state, events.get, day=4, hour=bad, **kwargs))
+                restored = json.loads(json.dumps(state))
+                ledger = {int(k): v for k, v in
+                          json.loads(json.dumps(events)).items()}
+                self.assertFalse(f.verified_install(
+                    restored, ledger.get, day=4, hour=13, **kwargs))
+                self.assertTrue(f.verified_install(
+                    restored, ledger.get, day=5, hour=0, **kwargs))
+
+    def test_b18_future_hour_hound_test_public_readback_fails_closed(self):
+        """A completed 15:00 Hound test is not public at 14:00."""
+        state, events = fixture("cord")
+        events[40] = {
+            "id": 40, "status": "complete",
+            "kind": "village.route_fitting_tested",
+            "actor": {"account_id": 8, "mask_id": 80, "mask": "Hound"},
+            "payload": {
+                "calling": "hound", "kind": "cord",
+                "location": "The Northern Treeline",
+                "day": 4, "hour": 15, "target_id": 401,
+                "target_room_id": 402, "install_event_id": 30,
+            },
+            "consequence": {
+                "tested": True, "target_id": 401, "install_event_id": 30,
+            },
+        }
+        row = {"event_id": 40, "install_event_id": 30}
+        kwargs = dict(cord_id=401, room_id=402, table_id=900)
+        self.assertFalse(f.verified_test(
+            state, row, events.get, day=4, hour=13, **kwargs))
+        self.assertFalse(f.verified_test(
+            state, row, events.get, day=4, hour=14, **kwargs))
+        self.assertTrue(f.verified_test(
+            state, row, events.get, day=4, hour=15, **kwargs))
+        self.assertTrue(f.verified_test(
+            state, row, events.get, day=5, hour=0, **kwargs))
+        for bad in (None, True, -1, 24, "14"):
+            self.assertFalse(f.verified_test(
+                state, row, events.get, day=4, hour=bad, **kwargs))
+        restored = json.loads(json.dumps(state))
+        ledger = {int(k): v for k, v in
+                  json.loads(json.dumps(events)).items()}
+        self.assertFalse(f.verified_test(
+            restored, row, ledger.get, day=4, hour=14, **kwargs))
+
 
 
 if __name__ == "__main__":
