@@ -5,6 +5,8 @@ teleports, grants a quest reward, or publishes a claim as objective truth.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from django.db import transaction
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
@@ -343,13 +345,17 @@ def _verified_river_source(gauge, room, witness):
     if not witness:
         return False
     event = get_event_ledger().get_event(witness["event_id"])
-    if not event or event.get("kind") != "village.river_gauge_witnessed":
+    if (not isinstance(event, Mapping)
+            or event.get("kind") != "village.river_gauge_witnessed"
+            or event.get("status") != "complete"
+            or type(event.get("id")) is not int
+            or event["id"] != witness["event_id"]):
         return False
-    if event.get("status") != "complete":
+    actor, payload, consequence = (
+        event.get("actor"), event.get("payload"), event.get("consequence"))
+    if not all(isinstance(part, Mapping)
+               for part in (actor, payload, consequence)):
         return False
-    actor = dict(event.get("actor") or {})
-    payload = dict(event.get("payload") or {})
-    consequence = dict(event.get("consequence") or {})
     return (
         type(actor.get("account_id")) is int
         and actor["account_id"] == witness["account_id"]
