@@ -426,13 +426,16 @@ class OriginalCotPublicReadback(unittest.TestCase):
         # The merged clinic also displays comfort and certified cot status.
         # Mock only those unrelated adapters while exercising the real
         # current-main status function and original-cot selection.
+        import world
+        fake_cot_service = types.SimpleNamespace(
+            status=lambda: "Cot certification status.")
         with patch.dict(sys.modules, {
             "world.clinic_inquiry_work": types.SimpleNamespace(_cot=cot),
             "world.clinic_comfort_edge27": types.SimpleNamespace(
                 public_lines=lambda *_args, **_kwargs: "Comfort status."),
-            "world.clinic_cot_work": types.SimpleNamespace(
-                status=lambda: "Cot certification status."),
-        }), patch.object(rules, "public_lines",
+            "world.clinic_cot_work": fake_cot_service,
+        }), patch.object(world, "clinic_cot_work", fake_cot_service,
+                        create=True), patch.object(rules, "public_lines",
                         side_effect=lambda _raw, _day, **kwargs:
                             "verified original cot %s" % kwargs["cot_id"]):
             line = status()
