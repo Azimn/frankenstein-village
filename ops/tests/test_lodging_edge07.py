@@ -113,6 +113,69 @@ class LodgingEdge07Tests(unittest.TestCase):
         self.assertNotIn("culprit", rules.public_lines(after).lower())
         self.assertIn("no guest identity", rules.public_lines(after).lower())
 
+    def test_disclosure_requires_original_completed_physical_note_source(self):
+        row = self.state["records"][0]
+        disclosure = signed_source(row)
+        found = signed_note(row)
+        self.assertTrue(rules.found_note_valid(
+            found, account_id=11, mask_id=111, note_id=501,
+            door_id=601, hall_id=701
+        ))
+        self.assertTrue(rules.source_is_valid(
+            disclosure, row, {90: found}.get
+        ))
+        self.assertFalse(rules.source_is_valid(disclosure, row))
+        self.assertFalse(rules.source_is_valid(
+            disclosure, row, {}.get
+        ))
+        for group, field, bad in (
+            (None, "id", 91),
+            (None, "kind", "room_six.note_to_tavern"),
+            (None, "status", "consequence_failed"),
+            ("actor", "account_id", 22),
+            ("actor", "mask_id", 222),
+            ("payload", "note_id", 999),
+            ("payload", "door_id", 999),
+            ("payload", "hall_id", 999),
+        ):
+            forged = copy.deepcopy(found)
+            if group is None:
+                forged[field] = bad
+            else:
+                forged[group][field] = bad
+            self.assertFalse(rules.source_is_valid(
+                disclosure, row, {90: forged}.get
+            ), (group, field))
+        for group, field, bad in (
+            ("payload", "note_id", 999),
+            ("payload", "door_id", 999),
+            ("payload", "hall_id", 999),
+            ("payload", "source_event_id", 999),
+            ("consequence", "note_id", 999),
+            ("consequence", "door_id", 999),
+            ("consequence", "hall_id", 999),
+            ("consequence", "source_event_id", 999),
+        ):
+            forged = copy.deepcopy(disclosure)
+            forged[group][field] = bad
+            self.assertFalse(rules.source_is_valid(
+                forged, row, {90: found}.get
+            ), (group, field))
+        self.assertFalse(rules.found_note_valid(
+            found, account_id=11, mask_id=111, note_id=501,
+            door_id=601, hall_id=0
+        ))
+
+    def test_adapter_requires_real_note_at_preflight_and_consequence(self):
+        adapter = (Path(__file__).resolve().parents[2] /
+                   "spike/fvillage/world/lodging_work.py").read_text()
+        self.assertIn("def _found_property(mask):", adapter)
+        self.assertIn('event.get("kind") == "room_six.note_found"', adapter)
+        self.assertIn('obj.typeclass_path == "typeclasses.objects.MysteryNote"', adapter)
+        self.assertIn("note, note_event, note_error = _found_property(mask)", adapter)
+        self.assertIn("current_note, current_event, note_error = _found_property(mask)", adapter)
+        self.assertIn("get_event_ledger().get_event", adapter)
+
     def test_public_readback_requires_both_completed_canonical_events(self):
         state, okay, error = rules.inquire(self.state, **inquiry())
         self.assertTrue(okay, error)
