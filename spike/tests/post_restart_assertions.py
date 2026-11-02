@@ -2384,6 +2384,18 @@ assert "canvas cover" in _bridge_line(_bridge_public)
 assert "canvas cover" in _bridge.get_display_desc(smoke), (
     "Other visitors cannot see the settled physical world response"
 )
+from world.bridge_work import public_line as _verified_bridge_line
+_bridge_verified = _verified_bridge_line(_bridge)
+assert "canvas cover" in _bridge_verified, (
+    "Completed bridge response disappeared from verified production readback"
+)
+assert "cannot be verified" not in _bridge_verified, (
+    "Legitimate completed bridge source failed original ledger validation"
+)
+assert "cannot be verified" not in _bridge.get_display_desc(smoke), (
+    "Room look must not render an unsupported saved bridge signature"
+)
+print("POST_RESTART_B13_VERIFIED_BRIDGE_PUBLIC_READBACK_GREEN")
 from world.bridge_materials import normalize as _market_material_stock
 _market = one("Market Lane")
 _material_tables = [obj for obj in _market.contents
