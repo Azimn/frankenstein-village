@@ -123,7 +123,10 @@ def status_lines():
         "there to record whether the warning was present when inspected. "
         "After both signed actions, the original Wanderer may examine the "
         "cord again and use |wsurvey corroborate|n for an independent check. "
-        "Neither action proves why the cord was damaged."
+        "Neither action proves why the cord was damaged. "
+        "An independent Detective can examine the tied cord and use "
+        "|wsurvey preserve|n to record qualified trace custody, or "
+        "|wsurvey custody|n to inspect that physical record."
     )
     lines.append("Chroniclers: examine the physical cord after a signed Hound protection, return to the Square, and use |wsurvey caution|n to publish a qualified, source-linked notice.")
     if route_surveys.complete(state):
