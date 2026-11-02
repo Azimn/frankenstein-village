@@ -57,7 +57,9 @@ def status(mask=None):
             return error
     day, _ = _clock()
     lines = clinic_state.public_lines(room.db.village_clinic, day)
-    cot = next((o for o in room.contents if o.key == COT), None)
+    # Both public comfort and signed inquiry bind to the unique original typed cot.
+    from world.clinic_inquiry_work import _cot
+    cot = _cot(room)
     if cot:
         from world.clinic_comfort_edge27 import public_lines
         ledger = None
@@ -76,6 +78,15 @@ def status(mask=None):
             event_lookup=ledger.get_event if ledger is not None else None,
             treatment=treatment, treatment_event=source,
             room_id=room.id, cot_id=cot.id,
+        )
+    if cot is None:
+        lines += "\nThe clinic inquiry register requires original physical cot verification."
+    else:
+        from world.clinic_inquiry_state import public_lines as inquiry_public_lines
+        lines += "\n" + inquiry_public_lines(
+            cot.db.clinic_inquiry, day,
+            event_lookup=ledger.get_event if ledger is not None else (lambda _id: None),
+            cot_id=cot.id,
         )
     from world import clinic_cot_work
     lines += "\n" + clinic_cot_work.status()
