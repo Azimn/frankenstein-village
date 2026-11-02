@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - feat/gdd-edge28-healer-detective-clinic-20261027
 
 permissions:
   contents: read
@@ -23,9 +24,24 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: "pip"
+      - name: Build disposable exact-main plus candidate overlay (branch-only)
+        if: github.ref == 'refs/heads/feat/gdd-edge28-healer-detective-clinic-20261027'
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAIN_SHA=284a1c0ab46c8af014c5b0c35d57e5604c371b13
+          git cat-file -e "$MAIN_SHA^{commit}"
+          BASE=$(git merge-base "$MAIN_SHA" HEAD)
+          git diff --name-only --diff-filter=ACMR -z "$BASE" HEAD > /tmp/fv-overlay-paths
+          tar --null -T /tmp/fv-overlay-paths -cf /tmp/fv-overlay.tar
+          git checkout --detach "$MAIN_SHA"
+          tar -xf /tmp/fv-overlay.tar
+          printf 'FV_OVERLAY_BASE_MAIN=%s\\nFV_OVERLAY_CANDIDATE=%s\\n' "$MAIN_SHA" "$GITHUB_SHA"
+          git status --short
       - name: Run clean-checkout suite
         run: python spike/tests/run_all.py
