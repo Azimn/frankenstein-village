@@ -77,10 +77,11 @@ def _event(get_event, ident, kind):
     return event
 
 
-def verified_forge(item, get_event, *, kind, table_id, day):
+def verified_forge(item, get_event, *, kind, table_id, day, hour):
     """Verify a carried fitting against its original finite workshop receipt."""
     item = record(item)
     if (kind not in KINDS or not positive(table_id) or not positive(day)
+            or not hour_valid(hour)
             or not positive(item.get("item_id"))
             or not positive(item.get("forge_event_id"))
             or not positive(item.get("forge_day"))
@@ -99,6 +100,7 @@ def verified_forge(item, get_event, *, kind, table_id, day):
         and payload.get("location") == "Market Lane"
         and payload.get("day") == item["forge_day"]
         and hour_valid(payload.get("hour"))
+        and (item["forge_day"], payload["hour"]) <= (day, hour)
         and payload.get("table_id") == table_id
         and result.get("item_id") == item["item_id"]
         and result.get("table_id") == table_id
