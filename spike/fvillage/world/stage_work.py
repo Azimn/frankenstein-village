@@ -36,11 +36,38 @@ def _guard(mask):
 
 
 def status(mask):
+    """Ordinary-player stage status cannot authenticate mutable DB attributes."""
     tavern, error = _guard(mask)
     if error:
         return error
     day, _ = _clock()
-    return stage_state.public_lines(tavern.db.village_stage, day)
+    state = stage_state.refresh(tavern.db.village_stage, day)
+    if state["performance"]:
+        platforms = [
+            obj for obj in tavern.contents
+            if obj.key == "a modest performance platform"
+            and obj.location == tavern
+        ]
+        ledger = get_event_ledger()
+        verified, problem = _verified_performance(tavern, state, ledger, day)
+        if problem or len(platforms) != 1:
+            # No forged performer, audience or Detective attribution.
+            state["performance"] = None
+            state["witnesses"] = []
+            state["inquiries"] = []
+        else:
+            platform = platforms[0]
+            state["inquiries"] = [
+                row for row in state["inquiries"]
+                if stage_state.verified_public_inquiry(
+                    row, ledger.get_event(row["event_id"]),
+                    day=day, tavern_room_id=tavern.id,
+                    stage_object_id=platform.id,
+                    performance=state["performance"],
+                    witness_event_ids=verified,
+                )
+            ]
+    return stage_state.public_lines(state, day)
 
 
 def act(mask, action, tune=None):
