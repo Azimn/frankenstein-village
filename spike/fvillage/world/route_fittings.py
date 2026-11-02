@@ -111,7 +111,7 @@ def verified_forge(item, get_event, *, kind, table_id, day, hour):
 
 
 def verified_install(saved, get_event, *, kind, target_id, room_id,
-                     table_id, day):
+                     table_id, day, hour):
     """Validate all three completed original events, not a saved 'safe' flag."""
     saved = record(saved)
     if (kind not in KINDS or saved.get("kind") != kind
@@ -123,7 +123,8 @@ def verified_install(saved, get_event, *, kind, target_id, room_id,
             or not hour_valid(saved.get("hour"))
             or saved["target_id"] != target_id
             or saved["target_room_id"] != room_id
-            or not positive(day) or saved["day"] > day
+            or not positive(day) or not hour_valid(hour)
+            or (saved["day"], saved["hour"]) > (day, hour)
             or saved["smith_account_id"] == saved["source_account_id"]
             or not (saved["source_event_id"] < saved["install_event_id"]
                     and saved["forge_event_id"] < saved["install_event_id"]
@@ -233,9 +234,10 @@ def verified_post_install_view(latest, *, day, hour, install_day,
         and latest["route_fitting_cord_id"] == cord_id
     )
 
-def verified_test(saved, test, get_event, *, cord_id, room_id, table_id, day):
+def verified_test(saved, test, get_event, *, cord_id, room_id, table_id, day, hour):
     if not verified_install(saved, get_event, kind="cord", target_id=cord_id,
-                            room_id=room_id, table_id=table_id, day=day):
+                            room_id=room_id, table_id=table_id, day=day,
+                            hour=hour):
         return False
     test = record(test)
     if (not positive(test.get("event_id"))
@@ -259,6 +261,7 @@ def verified_test(saved, test, get_event, *, cord_id, room_id, table_id, day):
                 and hour_valid(payload.get("hour"))
                 and (payload["day"], payload["hour"]) >=
                     (saved["day"], saved["hour"])
+                and (payload["day"], payload["hour"]) <= (day, hour)
                 and effect.get("tested") is True
                 and effect.get("target_id") == cord_id
                 and effect.get("install_event_id") == saved["install_event_id"])
