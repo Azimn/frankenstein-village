@@ -3048,6 +3048,14 @@ def main() -> int:
             ("north", "northern treeline"),
         ):
             require(stage_smith.command(move), destination)
+        # Both original field workers returned to the Tavern for other
+        # independent gameplay. Re-enter the actual treeline before testing.
+        for field_worker in (wanderer, hound):
+            for move, destination in (
+                ("west", "village square"), ("west", "st. lazarus church"),
+                ("west", "churchyard"), ("north", "northern treeline"),
+            ):
+                require(field_worker.command(move), destination)
         out = wanderer.command("bridgefit install cord")
         require(out, "active smith")
         out = hound.command("bridgefit test cord")
