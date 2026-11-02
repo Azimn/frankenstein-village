@@ -42,7 +42,11 @@ class Client:
                 chunks.append(chunk)
                 last_data = time.monotonic()
             except socket.timeout:
-                if chunks and time.monotonic() - last_data >= quiet:
+                # ANSI-only or telnet negotiation bytes are not a reply.
+                # Keep waiting for printable output without resending a
+                # potentially consequential command.
+                if (chunks and time.monotonic() - last_data >= quiet
+                        and clean(b"".join(chunks)).strip()):
                     break
         out = clean(b"".join(chunks))
         if out:
