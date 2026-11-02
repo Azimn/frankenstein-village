@@ -316,13 +316,25 @@ def river_status(mask):
     room = getattr(mask, "location", None)
     if room is None or room.key != "Riverside Path":
         return "Visit the original river gauge on Riverside Path."
-    gauge = next((obj for obj in room.contents
-                  if obj.key == "a river gauge"
-                  and getattr(obj.db, "landmark_id", None) == "river_gauge"), None)
-    if gauge is None:
-        return "The original river gauge is missing."
+    gauges = [
+        obj for obj in room.contents
+        if obj.key == "a river gauge"
+        and getattr(obj.db, "landmark_id", None) == "river_gauge"
+    ]
+    if len(gauges) != 1:
+        return "The original river gauge cannot be uniquely verified."
+    gauge = gauges[0]
     day, _hour = _day_hour()
-    return "\n".join(river_evidence.public_lines(gauge.db.river_evidence, day))
+    state = river_evidence.normalize(gauge.db.river_evidence)
+    witness, review = state["witness"], state["review"]
+    from world.events import get_event_ledger
+    ledger = get_event_ledger()
+    witness_event = (ledger.get_event(witness["event_id"]) if witness else None)
+    review_event = (ledger.get_event(review["event_id"]) if review else None)
+    return "\n".join(river_evidence.verified_public_lines(
+        state, day, gauge_id=gauge.id, room_id=room.id,
+        witness_event=witness_event, review_event=review_event,
+    ))
 
 
 def _verified_river_source(gauge, room, witness):
