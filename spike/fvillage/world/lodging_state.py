@@ -97,6 +97,19 @@ def normalize(raw):
     return state
 
 
+def preview_event_id(raw):
+    """Choose a non-reserving, collision-free ID for pure preflight checks.
+
+    The actual world-event ID is assigned by the canonical ledger inside
+    publish_world_event. This provisional value is never persisted or signed.
+    """
+    state = normalize(raw)
+    used = [row["event_id"] for row in state["records"]]
+    used.extend(row["inquiry"]["event_id"] for row in state["records"]
+                if row["inquiry"])
+    return max(used, default=0) + 1
+
+
 def _guard(state, day, hour, account_id, mask_id, event_id, register_id, room_id):
     now = valid_time(day, hour)
     ids = [positive(x) for x in
