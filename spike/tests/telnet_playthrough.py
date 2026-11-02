@@ -123,6 +123,7 @@ def main() -> int:
     detective = None
     bridge_detective = None
     detective_trace = None
+    river_detective = None
     try:
         banner = c.sync_login_screen()
         require(banner, "frankenstein village")
@@ -2488,6 +2489,54 @@ def main() -> int:
         require(out, "must carry an actual sealed parcel")
         print("TELNET_GDD_EDGE31_MERCHANT_WANDERER_FREIGHT_GREEN")
 
+        # GDD-EDGE-37: real river-gauge evidence, separate signed Callings.
+        # This is a new source record on the original gauge, not a second
+        # daily route report (the Smith already signed that civic slot).
+        out = wanderer.command("survey gauge")
+        require(out, "examine the actual river gauge")
+        out = wanderer.command("look river gauge")
+        require(out, "flood marks")
+        out = wanderer.command("survey compare")
+        require(out, "active Detective")
+        out = wanderer.command("survey gauge")
+        require_all(out, "signed river-gauge evidence", "world event")
+        out = wanderer.command("survey gauge")
+        require(out, "already signed today")
+
+        river_detective = Client(args.host, args.port)
+        require(river_detective.sync_login_screen(), "frankenstein village")
+        detective_pw = os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = river_detective.command(f"connect qa_detective_river {detective_pw}", wait=4.0)
+        require(out, "connected", "account qa_detective_river")
+        river_detective.command("charcreate RiverDetectiveTester", wait=3.0)
+        out = river_detective.command("ic RiverDetectiveTester", wait=4.0)
+        require(out, "private room")
+        out = river_detective.command("calling choose detective")
+        require_all(out, "detective is now your active calling", "apprentice rank")
+        for move, destination in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("east", "blood of the vine"),
+            ("east", "riverside path"),
+        ):
+            out = river_detective.command(move)
+            require(out, destination)
+        out = river_detective.command("survey compare")
+        require(out, "examine the actual river gauge")
+        out = river_detective.command("look river gauge")
+        require(out, "flood marks")
+        out = river_detective.command("survey gauge")
+        require(out, "active Wanderer")
+        out = river_detective.command("survey compare")
+        require_all(out, "signed river-gauge evidence", "qualified comparison",
+                    "does not identify a culprit")
+        out = river_detective.command("survey compare")
+        require(out, "already has a Detective comparison")
+        out = river_detective.command("survey evidence")
+        require_all(out, "wanderertester", "detectivetester",
+                    "does not establish who removed the bridge plaque")
+        print("TELNET_GDD_EDGE37_TWO_ACCOUNT_SIGNED_RIVER_EVIDENCE_GREEN")
+
+
         # GDD T-07: two independent ordinary accounts, same physical cord.
         # Travel, inspect, and act from their real locations. The Wanderer
         # records logistical caution before a Hound physically marks it;
@@ -2880,8 +2929,12 @@ def main() -> int:
             print("\nDETECTIVE TRANSCRIPT\n" + "\n".join(detective.transcript))
         if detective_trace is not None:
             print("\nDETECTIVE TRACE TRANSCRIPT\n" + "\n".join(detective_trace.transcript))
+        if river_detective is not None:
+            print("\nRIVER DETECTIVE TRANSCRIPT\n" + "\n".join(river_detective.transcript))
         raise
     finally:
+        if river_detective is not None:
+            river_detective.close()
         if bridge_detective is not None:
             bridge_detective.close()
         if detective is not None:

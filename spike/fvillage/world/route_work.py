@@ -129,6 +129,13 @@ def status_lines():
         "|wsurvey custody|n to inspect that physical record."
     )
     lines.append("Chroniclers: examine the physical cord after a signed Hound protection, return to the Square, and use |wsurvey caution|n to publish a qualified, source-linked notice.")
+    lines.append(
+        "At Riverside Path, a Wanderer can examine the original river gauge "
+        "and use |wsurvey gauge|n to sign firsthand flood-mark evidence. "
+        "A separate Detective can examine that gauge and use |wsurvey compare|n "
+        "for a qualified signed case note. |wsurvey evidence|n checks the "
+        "completed ledger, not a flood forecast or solved mystery."
+    )
     if route_surveys.complete(state):
         lines.append(
             "The public route is complete for today. Tomorrow's observations "
@@ -824,3 +831,182 @@ def publish_caution(mask):
     )
     record_participation(mask, "route_caution_publication", calling="chronicler")
     return {"event_id": event["id"], "source_event_id": source["source_event_id"]}, None
+
+
+def _river_context(mask):
+    """Return the original river gauge after a current firsthand examination."""
+    from world.discoveries import LANDMARKS, normalize as discoveries
+    if not getattr(mask, "account", None):
+        return None, None, None, "A logged-in player mask is required."
+    site = "river_gauge"
+    room = getattr(mask, "location", None)
+    if (room is None or room.key != LANDMARKS[site]["room"]
+            or not room.tags.has("ic", category="side")):
+        return None, None, None, "Travel to Riverside Path and inspect the gauge."
+    gauges = [
+        obj for obj in room.contents
+        if obj.key == LANDMARKS[site]["key"]
+        and getattr(obj.db, "landmark_id", None) == site
+        and obj.access(mask, "view", default=True)
+    ]
+    if len(gauges) != 1:
+        return None, None, None, "The original river gauge cannot be uniquely verified."
+    gauge = gauges[0]
+    day, hour = _day_hour()
+    try:
+        recent = dict(mask.db.landmark_latest_view or {}).get(site) or {}
+        seen = int(recent.get("day") or 0) == day
+    except (TypeError, ValueError, OverflowError):
+        seen = False
+    if not seen or not any(row["id"] == site for row in discoveries(mask.db.landmark_discoveries)):
+        return None, None, None, "Examine the actual river gauge here today first."
+    return room, gauge, (day, hour), None
+
+
+def river_status(mask):
+    """Read only public source-limited evidence at the existing gauge."""
+    from world import river_evidence
+    room = getattr(mask, "location", None)
+    if room is None or room.key != "Riverside Path":
+        return "Visit the original river gauge on Riverside Path."
+    gauges = [
+        obj for obj in room.contents
+        if obj.key == "a river gauge"
+        and getattr(obj.db, "landmark_id", None) == "river_gauge"
+    ]
+    if len(gauges) != 1:
+        return "The original river gauge cannot be uniquely verified."
+    gauge = gauges[0]
+    day, _hour = _day_hour()
+    state = river_evidence.normalize(gauge.db.river_evidence)
+    witness, review = state["witness"], state["review"]
+    from world.events import get_event_ledger
+    ledger = get_event_ledger()
+    witness_event = (ledger.get_event(witness["event_id"]) if witness else None)
+    review_event = (ledger.get_event(review["event_id"]) if review else None)
+    return "\n".join(river_evidence.verified_public_lines(
+        state, day, gauge_id=gauge.id, room_id=room.id,
+        witness_event=witness_event, review_event=review_event,
+    ))
+
+
+def _verified_river_source(gauge, room, witness):
+    """Check completed canonical source, not just mutable object attributes."""
+    from world.events import get_event_ledger
+    if not witness:
+        return False
+    event = get_event_ledger().get_event(witness["event_id"])
+    if (not isinstance(event, Mapping)
+            or event.get("kind") != "village.river_gauge_witnessed"
+            or event.get("status") != "complete"
+            or type(event.get("id")) is not int
+            or event["id"] != witness["event_id"]):
+        return False
+    actor, payload, consequence = (
+        event.get("actor"), event.get("payload"), event.get("consequence"))
+    if not all(isinstance(part, Mapping)
+               for part in (actor, payload, consequence)):
+        return False
+    return (
+        type(actor.get("account_id")) is int
+        and actor["account_id"] == witness["account_id"]
+        and type(actor.get("mask_id")) is int
+        and actor["mask_id"] == witness["mask_id"]
+        and actor.get("mask") == witness["mask"]
+        and payload.get("calling") == "wanderer"
+        and type(payload.get("day")) is int
+        and payload["day"] == witness["day"]
+        and type(payload.get("hour")) is int
+        and payload["hour"] == witness["hour"]
+        and type(payload.get("object_id")) is int
+        and payload["object_id"] == gauge.id == witness["object_id"]
+        and type(payload.get("room_id")) is int
+        and payload["room_id"] == room.id
+        and payload.get("location") == "Riverside Path"
+        and type(consequence.get("gauge_object_id")) is int
+        and consequence["gauge_object_id"] == gauge.id
+        and type(consequence.get("witness_event_id")) is int
+        and consequence["witness_event_id"] == witness["event_id"]
+        and type(consequence.get("account_id")) is int
+        and consequence["account_id"] == witness["account_id"]
+    )
+
+
+def river_action(mask, action):
+    """EDGE-37: Wanderer observes; independent Detective preserves comparison."""
+    from world import river_evidence
+    if action not in {"gauge", "compare"}:
+        return None, "Use survey gauge (Wanderer) or survey compare (Detective)."
+    role = "wanderer" if action == "gauge" else "detective"
+    if active_calling(mask) != role:
+        return None, f"An active {role.title()} must sign this action."
+    room, gauge, stamp, error = _river_context(mask)
+    if error:
+        return None, error
+    day, hour = stamp
+    raw = gauge.db.river_evidence
+    source = river_evidence.normalize(raw)["witness"]
+    if action == "compare" and not _verified_river_source(gauge, room, source):
+        return None, "The signed, completed Wanderer source cannot be verified."
+    # Preview checks feasibility only; it does not reserve a ledger ID.
+    # If the first genuine Wanderer event is ID 1, the Detective preview
+    # must not reuse that signed source and reject otherwise valid gameplay.
+    preview_id = source["event_id"] + 1 if action == "compare" else 1
+    kwargs = dict(day=day, hour=hour, account_id=mask.account.id,
+                  mask_id=mask.id, mask=mask.key, event_id=preview_id,
+                  object_id=gauge.id)
+    if action == "gauge":
+        _candidate, ok, why = river_evidence.witness(raw, **kwargs)
+    else:
+        _candidate, ok, why = river_evidence.compare(
+            raw, source_event_id=source["event_id"], **kwargs
+        )
+    if not ok:
+        return None, why
+
+    def consequence(event):
+        with transaction.atomic():
+            current_room, current_gauge, current_stamp, issue = _river_context(mask)
+            if (issue or current_room != room or current_gauge != gauge
+                    or current_stamp != stamp or active_calling(mask) != role):
+                raise RuntimeError("The physical witness, Calling or village time changed.")
+            actual = gauge.db.river_evidence
+            fields = dict(kwargs, event_id=event["id"])
+            if action == "gauge":
+                changed, accepted, reason = river_evidence.witness(actual, **fields)
+            else:
+                actual_source = river_evidence.normalize(actual)["witness"]
+                if not _verified_river_source(gauge, room, actual_source):
+                    raise RuntimeError("The completed Wanderer source changed.")
+                changed, accepted, reason = river_evidence.compare(
+                    actual, source_event_id=actual_source["event_id"], **fields
+                )
+            if not accepted:
+                raise RuntimeError(reason)
+            gauge.db.river_evidence = changed
+            record_participation(mask, "river_gauge_witnesses" if action == "gauge"
+                                 else "river_evidence_comparisons", calling=role)
+            return {
+                "gauge_object_id": gauge.id, "room_id": room.id,
+                "witness_event_id": (event["id"] if action == "gauge"
+                                     else changed["witness"]["event_id"]),
+                "account_id": mask.account.id,
+                "review_event_id": (event["id"] if action == "compare" else None),
+                "source_event_id": (changed["review"]["source_event_id"]
+                                    if changed["review"] else None),
+            }
+
+    event = publish_world_event(
+        "village.river_gauge_witnessed" if action == "gauge"
+        else "village.river_evidence_compared",
+        actor=mask,
+        payload={
+            "day": day, "hour": hour, "calling": role,
+            "object_id": gauge.id, "room_id": room.id, "location": room.key,
+            "source_event_id": source["event_id"] if action == "compare" else None,
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "action": action,
+            "lines": river_status(mask)}, None

@@ -10,6 +10,9 @@ class CmdSurvey(Command):
         survey report
         survey protect       (Hound, Northern Treeline)
         survey passability   (Wanderer, Northern Treeline)
+        survey gauge         (Wanderer, Riverside Path)
+        survey compare       (Detective, Riverside Path)
+        survey evidence      (public signed gauge evidence)
         survey corroborate   (Wanderer, after signed Hound protection)
         survey publish       (Chronicler, Village Square; sourced map)
         survey caution       (Chronicler, Village Square; signed Hound marker)
@@ -107,6 +110,26 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
+        if verb == "evidence":
+            caller.msg(route_work.river_status(caller))
+            return
+        if verb in {"gauge", "compare"}:
+            result, error = route_work.river_action(caller, verb)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"Signed river-gauge evidence (world event {result['event_id']}). "
+                + ("The observed flood marks are not a forecast. "
+                   if verb == "gauge" else
+                   "This qualified comparison does not identify a culprit. ")
+                + result["lines"]
+            )
+            caller.location.msg_contents(
+                f"{caller.key} records firsthand river-gauge evidence.",
+                exclude=[caller],
+            )
+            return
         if verb in {"protect", "passability", "corroborate"}:
             result, error = route_work.field_action(caller, verb)
             if error:
@@ -134,4 +157,4 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
-        caller.msg("Use: survey | survey report | survey protect | survey passability | survey publish | survey corroborate | survey caution | survey preserve | survey custody")
+        caller.msg("Use: survey | survey report | survey protect | survey passability | survey publish | survey corroborate | survey caution | survey preserve | survey custody | survey gauge | survey compare | survey evidence")

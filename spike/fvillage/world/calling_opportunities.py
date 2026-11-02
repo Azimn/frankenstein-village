@@ -101,6 +101,9 @@ WORK = {
         "survey protect, examine the cord again and use survey corroborate "
         "to sign an independently sourced follow-up. Neither observation "
         "guarantees safety.",
+        "At Riverside Path, look river gauge and use survey gauge to sign a "
+        "firsthand flood-mark reading. A different Detective can inspect the "
+        "same object and use survey compare; neither action predicts a flood.",
         "Use survey to see the four current district checkpoints. "
         "Travel there, look at each actual clue, and use survey report.",
         "Examine the Riverside Path, churchyard, treeline, and market "
