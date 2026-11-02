@@ -232,6 +232,17 @@ class Register(DefaultObject):
         self.db.desc = REGISTER_DESC
         self.aliases.add(["guest book", "guestbook", "book"])
 
+    def get_display_desc(self, looker=None, **kwargs):
+        # This advertises an ordinary player action, not private guest facts.
+        return (self.db.desc or "") + (
+            "\n\nProfessional inquiry: an Innkeep may look here and use "
+            "'lodging disclose' for a redacted entry. A different Detective "
+            "may look here and use 'lodging inquire'. The Innkeep must first "
+            "personally find and carry the original unclaimed note from the "
+            "Room Six door. Neither action reveals "
+            "a guest identity or proves who wrote the entry."
+        )
+
     def at_desc(self, looker=None):
         desc = self.db.desc or ""
         if looker and looker.has_account:
