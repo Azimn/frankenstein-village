@@ -41,13 +41,31 @@ def signed_source(row):
             "calling": "innkeep", "scope": rules.SCOPE,
             "day": row["day"], "hour": row["hour"],
             "register_id": row["register_id"], "room_id": row["room_id"],
+            "note_id": 501, "door_id": 601, "hall_id": 701,
+            "source_event_id": 90,
         },
         "consequence": {
             "scope": rules.SCOPE, "register_id": row["register_id"],
-            "room_id": row["room_id"], "source_event_id": row["event_id"],
+            "room_id": row["room_id"], "source_event_id": 90,
+            "note_id": 501, "door_id": 601, "hall_id": 701,
             "day": row["day"], "hour": row["hour"],
         },
     }
+
+
+def signed_note(row):
+    return {
+        "id": 90, "kind": "room_six.note_found", "status": "complete",
+        "actor": {"account_id": row["account_id"],
+                  "mask_id": row["mask_id"], "mask": row["mask"]},
+        "payload": {"note_id": 501, "door_id": 601, "hall_id": 701},
+    }
+
+
+def with_note(lookup, row):
+    if not callable(lookup):
+        return None
+    return lambda event_id: signed_note(row) if event_id == 90 else lookup(event_id)
 
 
 def signed_inquiry(row):
@@ -84,7 +102,8 @@ class LodgingEdge07Tests(unittest.TestCase):
 
     def test_two_distinct_professional_actions_persist(self):
         self.assertTrue(rules.source_is_valid(
-            signed_source(self.state["records"][0]), self.state["records"][0]))
+            signed_source(self.state["records"][0]), self.state["records"][0],
+            with_note({}.get, self.state["records"][0])))
         after, okay, error = rules.inquire(self.state, **inquiry())
         self.assertTrue(okay, error)
         self.assertEqual(after["records"][0]["inquiry"]["source_event_id"], 100)
@@ -104,7 +123,7 @@ class LodgingEdge07Tests(unittest.TestCase):
         }
         self.assertTrue(rules.inquiry_is_valid(events[200], row))
         rendered = rules.public_lines(
-            json.loads(json.dumps(state)), event_lookup=events.get,
+            json.loads(json.dumps(state)), event_lookup=with_note(events.get, row),
             register_id=401, room_id=301,
         )
         self.assertIn("Latest redacted authorization", rendered)
@@ -114,13 +133,13 @@ class LodgingEdge07Tests(unittest.TestCase):
         self.assertIn("No guest identity is established", rendered)
 
         missing_inquiry = rules.public_lines(
-            state, event_lookup={100: events[100]}.get,
+            state, event_lookup=with_note({100: events[100]}.get, row),
             register_id=401, room_id=301,
         )
         self.assertIn("Stored Detective inquiry cannot be verified", missing_inquiry)
         self.assertNotIn("Independent qualified inquiry: signed", missing_inquiry)
         missing_source = rules.public_lines(
-            state, event_lookup={200: events[200]}.get,
+            state, event_lookup=with_note({200: events[200]}.get, row),
             register_id=401, room_id=301,
         )
         self.assertIn("no signed disclosure or inquiry is shown", missing_source)
@@ -136,13 +155,13 @@ class LodgingEdge07Tests(unittest.TestCase):
             (lambda _id: (_ for _ in ()).throw(RuntimeError("ledger unavailable")), 401, 301),
         ):
             output = rules.public_lines(
-                self.state, event_lookup=lookup,
+                self.state, event_lookup=with_note(lookup, row),
                 register_id=register_id, room_id=room_id,
             )
             self.assertIn("cannot be verified", output)
             self.assertNotIn("Latest redacted authorization:", output)
         valid = rules.public_lines(
-            self.state, event_lookup={100: source}.get,
+            self.state, event_lookup=with_note({100: source}.get, row),
             register_id=401, room_id=301,
         )
         self.assertIn("Latest redacted authorization", valid)
@@ -176,7 +195,7 @@ class LodgingEdge07Tests(unittest.TestCase):
                 forged[group][field] = bad
             self.assertFalse(rules.inquiry_is_valid(forged, row), (group, field))
             output = rules.public_lines(
-                state, event_lookup={100: source, 200: forged}.get,
+                state, event_lookup=with_note({100: source, 200: forged}.get, row),
                 register_id=401, room_id=301,
             )
             self.assertIn("Stored Detective inquiry cannot be verified", output)
@@ -185,7 +204,7 @@ class LodgingEdge07Tests(unittest.TestCase):
         corrupted = json.loads(json.dumps(state))
         corrupted["records"][0]["inquiry"]["account_id"] = 77
         output = rules.public_lines(
-            corrupted, event_lookup={100: source, 200: original}.get,
+            corrupted, event_lookup=with_note({100: source, 200: original}.get, row),
             register_id=401, room_id=301,
         )
         self.assertIn("cannot be verified", output)
@@ -196,7 +215,7 @@ class LodgingEdge07Tests(unittest.TestCase):
         source = signed_source(row)
         for damaged in (None, 7, True, "forged", {"0": row}):
             rendered = rules.public_lines(
-                {"records": damaged}, event_lookup={100: source}.get,
+                {"records": damaged}, event_lookup=with_note({100: source}.get, row),
                 register_id=401, room_id=301,
             )
             self.assertIn("No signed redacted authorization", rendered)
@@ -205,7 +224,7 @@ class LodgingEdge07Tests(unittest.TestCase):
         # A list-like persisted container must still preserve valid evidence.
         saver_like = {"records": UserList(copy.deepcopy(self.state["records"]))}
         rendered = rules.public_lines(
-            saver_like, event_lookup={100: source}.get,
+            saver_like, event_lookup=with_note({100: source}.get, row),
             register_id=401, room_id=301,
         )
         self.assertIn("Latest redacted authorization:", rendered)
@@ -217,7 +236,7 @@ class LodgingEdge07Tests(unittest.TestCase):
             damaged = copy.deepcopy(self.state)
             damaged["records"][0]["scope"] = invalid_scope
             rendered = rules.public_lines(
-                damaged, event_lookup={100: source}.get,
+                damaged, event_lookup=with_note({100: source}.get, row),
                 register_id=401, room_id=301,
             )
             self.assertIn("No signed redacted authorization", rendered)
@@ -230,7 +249,7 @@ class LodgingEdge07Tests(unittest.TestCase):
         damaged = copy.deepcopy(state)
         damaged["records"][0]["inquiry"]["finding"] = "guest_identified"
         rendered = rules.public_lines(
-            damaged, event_lookup=events.get, register_id=401, room_id=301,
+            damaged, event_lookup=with_note(events.get, row), register_id=401, room_id=301,
         )
         self.assertIn("Latest redacted authorization:", rendered)
         self.assertIn("No independent Detective inquiry", rendered)
@@ -310,7 +329,7 @@ class LodgingEdge07Tests(unittest.TestCase):
         ]:
             forged = copy.deepcopy(original)
             forged[field] = bad
-            self.assertFalse(rules.source_is_valid(forged, row), field)
+            self.assertFalse(rules.source_is_valid(forged, row, with_note({}.get, row)), field)
         for group, field, bad in [
             ("actor", "account_id", 22),
             ("actor", "mask_id", 999),
@@ -325,9 +344,9 @@ class LodgingEdge07Tests(unittest.TestCase):
         ]:
             forged = copy.deepcopy(original)
             forged[group][field] = bad
-            self.assertFalse(rules.source_is_valid(forged, row), (group, field))
-        self.assertFalse(rules.source_is_valid(None, row))
-        self.assertFalse(rules.source_is_valid(original, None))
+            self.assertFalse(rules.source_is_valid(forged, row, with_note({}.get, row)), (group, field))
+        self.assertFalse(rules.source_is_valid(None, row, with_note({}.get, row)))
+        self.assertFalse(rules.source_is_valid(original, None, with_note({}.get, row)))
 
     def test_missing_or_wrong_physical_register_rejected(self):
         after, okay, error = rules.inquire(
@@ -380,7 +399,8 @@ class LodgingEdge07Tests(unittest.TestCase):
         restored = rules.normalize(json.loads(json.dumps(after)))
         self.assertEqual(restored, after)
         self.assertTrue(rules.source_is_valid(
-            signed_source(restored["records"][0]), restored["records"][0]))
+            signed_source(restored["records"][0]), restored["records"][0],
+            with_note({}.get, restored["records"][0])))
         self.assertEqual(restored["last_day"], 1)
         self.assertEqual(restored["last_hour"], 19)
 
@@ -404,7 +424,7 @@ class LodgingEdge07Tests(unittest.TestCase):
         self.assertEqual(rules.normalize({"records": [damaged]})["records"], [])
         signed = signed_source(row)
         signed["actor"]["account_id"] = 11.9
-        self.assertFalse(rules.source_is_valid(signed, row))
+        self.assertFalse(rules.source_is_valid(signed, row, with_note({}.get, row)))
 
     def test_invalid_identity_time_and_malformed_history_fail_closed(self):
         for key, value in [
