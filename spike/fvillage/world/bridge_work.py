@@ -258,7 +258,7 @@ def act(mask, verb):
             )
         if not _verified_carried(mask, verb, day):
             return None, (
-                "Bring a source-verified real kit from Market Lane. Use "
+                "Bring the matching real kit from Market Lane. Use "
                 "|wbridgework collect " + verb + "|n at the civic material table, "
                 "then physically carry it to the bridge."
             )
