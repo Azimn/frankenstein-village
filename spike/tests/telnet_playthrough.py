@@ -2997,6 +2997,74 @@ def main() -> int:
         out = c.command("west")
         require(out, "blood of the vine")
         print("TELNET_BRANCHING_BRIDGE_CASE_GREEN")
+
+        # B08 EDGE-20/23: two original field sources and a third, independent
+        # ordinary Smith account physically consumes two finite fittings.
+        # This uses existing Wanderer gauge and Hound cord ledger events.
+        out = stage_smith.command("bridgefit install span")
+        require(out, "stand at the original bridge")
+        for move, destination in (
+            ("west", "village square"), ("south", "lamp shop"),
+            ("south", "market lane"),
+        ):
+            require(stage_smith.command(move), destination)
+        out = stage_smith.command("bridgefit forge span")
+        require_all(out, "forge a finite physical span", "signed world event")
+        out = stage_smith.command("bridgefit forge cord")
+        require(out, "carry only one unfinished")
+        require(stage_smith.command("inventory"), "forged bridge-span fitting")
+        for move, destination in (
+            ("north", "lamp shop"), ("north", "village square"),
+            ("east", "blood of the vine"), ("east", "riverside path"),
+            ("east", "old stone bridge"),
+        ):
+            require(stage_smith.command(move), destination)
+        out = stage_smith.command("bridgefit cross")
+        require(out, "not been physically fitted")
+        out = stage_smith.command("bridgefit install span")
+        require_all(out, "physically fitted", "signed world event")
+        out = stage_smith.command("inventory")
+        assert "forged bridge-span fitting" not in out.lower()
+        out = stage_smith.command("bridgefit install span")
+        require(out, "installed already")
+        out = stage_smith.command("bridgefit")
+        require_all(out, "span: physically fitted", "cord: no installed")
+        out = stage_smith.command("look")
+        require(out, "span: physically fitted")
+        out = stage_smith.command("bridgefit cross")
+        require(out, "cross the repaired inspection span")
+        require(stage_smith.command("look"), "riverside path")
+        for move, destination in (
+            ("west", "blood of the vine"), ("west", "village square"),
+            ("south", "lamp shop"), ("south", "market lane"),
+        ):
+            require(stage_smith.command(move), destination)
+        out = stage_smith.command("bridgefit forge cord")
+        require_all(out, "forge a finite physical cord", "signed world event")
+        require(stage_smith.command("inventory"), "forged red-cord anchor")
+        for move, destination in (
+            ("north", "lamp shop"), ("north", "village square"),
+            ("west", "st. lazarus church"), ("west", "churchyard"),
+            ("north", "northern treeline"),
+        ):
+            require(stage_smith.command(move), destination)
+        out = wanderer.command("bridgefit install cord")
+        require(out, "active smith")
+        out = hound.command("bridgefit test cord")
+        require(out, "no completed signed smith")
+        out = stage_smith.command("bridgefit install cord")
+        require_all(out, "physically fitted", "signed world event")
+        out = stage_smith.command("inventory")
+        assert "forged red-cord anchor" not in out.lower()
+        out = hound.command("bridgefit test cord")
+        require_all(out, "hound tests the local", "signed world event")
+        out = hound.command("bridgefit test cord")
+        require(out, "tested already")
+        out = hound.command("look")
+        require_all(out, "cord: physically fitted", "independently hound-tested")
+        print("TELNET_GDD_EDGE20_SMITH_WANDERER_FINITE_SPAN_GREEN")
+        print("TELNET_GDD_EDGE23_SMITH_HOUND_LOCAL_CORD_GREEN")
+
         out = c.command("journal discoveries")
         require_all(out,
                     "weathered grave marker", "frayed red cord",
