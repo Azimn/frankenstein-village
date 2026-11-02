@@ -1761,7 +1761,16 @@ assert _inquiry["mask_id"] == _detective.id
 assert _inquiry["account_id"] == _stage_detective_account_id
 assert _inquiry["account_id"] != _stage_performer_account_id
 assert _inquiry["source_event_id"] == _stage["performance"]["event_id"]
-assert _inquiry["witness_event_ids"] == [_stage["witnesses"][0]["event_id"]]
+_stage_witness_ids = sorted(row["event_id"] for row in _stage["witnesses"])
+assert len(_stage_witness_ids) == 2, "Main's two real stage witnesses must remain signed"
+assert _inquiry["witness_event_ids"] == _stage_witness_ids
+assert len({row["account_id"] for row in _stage["witnesses"]}) == 2
+for _witness_row in _stage["witnesses"]:
+    _witness_event = warning_ledger.get_event(_witness_row["event_id"])
+    assert _witness_event["kind"] == "village.stage_witness"
+    assert _witness_event["status"] == "complete"
+    assert _witness_event["actor"]["account_id"] == _witness_row["account_id"]
+    assert _witness_event["consequence"]["performance_event_id"] == _inquiry["source_event_id"]
 assert _inquiry["firsthand_witness"] is False
 assert not any(w["account_id"] == _stage_detective_account_id
                for w in _stage["witnesses"])
