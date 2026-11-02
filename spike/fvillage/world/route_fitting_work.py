@@ -93,7 +93,7 @@ def _source(kind, day, hour):
     return None
 
 
-def _carried(mask, kind, table_id, day):
+def _carried(mask, kind, table_id, day, hour):
     return [obj for obj in mask.contents
             if obj.key == route_fittings.NAMES[kind]
             and obj.db.route_fitting_kind == kind
@@ -101,7 +101,8 @@ def _carried(mask, kind, table_id, day):
                 {"item_id": obj.id,
                  "forge_event_id": obj.db.route_fitting_forge_event,
                  "forge_day": obj.db.route_fitting_forge_day},
-                _ledger, kind=kind, table_id=table_id, day=day)]
+                _ledger, kind=kind, table_id=table_id, day=day,
+                hour=hour)]
 
 
 def _verified_target(kind, room, target, table, day):
@@ -234,7 +235,7 @@ def install(mask, kind):
         return None, "A firsthand completed Wanderer gauge or Hound cord source is required today."
     if source["account_id"] == mask.account.id or source["mask_id"] == mask.id:
         return None, "The Smith and original field observer must be independent accounts."
-    items = _carried(mask, kind, table.id, day)
+    items = _carried(mask, kind, table.id, day, hour)
     if not items:
         return None, "Carry a genuine Smith-forged fitting from the Market Lane table."
     item = items[0]
@@ -253,7 +254,7 @@ def install(mask, kind):
             if current_source != source:
                 raise RuntimeError("The completed field source changed during installation.")
             if item.location != mask or item not in _carried(
-                    mask, kind, table.id, day):
+                    mask, kind, table.id, day, hour):
                 raise RuntimeError("The physical fitting or its forge receipt changed.")
             saved = {"kind": kind, "install_event_id": event["id"],
                      "source_event_id": source["event_id"],
