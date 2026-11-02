@@ -8,7 +8,7 @@ class CmdLodging(Command):
     Usage:
         lodging
         look register
-        lodging disclose     (Innkeep)
+        lodging disclose     (Innkeep with original found Room Six note)
         lodging inquire      (different Detective)
 
     The Innkeep authorizes only the existence of the Room Six entry.
