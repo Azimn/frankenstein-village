@@ -61,9 +61,9 @@ class TestTelnetReadQuiet(unittest.TestCase):
         client.transcript = []
 
         def deliver():
-            server_sock.sendall(b"\\x1b[0m")
+            server_sock.sendall(b"\x1b[0m")
             time.sleep(0.38)
-            server_sock.sendall(b"Accusation is now public\\n")
+            server_sock.sendall(b"Accusation is now public\n")
 
         thread = threading.Thread(target=deliver, daemon=True)
         thread.start()
