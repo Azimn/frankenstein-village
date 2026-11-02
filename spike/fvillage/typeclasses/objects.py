@@ -138,11 +138,13 @@ class DiscoveryScenery(DefaultObject):
                     "what cut the cord or remove any unseen danger."
                 )
         if ident == "market_scale" and self.location:
-            from world.market_standards import normalize
-            from world.market_work import clock, state_lines
-            day, _hour = clock()
-            current = normalize(self.location.db.market_standards)
-            if current["day"] == day and current["calibration"]:
+            from world.market_work import state_lines
+            status = state_lines()
+            # Even the visual description must not claim that a scale was
+            # physically corrected based on a forged persisted docket.
+            # The canonical renderer only publishes this condition when the
+            # underlying completed event and signed source are verified.
+            if "The market scale has been physically recalibrated today." in status:
                 detail = (
                     "The brass pans now settle evenly after a Smith's "
                     "adjustment of the stone shim. The old chalk slate "
@@ -152,7 +154,7 @@ class DiscoveryScenery(DefaultObject):
             # Use the same canonical ledger-checked public readback as trade.
             # Calling public_lines without event_lookup falsely suppresses
             # legitimate signed work during an ordinary object look.
-            detail += "\n" + state_lines()
+            detail += "\n" + status
         return detail
 
 
