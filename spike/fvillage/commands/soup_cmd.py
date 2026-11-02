@@ -10,9 +10,16 @@ class CmdSoup(Command):
         soup prep <turnip|barley> <thyme|salt|pepper>
         soup simmer
         soup notebook
+        soup receipt [cooking event ID]   (Innkeep discloses house batch)
+        soup publish [cooking event ID]   (independent Chronicler)
+        soup receipts                    (public, no private guest data)
         soup procure             (Merchant, Market Lane)
-        soup deliver             (any courier carrying the real crate)
-        soup refuge <hound mask>  (Innkeep, Hound present with signed dispatch)
+        soup deliver             (solo/courier fallback with signed crate)
+        soup accept              (Innkeep verifies a separate Merchant crate)
+        soup welcome <Wanderer>  (Innkeep with a cooked bowl, signed arrival)
+        soup restrict            (Innkeep, unsafe pot lid)
+        soup repair              (Smith, real forged hinge in inventory)
+        soup refuge <hound mask>  (Innkeep, signed Hound dispatch and finite food)
 
     The kitchen has finite pantry supplies, a renewing daily baseline,
     a permanent work log and individual recipe notebooks. Prepared packets
@@ -35,7 +42,7 @@ class CmdSoup(Command):
         if raw in ("", "stock", "status"):
             caller.msg(soup_kitchen.status(caller))
             return
-        if raw.startswith("refuge"):
+        if raw == "refuge" or raw.startswith("refuge "):
             from world import refuge_work
             name = raw[len("refuge"):].strip()
             result, error = refuge_work.serve(caller, name)
@@ -43,12 +50,29 @@ class CmdSoup(Command):
                 caller.msg(error)
                 return
             caller.msg(
-                f"You serve one real bowl of refuge soup to the Hound "
-                f"(signed event {result['event_id']}); the dispatch is consumed. "
-                f"{result['turnip']} turnip portions remain in the Tavern pantry."
+                f"You serve one real bowl of refuge soup (event {result['event_id']}). "
+                f"The signed dispatch is consumed; {result['turnip']} turnip portions remain."
             )
             caller.location.msg_contents(
-                f"{caller.key} serves a witnessed traveler from the finite pantry.",
+                f"{caller.key} serves finite refuge soup to a Hound.",
+                exclude=[caller],
+            )
+            return
+        if raw in ("restrict", "repair"):
+            from world import kitchen_repair_work
+            action = kitchen_repair_work.restrict if raw == "restrict" else kitchen_repair_work.repair
+            result, error = action(caller)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                ("You restrict player simmering at the real communal pot. "
+                 if raw == "restrict" else
+                 "You install and consume the physical forged hinge; player simmering resumes. ")
+                + f"Signed world event {result['event_id']}."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} completes a physical kitchen {raw} action.",
                 exclude=[caller])
             return
         if raw == "notebook":
@@ -89,6 +113,61 @@ class CmdSoup(Command):
                 f"{caller.key} finishes a fresh bowl of homemade soup.",
                 exclude=[caller])
             return
+        if raw == "receipts":
+            caller.msg(soup_kitchen.receipt_lines(caller))
+            return
+        if raw == "receipt" or raw.startswith("receipt "):
+            parts = raw.split()
+            if len(parts) > 2:
+                caller.msg("Use soup receipt [cooking event ID].")
+                return
+            result, error = soup_kitchen.authorize_house_receipt(
+                caller, parts[1] if len(parts) == 2 else None
+            )
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"You authorize public kitchen batch facts only for cooking "
+                f"event {result['cook_event_id']}; signed disclosure event "
+                f"{result['event_id']}. No guest identity is released."
+            )
+            return
+        if raw == "publish" or raw.startswith("publish "):
+            parts = raw.split()
+            if len(parts) > 2:
+                caller.msg("Use soup publish [cooking event ID].")
+                return
+            result, error = soup_kitchen.publish_house_receipt(
+                caller, parts[1] if len(parts) == 2 else None
+            )
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"Independent Chronicler publication event {result['event_id']} "
+                f"links cooking event {result['cook_event_id']} and signed "
+                f"consent event {result['consent_event_id']}. "
+                "The public receipt certifies no guest behavior."
+            )
+            return
+        if raw.startswith("welcome "):
+            guest = raw[len("welcome "):].strip()
+            result, error = soup_kitchen.welcome(caller, guest)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"You welcome {result['guest']} back from a genuinely "
+                f"witnessed route and hand over your real cooked bowl. "
+                f"Signed world event {result['event_id']} cites route event "
+                f"{result['route_event_id']}. The guest can eat the bowl normally."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} offers a cooked meal to a returning traveler.",
+                exclude=[caller],
+            )
+            return
         if raw == "procure":
             result, error = soup_kitchen.procure(caller)
             if error:
@@ -98,10 +177,26 @@ class CmdSoup(Command):
                 "You collect a physical crate of kitchen roots. "
                 f"{result['remaining']} market crates remain today. "
                 "Carry it to the Blood of the Vine and use soup deliver, "
-                "or give it to a courier."
+                "or give it to a separate Innkeep for soup accept."
             )
             caller.location.msg_contents(
                 f"{caller.key} loads a crate for the village kitchen.",
+                exclude=[caller])
+            return
+        if raw == "accept":
+            result, error = soup_kitchen.accept(caller)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                "You verify the Merchant's signed crate and accept its "
+                "real roots into the shared pantry. "
+                f"It now holds {result['turnips']} turnip portions. "
+                f"Merchant source event {result['source_event_id']}; "
+                f"Innkeep acceptance event {result['event_id']}."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} checks and accepts a real kitchen delivery.",
                 exclude=[caller])
             return
         if raw == "deliver":
@@ -120,5 +215,8 @@ class CmdSoup(Command):
             return
         caller.msg(
             "Use soup | soup prep <base> <seasoning> | soup simmer | "
-            "soup notebook | soup procure | soup deliver | soup refuge <hound>."
+            "soup notebook | soup receipt [event] | soup publish [event] | "
+            "soup receipts | soup procure | soup deliver | soup accept | "
+            "soup restrict | soup repair | soup welcome <Wanderer> | "
+            "soup refuge <hound mask>."
         )
