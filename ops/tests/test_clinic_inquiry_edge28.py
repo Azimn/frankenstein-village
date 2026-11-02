@@ -401,8 +401,9 @@ class OriginalCotPublicReadback(unittest.TestCase):
         cot_key = "a clinic treatment cot"
         cot = extract(root / "clinic_inquiry_work.py", "_cot",
                       {"clinic_work": types.SimpleNamespace(COT=cot_key)})
-        room = types.SimpleNamespace(contents=[],
-                                     db=types.SimpleNamespace(village_clinic={}))
+        room = types.SimpleNamespace(
+            id=301, contents=[],
+            db=types.SimpleNamespace(village_clinic={}))
         def item(number, original):
             return types.SimpleNamespace(
                 id=number, key=cot_key, location=room,
