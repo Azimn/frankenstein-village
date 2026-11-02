@@ -575,6 +575,71 @@ class Edge10SourceVerification(unittest.TestCase):
         self.assertEqual(room.db.market_standards, attested)
 
 
+    def test_ordinary_room_and_physical_scale_look_use_verified_renderer(self):
+        # Regression for B10: trade used the canonical ledger, but the two
+        # ordinary look entrypoints called public_lines with no event lookup.
+        # Exercise the production methods without importing Evennia itself.
+        from types import ModuleType
+        from unittest.mock import patch
+
+        root = Path(__file__).resolve().parents[2]
+        expected = (
+            "Market Lane: standards and trades\\n"
+            "The market scale has been physically recalibrated today.\\n"
+            "Merchant Player5 and Smith Player9 have signed evidence."
+        )
+        market_module = ModuleType("world.market_work")
+        market_module.clock = lambda: (1, 14)
+        market_module.state_lines = lambda: expected
+        discoveries = ModuleType("world.discoveries")
+        discoveries.capture = lambda *_args: None
+
+        def production_class(path, class_name, method_name, base_name, base):
+            source = root / path
+            tree = ast.parse(source.read_text(encoding="utf-8"),
+                             filename=str(source))
+            node = next(n for n in tree.body if isinstance(n, ast.ClassDef)
+                        and n.name == class_name)
+            node.body = [next(n for n in node.body
+                              if isinstance(n, ast.FunctionDef)
+                              and n.name == method_name)]
+            namespace = {base_name: base}
+            exec(compile(ast.fix_missing_locations(
+                ast.Module(body=[node], type_ignores=[])),
+                str(source), "exec"), namespace)
+            return namespace[class_name]
+
+        class DefaultRoom:
+            def get_display_desc(self, looker=None, **kwargs):
+                return "Market Lane baseline"
+
+        with patch.dict(sys.modules, {
+                "world.market_work": market_module,
+                "world.discoveries": discoveries}):
+            room_cls = production_class(
+                "spike/fvillage/typeclasses/rooms.py",
+                "SpikeRoom", "get_display_desc", "DefaultRoom", DefaultRoom)
+            room = room_cls()
+            room.key = "Market Lane"
+            room.db = SimpleNamespace(
+                sense_air=None, weather_sense=None, scheduled_overlays={})
+            self.assertIn("physically recalibrated",
+                          room.get_display_desc())
+
+            scale_cls = production_class(
+                "spike/fvillage/typeclasses/objects.py",
+                "DiscoveryScenery", "get_display_desc",
+                "DefaultObject", type("DefaultObject", (), {}))
+            scale = scale_cls()
+            scale.db = SimpleNamespace(
+                landmark_id="market_scale", desc="The brass pans disagree.")
+            scale.location = SimpleNamespace(
+                db=SimpleNamespace(market_standards=self.state))
+            output = scale.get_display_desc(looker=SimpleNamespace())
+            self.assertIn("physically recalibrated", output)
+            self.assertIn("Merchant Player5 and Smith Player9", output)
+
+
 
 
 if __name__ == "__main__":
