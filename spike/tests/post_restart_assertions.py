@@ -2429,6 +2429,40 @@ assert not search.search_object(
 ), "The consumed kit still exists as a free object"
 print("POST_RESTART_PHYSICAL_BRIDGE_MATERIALS_GREEN")
 
+# B13 negative control: the restarted real bridge and finite Market Lane
+# table must refuse corrupted saved Attributes through the production
+# collection entrypoint, not merely through a pure status renderer. The
+# disposable test world is restored before subsequent source assertions.
+import copy as _bridge_copy
+from types import SimpleNamespace as _BridgeMask
+from world.bridge_work import collect as _bridge_collect
+_saved_bridge_record = _bridge_copy.deepcopy(dict(_bridge.db.bridge_inquiry))
+_saved_market_stock = _bridge_copy.deepcopy(
+    dict(_material_tables[0].db.bridge_material_stock)
+)
+_bridge_market_mask = _BridgeMask(
+    account=_bridge_owner, location=_market, contents=[]
+)
+try:
+    for _malformed in (7, True, {"resolution": {"choice": "preserve"}}):
+        _bridge.db.bridge_inquiry = _malformed
+        _refused, _reason = _bridge_collect(_bridge_market_mask, "preserve")
+        assert _refused is None and "source review" in _reason, (
+            "Corrupt restarted bridge state permitted kit collection"
+        )
+        assert _bridge.db.bridge_inquiry == _malformed, (
+            "Rejected corrupt record was overwritten"
+        )
+        assert dict(_material_tables[0].db.bridge_material_stock) == _saved_market_stock, (
+            "Rejected corrupt bridge record changed finite material stock"
+        )
+finally:
+    _bridge.db.bridge_inquiry = _saved_bridge_record
+assert "canvas cover" in _verified_bridge_line(_bridge), (
+    "Restoring the signed bridge record lost its real source"
+)
+print("POST_RESTART_B13_CORRUPT_COLLECTION_REFUSED_GREEN")
+
 print("POST_RESTART_BRIDGE_RESPONSE_GREEN")
 
 
