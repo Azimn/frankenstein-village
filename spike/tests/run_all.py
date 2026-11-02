@@ -47,6 +47,25 @@ def qa_cli_password() -> str:
     return "qa_" + secrets.token_urlsafe(24)
 
 
+def stop_evennia_after_phase(evennia: Path, *, game: Path, env: dict, phase_failed: bool) -> None:
+    """Always stop the disposable server without hiding a gameplay failure.
+
+    A stop failure by itself remains fatal. When a client or persistence
+    assertion already failed, preserve that original exception and report
+    the secondary cleanup fault separately on stderr.
+    """
+    try:
+        run([evennia, "stop"], cwd=game, env=env, timeout=60)
+    except Exception as exc:
+        if not phase_failed:
+            raise
+        print(
+            f"Evennia stop failed during cleanup ({exc}); "
+            "original gameplay failure retained",
+            file=sys.stderr,
+        )
+
+
 def venv_bin(root: Path, name: str) -> Path:
     bindir = root / "spike" / "venv" / ("Scripts" if os.name == "nt" else "bin")
     suffix = ".exe" if os.name == "nt" else ""
@@ -429,7 +448,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=100,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             t13_cancel = (
                 checkout / "spike" / "tests" / "gdd_t13_cancel_world_assertions.py"
             ).read_text(encoding="utf-8")
@@ -503,7 +525,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=140,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             race_assertions = (
                 checkout / "spike" / "tests" / "gdd_t13_race_assertions.py"
             ).read_text(encoding="utf-8")
@@ -535,7 +560,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=100,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             day4_assertions = (
                 checkout / "spike" / "tests" / "gdd_t13_day4_assertions.py"
             ).read_text(encoding="utf-8")
@@ -586,7 +614,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=100,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             restored_env = dict(env)
             restored_env["FV_EDGE18_AUTH_NEGATIVE_PHASE"] = "restore"
             run([evennia, "shell"], cwd=game, env=restored_env,
@@ -605,7 +636,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=140,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             edge02_restart = (
                 checkout / "spike" / "tests" /
                 "edge02_later_day_restart_assertions.py"
@@ -640,7 +674,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=180,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             # A fresh server process must read both finite refuge meals,
             # distinct source markers, physical bowls and the renewed dispatch.
             run([evennia, "start"], cwd=game, env=env, timeout=120)
@@ -672,7 +709,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=180,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             # A genuinely new server process must read the persisted signed
             # Hound source, independent Performer decision and actual show.
             run([evennia, "start"], cwd=game, env=env, timeout=120)
@@ -703,7 +743,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=180,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             run([evennia, "start"], cwd=game, env=env, timeout=120)
             wait_for_port("127.0.0.1", 4000)
             run([evennia, "stop"], cwd=game, env=env, timeout=60)
@@ -734,7 +777,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=180,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             run([evennia, "start"], cwd=game, env=env, timeout=120)
             wait_for_port("127.0.0.1", 4000)
             run([evennia, "stop"], cwd=game, env=env, timeout=60)

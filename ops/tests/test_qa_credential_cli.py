@@ -64,15 +64,13 @@ class TestEvenniaReplayCleanup(unittest.TestCase):
             )
         stop.assert_called_once()
 
-    def test_all_three_migrated_replay_phases_preserve_original_failure(self):
-        # Include the pre-restart normal-client phase as well as after/release.
-        # A second stop error must not replace the first gameplay exception.
+    def test_all_nine_actual_restart_phases_preserve_original_failure(self):
+        # Verify the current main runner, not a removed candidate-only replay.
+        # All nine real finally blocks must retain the player exception.
         source = RUNNER.read_text(encoding="utf-8")
-        replay = source.split("            # After the hostile decoy is seeded", 1)[1]
-        replay = replay.split("            migrated_post_client_proof =", 1)[0]
-        self.assertEqual(replay.count("stop_evennia_after_phase("), 3)
-        self.assertEqual(replay.count("phase_failed=sys.exc_info()[0] is not None"), 3)
-        self.assertNotIn('run([evennia, "stop"]', replay)
+        self.assertEqual(source.count("stop_evennia_after_phase("), 10)
+        self.assertEqual(source.count("phase_failed=sys.exc_info()[0] is not None"), 9)
+        self.assertNotIn('finally:\n                run([evennia, "stop"]', source)
 
     def test_pre_restart_failure_and_stop_failure_keep_player_exception(self):
         # Exercise the exact finally expression used by the before phase.
