@@ -3039,6 +3039,15 @@ def main() -> int:
             ("south", "lamp shop"), ("south", "market lane"),
         ):
             require(stage_smith.command(move), destination)
+        # Two independently authenticated Smith accounts share one finite
+        # Market Lane stock. A third same-day withdrawal must fail.
+        require(smith_kitchen.command("west"), "market lane")
+        out = smith_kitchen.command("bridgefit forge span")
+        require_all(out, "forge a finite physical span", "signed world event")
+        require(smith_kitchen.command("inventory"), "forged bridge-span fitting")
+        out = stage_smith.command("bridgefit forge span")
+        require(out, "no matching physical fittings remain today")
+        print("TELNET_B08_TWO_SMITH_FINITE_STOCK_CONTENTION_GREEN")
         out = stage_smith.command("bridgefit forge cord")
         require_all(out, "forge a finite physical cord", "signed world event")
         require(stage_smith.command("inventory"), "forged red-cord anchor")
