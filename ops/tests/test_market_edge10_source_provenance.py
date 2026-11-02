@@ -436,6 +436,41 @@ class Edge10SourceVerification(unittest.TestCase):
         self.assertIn("cannot be verified", missing)
         self.assertEqual(saved, original)
 
+    def test_failed_chronicler_publication_does_not_erase_valid_scale_work(self):
+        # B10: the authenticated market playthrough signed all three
+        # professions, but a later ordinary look suppressed even verified
+        # Smith work. Fail closed per signature, not by blanking the board.
+        attested, ok, error = signed(self.state, "attest", 11, 14)
+        self.assertTrue(ok, error)
+        ledger = copy.deepcopy(self.ledger)
+        ledger[14] = ledger_event(
+            attested["attestation"], "attest", "chronicler",
+            review_id=10, calibration_id=12,
+        )
+        good = " ".join(market.public_lines(attested, 1, ledger.get))
+        self.assertIn("physically recalibrated", good)
+        self.assertIn("Merchant Player5", good)
+        self.assertIn("Smith Player9", good)
+        self.assertIn("attested both source events", good)
+
+        bad_publication = copy.deepcopy(ledger)
+        bad_publication[14]["status"] = "consequence_failed"
+        board = " ".join(market.public_lines(attested, 1, bad_publication.get))
+        self.assertIn("cannot be verified", board)
+        self.assertIn("physically recalibrated", board)
+        self.assertIn("Merchant Player5", board)
+        self.assertIn("Smith Player9", board)
+        self.assertNotIn("attested both source events", board)
+
+        # An unverified Smith event is not physical calibration proof.
+        bad_core = copy.deepcopy(ledger)
+        bad_core[12]["status"] = "consequence_failed"
+        board = " ".join(market.public_lines(attested, 1, bad_core.get))
+        self.assertIn("cannot be verified", board)
+        self.assertNotIn("physically recalibrated", board)
+        self.assertNotIn("Smith Player9 calibrated", board)
+        self.assertNotIn("attested both source events", board)
+
     def test_real_ordinary_trade_status_uses_canonical_read_only_ledger(self):
         # Execute the production status function, not a surrogate caller.
         path = (Path(__file__).resolve().parents[2]
