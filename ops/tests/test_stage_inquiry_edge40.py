@@ -219,5 +219,89 @@ class StageInquiryEdge40Tests(unittest.TestCase):
             self.assertEqual(stage.normalize(corrupted)["inquiries"], [])
 
 
+
+class StagePublicInquiryProvenanceTests(unittest.TestCase):
+    """A signed-looking persisted inquiry is never itself public authority."""
+
+    def setUp(self):
+        original = performed()
+        self.state, ok, reason = inquire(original)
+        self.assertTrue(ok, reason)
+        self.row = self.state["inquiries"][0]
+        self.event = {
+            "id": 13, "kind": "village.stage_investigated",
+            "status": "complete",
+            "actor": {"account_id": 9, "mask_id": 90, "mask": "Detective"},
+            "payload": {"day": 1, "hour": 21, "tavern_room_id": 99,
+                        "stage_object_id": 50,
+                        "source_performance_event_id": 11,
+                        "verified_witness_event_ids": [12]},
+            "consequence": {"tavern_room_id": 99, "stage_object_id": 50,
+                            "performance_event_id": 11,
+                            "witness_event_ids": [12],
+                            "independent_detective_account_id": 9,
+                            "inquiry_event_id": 13,
+                            "conclusion": "signed_show_not_alibi"},
+        }
+
+    def valid(self, event=None, row=None, **overrides):
+        kwargs = dict(day=1, tavern_room_id=99, stage_object_id=50,
+                      performance=self.state["performance"],
+                      witness_event_ids=[12])
+        kwargs.update(overrides)
+        return stage.verified_public_inquiry(
+            self.row if row is None else row,
+            self.event if event is None else event, **kwargs)
+
+    def test_completed_canonical_inquiry_qualifies_for_public_projection(self):
+        self.assertTrue(self.valid())
+        self.assertTrue(self.valid(event=json.loads(json.dumps(self.event))))
+
+    def test_missing_failed_forged_and_foreign_inquiry_denied(self):
+        for field, value in (
+            ("status", "failed"), ("kind", "village.stage_witness"),
+            ("id", 999), ("actor.account_id", 99),
+            ("actor.mask_id", 99), ("actor.mask", "Forged"),
+            ("payload.day", 2), ("payload.hour", 20),
+            ("payload.tavern_room_id", 999),
+            ("payload.stage_object_id", 999),
+            ("payload.source_performance_event_id", 999),
+            ("payload.verified_witness_event_ids", []),
+            ("consequence.tavern_room_id", 999),
+            ("consequence.stage_object_id", 999),
+            ("consequence.performance_event_id", 999),
+            ("consequence.witness_event_ids", []),
+            ("consequence.independent_detective_account_id", 7),
+            ("consequence.inquiry_event_id", 999),
+            ("consequence.conclusion", "alibi_proven"),
+        ):
+            event = copy.deepcopy(self.event)
+            if "." in field:
+                parent, child = field.split(".")
+                event[parent][child] = value
+            else:
+                event[field] = value
+            with self.subTest(field=field):
+                self.assertFalse(self.valid(event=event))
+
+    def test_missing_ledger_and_wrong_physical_platform_denied(self):
+        self.assertFalse(stage.verified_public_inquiry(
+            self.row, None, day=1, tavern_room_id=99,
+            stage_object_id=50, performance=self.state["performance"],
+            witness_event_ids=[12]))
+        self.assertFalse(self.valid(stage_object_id=51))
+        self.assertFalse(self.valid(tavern_room_id=100))
+        self.assertFalse(self.valid(witness_event_ids=[]))
+        self.assertFalse(self.valid(day=2))
+
+    def test_mutated_persisted_inquiry_is_not_authority(self):
+        row = copy.deepcopy(self.row)
+        row["event_id"] = 999
+        self.assertFalse(self.valid(row=row))
+        row = copy.deepcopy(self.row)
+        row["account_id"] = 7
+        self.assertFalse(self.valid(row=row))
+
+
 if __name__ == "__main__":
     unittest.main()
