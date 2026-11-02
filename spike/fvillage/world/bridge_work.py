@@ -172,8 +172,6 @@ def _collection_open(bridge):
     same completed-ledger provenance without rewriting a malformed record.
     """
     raw = bridge.db.bridge_inquiry
-    if raw is not None and not hasattr(raw, "get"):
-        return False
     state, authentic = bridge_provenance.verified_state(
         raw, _ledger_get, bridge_room_id=bridge.id
     )
