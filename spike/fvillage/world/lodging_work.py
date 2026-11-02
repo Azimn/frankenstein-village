@@ -56,6 +56,49 @@ def _observed(mask):
     return bool(hasattr(stage, "get") and stage.get("seen_register"))
 
 
+def _found_property(mask):
+    """Require one original, physically carried note and its completed event.
+
+    Room Six's authored note is per-player and privately owned. No register
+    handwriting, anonymous guest, invented testimony or note text is disclosed.
+    """
+    halls = [obj for obj in search.search_object("Tavern Back Hall")
+             if obj.key == "Tavern Back Hall" and obj.tags.has("ic", category="side")]
+    if len(halls) != 1:
+        return None, None, "The original Room Six hallway is unavailable."
+    hall = halls[0]
+    doors = [obj for obj in hall.contents
+             if obj.key == "Room Six door"
+             and obj.typeclass_path == "typeclasses.objects.RoomSixDoor"]
+    if len(doors) != 1:
+        return None, None, "The original Room Six door is unavailable."
+    door = doors[0]
+    notes = [obj for obj in mask.contents
+             if obj.typeclass_path == "typeclasses.objects.MysteryNote"
+             and obj.key == "a folded note"
+             and obj.location == mask
+             and obj.db.owner_character_id == mask.id
+             and obj.db.door_id == door.id and obj.db.hall_id == hall.id
+             and obj.db.burned is not True]
+    if len(notes) != 1:
+        return None, None, (
+            "First find and take your own unclaimed physical note at the "
+            "Room Six door. A copied register entry is not source evidence."
+        )
+    note = notes[0]
+    ledger = get_event_ledger()
+    candidates = [event for event in list(ledger.db.events or [])
+                  if hasattr(event, "get")
+                  and event.get("kind") == "room_six.note_found"
+                  and hasattr(event.get("payload"), "get")
+                  and event["payload"].get("note_id") == note.id]
+    if len(candidates) != 1 or not lodging_state.found_note_valid(
+            candidates[0], account_id=mask.account.id, mask_id=mask.id,
+            note_id=note.id, door_id=door.id, hall_id=hall.id):
+        return None, None, "The found physical note has no unique completed source event."
+    return note, candidates[0], None
+
+
 def status(mask):
     tavern, register, error = _guard(mask)
     if error:
@@ -98,6 +141,11 @@ def act(mask, action):
     # collides with the first real Innkeep disclosure and blocks the Detective.
     preview_id = lodging_state.preview_event_id(register.db.lodging_inquiry)
     source_id = None
+    note = note_event = None
+    if action == "disclose":
+        note, note_event, note_error = _found_property(mask)
+        if note_error:
+            return None, note_error
     if action == "inquire":
         state = lodging_state.normalize(register.db.lodging_inquiry)
         row = next((r for r in reversed(state["records"])
@@ -106,7 +154,7 @@ def act(mask, action):
             return None, "No unused signed Innkeep disclosure is available."
         source_id = row["event_id"]
         source = get_event_ledger().get_event(source_id)
-        if not lodging_state.source_is_valid(source, row):
+        if not lodging_state.source_is_valid(source, row, get_event_ledger().get_event):
             return None, "The original signed Innkeep disclosure cannot be verified."
         preview, okay, reason = lodging_state.inquire(
             register.db.lodging_inquiry, event_id=preview_id,
@@ -138,6 +186,12 @@ def act(mask, action):
                     source_event_id=source_id, **common
                 )
             else:
+                current_note, current_event, note_error = _found_property(mask)
+                if (note_error or current_note.id != note.id
+                        or current_event["id"] != note_event["id"]):
+                    raise RuntimeError(
+                        "The original physical found note or signed source changed."
+                    )
                 changed, accepted, why = lodging_state.disclose(
                     current, event_id=event["id"], **common
                 )
@@ -147,7 +201,10 @@ def act(mask, action):
             return {
                 "register_id": register.id, "room_id": tavern.id,
                 "scope": lodging_state.SCOPE,
-                "source_event_id": source_id if source_id else event["id"],
+                "source_event_id": source_id if source_id else note_event["id"],
+                "note_id": note.id if note is not None else None,
+                "door_id": note.db.door_id if note is not None else None,
+                "hall_id": note.db.hall_id if note is not None else None,
                 "day": day, "hour": hour,
                 "finding": "qualified_register_observation" if source_id else None,
             }
@@ -158,7 +215,11 @@ def act(mask, action):
         payload={
             "day": day, "hour": hour, "calling": calling,
             "register_id": register.id, "room_id": tavern.id,
-            "scope": lodging_state.SCOPE, "source_event_id": source_id,
+            "scope": lodging_state.SCOPE,
+            "source_event_id": source_id if source_id else note_event["id"],
+            "note_id": note.id if note is not None else None,
+            "door_id": note.db.door_id if note is not None else None,
+            "hall_id": note.db.hall_id if note is not None else None,
             "harbinger": False, "chronicle_eligible": False,
         },
         consequence=consequence,
