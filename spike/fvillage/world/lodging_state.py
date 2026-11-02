@@ -182,14 +182,58 @@ def inquire(raw, *, day, hour, account_id, mask_id, mask, event_id,
     return state, True, None
 
 
-def source_is_valid(event, row):
-    """Require the original completed ledger receipt, not a copied claim."""
+def found_note_valid(event, *, account_id, mask_id, note_id, door_id, hall_id):
+    """Verify an actually taken Room Six note, without identifying its author.
+
+    The canonical note_found event is the initiating physical-property source.
+    Looking at the anonymous register alone is not a GDD-EDGE-07 source.
+    """
+    if not hasattr(event, "get"):
+        return False
+    actor, payload = event.get("actor"), event.get("payload")
+    if not hasattr(actor, "get") or not hasattr(payload, "get"):
+        return False
+    return (
+        event.get("kind") == "room_six.note_found"
+        and event.get("status") == "complete"
+        and positive(event.get("id")) is not None
+        and positive(actor.get("account_id")) == positive(account_id)
+        and positive(actor.get("mask_id")) == positive(mask_id)
+        and positive(payload.get("note_id")) == positive(note_id)
+        and positive(payload.get("door_id")) == positive(door_id)
+        and positive(payload.get("hall_id")) == positive(hall_id)
+        and all(positive(value) for value in
+                (account_id, mask_id, note_id, door_id, hall_id))
+    )
+
+
+def source_is_valid(event, row, event_lookup=None):
+    """Require the Innkeep receipt AND its earlier signed physical note."""
+
     if not hasattr(event, "get") or not hasattr(row, "get"):
         return False
     actor, payload, consequence = (
         event.get("actor"), event.get("payload"), event.get("consequence")
     )
     if not all(hasattr(x, "get") for x in (actor, payload, consequence)):
+        return False
+    note_id = positive(payload.get("note_id"))
+    note_event_id = positive(payload.get("source_event_id"))
+    door_id = positive(payload.get("door_id"))
+    hall_id = positive(payload.get("hall_id"))
+    if (not all((note_id, note_event_id, door_id, hall_id))
+            or not callable(event_lookup)
+            or note_event_id >= positive(event.get("id") or 0)):
+        return False
+    try:
+        note_event = event_lookup(note_event_id)
+    except Exception:
+        return False
+    if (not found_note_valid(
+            note_event, account_id=row.get("account_id"),
+            mask_id=row.get("mask_id"), note_id=note_id,
+            door_id=door_id, hall_id=hall_id)
+            or positive(note_event.get("id")) != note_event_id):
         return False
     return (
         event.get("kind") == "village.lodging_disclosure"
@@ -204,13 +248,16 @@ def source_is_valid(event, row):
         and payload.get("hour") == row.get("hour")
         and payload.get("register_id") == row.get("register_id")
         and payload.get("room_id") == row.get("room_id")
-        and payload.get("source_event_id") is None
+        and payload.get("source_event_id") == note_event_id
+        and consequence.get("note_id") == note_id
+        and consequence.get("door_id") == door_id
+        and consequence.get("hall_id") == hall_id
         and consequence.get("day") == row.get("day")
         and consequence.get("hour") == row.get("hour")
         and consequence.get("scope") == SCOPE
         and consequence.get("register_id") == row.get("register_id")
         and consequence.get("room_id") == row.get("room_id")
-        and consequence.get("source_event_id") == row.get("event_id")
+        and consequence.get("source_event_id") == note_event_id
     )
 
 
@@ -267,7 +314,7 @@ def public_lines(raw, *, event_lookup=None, register_id=None, room_id=None):
     lines = [
         "The Tavern guest register: professional inquiry",
         "The Room Six entry exists in the original register. No guest identity is established.",
-        "An Innkeep who has examined it may use lodging disclose once per village day.",
+        "An Innkeep must first physically find the unclaimed Room Six note, then may authorize a redacted disclosure once per village day.",
         "A different Detective must look at the same register, then use lodging inquire within 48 hours.",
         "No disclosure grants room access or proves who wrote the entry.",
     ]
@@ -283,7 +330,7 @@ def public_lines(raw, *, event_lookup=None, register_id=None, room_id=None):
                 source = event_lookup(row["event_id"])
             except Exception:
                 source = None
-        if not source_is_valid(source, row):
+        if not source_is_valid(source, row, event_lookup):
             lines.append(
                 "A stored register authorization cannot be verified against "
                 "completed world events; no signed disclosure or inquiry is shown."
