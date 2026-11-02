@@ -10,6 +10,7 @@ class CmdSurvey(Command):
         survey report
         survey protect       (Hound, Northern Treeline)
         survey passability   (Wanderer, Northern Treeline)
+        survey dispatch      (Hound, inspected signed original cord)
         survey gauge         (Wanderer, Riverside Path)
         survey compare       (Detective, Riverside Path)
         survey evidence      (public signed gauge evidence)
@@ -39,6 +40,22 @@ class CmdSurvey(Command):
         verb = (self.args or "").strip().lower()
         if verb in {"", "status", "help"}:
             caller.msg(route_work.status_lines())
+            return
+        if verb == "dispatch":
+            from world import refuge_work
+            result, error = refuge_work.dispatch(caller)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"You carry a physical signed treeline refuge dispatch "
+                f"(world event {result['event_id']}, original Hound source "
+                f"{result['source_id']}). A separate Innkeep may serve finite soup."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} carries a physical treeline refuge dispatch.",
+                exclude=[caller],
+            )
             return
         if verb in {"preserve", "custody"}:
             from world import route_trace_work
@@ -157,4 +174,4 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
-        caller.msg("Use: survey | survey report | survey protect | survey passability | survey publish | survey corroborate | survey caution | survey preserve | survey custody | survey gauge | survey compare | survey evidence")
+        caller.msg("Use: survey | survey report | survey protect | survey passability | survey publish | survey corroborate | survey caution | survey preserve | survey custody | survey gauge | survey compare | survey evidence | survey dispatch")

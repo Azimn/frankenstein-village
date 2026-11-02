@@ -121,6 +121,27 @@ def capture(looker, physical, ident):
     return changed
 
 
+def observed_caution(raw, *, day, hour, source_event_id, cord_id):
+    """Require this mask's physical look at this signed original cord."""
+    if not isinstance(raw, Mapping):
+        return False
+    seen = raw.get("red_cord")
+    return bool(
+        isinstance(seen, Mapping)
+        and all(type(value) is int for value in (
+            day, hour, source_event_id, cord_id,
+            seen.get("day"), seen.get("hour"),
+            seen.get("route_caution_event_id"),
+            seen.get("route_caution_cord_id")))
+        and day >= 1 and 0 <= hour <= 23
+        and 0 <= seen["hour"] <= hour
+        and seen["day"] == day
+        and source_event_id > 0 and cord_id > 0
+        and seen["route_caution_event_id"] == source_event_id
+        and seen["route_caution_cord_id"] == cord_id
+    )
+
+
 def journal_lines(raw):
     rows = normalize(raw)
     if not rows:

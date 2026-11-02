@@ -26,6 +26,9 @@ WORK = {
         "At the Blood of the Vine, inspect the original guest register. "
         "Use lodging disclose to authorize only a redacted Room Six entry "
         "for a separate Detective, never private guest identities.",
+        "A Hound with a signed physical treeline dispatch can come to "
+        "the Tavern. Use soup refuge <hound mask> while the Hound is "
+        "present to spend real finite pantry stock on a traveler.",
         "Watch the Cold Hunter at Supper care case; coordinate with a Healer "
         "only if that unresolved need remains in the village.",
     ),
@@ -159,6 +162,9 @@ WORK = {
         "survey protect to tie its loose end into a real caution marker. "
         "The same cord can be re-tightened after a new firsthand "
         "inspection on a later village day, never twice in one day.",
+        "After personally inspecting a signed warning on the original "
+        "treeline cord, use survey dispatch to carry a physical report "
+        "to the Tavern for a separate Innkeep to serve refuge soup.",
         "After signing survey protect on the real treeline cord, travel to "
         "the Blood of the Vine and use stage warn before a public show. "
         "An independent Performer decides whether to play indoors or cancel.",
