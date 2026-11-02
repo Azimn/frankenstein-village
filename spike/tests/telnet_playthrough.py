@@ -121,6 +121,7 @@ def main() -> int:
     stage_detective = None
     wanderer = None
     hound = None
+    clinic_detective = None
     detective = None
     lodging_detective = None
     bridge_detective = None
@@ -1608,6 +1609,66 @@ def main() -> int:
         require(out, "blood of the vine")
         h.read_quiet()
         print("TELNET_GDD_T08_CONSENTED_CLINIC_RECORDS_PRIVATE_GREEN")
+        # EDGE-28: a second authenticated account examines the original
+        # physical cot and signs only a procedural timeline. The Healer's
+        # actual assessment is already complete in the canonical ledger.
+        clinic_detective = Client(args.host, args.port)
+        require(clinic_detective.sync_login_screen(), "frankenstein village")
+        detective_password = os.environ["FV_QA_REPAIR_PASSWORD"]
+        out = clinic_detective.command(
+            f"connect qa_detective_clinic {detective_password}", wait=4.0
+        )
+        require(out, "connected", "account qa_detective_clinic")
+        clinic_detective.command("charcreate DetectiveClinicTester", wait=3.0)
+        out = clinic_detective.command("ic DetectiveClinicTester", wait=4.0)
+        require(out, "private room")
+        out = clinic_detective.command("calling choose detective")
+        require_all(out, "detective is now your active calling", "apprentice rank")
+        for move, place in (
+            ("down", "inn common room"), ("east", "inn hallway"),
+            ("south", "village square"), ("west", "st. lazarus church"),
+        ):
+            out = clinic_detective.command(move)
+            require(out, place)
+        out = clinic_detective.command("clinic investigate")
+        require(out, "look at the original clinic cot")
+        out = h.command("clinic investigate")
+        require(out, "only an active detective")
+        out = clinic_detective.command("look clinic cot")
+        require_all(out, "visiting patient", "clinic investigate")
+        assert "healertester" not in out.lower()
+        assert "cold" not in out.lower()
+        # A witnessed cot alone is insufficient: the Detective must bring
+        # a real source-world case item, not a narrative clue token.
+        out = clinic_detective.command("clinic investigate exposure")
+        require(out, "bring a real cluster of mushrooms")
+        out = clinic_detective.command("east")
+        require(out, "village square")
+        out = clinic_detective.command("get mushrooms")
+        require(out, "mushrooms")
+        out = clinic_detective.command("inventory")
+        require(out, "cluster of mushrooms")
+        out = clinic_detective.command("west")
+        require(out, "st. lazarus church")
+        out = clinic_detective.command("clinic investigate exposure")
+        require_all(out, "independent procedural clinic inquiry",
+                    "verified healer source", "world event",
+                    "physical specimen", "possible_exposure", "unrelated_illness",
+                    "neither cause is proven")
+        out = clinic_detective.command("clinic investigate illness")
+        require(out, "already has an independent inquiry")
+        out = clinic_detective.command("clinic")
+        require_all(out, "independent procedural clinic inquiry",
+                    "visiting patient", "competing interpretations",
+                    "physical specimen", "neither causal explanation is proven")
+        assert "healertester" not in out.lower()
+        assert "cold" not in out.lower()
+        out = clinic_detective.command("clinic records")
+        require(out, "private clinical notes require an attending healer")
+        out = clinic_detective.command("calling")
+        require(out, "clinic inquiry 1")
+        print("TELNET_GDD_EDGE28_INDEPENDENT_SIGNED_CLINIC_INQUIRY_GREEN")
+
         out = h.command("calling")
         require_all(out, "clinic assess 1", "clinic prepare 1", "clinic treat 1")
         out = h.command("agent")
@@ -3035,6 +3096,8 @@ def main() -> int:
             print("\nWANDERER TRANSCRIPT\n" + "\n".join(wanderer.transcript))
         if hound is not None:
             print("\nHOUND TRANSCRIPT\n" + "\n".join(hound.transcript))
+        if clinic_detective is not None:
+            print("\nCLINIC DETECTIVE TRANSCRIPT\n" + "\n".join(clinic_detective.transcript))
         if detective is not None:
             print("\nDETECTIVE TRANSCRIPT\n" + "\n".join(detective.transcript))
         if lodging_detective is not None:
@@ -3047,6 +3110,8 @@ def main() -> int:
     finally:
         if stage_detective is not None:
             stage_detective.close()
+        if clinic_detective is not None:
+            clinic_detective.close()
         if river_detective is not None:
             river_detective.close()
         if bridge_detective is not None:

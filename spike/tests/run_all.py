@@ -21,16 +21,28 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def run(args, *, cwd, env, input_text=None, timeout=900):
     printable = " ".join(str(arg) for arg in args)
     print(f"\n$ {printable}")
-    proc = subprocess.run(
-        [str(arg) for arg in args],
-        cwd=cwd,
-        env=env,
-        input=input_text,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        timeout=timeout,
-    )
+    try:
+        proc = subprocess.run(
+            [str(arg) for arg in args],
+            cwd=cwd,
+            env=env,
+            input=input_text,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        # A long real-client suite must retain its partial transcript when
+        # a bounded CI deadline expires. Python may return bytes even with
+        # text=True on this exceptional path.
+        partial = exc.output
+        if partial:
+            if isinstance(partial, bytes):
+                partial = partial.decode("utf-8", errors="replace")
+            print(partial, end="" if partial.endswith("\n") else "\n")
+        print(f"Subprocess exceeded {timeout}s; partial output preserved above", file=sys.stderr)
+        raise
     if proc.stdout:
         print(proc.stdout)
     if proc.returncode:
@@ -45,6 +57,25 @@ def qa_cli_password() -> str:
     flag after --password; prefix an ASCII letter for deterministic syntax.
     """
     return "qa_" + secrets.token_urlsafe(24)
+
+
+def stop_evennia_after_phase(evennia: Path, *, game: Path, env: dict, phase_failed: bool) -> None:
+    """Always stop the disposable server without hiding a gameplay failure.
+
+    A stop failure by itself remains fatal. When a client or persistence
+    assertion already failed, preserve that original exception and report
+    the secondary cleanup fault separately on stderr.
+    """
+    try:
+        run([evennia, "stop"], cwd=game, env=env, timeout=60)
+    except Exception as exc:
+        if not phase_failed:
+            raise
+        print(
+            f"Evennia stop failed during cleanup ({exc}); "
+            "original gameplay failure retained",
+            file=sys.stderr,
+        )
 
 
 def venv_bin(root: Path, name: str) -> Path:
@@ -226,7 +257,7 @@ def main() -> int:
                 "import os\n"
                 "from evennia.utils import create\n"
                 "from evennia.accounts.models import AccountDB\n"
-                "for key in ('qa_smith_repair', 'qa_smith_stage', 'qa_merchant_repair', 'qa_mystic_study', 'qa_performer_stage', 'qa_wanderer_mail', 'qa_hound_protection', 'qa_detective_inquiry', 'qa_detective_case', 'qa_smith_cot', 'qa_smith_kitchen', 'qa_detective_trace', 'qa_detective_river', 'qa_detective_lodging', 'qa_refuge_hound', 'qa_detective_stage'):\n"
+                "for key in ('qa_smith_repair', 'qa_smith_stage', 'qa_merchant_repair', 'qa_mystic_study', 'qa_performer_stage', 'qa_wanderer_mail', 'qa_hound_protection', 'qa_detective_inquiry', 'qa_detective_case', 'qa_smith_cot', 'qa_smith_kitchen', 'qa_detective_trace', 'qa_detective_river', 'qa_detective_lodging', 'qa_refuge_hound', 'qa_detective_stage', 'qa_detective_clinic'):\n"
                 "    account = AccountDB.objects.filter(db_key=key).first()\n"
                 "    if account is None:\n"
                 "        account = create.create_account(\n"
@@ -282,8 +313,11 @@ def main() -> int:
                     env=env,
                     # Multiple real players and the four-landmark field
                     # investigation exceed the former 180s on CI runners.
-                    # The workflow retains a strict 20-minute global cap.
-                    timeout=480,
+                    # EDGE-28 adds a separate authenticated clinic Detective
+                    # after EDGE-40's stage Detective. The 480s limit expired
+                    # during active later-player logins (CI 41418745663), not
+                    # on a proved deadlock. Keep every player and adverse gate.
+                    timeout=720,
                 )
 
                 # EDGE-08: independent authenticated Hound and Innkeep use
@@ -429,7 +463,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=100,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             t13_cancel = (
                 checkout / "spike" / "tests" / "gdd_t13_cancel_world_assertions.py"
             ).read_text(encoding="utf-8")
@@ -503,7 +540,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=140,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             race_assertions = (
                 checkout / "spike" / "tests" / "gdd_t13_race_assertions.py"
             ).read_text(encoding="utf-8")
@@ -535,7 +575,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=100,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             day4_assertions = (
                 checkout / "spike" / "tests" / "gdd_t13_day4_assertions.py"
             ).read_text(encoding="utf-8")
@@ -586,7 +629,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=100,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             restored_env = dict(env)
             restored_env["FV_EDGE18_AUTH_NEGATIVE_PHASE"] = "restore"
             run([evennia, "shell"], cwd=game, env=restored_env,
@@ -605,7 +651,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=140,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             edge02_restart = (
                 checkout / "spike" / "tests" /
                 "edge02_later_day_restart_assertions.py"
@@ -640,7 +689,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=180,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             # A fresh server process must read both finite refuge meals,
             # distinct source markers, physical bowls and the renewed dispatch.
             run([evennia, "start"], cwd=game, env=env, timeout=120)
@@ -672,7 +724,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=180,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             # A genuinely new server process must read the persisted signed
             # Hound source, independent Performer decision and actual show.
             run([evennia, "start"], cwd=game, env=env, timeout=120)
@@ -703,7 +758,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=180,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             run([evennia, "start"], cwd=game, env=env, timeout=120)
             wait_for_port("127.0.0.1", 4000)
             run([evennia, "stop"], cwd=game, env=env, timeout=60)
@@ -734,7 +792,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=180,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             run([evennia, "start"], cwd=game, env=env, timeout=120)
             wait_for_port("127.0.0.1", 4000)
             run([evennia, "stop"], cwd=game, env=env, timeout=60)

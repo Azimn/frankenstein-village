@@ -20,6 +20,8 @@ class CmdClinic(Command):
         clinic receive  (Healer at St. Lazarus)
         clinic invite   (treating Healer, patient consent)
         clinic music    (independent Performer, at the cot)
+        clinic investigate illness  (Detective, unproven illness)
+        clinic investigate exposure  (Detective, unproven exposure)
 
     A fresh prepared dressing can be carried or handed to a different
     Healer. Only actual signed treatment changes the clinic's public record.
@@ -90,6 +92,25 @@ class CmdClinic(Command):
                     + f" (signed world event {result['event_id']})."
                 )
             return
+        if raw in (["investigate"], ["investigate", "illness"],
+                   ["investigate", "exposure"]):
+            from world.clinic_inquiry_work import investigate
+            interpretation = ("possible_exposure" if raw[-1] == "exposure"
+                              else "unrelated_illness")
+            result, error = investigate(self.caller, interpretation)
+            if error:
+                self.caller.msg(error)
+            else:
+                self.caller.msg(
+                    f"You sign an independent procedural clinic inquiry "
+                    f"(world event {result['event_id']}, verified Healer source "
+                    f"{result['source_event_id']}). The original cot records "
+                    f"the physical specimen {result['case_item_id']} and two "
+                    f"competing explanations ({result['interpretation']} versus "
+                    f"{result['alternative']}). Neither cause is proven; "
+                    "private case notes remain confidential."
+                )
+            return
         if raw == ["records"]:
             self.caller.msg(clinic_work.confidential_records(self.caller))
             return
@@ -102,7 +123,7 @@ class CmdClinic(Command):
         else:
             self.caller.msg(
                 "Use clinic | clinic assess | clinic prepare | "
-                "clinic treat rest | clinic treat compress | clinic treat supported | clinic brace | clinic certify | clinic request records | clinic records | clinic procure | clinic receive | clinic invite | clinic music."
+                "clinic treat rest | clinic treat compress | clinic treat supported | clinic brace | clinic certify | clinic request records | clinic records | clinic procure | clinic receive | clinic invite | clinic music | clinic investigate illness | clinic investigate exposure. Bring a real well-mushroom specimen and look at the original clinic cot first."
             )
             return
         if error:
