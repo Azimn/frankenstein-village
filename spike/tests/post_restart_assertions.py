@@ -1667,7 +1667,8 @@ assert _inquiry_event["consequence"]["causal_status"] == "unproven"
 assert _inquiry_event["consequence"]["cot_id"] == _cot.id
 assert calling_record(_detective_clinic, "detective")["participation"]["clinic_inquiry"] == 1
 _public_inquiry = _clinic_inquiry.public_lines(
-    _cot.db.clinic_inquiry, _clinic["day"], event_lookup=warning_ledger.get_event
+    _cot.db.clinic_inquiry, _clinic["day"],
+    event_lookup=warning_ledger.get_event, cot_id=_cot.id
 ).lower()
 assert "procedural clinic inquiry" in _public_inquiry
 assert "competing interpretations" in _public_inquiry
@@ -1675,7 +1676,8 @@ assert "neither causal explanation is proven" in _public_inquiry
 assert "cold" not in _public_inquiry and "healertester" not in _public_inquiry
 # A missing or forged canonical event cannot be promoted by persisted cot data.
 _unverified_inquiry = _clinic_inquiry.public_lines(
-    _cot.db.clinic_inquiry, _clinic["day"], event_lookup=lambda _event_id: None
+    _cot.db.clinic_inquiry, _clinic["day"],
+    event_lookup=lambda _event_id: None, cot_id=_cot.id
 ).lower()
 assert "requires signed source inspection" in _unverified_inquiry
 print("POST_RESTART_GDD_EDGE28_INDEPENDENT_SIGNED_CLINIC_INQUIRY_GREEN")
