@@ -221,9 +221,10 @@ def source_is_valid(event, row, event_lookup=None):
     note_event_id = positive(payload.get("source_event_id"))
     door_id = positive(payload.get("door_id"))
     hall_id = positive(payload.get("hall_id"))
-    if (not all((note_id, note_event_id, door_id, hall_id))
+    disclosure_id = positive(event.get("id"))
+    if (not all((note_id, note_event_id, door_id, hall_id, disclosure_id))
             or not callable(event_lookup)
-            or note_event_id >= positive(event.get("id") or 0)):
+            or note_event_id >= disclosure_id):
         return False
     try:
         note_event = event_lookup(note_event_id)
