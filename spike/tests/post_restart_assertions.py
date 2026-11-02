@@ -2582,7 +2582,8 @@ for _b08_kind in _b08_rules.KINDS:
     _b08_room, _b08_target = _b08_work._target(_b08_kind)
     assert _b08_room is not None and _b08_target is not None
     assert _b08_work._verified_target(
-        _b08_kind, _b08_room, _b08_target, _b08_table, _b08_day
+        _b08_kind, _b08_room, _b08_target, _b08_table, _b08_day,
+        _b08_hour
     ), f"EDGE-20/23 signed physical {_b08_kind} fitting lost across restart"
     _b08_saved = _b08_target.db.route_fitting_install
     assert _b08_saved["smith_account_id"] != _b08_saved["source_account_id"]
@@ -2596,14 +2597,31 @@ for _b08_kind in _b08_rules.KINDS:
     assert not _b08_rules.verified_install(
         _b08_forged, _b08_work._ledger, kind=_b08_kind,
         target_id=_b08_target.id, room_id=_b08_room.id,
-        table_id=_b08_table.id, day=_b08_day)
+        table_id=_b08_table.id, day=_b08_day, hour=_b08_hour)
+    # B18: completed physical installation cannot appear before its hour.
+    if _b08_saved["hour"] > 0:
+        assert not _b08_work._verified_target(
+            _b08_kind, _b08_room, _b08_target, _b08_table,
+            _b08_saved["day"], _b08_saved["hour"] - 1)
 assert _b08_rules.verified_test(
     _b08_work._target("cord")[1].db.route_fitting_install,
     _b08_work._target("cord")[1].db.route_fitting_test,
     _b08_work._ledger,
     cord_id=_b08_work._target("cord")[1].id,
     room_id=_b08_work._target("cord")[0].id,
-    table_id=_b08_table.id, day=_b08_day)
+    table_id=_b08_table.id, day=_b08_day, hour=_b08_hour)
+_b18_cord = _b08_work._target("cord")[1]
+_b18_test = _b08_work._ledger(_b18_cord.db.route_fitting_test["event_id"])
+_b18_test_day = _b18_test["payload"]["day"]
+_b18_test_hour = _b18_test["payload"]["hour"]
+if _b18_test_hour > 0:
+    assert not _b08_rules.verified_test(
+        _b18_cord.db.route_fitting_install,
+        _b18_cord.db.route_fitting_test, _b08_work._ledger,
+        cord_id=_b18_cord.id, room_id=_b08_work._target("cord")[0].id,
+        table_id=_b08_table.id, day=_b18_test_day,
+        hour=_b18_test_hour - 1)
+print("POST_RESTART_B18_FUTURE_HOUR_PUBLIC_ROUTE_REFUSED_GREEN")
 # B15: use a real persisted, unconsumed Smith fitting and its completed
 # ledger receipt after server restart. Rewinding the query clock by one
 # hour cannot promote a future-hour forge into a valid carried fitting.
