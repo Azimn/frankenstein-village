@@ -2570,3 +2570,39 @@ for _edge15_field, _edge15_bad in (
     assert "unverified" in _edge15_text
 print("POST_RESTART_GDD_EDGE15_FORGED_PUBLIC_READBACK_SUPPRESSED_GREEN")
 print("POST_RESTART_GDD_EDGE15_DISTINCT_SIGNED_BRIDGE_CASE_GREEN")
+
+
+# B08 EDGE-20/23: actual original physical objects and three completed
+# source events remain verified after a genuine server stop and restart.
+from world import route_fitting_work as _b08_work, route_fittings as _b08_rules
+_b08_table = _b08_work._table()
+assert _b08_table is not None
+_b08_day, _b08_hour = _b08_work._clock()
+for _b08_kind in _b08_rules.KINDS:
+    _b08_room, _b08_target = _b08_work._target(_b08_kind)
+    assert _b08_room is not None and _b08_target is not None
+    assert _b08_work._verified_target(
+        _b08_kind, _b08_room, _b08_target, _b08_table, _b08_day
+    ), f"EDGE-20/23 signed physical {_b08_kind} fitting lost across restart"
+    _b08_saved = _b08_target.db.route_fitting_install
+    assert _b08_saved["smith_account_id"] != _b08_saved["source_account_id"]
+    assert _b08_work._ledger(_b08_saved["install_event_id"])["status"] == "complete"
+    assert _b08_work._ledger(_b08_saved["source_event_id"])["status"] == "complete"
+    assert _b08_work._ledger(_b08_saved["forge_event_id"])["status"] == "complete"
+    _b08_display = _b08_room.get_display_desc()
+    assert f"{_b08_kind}: physically fitted" in _b08_display
+    # A forged source on a disposable copy must not appear as signed.
+    _b08_forged = dict(_b08_saved, source_event_id=99999999)
+    assert not _b08_rules.verified_install(
+        _b08_forged, _b08_work._ledger, kind=_b08_kind,
+        target_id=_b08_target.id, room_id=_b08_room.id,
+        table_id=_b08_table.id, day=_b08_day)
+assert _b08_rules.verified_test(
+    _b08_work._target("cord")[1].db.route_fitting_install,
+    _b08_work._target("cord")[1].db.route_fitting_test,
+    _b08_work._ledger,
+    cord_id=_b08_work._target("cord")[1].id,
+    room_id=_b08_work._target("cord")[0].id,
+    table_id=_b08_table.id, day=_b08_day)
+print("POST_RESTART_GDD_EDGE20_VERIFIED_PHYSICAL_SPAN_GREEN")
+print("POST_RESTART_GDD_EDGE23_VERIFIED_TESTED_CORD_GREEN")
