@@ -237,7 +237,9 @@ class Register(DefaultObject):
         return (self.db.desc or "") + (
             "\n\nProfessional inquiry: an Innkeep may look here and use "
             "'lodging disclose' for a redacted entry. A different Detective "
-            "may look here and use 'lodging inquire'. Neither action reveals "
+            "may look here and use 'lodging inquire'. The Innkeep must first "
+            "personally find and carry the original unclaimed note from the "
+            "Room Six door. Neither action reveals "
             "a guest identity or proves who wrote the entry."
         )
 
