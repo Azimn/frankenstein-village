@@ -198,7 +198,12 @@ class Edge10SourceVerification(unittest.TestCase):
         self.assertTrue(ok, error)
         self.assertEqual(attested["attestation"]["review_event_id"], 10)
         self.assertEqual(attested["attestation"]["calibration_event_id"], 12)
-        board = " ".join(market.public_lines(attested, 1))
+        ledger = dict(self.ledger)
+        ledger[14] = ledger_event(
+            attested["attestation"], "attest", "chronicler",
+            review_id=10, calibration_id=12,
+        )
+        board = " ".join(market.public_lines(attested, 1, ledger.get))
         self.assertIn("Merchant source 10, Smith source 12", board)
         self.assertTrue(self.check(attested))
         self.assertFalse(market.verified_sources(
@@ -295,7 +300,16 @@ class Edge10SourceVerification(unittest.TestCase):
         self.assertTrue(ok, error)
         day_three = market.refresh(json.loads(json.dumps(day_two)), 3)
         snapshot = copy.deepcopy(day_three)
-        board = " ".join(market.public_lines(day_three, 3))
+        ledger = dict(self.ledger)
+        ledger[14] = ledger_event(
+            attested["attestation"], "attest", "chronicler",
+            review_id=10, calibration_id=12,
+        )
+        ledger[22] = ledger_event(
+            day_two["calibration"], "calibrate", "smith",
+            calibration_id=22,
+        )
+        board = " ".join(market.public_lines(day_three, 3, ledger.get))
         self.assertIn("Prior day 2: Smith Player21 calibrated the scale (event 22)", board)
         self.assertIn("Prior day 1: Merchant Player5 chose hold (event 10)", board)
         self.assertIn("Smith Player9 calibrated the scale (event 12)", board)
@@ -307,7 +321,7 @@ class Edge10SourceVerification(unittest.TestCase):
         # attestation merely because an archive row exists.
         corrupted = copy.deepcopy(day_three)
         corrupted["history"][0]["attestation"]["review_event_id"] = 999
-        board = " ".join(market.public_lines(corrupted, 3))
+        board = " ".join(market.public_lines(corrupted, 3, ledger.get))
         self.assertNotIn("Chronicler Player11 attested", board)
         self.assertIn("Smith Player9 calibrated", board)
 
@@ -319,7 +333,15 @@ class Edge10SourceVerification(unittest.TestCase):
             )
             self.assertTrue(ok, error)
         state = market.refresh(json.loads(json.dumps(state)), 6)
-        board = " ".join(market.public_lines(state, 6))
+        ledger = dict(self.ledger)
+        for archived in state["history"]:
+            review = archived.get("review")
+            if review and review["day"] >= 2:
+                ledger[review["event_id"]] = ledger_event(
+                    review, "honor", "merchant",
+                    review_id=review["event_id"],
+                )
+        board = " ".join(market.public_lines(state, 6, ledger.get))
         self.assertIn("Prior day 5:", board)
         self.assertIn("Prior day 4:", board)
         self.assertIn("Prior day 3:", board)
@@ -331,7 +353,11 @@ class Edge10SourceVerification(unittest.TestCase):
         self.assertTrue(ok, error)
         self.assertFalse(market.suspended(solo, 1))
         self.assertFalse(market.verified_sources(solo, 1, self.ledger.get))
-        self.assertIn("physically recalibrated", " ".join(market.public_lines(solo, 1)))
+        ledger = {12: ledger_event(
+            solo["calibration"], "calibrate", "smith", calibration_id=12,
+        )}
+        self.assertIn("physically recalibrated", " ".join(
+            market.public_lines(solo, 1, ledger.get)))
 
 
     def test_corrupt_saved_merchant_choice_keeps_trade_board_playable(self):
@@ -358,6 +384,107 @@ class Edge10SourceVerification(unittest.TestCase):
                 forged[10]["payload"]["action"] = bad
                 self.assertFalse(self.check(ledger=forged))
                 self.assertTrue(self.check())
+
+
+    def test_public_board_rechecks_live_and_archived_sources_after_tampering(self):
+        attested, ok, error = signed(self.state, "attest", 11, 14)
+        self.assertTrue(ok, error)
+        ledger = dict(self.ledger)
+        ledger[14] = ledger_event(
+            attested["attestation"], "attest", "chronicler",
+            review_id=10, calibration_id=12,
+        )
+        saved = json.loads(json.dumps(attested))
+        original = copy.deepcopy(saved)
+        valid = " ".join(market.public_lines(saved, 1, ledger.get))
+        self.assertIn("Chronicler Player11 attested both source events", valid)
+        self.assertIn("Merchant Player5 chose hold", valid)
+
+        cases = (
+            ("missing Merchant", 10, None),
+            ("failed Smith", 12, {"status": "consequence_failed"}),
+            ("forged Smith account", 12, {"actor": {"account_id": 42}}),
+            ("wrong physical location", 12, {"payload": {"location": "Tavern"}}),
+            ("forged source consequence", 10, {"consequence": {"market_distribution_held": False}}),
+            ("missing Chronicler", 14, None),
+            ("forged Chronicler identity", 14, {"actor": {"account_id": 5}}),
+            ("forged attestation source", 14, {"consequence": {"calibration_event_id": 999}}),
+        )
+        for label, event_id, edits in cases:
+            with self.subTest(case=label):
+                altered = copy.deepcopy(ledger)
+                if edits is None:
+                    del altered[event_id]
+                else:
+                    for field, patch in edits.items():
+                        altered[event_id][field].update(patch)
+                board = " ".join(market.public_lines(saved, 1, altered.get))
+                self.assertNotIn("attested both source events", board)
+                self.assertNotIn("Merchant source 10, Smith source 12", board)
+                self.assertEqual(saved, original, "Readback must not mutate the docket")
+
+                next_day = market.refresh(json.loads(json.dumps(saved)), 2)
+                archive = " ".join(market.public_lines(
+                    next_day, 2, altered.get))
+                self.assertNotIn("attested sources 10 and 12", archive)
+        missing = " ".join(market.public_lines(saved, 1))
+        self.assertNotIn("Merchant Player5 chose", missing)
+        self.assertNotIn("attested both source events", missing)
+        self.assertIn("cannot be verified", missing)
+        self.assertEqual(saved, original)
+
+    def test_real_ordinary_trade_status_uses_canonical_read_only_ledger(self):
+        # Execute the production status function, not a surrogate caller.
+        path = (Path(__file__).resolve().parents[2]
+                / "spike/fvillage/world/market_work.py")
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        node = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                    and n.name == "state_lines")
+        module = ast.fix_missing_locations(
+            ast.Module(body=[node], type_ignores=[]))
+        attested, ok, error = signed(self.state, "attest", 11, 14)
+        self.assertTrue(ok, error)
+        room = SimpleNamespace(
+            db=SimpleNamespace(market_standards=json.loads(json.dumps(attested))),
+            contents=[],
+        )
+        ledger = dict(self.ledger)
+        ledger[14] = ledger_event(
+            attested["attestation"], "attest", "chronicler",
+            review_id=10, calibration_id=12,
+        )
+
+        class MissingLedger(Exception):
+            pass
+
+        def readback(events):
+            def lookup(*, db_key):
+                self.assertEqual(db_key, "world_event_ledger")
+                if events is None:
+                    raise MissingLedger()
+                return SimpleNamespace(get_event=events.get)
+            namespace = {
+                "market_room": lambda: room,
+                "clock": lambda: (1, 14),
+                "market_standards": market,
+                "ScriptDB": SimpleNamespace(
+                    objects=SimpleNamespace(get=lookup),
+                    DoesNotExist=MissingLedger,
+                ),
+                "SCALE": "a crooked market scale",
+                "forensic_scale": None,
+            }
+            exec(compile(module, str(path), "exec"), namespace)
+            return namespace["state_lines"]()
+
+        self.assertIn("attested both source events", readback(ledger))
+        altered = copy.deepcopy(ledger)
+        altered[12]["status"] = "consequence_failed"
+        self.assertNotIn("attested both source events", readback(altered))
+        self.assertNotIn("attested both source events", readback(None))
+        self.assertEqual(room.db.market_standards, attested)
+
+
 
 
 if __name__ == "__main__":
