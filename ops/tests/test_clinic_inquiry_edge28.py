@@ -407,7 +407,8 @@ class OriginalCotPublicReadback(unittest.TestCase):
         def item(number, original):
             return types.SimpleNamespace(
                 id=number, key=cot_key, location=room,
-                db=types.SimpleNamespace(clinic_inquiry={"records": []}),
+                db=types.SimpleNamespace(clinic_inquiry={"records": []},
+                                          clinic_comfort={}),
                 is_typeclass=lambda path, exact=False:
                     original and exact and path == "typeclasses.objects.ClinicCot")
         decoy = item(900, False)
@@ -422,8 +423,15 @@ class OriginalCotPublicReadback(unittest.TestCase):
                 get_event=lambda _id: None),
         }
         status = extract(root / "clinic_work.py", "status", namespace)
+        # The merged clinic also displays comfort and certified cot status.
+        # Mock only those unrelated adapters while exercising the real
+        # current-main status function and original-cot selection.
         with patch.dict(sys.modules, {
-            "world.clinic_inquiry_work": types.SimpleNamespace(_cot=cot)
+            "world.clinic_inquiry_work": types.SimpleNamespace(_cot=cot),
+            "world.clinic_comfort_edge27": types.SimpleNamespace(
+                public_lines=lambda *_args, **_kwargs: "Comfort status."),
+            "world.clinic_cot_work": types.SimpleNamespace(
+                status=lambda: "Cot certification status."),
         }), patch.object(rules, "public_lines",
                         side_effect=lambda _raw, _day, **kwargs:
                             "verified original cot %s" % kwargs["cot_id"]):
