@@ -641,7 +641,7 @@ class Edge10SourceVerification(unittest.TestCase):
             # A forged docket may contain a calibration row, but the
             # physical object's own prose must not endorse it.
             market_module.state_lines = lambda: (
-                "Market Lane: standards and trades\\n"
+                "Market Lane: standards and trades\n"
                 "Some saved market signatures cannot be verified.")
             rejected = scale.get_display_desc(looker=SimpleNamespace())
             self.assertIn("cannot be verified", rejected)
