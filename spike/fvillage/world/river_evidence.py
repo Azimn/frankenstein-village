@@ -149,3 +149,88 @@ def public_lines(raw, day):
     if not state["witness"]:
         lines.append("No signed Wanderer gauge reading exists today.")
     return lines
+
+
+def _verified_signed_event(row, event, *, kind, calling, gauge_id, room_id,
+                           witness_event_id=None):
+    """Check a completed canonical event against the original physical gauge."""
+    if (row is None or not isinstance(event, Mapping)
+            or type(gauge_id) is not int or gauge_id <= 0
+            or type(room_id) is not int or room_id <= 0):
+        return False
+    actor, payload, consequence = (
+        event.get("actor"), event.get("payload"), event.get("consequence"))
+    if not all(isinstance(part, Mapping)
+               for part in (actor, payload, consequence)):
+        return False
+    is_witness = calling == "wanderer"
+    return (
+        type(event.get("id")) is int
+        and event["id"] == row["event_id"]
+        and event.get("kind") == kind
+        and event.get("status") == "complete"
+        and actor.get("account_id") == row["account_id"]
+        and actor.get("mask_id") == row["mask_id"]
+        and actor.get("mask") == row["mask"]
+        and payload.get("calling") == calling
+        and type(payload.get("day")) is int
+        and payload["day"] == row["day"]
+        and type(payload.get("hour")) is int
+        and payload["hour"] == row["hour"]
+        and type(payload.get("object_id")) is int
+        and payload["object_id"] == gauge_id == row["object_id"]
+        and type(payload.get("room_id")) is int
+        and payload["room_id"] == room_id
+        and payload.get("location") == "Riverside Path"
+        and payload.get("source_event_id") ==
+            (None if is_witness else witness_event_id)
+        and type(consequence.get("gauge_object_id")) is int
+        and consequence["gauge_object_id"] == gauge_id
+        and type(consequence.get("room_id")) is int
+        and consequence["room_id"] == room_id
+        and type(consequence.get("account_id")) is int
+        and consequence["account_id"] == row["account_id"]
+        and consequence.get("witness_event_id") ==
+            (row["event_id"] if is_witness else witness_event_id)
+        and consequence.get("review_event_id") ==
+            (None if is_witness else row["event_id"])
+        and consequence.get("source_event_id") ==
+            (None if is_witness else witness_event_id)
+    )
+
+
+def verified_public_lines(raw, day, *, gauge_id, room_id,
+                          witness_event=None, review_event=None):
+    """Fail-closed ordinary-player readback from the canonical event ledger.
+
+    The gauge's persisted attributes are a projection, not a source of
+    authority. Never attribute a professional action solely from that data.
+    """
+    state, ok, _error = refresh(raw, day)
+    if not ok:
+        return ["The river gauge has a later dated record; do not backdate evidence."]
+    witness_row = state["witness"]
+    witness_valid = _verified_signed_event(
+        witness_row, witness_event,
+        kind="village.river_gauge_witnessed", calling="wanderer",
+        gauge_id=gauge_id, room_id=room_id,
+    )
+    review_row = state["review"]
+    review_valid = (
+        witness_valid and review_row is not None
+        and review_row["source_event_id"] == witness_row["event_id"]
+        and witness_row["event_id"] < review_row["event_id"]
+        and review_row["day"] == witness_row["day"]
+        and review_row["hour"] >= witness_row["hour"]
+        and review_row["account_id"] != witness_row["account_id"]
+        and review_row["mask_id"] != witness_row["mask_id"]
+        and _verified_signed_event(
+            review_row, review_event,
+            kind="village.river_evidence_compared", calling="detective",
+            gauge_id=gauge_id, room_id=room_id,
+            witness_event_id=witness_row["event_id"],
+        )
+    )
+    state["witness"] = witness_row if witness_valid else None
+    state["review"] = review_row if review_valid else None
+    return public_lines(state, day)
