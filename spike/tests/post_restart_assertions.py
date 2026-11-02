@@ -1763,7 +1763,29 @@ assert _lodging_row["account_id"] != _lodging_inquiry["account_id"]
 assert _lodging_row["register_id"] == _lodging_register.id
 assert _lodging_inquiry["source_event_id"] == _lodging_row["event_id"]
 _lodging_source_event = warning_ledger.get_event(_lodging_row["event_id"])
-assert _lodging_source(_lodging_source_event, _lodging_row)
+assert _lodging_source(
+    _lodging_source_event, _lodging_row, warning_ledger.get_event
+)
+# Original Room Six note must have been physically found by the Innkeep.
+# The public disclosure remains redacted, with no claim about its author.
+_lodging_note = next(
+    (obj for obj in innkeep_tester.contents
+     if obj.typeclass_path == "typeclasses.objects.MysteryNote"
+     and obj.id == _lodging_source_event["payload"]["note_id"]), None
+)
+assert _lodging_note is not None
+assert _lodging_note.db.owner_character_id == innkeep_tester.id
+_lodging_note_event = warning_ledger.get_event(
+    _lodging_source_event["payload"]["source_event_id"]
+)
+from world.lodging_state import found_note_valid as _lodging_note_valid
+assert _lodging_note_valid(
+    _lodging_note_event, account_id=_lodging_row["account_id"],
+    mask_id=innkeep_tester.id, note_id=_lodging_note.id,
+    door_id=_lodging_note.db.door_id, hall_id=_lodging_note.db.hall_id
+)
+assert _lodging_note_event["id"] < _lodging_source_event["id"]
+assert _lodging_source_event["consequence"]["note_id"] == _lodging_note.id
 _lodging_inquiry_event = warning_ledger.get_event(_lodging_inquiry["event_id"])
 assert _lodging_inquiry_event["kind"] == "village.lodging_inquiry"
 assert _lodging_inquiry_event["status"] == "complete"
