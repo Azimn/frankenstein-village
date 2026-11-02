@@ -1312,25 +1312,33 @@ assert "PerformerTester" in _stage_lines(_stage, _stage["day"])
 # checked in the canonical ledger. It cannot retroactively create an audience.
 _detective = one("DetectiveTester")
 assert active_calling(_detective) == "detective"
+# A character's transient .account may be None after the telnet sessions
+# disconnect. Resolve the durable AccountDB identities instead of treating
+# a live puppet connection as a post-restart source of truth.
+_stage_detective_account_id = AccountDB.objects.get(
+    username__iexact="qa_detective_stage").id
+_stage_performer_account_id = AccountDB.objects.get(
+    username__iexact="qa_performer_stage").id
+assert _stage_detective_account_id != _stage_performer_account_id
 assert len(_stage["inquiries"]) == 1, "The stage inquiry vanished or duplicated"
 _inquiry = _stage["inquiries"][0]
 assert _inquiry["mask_id"] == _detective.id
-assert _inquiry["account_id"] == _detective.account.id
-assert _inquiry["account_id"] != _stage_performer.account.id
+assert _inquiry["account_id"] == _stage_detective_account_id
+assert _inquiry["account_id"] != _stage_performer_account_id
 assert _inquiry["source_event_id"] == _stage["performance"]["event_id"]
 assert _inquiry["witness_event_ids"] == [_stage["witnesses"][0]["event_id"]]
 assert _inquiry["firsthand_witness"] is False
-assert not any(w["account_id"] == _detective.account.id
+assert not any(w["account_id"] == _stage_detective_account_id
                for w in _stage["witnesses"])
 assert _inquiry["stage_object_id"] == one("a modest performance platform").id
 _source = warning_ledger.get_event(_inquiry["source_event_id"])
 _signed_inquiry = warning_ledger.get_event(_inquiry["event_id"])
 assert _source["status"] == "complete"
 assert _source["kind"] == "village.stage_perform"
-assert _source["actor"]["account_id"] == _stage_performer.account.id
+assert _source["actor"]["account_id"] == _stage_performer_account_id
 assert _signed_inquiry["status"] == "complete"
 assert _signed_inquiry["kind"] == "village.stage_investigated"
-assert _signed_inquiry["actor"]["account_id"] == _detective.account.id
+assert _signed_inquiry["actor"]["account_id"] == _stage_detective_account_id
 assert _signed_inquiry["payload"]["source_performance_event_id"] == _source["id"]
 assert _signed_inquiry["payload"]["verified_witness_event_ids"] == _inquiry["witness_event_ids"]
 assert _signed_inquiry["consequence"]["conclusion"] == "signed_show_not_alibi"
