@@ -1491,6 +1491,38 @@ print("POST_RESTART_GDD_EDGE43_SIGNED_INDEPENDENT_TRACE_CUSTODY_GREEN")
 
 print("POST_RESTART_GDD_T07_SHARED_CORD_AND_DISTINCT_ACTIONS_GREEN")
 
+# EDGE-08: ordinary accounts, original Hound cord, consumed dispatch and
+# finite edible bowl must all survive a genuine server restart.
+from world import refuge_state as _refuge_rules
+_refuge_tavern = one("The Blood of the Vine")
+_refuge_hound = one("RefugeHoundTester")
+_refuge_rows = _refuge_rules.history(_refuge_tavern.db.route_refuge)
+assert _refuge_rows is not None and len(_refuge_rows) == 1
+_refuge_row = _refuge_rows[0]
+_refuge_dispatch = warning_ledger.get_event(_refuge_row["dispatch_event_id"])
+_refuge_source = warning_ledger.get_event(_refuge_row["source_protect_event_id"])
+_refuge_meal = warning_ledger.get_event(_refuge_row["event_id"])
+assert _refuge_source["id"] == _cord.db.route_caution["event_id"]
+assert _refuge_rules.protection_valid(
+    _refuge_source, _cord.db.route_caution, _cord.id)
+assert _refuge_dispatch["kind"] == "professional.hound_refuge_dispatch"
+assert _refuge_dispatch["status"] == "complete"
+assert _refuge_dispatch["actor"]["mask_id"] == _refuge_hound.id
+assert _refuge_dispatch["actor"]["account_id"] != _refuge_source["actor"]["account_id"]
+assert _refuge_dispatch["consequence"]["cord_id"] == _cord.id
+assert _refuge_dispatch["consequence"]["item_id"] == _refuge_row["item_id"]
+assert _refuge_meal["kind"] == "professional.innkeep_refuge_meal"
+assert _refuge_meal["status"] == "complete"
+assert _refuge_meal["actor"]["account_id"] != _refuge_dispatch["actor"]["account_id"]
+assert _refuge_meal["consequence"]["consumed_dispatch_id"] == _refuge_row["item_id"]
+assert _refuge_meal["consequence"]["bowl_id"] == _refuge_row["bowl_id"]
+assert not search.search_object("a signed treeline refuge dispatch")
+assert any(obj.id == _refuge_row["bowl_id"] for obj in _refuge_hound.contents)
+assert _refuge_rules.public_lines(_refuge_tavern.db.route_refuge).startswith(
+    "1 signed Hound arrival meal")
+print("POST_RESTART_GDD_EDGE08_SIGNED_FINITE_HOUND_REFUGE_GREEN")
+
+
 _notice = route_board["caution_notice"]
 assert _notice, "Independent Chronicler caution did not survive restart"
 assert _notice["mask"] == "SmokeTester"

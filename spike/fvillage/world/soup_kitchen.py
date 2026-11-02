@@ -67,7 +67,7 @@ def pot_description():
         f"quality {done['quality']} (world event {done['cook_event_id']})."
         if done else " No player-made batch has been recorded."
     )
-    from world import kitchen_repair_work
+    from world import kitchen_repair_work, refuge_state
     arrival_line = ""
     if any(getattr(row, "get", lambda _key: None)("arrival_welcome")
            for row in state["history"]):
@@ -89,7 +89,11 @@ def pot_description():
         + last + " " + kitchen_repair_work.status() + arrival_line +
         " Use soup prep <turnip|barley> <thyme|salt|pepper>, soup simmer, "
         "soup notebook, soup receipt/publish/receipts for consented records, "
-        "soup accept after a Merchant handoff, or use signed solo soup deliver."
+        "soup accept after a Merchant handoff, or use signed solo soup deliver. "
+        "A Hound can bring a signed physical treeline dispatch; a separate "
+        "Innkeep may use soup refuge <hound mask> while the Hound is present. "
+        + refuge_state.public_lines(
+            tavern.db.route_refuge)
     )
 
 

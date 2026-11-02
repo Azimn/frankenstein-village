@@ -226,7 +226,7 @@ def main() -> int:
                 "import os\n"
                 "from evennia.utils import create\n"
                 "from evennia.accounts.models import AccountDB\n"
-                "for key in ('qa_smith_repair', 'qa_smith_stage', 'qa_merchant_repair', 'qa_mystic_study', 'qa_performer_stage', 'qa_wanderer_mail', 'qa_hound_protection', 'qa_detective_inquiry', 'qa_detective_case', 'qa_smith_cot', 'qa_smith_kitchen', 'qa_detective_trace', 'qa_detective_river', 'qa_detective_lodging'):\n"
+                "for key in ('qa_smith_repair', 'qa_smith_stage', 'qa_merchant_repair', 'qa_mystic_study', 'qa_performer_stage', 'qa_wanderer_mail', 'qa_hound_protection', 'qa_detective_inquiry', 'qa_detective_case', 'qa_smith_cot', 'qa_smith_kitchen', 'qa_detective_trace', 'qa_detective_river', 'qa_detective_lodging', 'qa_refuge_hound'):\n"
                 "    account = AccountDB.objects.filter(db_key=key).first()\n"
                 "    if account is None:\n"
                 "        account = create.create_account(\n"
@@ -284,6 +284,15 @@ def main() -> int:
                     # investigation exceed the former 180s on CI runners.
                     # The workflow retains a strict 20-minute global cap.
                     timeout=480,
+                )
+
+                # EDGE-08: independent authenticated Hound and Innkeep use
+                # the current-main signed physical cord and finite pantry.
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge08_firstday.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=150,
                 )
 
                 # Real autonomous-client validation, not a fake socket peer:
@@ -610,6 +619,39 @@ def main() -> int:
             edge02_second_env["FV_EDGE02_SECOND_RESTART"] = "1"
             run([evennia, "shell"], cwd=game, env=edge02_second_env,
                 input_text=edge02_restart)
+
+            # EDGE-08: after all time-pinned T-13/EDGE-02 checks, advance the
+            # disposable QA day without resetting the original cord or
+            # manufacturing any player event. Both independent roles renew
+            # their physical actions through authenticated ordinary clients.
+            edge08_renewal_setup = (
+                checkout / "spike" / "tests" /
+                "gdd_edge08_renewal_setup.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge08_renewal_setup)
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            try:
+                wait_for_port("127.0.0.1", 4000)
+                run(
+                    [vpython, checkout / "spike" / "tests" /
+                     "telnet_edge08_renewal.py",
+                     "--host", "127.0.0.1", "--port", "4000"],
+                    cwd=checkout, env=env, timeout=180,
+                )
+            finally:
+                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            # A fresh server process must read both finite refuge meals,
+            # distinct source markers, physical bowls and the renewed dispatch.
+            run([evennia, "start"], cwd=game, env=env, timeout=120)
+            wait_for_port("127.0.0.1", 4000)
+            run([evennia, "stop"], cwd=game, env=env, timeout=60)
+            edge08_renewal_restart = (
+                checkout / "spike" / "tests" /
+                "gdd_edge08_renewal_restart_assertions.py"
+            ).read_text(encoding="utf-8")
+            run([evennia, "shell"], cwd=game, env=env,
+                input_text=edge08_renewal_restart)
 
             # EDGE-41: run the independent physical Hound/Performer scene only
             # after ALL current-main EDGE-02/06/18 and T-13 assertions.

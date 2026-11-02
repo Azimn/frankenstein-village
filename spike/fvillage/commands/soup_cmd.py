@@ -19,6 +19,7 @@ class CmdSoup(Command):
         soup welcome <Wanderer>  (Innkeep with a cooked bowl, signed arrival)
         soup restrict            (Innkeep, unsafe pot lid)
         soup repair              (Smith, real forged hinge in inventory)
+        soup refuge <hound mask>  (Innkeep, signed Hound dispatch and finite food)
 
     The kitchen has finite pantry supplies, a renewing daily baseline,
     a permanent work log and individual recipe notebooks. Prepared packets
@@ -40,6 +41,22 @@ class CmdSoup(Command):
         raw = (self.args or "").strip().lower()
         if raw in ("", "stock", "status"):
             caller.msg(soup_kitchen.status(caller))
+            return
+        if raw == "refuge" or raw.startswith("refuge "):
+            from world import refuge_work
+            name = raw[len("refuge"):].strip()
+            result, error = refuge_work.serve(caller, name)
+            if error:
+                caller.msg(error)
+                return
+            caller.msg(
+                f"You serve one real bowl of refuge soup (event {result['event_id']}). "
+                f"The signed dispatch is consumed; {result['turnip']} turnip portions remain."
+            )
+            caller.location.msg_contents(
+                f"{caller.key} serves finite refuge soup to a Hound.",
+                exclude=[caller],
+            )
             return
         if raw in ("restrict", "repair"):
             from world import kitchen_repair_work
@@ -200,5 +217,6 @@ class CmdSoup(Command):
             "Use soup | soup prep <base> <seasoning> | soup simmer | "
             "soup notebook | soup receipt [event] | soup publish [event] | "
             "soup receipts | soup procure | soup deliver | soup accept | "
-            "soup restrict | soup repair | soup welcome <Wanderer>."
+            "soup restrict | soup repair | soup welcome <Wanderer> | "
+            "soup refuge <hound mask>."
         )

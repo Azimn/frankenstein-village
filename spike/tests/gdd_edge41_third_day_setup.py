@@ -21,10 +21,18 @@ prior = dict(cord.db.route_caution or {})
 history = list(cord.db.route_caution_history or [])
 assert stage["safety_decision"] and stage["safety_decision"]["choice"] == "cancel"
 assert stage["performance"] is None
-assert len(history) == 1, history
+# EDGE-08's independently played next-day Hound refuge already left one
+# earlier signed cord marker. EDGE-41 must preserve that durable history,
+# not assume it was the first consumer of this physical object.
+assert len(history) == 2, history
+assert history[0]["day"] < history[1]["day"] < prior["day"], history
+assert len({entry["event_id"] for entry in history}) == len(history)
 assert prior["day"] == stage["day"]
 assert prior["prior_caution_event_id"] == history[-1]["event_id"]
-assert route_work._signed_prior_caution(cord, square, history[-1], prior["day"])
+assert all(
+    route_work._signed_prior_caution(cord, square, entry, prior["day"])
+    for entry in history
+), "Every earlier physical cord warning must retain completed signed provenance"
 clock.db.day = max(int(clock.db.day or 1), prior["day"]) + 1
 clock.db.hour = 0
 assert int(clock.db.day) > prior["day"]
