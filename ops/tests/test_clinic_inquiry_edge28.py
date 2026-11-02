@@ -40,8 +40,8 @@ class ClinicInquiryRules(unittest.TestCase):
         self.assertEqual(state["records"][0]["case_item_id"], 501)
         self.assertEqual(state["records"][0]["case_well_id"], 601)
         self.assertEqual(state["records"][0]["alternative"], "possible_exposure")
-        self.assertNotIn("cold", rules.public_lines(state, 1))
-        self.assertNotIn("HealerTester", rules.public_lines(state, 1))
+        self.assertNotIn("cold", rules.public_lines(state, 1, cot_id=401))
+        self.assertNotIn("HealerTester", rules.public_lines(state, 1, cot_id=401))
 
     def test_first_ledger_event_preview_then_distinct_detective_receipt(self):
         # A fresh WorldEventLedger gives the Healer event 1 and the
@@ -212,7 +212,7 @@ class ClinicInquiryRules(unittest.TestCase):
         }
         events = {101: source, 202: inquiry}
         lookup = events.get
-        line = rules.public_lines(state, 1, lookup)
+        line = rules.public_lines(state, 1, lookup, cot_id=401)
         self.assertIn("signed as event 202", line)
         self.assertIn("Healer assessment event 101", line)
         self.assertIn("Competing interpretations", line)
@@ -234,15 +234,15 @@ class ClinicInquiryRules(unittest.TestCase):
                 corrupted = copy.deepcopy(state)
                 corrupted["records"].append(damaged)
                 self.assertIn("requires signed source inspection",
-                              rules.public_lines(corrupted, 1, lookup))
+                              rules.public_lines(corrupted, 1, lookup, cot_id=401))
         self.assertIn("signed as event 202",
-                      rules.public_lines(json.loads(json.dumps(state)), 1, lookup))
+                      rules.public_lines(json.loads(json.dumps(state)), 1, lookup, cot_id=401))
 
         # Shape-valid persisted IDs are not signed without canonical events.
         self.assertIn("requires signed source inspection",
-                      rules.public_lines(state, 1, lambda _id: None))
+                      rules.public_lines(state, 1, lambda _id: None, cot_id=401))
         self.assertIn("requires signed source inspection",
-                      rules.public_lines(state, 1, lambda _id: (_ for _ in ()).throw(ValueError())))
+                      rules.public_lines(state, 1, lambda _id: (_ for _ in ()).throw(ValueError()), cot_id=401))
         for event_id, field_path, value in (
             (202, ("status",), "consequence_failed"),
             (202, ("kind",), "village.clinic_assess"),
@@ -284,7 +284,7 @@ class ClinicInquiryRules(unittest.TestCase):
                 self.assertFalse(rules.signed_inquiry(
                     state["records"][0], forged.get))
                 self.assertIn("requires signed source inspection",
-                              rules.public_lines(state, 1, forged.get))
+                              rules.public_lines(state, 1, forged.get, cot_id=401))
         self.assertEqual(state["records"][0]["event_id"], 202)
 
     def test_case_item_and_rival_hypotheses_are_required(self):
@@ -377,7 +377,81 @@ class ClinicInquiryRules(unittest.TestCase):
                 raw = {"records": records}
                 self.assertEqual(rules.normalize(raw)["records"], [])
                 self.assertIn("requires signed source inspection",
-                              rules.public_lines(raw, 1, lambda _id: None))
+                              rules.public_lines(raw, 1, lambda _id: None, cot_id=401))
+
+
+
+class OriginalCotPublicReadback(unittest.TestCase):
+    """Execute the actual public adapter and original-cot resolver model-free."""
+
+    def test_status_ignores_same_key_decoy_and_fails_closed_on_ambiguity(self):
+        import ast
+        import types
+        from unittest.mock import patch
+
+        root = Path(__file__).resolve().parents[2] / "spike/fvillage/world"
+        def extract(path, name, namespace):
+            nodes = ast.parse(path.read_text()).body
+            function = next(n for n in nodes
+                            if isinstance(n, ast.FunctionDef) and n.name == name)
+            exec(compile(ast.Module(body=[function], type_ignores=[]),
+                         str(path), "exec"), namespace)
+            return namespace[name]
+
+        cot_key = "a clinic treatment cot"
+        cot = extract(root / "clinic_inquiry_work.py", "_cot",
+                      {"clinic_work": types.SimpleNamespace(COT=cot_key)})
+        room = types.SimpleNamespace(contents=[],
+                                     db=types.SimpleNamespace(village_clinic={}))
+        def item(number, original):
+            return types.SimpleNamespace(
+                id=number, key=cot_key, location=room,
+                db=types.SimpleNamespace(clinic_inquiry={"records": []}),
+                is_typeclass=lambda path, exact=False:
+                    original and exact and path == "typeclasses.objects.ClinicCot")
+        decoy = item(900, False)
+        original = item(401, True)
+        room.contents = [decoy, original]
+        namespace = {
+            "_room": lambda: room,
+            "_clock": lambda: (1, 21),
+            "clinic_state": types.SimpleNamespace(
+                public_lines=lambda _raw, _day: "Clinic patient status."),
+            "get_event_ledger": lambda: types.SimpleNamespace(
+                get_event=lambda _id: None),
+        }
+        status = extract(root / "clinic_work.py", "status", namespace)
+        with patch.dict(sys.modules, {
+            "world.clinic_inquiry_work": types.SimpleNamespace(_cot=cot)
+        }), patch.object(rules, "public_lines",
+                        side_effect=lambda _raw, _day, **kwargs:
+                            "verified original cot %s" % kwargs["cot_id"]):
+            line = status()
+            self.assertIn("verified original cot 401", line)
+            self.assertNotIn("verified original cot 900", line)
+            room.contents = [decoy]
+            self.assertIn("requires original physical cot verification", status())
+            room.contents = [decoy, original, item(402, True)]
+            self.assertIn("requires original physical cot verification", status())
+
+    def test_signed_public_row_must_bind_actual_original_cot_id(self):
+        _assessment, _event, args = fixture()
+        state, okay, reason = rules.investigate(None, **args)
+        self.assertTrue(okay, reason)
+        for wrong_id in (None, 900, True, "401", 401.0):
+            with self.subTest(cot_id=wrong_id):
+                line = rules.public_lines(state, 1, lambda _id: None,
+                                          cot_id=wrong_id)
+                self.assertIn("requires original physical cot verification", line)
+        copied = json.loads(json.dumps(state))
+        copied["records"][0]["cot_id"] = 900
+        self.assertIn("requires original physical cot verification",
+                      rules.public_lines(copied, 1, lambda _id: None,
+                                         cot_id=401))
+        # A correctly bound physical cot still requires the real signed ledger.
+        self.assertIn("requires signed source inspection",
+                      rules.public_lines(state, 1, lambda _id: None,
+                                         cot_id=401))
 
 
 class WellCreationProvenance(unittest.TestCase):

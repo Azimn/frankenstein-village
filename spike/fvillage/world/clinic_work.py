@@ -57,10 +57,20 @@ def status(mask=None):
             return error
     day, _ = _clock()
     lines = clinic_state.public_lines(room.db.village_clinic, day)
-    cot = next((o for o in room.contents if o.key == COT), None)
-    if cot:
+    # The signed public inquiry belongs to the unique original typed cot,
+    # never the first same-key object in an Evennia room contents list.
+    from world.clinic_inquiry_work import _cot
+    cot = _cot(room)
+    if cot is None:
+        lines += "\nThe clinic inquiry register requires original physical cot verification."
+    else:
         from world.clinic_inquiry_state import public_lines
-        lines += "\n" + public_lines(cot.db.clinic_inquiry, day)
+        try:
+            event_lookup = get_event_ledger().get_event
+        except Exception:
+            event_lookup = lambda _event_id: None
+        lines += "\n" + public_lines(
+            cot.db.clinic_inquiry, day, event_lookup=event_lookup, cot_id=cot.id)
     return lines
 
 

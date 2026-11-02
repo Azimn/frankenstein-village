@@ -282,7 +282,7 @@ def signed_inquiry(row, event_lookup):
     )
 
 
-def public_lines(raw, day, event_lookup=None):
+def public_lines(raw, day, event_lookup=None, *, cot_id=None):
     """Never advertise a stored inquiry as signed without its ledger chain."""
     if isinstance(raw, Mapping):
         entries = raw.get("records")
@@ -308,6 +308,12 @@ def public_lines(raw, day, event_lookup=None):
                 "cluster to St. Lazarus, and use clinic investigate illness or "
                 "clinic investigate exposure after a Healer's signed assessment. "
                 "Neither hypothesis is a proven cause.")
+    # Public evidence must bind every retained signed row to the actual
+    # original typed physical cot selected by the adapter, including after
+    # JSON persistence or a copied record. A name match is never sufficient.
+    if (positive(cot_id) is None
+            or any(row["cot_id"] != cot_id for row in records)):
+        return "The clinic inquiry register requires original physical cot verification."
     if event_lookup is None:
         try:
             from world.events import get_event_ledger
