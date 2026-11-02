@@ -2604,5 +2604,34 @@ assert _b08_rules.verified_test(
     cord_id=_b08_work._target("cord")[1].id,
     room_id=_b08_work._target("cord")[0].id,
     table_id=_b08_table.id, day=_b08_day)
+# B15: use a real persisted, unconsumed Smith fitting and its completed
+# ledger receipt after server restart. Rewinding the query clock by one
+# hour cannot promote a future-hour forge into a valid carried fitting.
+_b15_smith = one("KitchenSmithTester")
+_b15_items = [
+    item for item in _b15_smith.contents
+    if item.db.route_fitting_kind == "span"
+]
+assert len(_b15_items) == 1, "Missing the independent Smith's physical fitting"
+_b15_item = _b15_items[0]
+_b15_receipt = _b08_work._ledger(_b15_item.db.route_fitting_forge_event)
+assert _b15_receipt["status"] == "complete"
+_b15_forge_day = _b15_receipt["payload"]["day"]
+_b15_forge_hour = _b15_receipt["payload"]["hour"]
+assert _b15_forge_hour > 0, "Expected same-day forge after hour zero"
+assert _b15_item in _b08_work._carried(
+    _b15_smith, "span", _b08_table.id, _b15_forge_day, _b15_forge_hour)
+_b15_item_id = _b15_item.id
+_b15_original_span = _b08_work._target("span")[1].db.route_fitting_install
+_b15_original_stock = _b08_table.db.route_fitting_stock
+assert not _b08_work._carried(
+    _b15_smith, "span", _b08_table.id,
+    _b15_forge_day, _b15_forge_hour - 1), (
+    "B15: a future-hour completed forge was accepted after clock rewind")
+assert _b15_item.id == _b15_item_id and _b15_item.location == _b15_smith
+assert _b08_work._target("span")[1].db.route_fitting_install == _b15_original_span
+assert _b08_table.db.route_fitting_stock == _b15_original_stock
+print("POST_RESTART_B15_FUTURE_HOUR_FORGE_REFUSED_GREEN")
+
 print("POST_RESTART_GDD_EDGE20_VERIFIED_PHYSICAL_SPAN_GREEN")
 print("POST_RESTART_GDD_EDGE23_VERIFIED_TESTED_CORD_GREEN")
