@@ -21,16 +21,28 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def run(args, *, cwd, env, input_text=None, timeout=900):
     printable = " ".join(str(arg) for arg in args)
     print(f"\n$ {printable}")
-    proc = subprocess.run(
-        [str(arg) for arg in args],
-        cwd=cwd,
-        env=env,
-        input=input_text,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        timeout=timeout,
-    )
+    try:
+        proc = subprocess.run(
+            [str(arg) for arg in args],
+            cwd=cwd,
+            env=env,
+            input=input_text,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        # A long real-client suite must retain its partial transcript when
+        # a bounded CI deadline expires. Python may return bytes even with
+        # text=True on this exceptional path.
+        partial = exc.output
+        if partial:
+            if isinstance(partial, bytes):
+                partial = partial.decode("utf-8", errors="replace")
+            print(partial, end="" if partial.endswith("\n") else "\n")
+        print(f"Subprocess exceeded {timeout}s; partial output preserved above", file=sys.stderr)
+        raise
     if proc.stdout:
         print(proc.stdout)
     if proc.returncode:
@@ -301,8 +313,11 @@ def main() -> int:
                     env=env,
                     # Multiple real players and the four-landmark field
                     # investigation exceed the former 180s on CI runners.
-                    # The workflow retains a strict 20-minute global cap.
-                    timeout=480,
+                    # EDGE-28 adds a separate authenticated clinic Detective
+                    # after EDGE-40's stage Detective. The 480s limit expired
+                    # during active later-player logins (CI 41418745663), not
+                    # on a proved deadlock. Keep every player and adverse gate.
+                    timeout=720,
                 )
 
                 # EDGE-08: independent authenticated Hound and Innkeep use

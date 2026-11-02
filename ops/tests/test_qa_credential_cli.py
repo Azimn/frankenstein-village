@@ -5,7 +5,8 @@ import importlib.util
 import io
 import sys
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -28,6 +29,18 @@ class TestRunnerPassword(unittest.TestCase):
     def test_random_secret_is_still_present(self):
         with patch.object(runner.secrets, "token_urlsafe", return_value="abC_123"):
             self.assertEqual(runner.qa_cli_password(), "qa_abC_123")
+
+    def test_timeout_preserves_partial_authenticated_client_transcript(self):
+        failure = subprocess.TimeoutExpired(
+            cmd=["client"], timeout=1, output=b"CLIENT_PROGRESS_BEFORE_TIMEOUT\n"
+        )
+        output, errors = io.StringIO(), io.StringIO()
+        with patch.object(runner.subprocess, "run", side_effect=failure):
+            with redirect_stdout(output), redirect_stderr(errors):
+                with self.assertRaises(subprocess.TimeoutExpired):
+                    runner.run(["client"], cwd=Path("."), env={}, timeout=1)
+        self.assertIn("CLIENT_PROGRESS_BEFORE_TIMEOUT", output.getvalue())
+        self.assertIn("exceeded 1s", errors.getvalue())
 
 
 
