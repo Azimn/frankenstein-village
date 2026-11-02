@@ -336,12 +336,17 @@ def _signed_public_event(row, action, role, state, event_lookup):
         event = event_lookup(event_id)
     except Exception:
         return False
-    if not isinstance(event, Mapping):
+    # Evennia's persistent Attribute containers can be SaverDict-style
+    # wrappers rather than collections.abc.Mapping instances. The existing
+    # canonical verified_sources verifier already accepts read-only get()
+    # containers; do not reject genuine completed events after persistence.
+    # All signed fields and physical consequences are still checked below.
+    if not hasattr(event, "get"):
         return False
     actor, payload, consequence = (
         event.get("actor"), event.get("payload"), event.get("consequence")
     )
-    if not all(isinstance(part, Mapping) for part in (actor, payload, consequence)):
+    if not all(hasattr(part, "get") for part in (actor, payload, consequence)):
         return False
     if any(type(row.get(key)) is not int for key in
            ("account_id", "mask_id", "event_id", "day", "hour")):
