@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - gdd-edge08-hound-innkeep-refuge-20261027 # TEMP exact-head candidate verification; remove before integration
 
 permissions:
   contents: read
