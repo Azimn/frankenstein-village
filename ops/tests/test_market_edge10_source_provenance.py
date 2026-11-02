@@ -436,6 +436,54 @@ class Edge10SourceVerification(unittest.TestCase):
         self.assertIn("cannot be verified", missing)
         self.assertEqual(saved, original)
 
+    def test_evennia_get_only_persisted_events_keep_valid_public_sources(self):
+        # Evennia's persisted nested Attribute wrappers need not register as
+        # Mapping. Canonical verified_sources already accepts get() wrappers.
+        class PersistedGetOnly:
+            def __init__(self, value):
+                self.value = value
+
+            def get(self, key, default=None):
+                return self.value.get(key, default)
+
+            def __getitem__(self, key):
+                return self.value[key]
+
+        attested, ok, error = signed(self.state, "attest", 11, 14)
+        self.assertTrue(ok, error)
+        ledger = copy.deepcopy(self.ledger)
+        ledger[14] = ledger_event(
+            attested["attestation"], "attest", "chronicler",
+            review_id=10, calibration_id=12,
+        )
+
+        def wrapped_lookup(events):
+            def get(event_id):
+                event = events.get(event_id)
+                if event is None:
+                    return None
+                source = dict(event)
+                for field in ("actor", "payload", "consequence"):
+                    source[field] = PersistedGetOnly(source[field])
+                return PersistedGetOnly(source)
+            return get
+
+        lookup = wrapped_lookup(ledger)
+        self.assertTrue(market.verified_sources(attested, 1, lookup))
+        board = " ".join(market.public_lines(attested, 1, lookup))
+        self.assertIn("physically recalibrated", board)
+        self.assertIn("Merchant Player5", board)
+        self.assertIn("Smith Player9", board)
+        self.assertIn("attested both source events", board)
+
+        failed = copy.deepcopy(ledger)
+        failed[12]["status"] = "consequence_failed"
+        bad = " ".join(market.public_lines(
+            attested, 1, wrapped_lookup(failed)))
+        self.assertIn("cannot be verified", bad)
+        self.assertNotIn("Smith Player9 calibrated", bad)
+        self.assertNotIn("attested both source events", bad)
+
     def test_failed_chronicler_publication_does_not_erase_valid_scale_work(self):
         # B10: the authenticated market playthrough signed all three
         # professions, but a later ordinary look suppressed even verified
