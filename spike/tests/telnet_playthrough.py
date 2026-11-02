@@ -1485,7 +1485,7 @@ def main() -> int:
         require(out, "only an audience member present for the actual performance")
         out = stage_detective.command("stage investigate")
         require_all(out, "independent detective timeline",
-                    "performance source", "1 verified audience witness",
+                    "performance source", "2 verified audience witness",
                     "does not prove an alibi")
         out = stage_detective.command("stage investigate")
         require(out, "already investigated")
@@ -1493,7 +1493,7 @@ def main() -> int:
         require_all(out, "1 independent detective stage inquiry",
                     "stagedetectivetester", "not proof of an alibi")
         out = performer.command("stage")
-        require_all(out, "1 other player account", "1 independent detective")
+        require_all(out, "2 other player account", "1 independent detective")
         print("TELNET_GDD_EDGE40_INDEPENDENT_SIGNED_STAGE_INQUIRY_GREEN")
         stage_detective.close()
         stage_detective = None
