@@ -92,7 +92,7 @@ class RouteFittingProofTests(unittest.TestCase):
                 self.assertTrue(f.verified_forge(
                     {"item_id": 600, "forge_event_id": 20,
                      "forge_day": 4}, events.get,
-                    kind=kind, table_id=900, day=4))
+                    kind=kind, table_id=900, day=4, hour=14))
                 self.assertFalse(f.verified_install(
                     state, events.get, kind=kind,
                     target_id=state["target_id"] + 1,
@@ -152,6 +152,37 @@ class RouteFittingProofTests(unittest.TestCase):
             late_forge[30]["payload"]["forge_event_id"] = 32
             late_forge[30]["consequence"]["forge_event_id"] = 32
             self.assertFalse(verify(dict(state, forge_event_id=32), late_forge))
+
+    def test_b15_future_hour_forge_refused_without_losing_valid_receipt(self):
+        """A same-day rewind must not turn a later completed forge into stock."""
+        for kind in f.KINDS:
+            state, events = fixture(kind)
+            item = {"item_id": 600, "forge_event_id": 20, "forge_day": 4}
+            events[20]["payload"]["hour"] = 18
+            get = events.get
+            with self.subTest(kind=kind):
+                self.assertFalse(f.verified_forge(
+                    item, get, kind=kind, table_id=900, day=4, hour=12))
+                self.assertFalse(f.verified_forge(
+                    item, get, kind=kind, table_id=900, day=3, hour=23))
+                self.assertTrue(f.verified_forge(
+                    item, get, kind=kind, table_id=900, day=4, hour=18))
+                self.assertTrue(f.verified_forge(
+                    item, get, kind=kind, table_id=900, day=5, hour=0))
+                # Malformed clock and event hours never count as completed proof.
+                for bad in (None, True, -1, 24, "18"):
+                    self.assertFalse(f.verified_forge(
+                        item, get, kind=kind, table_id=900, day=4, hour=bad))
+                corrupt = copy.deepcopy(events)
+                corrupt[20]["payload"]["hour"] = True
+                self.assertFalse(f.verified_forge(
+                    item, corrupt.get, kind=kind, table_id=900,
+                    day=4, hour=19))
+                self.assertFalse(f.verified_forge(
+                    json.loads(json.dumps(item)),
+                    {int(k): v for k, v in
+                     json.loads(json.dumps(events)).items()}.get,
+                    kind=kind, table_id=900, day=4, hour=12))
 
     def test_finite_stock_conserves_two_units_and_refuses_rewind(self):
         for kind in f.KINDS:
