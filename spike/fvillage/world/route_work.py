@@ -391,8 +391,12 @@ def river_action(mask, action):
     source = river_evidence.normalize(raw)["witness"]
     if action == "compare" and not _verified_river_source(gauge, room, source):
         return None, "The signed, completed Wanderer source cannot be verified."
+    # Preview checks feasibility only; it does not reserve a ledger ID.
+    # If the first genuine Wanderer event is ID 1, the Detective preview
+    # must not reuse that signed source and reject otherwise valid gameplay.
+    preview_id = source["event_id"] + 1 if action == "compare" else 1
     kwargs = dict(day=day, hour=hour, account_id=mask.account.id,
-                  mask_id=mask.id, mask=mask.key, event_id=1,
+                  mask_id=mask.id, mask=mask.key, event_id=preview_id,
                   object_id=gauge.id)
     if action == "gauge":
         _candidate, ok, why = river_evidence.witness(raw, **kwargs)
