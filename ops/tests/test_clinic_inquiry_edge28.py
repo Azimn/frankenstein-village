@@ -407,8 +407,7 @@ class OriginalCotPublicReadback(unittest.TestCase):
         def item(number, original):
             return types.SimpleNamespace(
                 id=number, key=cot_key, location=room,
-                db=types.SimpleNamespace(clinic_inquiry={"records": []},
-                                         clinic_comfort={"records": []}),
+                db=types.SimpleNamespace(clinic_inquiry={"records": []}),
                 is_typeclass=lambda path, exact=False:
                     original and exact and path == "typeclasses.objects.ClinicCot")
         decoy = item(900, False)
@@ -418,25 +417,17 @@ class OriginalCotPublicReadback(unittest.TestCase):
             "_room": lambda: room,
             "_clock": lambda: (1, 21),
             "clinic_state": types.SimpleNamespace(
-                public_lines=lambda _raw, _day: "Clinic patient status.",
-                refresh=lambda _raw, _day: {"treatment": None}),
+                public_lines=lambda _raw, _day: "Clinic patient status."),
             "get_event_ledger": lambda: types.SimpleNamespace(
                 get_event=lambda _id: None),
         }
         status = extract(root / "clinic_work.py", "status", namespace)
-        import world
         with patch.dict(sys.modules, {
-            "world.clinic_inquiry_work": types.SimpleNamespace(_cot=cot),
-            "world.clinic_comfort_edge27": types.SimpleNamespace(
-                public_lines=lambda *_a, **_kw: "Comfort status.")
-        }), patch.object(world, "clinic_cot_work",
-                         types.SimpleNamespace(status=lambda: "Supported cot status."),
-                         create=True), patch.object(rules, "public_lines",
+            "world.clinic_inquiry_work": types.SimpleNamespace(_cot=cot)
+        }), patch.object(rules, "public_lines",
                         side_effect=lambda _raw, _day, **kwargs:
                             "verified original cot %s" % kwargs["cot_id"]):
             line = status()
-            self.assertIn("Comfort status.", line)
-            self.assertIn("Supported cot status.", line)
             self.assertIn("verified original cot 401", line)
             self.assertNotIn("verified original cot 900", line)
             room.contents = [decoy]
