@@ -107,14 +107,6 @@ def dump_logs(game: Path) -> None:
         except OSError:
             continue
         if content.strip():
-            # Temporary B10 diagnosis: the first failed market source can be
-            # thousands of log lines before shutdown. Include only the tagged
-            # disposable-world provenance comparisons, not full private logs.
-            diagnostic = [line for line in content.splitlines()
-                          if "B10_PROVENANCE_DIAG" in line]
-            if diagnostic:
-                print(f"\n--- {path.name} (B10 provenance diagnostics) ---")
-                print("\n".join(diagnostic[-30:]))
             print(f"\n--- {path.name} (tail) ---")
             print("\n".join(content.splitlines()[-160:]))
 
