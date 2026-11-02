@@ -138,8 +138,8 @@ class DiscoveryScenery(DefaultObject):
                     "what cut the cord or remove any unseen danger."
                 )
         if ident == "market_scale" and self.location:
-            from world.market_standards import normalize, public_lines
-            from world.market_work import clock
+            from world.market_standards import normalize
+            from world.market_work import clock, state_lines
             day, _hour = clock()
             current = normalize(self.location.db.market_standards)
             if current["day"] == day and current["calibration"]:
@@ -149,9 +149,10 @@ class DiscoveryScenery(DefaultObject):
                     "still shows two disputed prices for the same weight; "
                     "the correction did not erase that older disagreement."
                 )
-            detail += "\n" + "\n".join(public_lines(
-                self.location.db.market_standards, day
-            ))
+            # Use the same canonical ledger-checked public readback as trade.
+            # Calling public_lines without event_lookup falsely suppresses
+            # legitimate signed work during an ordinary object look.
+            detail += "\n" + state_lines()
         return detail
 
 
