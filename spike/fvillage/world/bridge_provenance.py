@@ -182,9 +182,14 @@ def verified_state(raw, get_event, *, bridge_room_id=None):
     upkeep entries are omitted, while an authentic original response remains
     visible. A caller must not authorize further upkeep from invalid history.
     """
+    empty = {"resolution": None, "checks": []}
+    # A corrupt scalar Attribute is not equivalent to an unstarted civic
+    # investigation. Room look and collection must both report the same
+    # unsupported source, without clearing or rewriting persisted data.
+    if raw is not None and not hasattr(raw, "get"):
+        return empty, False
     original = _get(raw)
     state = bridge_choices.normalize(raw)
-    empty = {"resolution": None, "checks": []}
     row = _get(original.get("resolution"))
     if not row:
         return empty, (original.get("resolution") is None
