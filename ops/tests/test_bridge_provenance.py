@@ -134,6 +134,20 @@ class BridgeProvenanceTests(unittest.TestCase):
         forged["checks"][0]["event_id"] = True
         self.assertFalse(verify(forged, events)[1])
 
+    def test_corrupt_saved_upkeep_container_never_crashes_public_room(self):
+        state, events = fixture()
+        for malformed in (7, {"event_id": 91}, "not-a-list", True):
+            with self.subTest(malformed=malformed):
+                forged = copy.deepcopy(state)
+                forged["checks"] = malformed
+                safe, valid = verify(forged, events)
+                self.assertFalse(valid)
+                self.assertIsNotNone(safe["resolution"])
+                self.assertEqual(safe["checks"], [])
+                self.assertIn("cannot be verified", proof.public_line(
+                    forged, lambda ident: events.get(ident),
+                    bridge_room_id=300))
+
     def test_real_giftable_kit_requires_completed_physical_collection(self):
         _, events = fixture()
         kit = {"item_id": 200, "source_event_id": 81,
