@@ -179,7 +179,7 @@ def act(mask, action):
                 row = next((r for r in current_state["records"]
                             if r["event_id"] == source_id), None)
                 source = get_event_ledger().get_event(source_id)
-                if not lodging_state.source_is_valid(source, row):
+                if not lodging_state.source_is_valid(source, row, get_event_ledger().get_event):
                     raise RuntimeError("Original Innkeep provenance failed verification.")
                 changed, accepted, why = lodging_state.inquire(
                     current, event_id=event["id"],
