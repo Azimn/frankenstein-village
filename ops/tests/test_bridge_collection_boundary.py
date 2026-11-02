@@ -48,7 +48,7 @@ class BridgeCollectBoundaryTests(unittest.TestCase):
         tree = ast.parse(source)
         functions = [node for node in tree.body
                      if isinstance(node, ast.FunctionDef)
-                     and node.name in {"collect", "_collection_allowed"}]
+                     and node.name in {"collect", "_collection_open"}]
         self.assertTrue(any(node.name == "collect" for node in functions))
         env = {
             "MARKET_NAME": "Market Lane",
