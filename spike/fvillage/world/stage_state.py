@@ -339,6 +339,12 @@ def verified_public_inquiry(row, event, *, day, tavern_room_id,
                for v in (actor, payload, consequence)):
         return False
     source_id = performance.get("event_id")
+    claimed_ids = row.get("witness_event_ids")
+    if (type(source_id) is not int or source_id <= 0
+            or not isinstance(claimed_ids, (list, tuple))
+            or any(type(value) is not int or value <= 0
+                   for value in list(witness_event_ids) + list(claimed_ids))):
+        return False
     ids = sorted(witness_event_ids)
     return (
         type(event.get("id")) is int
