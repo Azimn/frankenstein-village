@@ -6,7 +6,8 @@ from evennia import create_object
 from evennia.utils import search
 from evennia.scripts.models import ScriptDB
 
-from world import bridge_choices, bridge_materials
+from world import bridge_choices, bridge_materials, bridge_provenance
+from world.events import get_event_ledger
 from world.discoveries import normalize as known_landmarks
 from world.events import publish_world_event
 from world.public_mysteries import BRIDGE_PLAQUE_ID, get_public_mystery
@@ -40,8 +41,36 @@ def _carried(mask, choice=None):
             if obj.db.bridge_material in bridge_materials.CHOICES
             and (choice is None or obj.db.bridge_material == choice)
             and obj.key == bridge_materials.ITEM_NAMES[obj.db.bridge_material]
-            and isinstance(obj.db.bridge_material_source_event, int)
+            and type(obj.db.bridge_material_source_event) is int
             and obj.db.bridge_material_source_event > 0]
+
+
+def _ledger_get(event_id):
+    return get_event_ledger().get_event(event_id)
+
+
+def public_line(bridge):
+    """Use the same verified source readback for room look and bridgework."""
+    return bridge_provenance.public_line(
+        bridge.db.bridge_inquiry, _ledger_get, bridge_room_id=bridge.id
+    )
+
+
+def _verified_carried(mask, choice, day):
+    """A physical kit must match its actual completed Market Lane collection."""
+    table = _market_supply()
+    if table is None:
+        return []
+    return [
+        obj for obj in _carried(mask, choice)
+        if bridge_provenance.verified_kit(
+            {"item_id": obj.id,
+             "source_event_id": obj.db.bridge_material_source_event,
+             "source_day": obj.db.bridge_material_source_day},
+            _ledger_get, choice=choice, market_table_id=table.id,
+            current_day=day,
+        )
+    ]
 
 
 def _clock():
@@ -80,12 +109,20 @@ def status_lines(mask):
     bridge = _bridge()
     if bridge is None:
         return "The Old Stone Bridge is not accessible."
-    state = bridge_choices.normalize(bridge.db.bridge_inquiry)
+    state, authentic = bridge_provenance.verified_state(
+        bridge.db.bridge_inquiry, _ledger_get, bridge_room_id=bridge.id
+    )
     lines = [
         "|wThe Missing Plaque: a civic investigation|n",
-        bridge_choices.public_line(state),
+        public_line(bridge),
         "The marks do not establish who took the plaque or why.",
     ]
+    if not authentic:
+        lines.append(
+            "The saved bridge record needs source review. No new response "
+            "or upkeep can be signed from an unsupported record."
+        )
+        return "\\n".join(lines)
     if state["resolution"] is not None:
         signed = state["resolution"]
         lines.append(
@@ -139,8 +176,10 @@ def collect(mask, choice):
         return None, "This is an in-character village supply table."
     if choice not in bridge_materials.CHOICES:
         return None, "Use bridgework collect preserve or bridgework collect display."
-    if bridge is None or bridge_choices.normalize(bridge.db.bridge_inquiry)["resolution"]:
-        return None, "The bridge response is already settled; no new kit is needed."
+    if bridge is None or (
+            bridge_choices.normalize(bridge.db.bridge_inquiry)["resolution"]
+            or (bridge.db.bridge_inquiry or {}).get("resolution")):
+        return None, "The bridge response is already settled or needs source review."
     if _carried(mask):
         return None, "You already carry bridge supplies. Deliver or give them away first."
     from world.market_work import supply_held
@@ -158,7 +197,9 @@ def collect(mask, choice):
         with transaction.atomic():
             if mask.location != room or table.location != room:
                 raise RuntimeError("The supplier or traveler moved.")
-            if bridge_choices.normalize(bridge.db.bridge_inquiry)["resolution"] or _carried(mask):
+            if (bridge_choices.normalize(bridge.db.bridge_inquiry)["resolution"]
+                    or (bridge.db.bridge_inquiry or {}).get("resolution")
+                    or _carried(mask)):
                 raise RuntimeError("The bridge was settled or the traveler already has a kit.")
             if supply_held():
                 raise RuntimeError("Market construction supplies are unavailable.")
@@ -202,6 +243,11 @@ def act(mask, verb):
         return None, "Bridge work only exists inside the village."
     day, hour = _clock()
     state = bridge_choices.normalize(bridge.db.bridge_inquiry)
+    verified, authentic = bridge_provenance.verified_state(
+        bridge.db.bridge_inquiry, _ledger_get, bridge_room_id=bridge.id
+    )
+    if not authentic:
+        return None, "The saved bridge signatures require completed-ledger source review."
     if verb in bridge_choices.CHOICES:
         if state["resolution"]:
             return None, "The public bridge response is already settled."
@@ -210,9 +256,9 @@ def act(mask, verb):
                 "Examine the actual plaque here and the river gauge "
                 "on Riverside Path before choosing a response."
             )
-        if not _carried(mask, verb):
+        if not _verified_carried(mask, verb, day):
             return None, (
-                "Bring the matching real kit from Market Lane. Use "
+                "Bring a source-verified real kit from Market Lane. Use "
                 "|wbridgework collect " + verb + "|n at the civic material table, "
                 "then physically carry it to the bridge."
             )
@@ -243,14 +289,19 @@ def act(mask, verb):
             # The real shared room is the authority, not the player's diary.
             current = bridge.db.bridge_inquiry
             if verb == "check":
+                _, current_valid = bridge_provenance.verified_state(
+                    current, _ledger_get, bridge_room_id=bridge.id
+                )
+                if not current_valid:
+                    raise RuntimeError("The original bridge signatures are unverified.")
                 changed, valid, problem = bridge_choices.check(
                     current, account_id=account.id, mask_id=mask.id,
                     day=day, event_id=event["id"],
                 )
             else:
-                kits = _carried(mask, verb)
+                kits = _verified_carried(mask, verb, day)
                 if not kits:
-                    raise RuntimeError("The physical construction kit is missing.")
+                    raise RuntimeError("The physical kit lacks a completed collection source.")
                 material = kits[0]
                 changed, valid, problem = bridge_choices.settle(
                     current, verb, account_id=account.id,
@@ -268,6 +319,7 @@ def act(mask, verb):
                 result.update({
                     "consumed_item_id": material.id,
                     "source_event_id": material.db.bridge_material_source_event,
+                    "bridge_room_id": bridge.id,
                 })
                 material.delete()
             return result
@@ -285,5 +337,5 @@ def act(mask, verb):
     return {
         "event_id": event["id"],
         "choice": state["resolution"]["choice"],
-        "line": bridge_choices.public_line(state),
+        "line": public_line(bridge),
     }, None
