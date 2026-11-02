@@ -304,7 +304,8 @@ def test_cord(mask):
     except (TypeError, ValueError):
         latest = {}
     if not route_fittings.verified_post_install_view(
-            latest, day=day, hour=hour, install_hour=saved["hour"],
+            latest, day=day, hour=hour, install_day=saved["day"],
+            install_hour=saved["hour"],
             install_event_id=saved["install_event_id"], cord_id=cord.id):
         return None, "Examine the original repaired red cord after installation."
     account_id = mask.account.id
@@ -324,7 +325,8 @@ def test_cord(mask):
             except (TypeError, ValueError):
                 recent = {}
             if not route_fittings.verified_post_install_view(
-                    recent, day=day, hour=hour, install_hour=saved["hour"],
+                    recent, day=day, hour=hour, install_day=saved["day"],
+                    install_hour=saved["hour"],
                     install_event_id=install_id, cord_id=cord.id):
                 raise RuntimeError("The Hound's postrepair physical inspection changed.")
             cord.db.route_fitting_test = {
