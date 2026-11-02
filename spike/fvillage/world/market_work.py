@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from django.db import transaction
 from evennia.scripts.models import ScriptDB
-from evennia.utils import search, logger
+from evennia.utils import search
 
 from world import market_standards, forensic_scale
 from world.callings import active_calling, record_participation
