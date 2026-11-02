@@ -205,6 +205,34 @@ class StageInquiryEdge40Tests(unittest.TestCase):
         self.assertIn("no actual performance", why)
         self.assertEqual(denied, next_day)
 
+    def test_evennia_saverlist_restart_preserves_inquiry_and_blocks_replay(self):
+        from collections import UserList
+        state = performed()
+        state, okay, reason = inquire(state)
+        self.assertTrue(okay, reason)
+        # Reproduce the nested list wrapper installed by Evennia's Attribute
+        # persistence. Previously normalize silently erased this inquiry,
+        # permitting a second authenticated Detective action in the same day.
+        persisted = copy.deepcopy(state)
+        persisted["inquiries"][0]["witness_event_ids"] = UserList([12])
+        persisted["inquiries"] = UserList(persisted["inquiries"])
+        restored = stage.normalize(persisted)
+        self.assertEqual(len(restored["inquiries"]), 1)
+        self.assertEqual(restored["inquiries"][0]["event_id"], 13)
+        self.assertEqual(restored["inquiries"][0]["witness_event_ids"], [12])
+        duplicate, accepted, why = inquire(restored, eid=14)
+        self.assertFalse(accepted)
+        self.assertIn("already investigated", why)
+        self.assertEqual(duplicate, restored)
+        after_json = stage.normalize(json.loads(json.dumps(restored)))
+        self.assertEqual(after_json["inquiries"], restored["inquiries"])
+        next_day = stage.refresh(after_json, 2)
+        self.assertEqual(next_day["history"][-1]["inquiries"][0]["event_id"], 13)
+        for invalid in ("12", {"id": 12}, [True], [12.5], [0], [99]):
+            corrupted = copy.deepcopy(state)
+            corrupted["inquiries"][0]["witness_event_ids"] = invalid
+            self.assertEqual(stage.normalize(corrupted)["inquiries"], [])
+
     def test_corrupted_inquiry_does_not_survive_normalization(self):
         state = performed()
         state, ok, why = inquire(state)

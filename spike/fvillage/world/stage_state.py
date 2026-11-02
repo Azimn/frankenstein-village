@@ -81,13 +81,22 @@ def normalize(raw):
             source_id = _ident(row.get("source_event_id"))
             observed = _time(day, row.get("hour"))
             signed_ids = row.get("witness_event_ids")
+            # Evennia converts nested persisted lists to SaverList wrappers.
+            # Reject malformed/nonintegral data, but never discard a real
+            # signed inquiry merely because the storage wrapper changed.
+            if (isinstance(signed_ids, (str, bytes, Mapping))
+                    or not hasattr(signed_ids, "__iter__")):
+                continue
+            try:
+                signed_ids = list(signed_ids)
+            except (TypeError, ValueError):
+                continue
             if (not all((aid, mid, eid, stage_id, source_id))
                     or not observed or observed[1] < show["hour"]
                     or aid == show["account_id"]
                     or source_id != show["event_id"]
-                    or not isinstance(signed_ids, (list, tuple))
-                    or any(_ident(v) is None for v in signed_ids)
-                    or sorted(int(v) for v in signed_ids) != witness_ids
+                    or any(type(v) is not int or v <= 0 for v in signed_ids)
+                    or sorted(signed_ids) != witness_ids
                     or any(r["account_id"] == aid for r in result["inquiries"])):
                 continue
             result["inquiries"].append({
