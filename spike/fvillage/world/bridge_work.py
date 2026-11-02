@@ -163,6 +163,22 @@ def status_lines(mask):
         )
     return "\n".join(lines)
 
+ 
+def _collection_open(bridge):
+    """Fail closed on corrupted or unsupported shared bridge history.
+
+    The saved Attribute is not authority to issue new finite kits. Both the
+    ordinary-player preview and the signed event consequence must check the
+    same completed-ledger provenance without rewriting a malformed record.
+    """
+    raw = bridge.db.bridge_inquiry
+    if raw is not None and not hasattr(raw, "get"):
+        return False
+    state, authentic = bridge_provenance.verified_state(
+        raw, _ledger_get, bridge_room_id=bridge.id
+    )
+    return authentic and state["resolution"] is None
+
 
 def collect(mask, choice):
     """Collect one actual finite kit, through the standard inventory rules."""
@@ -176,9 +192,7 @@ def collect(mask, choice):
         return None, "This is an in-character village supply table."
     if choice not in bridge_materials.CHOICES:
         return None, "Use bridgework collect preserve or bridgework collect display."
-    if bridge is None or (
-            bridge_choices.normalize(bridge.db.bridge_inquiry)["resolution"]
-            or (bridge.db.bridge_inquiry or {}).get("resolution")):
+    if bridge is None or not _collection_open(bridge):
         return None, "The bridge response is already settled or needs source review."
     if _carried(mask):
         return None, "You already carry bridge supplies. Deliver or give them away first."
@@ -197,10 +211,10 @@ def collect(mask, choice):
         with transaction.atomic():
             if mask.location != room or table.location != room:
                 raise RuntimeError("The supplier or traveler moved.")
-            if (bridge_choices.normalize(bridge.db.bridge_inquiry)["resolution"]
-                    or (bridge.db.bridge_inquiry or {}).get("resolution")
-                    or _carried(mask)):
-                raise RuntimeError("The bridge was settled or the traveler already has a kit.")
+            if not _collection_open(bridge):
+                raise RuntimeError("The bridge response is settled or needs source review.")
+            if _carried(mask):
+                raise RuntimeError("The traveler already has a bridge kit.")
             if supply_held():
                 raise RuntimeError("Market construction supplies are unavailable.")
             updated, valid, error = bridge_materials.withdraw(
