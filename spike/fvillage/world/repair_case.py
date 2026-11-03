@@ -5,10 +5,13 @@ from __future__ import annotations
 import copy
 
 from evennia.scripts.models import ScriptDB
+from django.db import transaction
 from evennia.utils import search
 
 from world.callings import active_calling, record_participation
 from world.object_properties import mechanical_value
+from world.events import get_event_ledger, publish_world_event
+from world.repair_provenance import verify_diagnosis, verify_procurement
 from world.situations import (
     LAMP_REPAIR_ID,
     ensure_situations,
@@ -169,6 +172,30 @@ def _same_location(mask, obj, room_key):
     return bool(room and room is getattr(obj, "location", None) and room.key == room_key)
 
 
+def _verified_diagnosis(diagnosis, lamp):
+    if lamp is None or type(diagnosis.get("event_id")) is not int:
+        return None
+    receipt = get_event_ledger().get_event(diagnosis["event_id"])
+    if verify_diagnosis(
+        diagnosis, receipt, lamp_id=lamp.id,
+        situation_id=LAMP_REPAIR_ID, part=REQUIRED_PART,
+    ):
+        return receipt
+    return None
+
+
+def _verified_procurement(procurement, diagnosis, diagnosis_receipt, stock):
+    if stock is None or type(procurement.get("event_id")) is not int:
+        return None
+    receipt = get_event_ledger().get_event(procurement["event_id"])
+    if verify_procurement(
+        procurement, receipt, diagnosis, diagnosis_receipt,
+        stock_id=stock.id, situation_id=LAMP_REPAIR_ID, part=REQUIRED_PART,
+    ):
+        return receipt
+    return None
+
+
 def submit_smith_repair_diagnosis(mask, target):
     case = repair_status()
     mutations = copy.deepcopy(dict(case.get("objective_mutations") or {}))
@@ -236,6 +263,11 @@ def procure_merchant_repair_part(mask):
     diagnosis = dict(mutations.get("smith_diagnosis") or {})
     if not diagnosis:
         return None, "A Smith must diagnose the lamp before a Merchant can procure the right part."
+    diagnosis_receipt = _verified_diagnosis(diagnosis, repair_lamp())
+    if not diagnosis_receipt:
+        return None, "The Smith diagnosis is not backed by a completed signed lamp event."
+    if diagnosis_receipt["actor"]["account_id"] == mask.account.id:
+        return None, "A different Merchant account must procure the Smith's part."
     if existing:
         return {"case": case, "procurement": existing, "created": False}, None
 
@@ -253,10 +285,24 @@ def procure_merchant_repair_part(mask):
     if before <= 0:
         return None, "The Lamp Shop has no brass mantle collars left to procure."
     unit_worth = int(mechanical_value(stock, "worth", 0) or 0)
-    stock.db.units = before - 1
-    sync_stock_description(stock)
+    def consequence(event):
+        with transaction.atomic():
+            current = get_situation(LAMP_REPAIR_ID)
+            current_diagnosis = dict(
+                (current.get("objective_mutations") or {}).get("smith_diagnosis") or {}
+            )
+            if (current_diagnosis != diagnosis
+                    or not _verified_diagnosis(diagnosis, repair_lamp())
+                    or mask.location != stock.location
+                    or active_calling(mask) != "merchant"
+                    or int(stock.db.units or 0) != before):
+                raise RuntimeError("The signed diagnosis, Merchant or stock changed.")
+            stock.db.units = before - 1
+            sync_stock_description(stock)
+            return {"resource_object_id": stock.id, "units_before": before,
+                    "units_after": before - 1,
+                    "source_smith_event_id": diagnosis["event_id"]}
 
-    from world.events import publish_world_event
     event = publish_world_event(
         "professional.merchant_repair_procurement",
         actor=mask,
@@ -271,8 +317,9 @@ def procure_merchant_repair_part(mask):
             "required_part": REQUIRED_PART,
             "unit_worth": unit_worth,
             "units_before": before,
-            "units_after": int(stock.db.units or 0),
+            "units_after": before - 1,
         },
+        consequence=consequence,
     )
     day, hour = _clock()
     procurement = {
@@ -319,21 +366,42 @@ def complete_smith_lamp_repair(mask, target):
     procurement = dict(mutations.get("merchant_procurement") or {})
     if not procurement:
         return None, "A Merchant must procure the replacement collar before the Smith can finish."
+    diagnosis_receipt = _verified_diagnosis(diagnosis, target)
+    procurement_receipt = _verified_procurement(
+        procurement, diagnosis, diagnosis_receipt, repair_stock()
+    )
+    if not diagnosis_receipt or not procurement_receipt:
+        return None, "The Smith and Merchant handoff lacks matching signed source events."
+    if str(target.db.repair_state or "broken") != "broken":
+        return None, "The physical lamp is no longer awaiting this repair."
     if existing:
         return {"case": case, "repair": existing, "created": False}, None
 
-    from world.events import publish_world_event
     def consequence(event):
-        target.db.repair_state = "working"
-        target.db.repair_fault = None
-        target.db.repaired_by_event_id = event["id"]
-        sync_lamp_description(target)
-        return {
-            "lamp_object_id": target.id,
-            "lamp_object_key": target.key,
-            "repair_state": "working",
-            "installed_part": REQUIRED_PART,
-        }
+        with transaction.atomic():
+            current = get_situation(LAMP_REPAIR_ID)
+            current_mutations = current.get("objective_mutations") or {}
+            if (dict(current_mutations.get("smith_diagnosis") or {}) != diagnosis
+                    or dict(current_mutations.get("merchant_procurement") or {}) != procurement
+                    or not _verified_diagnosis(diagnosis, target)
+                    or not _verified_procurement(
+                        procurement, diagnosis, diagnosis_receipt, repair_stock())
+                    or active_calling(mask) != "smith"
+                    or not _same_location(mask, target, LAMP_LOCATION)
+                    or str(target.db.repair_state or "broken") != "broken"):
+                raise RuntimeError("The source receipts or physical repair changed.")
+            target.db.repair_state = "working"
+            target.db.repair_fault = None
+            target.db.repaired_by_event_id = event["id"]
+            sync_lamp_description(target)
+            return {
+                "lamp_object_id": target.id,
+                "lamp_object_key": target.key,
+                "repair_state": "working",
+                "installed_part": REQUIRED_PART,
+                "source_smith_diagnosis_event_id": diagnosis["event_id"],
+                "source_merchant_event_id": procurement["event_id"],
+            }
 
     event = publish_world_event(
         "professional.smith_lamp_repair_completed",

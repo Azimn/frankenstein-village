@@ -258,6 +258,10 @@ def submit_healer_care_assessment(mask, target):
 
     from world.events import publish_world_event
 
+    account_id = getattr(getattr(mask, "account", None), "id", None)
+    if not isinstance(account_id, int) or account_id <= 0:
+        return None, "A signed Healer assessment requires a player account."
+    day, hour = _clock()
     event = publish_world_event(
         "professional.healer_cold_assessment",
         actor=mask,
@@ -268,11 +272,13 @@ def submit_healer_care_assessment(mask, target):
             "situation_id": TAVERN_COLD_CARE_ID,
             "professional_calling": "healer",
             "finding": "cold exposure",
+            "day": int(day),
+            "hour": int(hour),
         },
     )
-    day, hour = _clock()
     assessment = {
         "calling": "healer",
+        "account_id": account_id,
         "mask_id": getattr(mask, "id", None),
         "mask": getattr(mask, "key", None),
         "resident_id": PATIENT_ID,
@@ -323,6 +329,27 @@ def provide_innkeep_care(mask, target):
     assessment = dict(mutations.get("healer_assessment") or {})
     if not assessment:
         return None, "An Innkeep cannot close this care case until a Healer has assessed Silas."
+
+    # A mutable situation row is not an authority for a completed professional
+    # act. Verify the exact signed source and separate accounts before touching
+    # the finite meal or the patient's condition.
+    from world.care_provenance import validate_healer_source
+    from world.events import get_event_ledger
+
+    source_id = assessment.get("event_id")
+    source_event = (
+        get_event_ledger().get_event(source_id)
+        if type(source_id) is int and source_id > 0 else None
+    )
+    source, error = validate_healer_source(
+        assessment, source_event,
+        innkeep_account_id=getattr(getattr(mask, "account", None), "id", None),
+        case_event_ids=case.get("event_ids") or [],
+        situation_id=TAVERN_COLD_CARE_ID,
+        resident_id=PATIENT_ID,
+    )
+    if error:
+        return None, error
 
     existing = dict(mutations.get("innkeep_care") or {})
     if existing:
@@ -375,7 +402,9 @@ def provide_innkeep_care(mask, target):
             "resident_ids": [PATIENT_ID],
             "situation_id": TAVERN_COLD_CARE_ID,
             "professional_calling": "innkeep",
-            "source_healer_event_id": assessment.get("event_id"),
+            "source_healer_event_id": source["event_id"],
+            "source_healer_account_id": source["account_id"],
+            "source_healer_mask_id": source["mask_id"],
             "resource_object_id": stew.id,
             "resource_object_key": stew.key,
             "servings_before": before,
@@ -385,6 +414,7 @@ def provide_innkeep_care(mask, target):
     day, hour = _clock()
     care = {
         "calling": "innkeep",
+        "account_id": getattr(getattr(mask, "account", None), "id", None),
         "mask_id": getattr(mask, "id", None),
         "mask": getattr(mask, "key", None),
         "resident_id": PATIENT_ID,
@@ -393,7 +423,9 @@ def provide_innkeep_care(mask, target):
         "resource_object_key": stew.key,
         "servings_before": before,
         "servings_after": int(stew.db.servings or 0),
-        "source_healer_event_id": assessment.get("event_id"),
+        "source_healer_event_id": source["event_id"],
+        "source_healer_account_id": source["account_id"],
+        "source_healer_mask_id": source["mask_id"],
         "day": int(day),
         "hour": int(hour),
     }

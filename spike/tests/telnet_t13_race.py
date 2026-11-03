@@ -8,7 +8,7 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
-from telnet_playthrough import require, require_all
+from telnet_playthrough import agent_json, require, require_all
 from telnet_t13_cancel import connect
 
 
@@ -17,6 +17,27 @@ def compete(client, command, barrier):
     print(f"\n> [simultaneous client send] {command}", flush=True)
     client.sock.sendall((command + "\n").encode("utf-8"))
     return client.read_quiet(max_wait=8, quiet=0.5)
+
+
+def move_and_verify(client, direction, destination):
+    """Wait for the original movement response, then verify the actual room.
+
+    An asynchronous give/broadcast can arrive first on the second socket.
+    Never issue the movement command twice, which could change the world.
+    """
+    output = client.command(direction)
+    if destination.lower() not in output.lower():
+        output += client.read_quiet(max_wait=4.0, quiet=0.4)
+    require(output, destination)
+    observed = client.command("agent", wait=4.0)
+    if "FV_AGENT_JSON" not in observed:
+        observed += client.read_quiet(max_wait=3.0, quiet=0.4)
+    location = agent_json(observed).get("location")
+    assert isinstance(location, str) and location.lower() == destination.lower(), (
+        "Movement response did not match the canonical room observation",
+        direction, destination, location,
+    )
+    return output
 
 
 def main():
@@ -38,7 +59,7 @@ def main():
                     "pledge your physical", "another player")
         require(carrier.command("west"), "village square")
         require(supplier.command("give firewood = MerchantTester"), "you give")
-        require(carrier.command("east"), "blood of the vine")
+        move_and_verify(carrier, "east", "The Blood of the Vine")
         # Drain movement broadcasts before the contested commands.
         supplier.read_quiet(max_wait=0.8)
         carrier.read_quiet(max_wait=0.8)

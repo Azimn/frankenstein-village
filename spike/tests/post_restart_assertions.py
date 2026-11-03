@@ -166,14 +166,26 @@ from world import soup_state
 _tavern_soup = one("The Blood of the Vine")
 _soup_log = soup_state.pantry(_tavern_soup.db.soup_pantry, 1)
 assert _soup_log["history"], "The shared soup pot lost all batches"
-_batch = _soup_log["history"][-1]
-assert _batch["maker_id"] == innkeep_tester.id
-assert _batch["base"] == "turnip" and _batch["seasoning"] == "thyme"
-assert _batch["prep_event_id"] < _batch["cook_event_id"]
-assert innkeep_record["participation"]["soup_preparations"] == 1
-assert innkeep_record["participation"]["soup_batches_cooked"] == 1
-assert len(list(innkeep_tester.db.soup_notebook or [])) == 1
-assert list(innkeep_tester.db.soup_notebook)[-1]["cook_event_id"] == _batch["cook_event_id"]
+# The first bowl was tasted, a second served at the Performer show,
+# and a third cooked BEFORE the signed kitchen restriction for an independently
+# witnessed returning Wanderer. All three physical recipes must persist.
+assert len(_soup_log["history"]) == 3
+_batch, _service_batch, _arrival_batch = _soup_log["history"]
+assert all(row["maker_id"] == innkeep_tester.id
+           for row in (_batch, _service_batch, _arrival_batch))
+assert (_batch["base"], _batch["seasoning"]) == ("turnip", "thyme")
+assert (_service_batch["base"], _service_batch["seasoning"]) == ("barley", "salt")
+assert (_arrival_batch["base"], _arrival_batch["seasoning"]) == ("barley", "salt")
+assert all(row["prep_event_id"] < row["cook_event_id"]
+           for row in (_batch, _service_batch, _arrival_batch))
+assert innkeep_record["participation"]["soup_preparations"] == 3
+assert innkeep_record["participation"]["soup_batches_cooked"] == 3
+_notebook = list(innkeep_tester.db.soup_notebook or [])
+assert len(_notebook) == 3
+assert [row["cook_event_id"] for row in _notebook] == [
+    _batch["cook_event_id"], _service_batch["cook_event_id"],
+    _arrival_batch["cook_event_id"]
+]
 assert calling_record(merchant_tester, "merchant")["participation"]["kitchen_procurements"] == 1
 _soup_cooked = ScriptDB.objects.get(db_key="world_event_ledger").get_event(_batch["cook_event_id"])
 assert _soup_cooked["kind"] == "professional.innkeep_soup_cooked"
@@ -186,7 +198,180 @@ _soup_bowl = one("a bowl of turnip and thyme soup")
 assert _soup_bowl.location == innkeep_tester
 assert _soup_bowl.db.servings == 0, "Consumed bowl refilled across restart"
 assert one("a communal soup pot").location == _tavern_soup
+# GDD-EDGE-04: the real Merchant crate was given to a different account,
+# accepted exactly once, and the two canonical events survived restart.
+_soup_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+_edge04_receipts = [
+    dict(row) for row in (_soup_ledger.db.events or [])
+    if row.get("kind") == "professional.innkeep_kitchen_acceptance"
+]
+assert len(_edge04_receipts) == 1, "Kitchen receipt missing or duplicated"
+_edge04 = _edge04_receipts[0]
+_edge04_source = _soup_ledger.get_event(
+    _edge04["payload"]["procurement_event_id"]
+)
+assert _edge04["status"] == "complete"
+assert _edge04_source and _edge04_source["status"] == "complete"
+assert _edge04_source["kind"] == "professional.merchant_kitchen_procurement"
+assert _edge04_source["actor"]["mask_id"] == merchant_tester.id
+assert _edge04["actor"]["mask_id"] == innkeep_tester.id
+assert _edge04_source["actor"]["account_id"] != _edge04["actor"]["account_id"]
+assert _edge04["consequence"]["merchant_account_id"] == (
+    _edge04_source["actor"]["account_id"]
+)
+assert _edge04["consequence"]["receiving_account_id"] == (
+    _edge04["actor"]["account_id"]
+)
+assert _edge04["consequence"]["procurement_event_id"] == _edge04_source["id"]
+assert _edge04_source["consequence"]["crate_id"] == (
+    _edge04["consequence"]["crate_id"]
+)
+assert _edge04["consequence"]["pantry_room_id"] == _tavern_soup.id
+assert _edge04["consequence"]["turnip_stock"] >= 4
+assert not [obj for obj in innkeep_tester.contents
+            if obj.key == "a crate of kitchen roots"], (
+    "Consumed Merchant crate survived a real server restart"
+)
+assert innkeep_record["participation"]["kitchen_acceptances"] == 1
+print("POST_RESTART_GDD_EDGE04_SIGNED_TWO_ACCOUNT_KITCHEN_SUPPLY_GREEN")
 print("POST_RESTART_SHARED_SOUP_WORKPLACE_GREEN")
+
+# GDD-EDGE-02: the first real restart must preserve the original
+# day-one Innkeep restriction. No Smith repair or third day-one offcut is
+# fabricated to make the source chain pass.
+from world import kitchen_repair_edge02, kitchen_repair_work
+_kitchen_pot = one("a communal soup pot")
+_kitchen_state = kitchen_repair_edge02.normalize(_kitchen_pot.db.kitchen_repair)
+assert _kitchen_state["condition"] == "restricted", _kitchen_state
+assert _kitchen_state["repair"] is None
+_kitchen_inn = _kitchen_state["restriction"]
+assert _kitchen_inn["mask_id"] == innkeep_tester.id
+assert _kitchen_inn["day"] == 1
+_kitchen_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+_kitchen_restrict_event = _kitchen_ledger.get_event(_kitchen_inn["event_id"])
+assert _kitchen_restrict_event["kind"] == "professional.innkeep_kitchen_restriction"
+assert _kitchen_restrict_event["status"] == "complete"
+assert _kitchen_restrict_event["actor"]["account_id"] == _kitchen_inn["account_id"]
+assert _kitchen_restrict_event["consequence"]["condition"] == "restricted"
+assert not [row for row in _kitchen_ledger.db.events
+            if row.get("kind") == "professional.smith_kitchen_repair"
+            and row.get("payload", {}).get("pot_id") == _kitchen_pot.id
+            and row.get("status") == "complete"], (
+    "A kitchen repair was falsely completed before the later-day Smith"
+)
+assert not kitchen_repair_work.player_simmer_allowed(_kitchen_pot)
+assert "restricted" in kitchen_repair_work.status().lower()
+print("POST_RESTART_GDD_EDGE02_DAY_ONE_UNREPAIRED_RESTRICTION_GREEN")
+
+# EDGE-01: the same physical batch and existing pantry history survive an
+# actual Evennia stop/start with consent and independent publication intact.
+from world import soup_receipts
+_consent = dict(_batch.get("consent") or {})
+_publication = dict(_batch.get("publication") or {})
+assert _consent["cook_event_id"] == _batch["cook_event_id"]
+assert _publication["cook_event_id"] == _batch["cook_event_id"]
+assert _publication["consent_event_id"] == _consent["event_id"]
+assert _consent["mask_id"] == innkeep_tester.id
+assert _publication["mask_id"] == smoke.id
+assert _consent["account_id"] != _publication["account_id"]
+_receipt_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
+_disclosed = _receipt_ledger.get_event(_consent["event_id"])
+_published = _receipt_ledger.get_event(_publication["event_id"])
+assert _disclosed["status"] == _published["status"] == "complete"
+assert _disclosed["kind"] == "professional.innkeep_house_receipt_disclosed"
+assert _published["kind"] == "professional.chronicler_house_receipt_published"
+assert _disclosed["actor"]["account_id"] == _consent["account_id"]
+assert _published["actor"]["account_id"] == _publication["account_id"]
+assert _disclosed["payload"]["cook_event_id"] == _batch["cook_event_id"]
+assert _published["payload"]["consent_event_id"] == _consent["event_id"]
+assert _published["consequence"]["scope"] == "public_kitchen_batch_only"
+_public_receipts = soup_receipts.public_lines(_tavern_soup.db.soup_pantry, 2)
+assert "Chronicler SmokeTester" in _public_receipts
+assert "not a guest list" in _public_receipts
+assert "guest_name" not in str(_batch)
+print("POST_RESTART_GDD_EDGE01_CONSENTED_HOUSE_RECEIPT_GREEN")
+
+# EDGE-05: actual soup bowl, source-verified Wanderer observation, separate
+# accounts and signed Tavern hospitality survive a full Evennia restart.
+_wanderer_arrival = one("WandererTester")
+assert active_calling(_wanderer_arrival) == "wanderer"
+_arrival_batch = next(
+    row for row in _soup_log["history"]
+    if row["base"] == "barley" and row["seasoning"] == "salt"
+    and row.get("arrival_welcome")
+)
+_welcome = dict(_arrival_batch["arrival_welcome"])
+assert _welcome["wanderer_mask_id"] == _wanderer_arrival.id
+assert AccountDB.objects.filter(id=_welcome["wanderer_account_id"]).exists()
+assert _welcome["innkeep_mask_id"] == innkeep_tester.id
+assert AccountDB.objects.filter(id=_welcome["innkeep_account_id"]).exists()
+assert _welcome["wanderer_account_id"] != _welcome["innkeep_account_id"]
+assert _welcome["cook_event_id"] == _arrival_batch["cook_event_id"]
+assert _welcome["service"] == "physical_bowl_transferred"
+# Two independently cooked barley/salt batches legitimately have the same
+# display name. Identify each physical object by its signed cooking receipt,
+# never by a supposedly unique display name.
+_ledger_arrival = ScriptDB.objects.get(db_key="world_event_ledger")
+_arrival_cook = _ledger_arrival.get_event(_arrival_batch["cook_event_id"])
+_stage_cook = _ledger_arrival.get_event(_service_batch["cook_event_id"])
+assert _arrival_cook["status"] == _stage_cook["status"] == "complete"
+assert _arrival_cook["kind"] == _stage_cook["kind"] == "professional.innkeep_soup_cooked"
+assert _arrival_cook["id"] != _stage_cook["id"]
+assert _arrival_cook["payload"]["prep_event_id"] == _arrival_batch["prep_event_id"]
+assert _stage_cook["payload"]["prep_event_id"] == _service_batch["prep_event_id"]
+assert _arrival_batch["prep_event_id"] != _service_batch["prep_event_id"]
+_arrival_id = _arrival_cook["consequence"]["bowl_id"]
+_stage_id = _stage_cook["consequence"]["bowl_id"]
+assert type(_arrival_id) is int and type(_stage_id) is int
+assert _arrival_id == _welcome["bowl_id"] and _arrival_id != _stage_id
+_same_name_bowls = [obj for obj in search.search_object("a bowl of barley and salt soup")
+                    if obj.key == "a bowl of barley and salt soup"]
+assert len(_same_name_bowls) == 2, [obj.id for obj in _same_name_bowls]
+assert {obj.id for obj in _same_name_bowls} == {_arrival_id, _stage_id}
+_arrival_bowl = next(obj for obj in _same_name_bowls if obj.id == _arrival_id)
+_stage_bowl = next(obj for obj in _same_name_bowls if obj.id == _stage_id)
+assert _arrival_bowl.location == _wanderer_arrival
+assert _arrival_bowl.db.servings == 1
+assert _arrival_bowl.db.soup_serving["event_id"] == _arrival_cook["id"]
+assert _arrival_bowl.db.soup_serving["prep_event_id"] == _arrival_batch["prep_event_id"]
+assert _stage_bowl.location == _tavern_soup
+assert _stage_bowl.db.soup_serving["event_id"] == _stage_cook["id"]
+assert _stage_bowl.db.soup_serving["prep_event_id"] == _service_batch["prep_event_id"]
+_ledger_arrival = ScriptDB.objects.get(db_key="world_event_ledger")
+_arrival_event = _ledger_arrival.get_event(_welcome["event_id"])
+assert _arrival_event["status"] == "complete"
+assert _arrival_event["kind"] == "professional.innkeep_wanderer_arrival_welcome"
+assert _arrival_event["actor"]["account_id"] == _welcome["innkeep_account_id"]
+assert _arrival_event["consequence"]["bowl_id"] == _arrival_bowl.id
+assert _arrival_event["consequence"]["route_event_id"] == _welcome["route_event_id"]
+_route_source = _ledger_arrival.get_event(_welcome["route_event_id"])
+assert _route_source["status"] == "complete"
+assert _route_source["kind"] == "village.route_passability_observed"
+assert _route_source["actor"]["account_id"] == _welcome["wanderer_account_id"]
+assert _route_source["payload"]["location"] == "The Northern Treeline"
+assert _route_source["payload"]["day"] == _welcome["day"]
+assert _route_source["consequence"]["square_room_id"] == one("Village Square").id
+assert type(_route_source["consequence"]["cord_object_id"]) is int
+assert _route_source["consequence"]["cord_object_id"] > 0
+assert _route_source["consequence"]["day"] == _welcome["day"]
+assert innkeep_record["participation"]["arrival_hospitality"] == 1
+from world import soup_kitchen
+_public_pot_after_restart = soup_kitchen.pot_description()
+assert "Signed returning-traveler hospitality" in _public_pot_after_restart, (
+    "Physical Tavern soup pot failed signed public projection after restart"
+)
+assert f"route event {_welcome['route_event_id']}" in _public_pot_after_restart
+assert f"welcome event {_welcome['event_id']}" in _public_pot_after_restart
+assert "does not certify route safety" in _public_pot_after_restart
+print("POST_RESTART_GDD_EDGE05_VERIFIED_PUBLIC_POT_READBACK_GREEN")
+print("POST_RESTART_GDD_EDGE05_SIGNED_TWO_ACCOUNT_ARRIVAL_HOSPITALITY_GREEN")
+
+
+
+
+
+
+
 
 
 population = list(search.search_tag("resident", category="system"))
@@ -259,10 +444,14 @@ warning_mutations = dict(warning_case["objective_mutations"])
 warning_finding = dict(warning_mutations["healer_finding"])
 warning_record = dict(warning_mutations["chronicler_record"])
 assert warning_finding["mask_id"] == healer_tester.id
+assert type(warning_finding["account_id"]) is int
 assert warning_finding["mask"] == "HealerTester"
 assert warning_finding["property"] == "toxin"
 assert warning_finding["value"] == 25
 assert warning_record["mask_id"] == smoke.id
+assert type(warning_record["account_id"]) is int
+assert warning_record["account_id"] != warning_finding["account_id"]
+assert warning_record["source_healer_event_id"] == warning_finding["event_id"]
 assert warning_record["mask"] == "SmokeTester"
 
 warning_entry = next(
@@ -289,15 +478,25 @@ warning_ledger = ScriptDB.objects.get(db_key="world_event_ledger")
 finding_event = warning_ledger.get_event(warning_finding["event_id"])
 warning_event = warning_ledger.get_event(warning_record["event_id"])
 assert finding_event["kind"] == "professional.healer_finding_submitted"
+assert finding_event["status"] == "complete"
+assert finding_event["actor"]["account_id"] == warning_finding["account_id"]
+assert finding_event["actor"]["mask_id"] == healer_tester.id
+assert finding_event["payload"]["day"] == warning_finding["day"]
+assert finding_event["payload"]["hour"] == warning_finding["hour"]
 assert finding_event["payload"]["mechanical_value"] == 25
 assert finding_event["payload"]["harbinger"] is False
 assert finding_event["payload"]["chronicle_eligible"] is False
 assert warning_event["kind"] == "professional.public_health_warning"
+assert warning_event["status"] == "complete"
+assert warning_event["actor"]["account_id"] == warning_record["account_id"]
+assert warning_event["payload"]["source_healer_account_id"] == warning_finding["account_id"]
+assert warning_event["payload"]["source_healer_event_id"] == finding_event["id"]
 assert warning_event["payload"]["source_healer_mask_id"] == healer_tester.id
 assert warning_event["publications"]["chronicle_entry_id"] == warning_entry["id"]
 assert warning_event["publications"]["harbinger_story_id"] == warning_story["id"]
 assert hidden_mechanical_properties(mushrooms) == {"toxin": 25}
 assert mechanical_properties(mushrooms) == {}
+print("POST_RESTART_GDD_EDGE11_SIGNED_DISTINCT_HEALTH_WARNING_GREEN")
 
 # Resident care interdependence survives restart as Resident Life state plus a
 # provenance record. The current stew stock may have been restocked by Bram,
@@ -346,6 +545,25 @@ assert hospitality_event["payload"]["servings_before"] - (
     hospitality_event["payload"]["servings_after"]
 ) == 1
 
+# GDD-EDGE-03: two actual accounts and an independently completed Healer
+# event, not merely a situation row, survive the real Evennia restart.
+assert assessment_event["status"] == "complete"
+assert hospitality_event["status"] == "complete"
+assert cold_assessment["account_id"] == assessment_event["actor"]["account_id"]
+assert cold_hospitality["account_id"] == hospitality_event["actor"]["account_id"]
+assert cold_assessment["account_id"] != cold_hospitality["account_id"]
+assert cold_hospitality["source_healer_account_id"] == cold_assessment["account_id"]
+assert cold_hospitality["source_healer_mask_id"] == cold_assessment["mask_id"]
+assert hospitality_event["payload"]["source_healer_account_id"] == cold_assessment["account_id"]
+assert hospitality_event["payload"]["source_healer_mask_id"] == cold_assessment["mask_id"]
+assert assessment_event["actor"]["mask_id"] == cold_assessment["mask_id"]
+assert assessment_event["payload"]["situation_id"] == TAVERN_COLD_CARE_ID
+assert assessment_event["payload"]["resident_ids"] == ["silas_crowe"]
+assert assessment_event["payload"]["professional_calling"] == "healer"
+assert assessment_event["payload"]["day"] == cold_assessment["day"]
+assert assessment_event["payload"]["hour"] == cold_assessment["hour"]
+print("POST_RESTART_GDD_EDGE03_SIGNED_DISTINCT_CARE_GREEN")
+
 # Smith and Merchant repair work survives restart as professional history,
 # finite stock depletion, linked provenance, and transformed object state.
 assert active_calling(smith_tester) == "smith"
@@ -389,6 +607,21 @@ assert completion_event["kind"] == "professional.smith_lamp_repair_completed"
 assert procurement_event["payload"]["source_smith_event_id"] == diagnosis_event["id"]
 assert completion_event["payload"]["source_merchant_event_id"] == procurement_event["id"]
 assert completion_event["consequence"]["repair_state"] == "working"
+from world.repair_provenance import verify_diagnosis, verify_procurement
+assert verify_diagnosis(
+    lamp_diagnosis, diagnosis_event, lamp_id=north_square_lamp.id,
+    situation_id=LAMP_REPAIR_ID, part="brass mantle collar",
+), "The Smith diagnosis has no matching completed signed source"
+assert verify_procurement(
+    lamp_procurement, procurement_event, lamp_diagnosis, diagnosis_event,
+    stock_id=repair_stock.id, situation_id=LAMP_REPAIR_ID,
+    part="brass mantle collar",
+), "The Merchant procurement has no matching completed signed source"
+assert diagnosis_event["actor"]["account_id"] != procurement_event["actor"]["account_id"]
+assert completion_event["actor"]["account_id"] == diagnosis_event["actor"]["account_id"]
+assert completion_event["consequence"]["source_smith_diagnosis_event_id"] == diagnosis_event["id"]
+assert completion_event["consequence"]["source_merchant_event_id"] == procurement_event["id"]
+print("POST_RESTART_GDD_EDGE19_SIGNED_REPAIR_GREEN")
 # T-03: the authenticated Smith retried after an actual server restart.
 # A truthful "already complete" response must not conceal a second signed
 # completion, new part expenditure or replacement of the lamp's repair receipt.
@@ -1144,6 +1377,49 @@ assert calling_record(smith_tester, "smith")["participation"][
     "community_route_contributions"
 ] == 1, "Smith civic work participation was lost"
 print("POST_RESTART_DAILY_ROUTE_SURVEY_GREEN")
+# GDD-EDGE-37: the ORIGINAL Riverside gauge owns both signatures after a
+# genuine server process restart. Neither source proves a bridge culprit.
+from world import river_evidence as _river_evidence
+_river_gauge = one("a river gauge")
+_river_state = _river_evidence.normalize(_river_gauge.db.river_evidence)
+_river_witness = _river_state["witness"]
+_river_review = _river_state["review"]
+assert _river_witness and _river_review, "Two-role river evidence did not persist"
+assert _river_witness["mask"] == "WandererTester"
+assert _river_review["mask"] == "RiverDetectiveTester"
+assert _river_witness["object_id"] == _river_gauge.id
+assert _river_review["object_id"] == _river_gauge.id
+assert _river_witness["account_id"] != _river_review["account_id"]
+assert _river_witness["mask_id"] != _river_review["mask_id"]
+assert _river_review["source_event_id"] == _river_witness["event_id"]
+assert active_calling(one("WandererTester")) == "wanderer"
+assert active_calling(one("RiverDetectiveTester")) == "detective"
+for _row, _kind, _role in (
+    (_river_witness, "village.river_gauge_witnessed", "wanderer"),
+    (_river_review, "village.river_evidence_compared", "detective"),
+):
+    _event = warning_ledger.get_event(_row["event_id"])
+    assert _event and _event["status"] == "complete"
+    assert _event["kind"] == _kind
+    assert _event["actor"]["account_id"] == _row["account_id"]
+    assert _event["actor"]["mask_id"] == _row["mask_id"]
+    assert _event["payload"]["calling"] == _role
+    assert _event["payload"]["object_id"] == _river_gauge.id
+    assert _event["consequence"]["gauge_object_id"] == _river_gauge.id
+assert warning_ledger.get_event(_river_review["event_id"])["payload"][
+    "source_event_id"
+] == _river_witness["event_id"]
+_river_next, _ok, _error = _river_evidence.refresh(
+    _river_state, _river_state["day"] + 1
+)
+assert _ok, _error
+assert _river_next["history"][-1]["review"]["event_id"] == _river_review["event_id"]
+assert _river_next["witness"] is None
+assert "does not establish" in " ".join(
+    _river_evidence.public_lines(_river_state, _river_state["day"])
+)
+print("POST_RESTART_GDD_EDGE37_SIGNED_INDEPENDENT_RIVER_EVIDENCE_GREEN")
+
 # GDD T-07: two ordinary accounts share the same real physical red cord,
 # but only Hound changed its protection marker; Wanderer's earlier signed
 # interpretation remains an accurate, time-scoped observation.
@@ -1166,6 +1442,22 @@ assert _actions["wanderer"]["observation"] == "unmarked", (
     "Later protection overwrote the original Wanderer's observation"
 )
 assert _actions["hound"]["event_id"] == _cord.db.route_caution["event_id"]
+_joint = _actions["wanderer"]["corroboration"]
+assert _joint["hound_event_id"] == _actions["hound"]["event_id"]
+assert _joint["account_id"] == _actions["wanderer"]["account_id"]
+assert _joint["account_id"] != _actions["hound"]["account_id"]
+assert _joint["observation"] == "marked_caution"
+_signed_joint = warning_ledger.get_event(_joint["event_id"])
+assert _signed_joint["kind"] == "village.route_caution_corroborated"
+assert _signed_joint["status"] == "complete"
+assert _signed_joint["actor"]["account_id"] == _joint["account_id"]
+assert _signed_joint["payload"]["hound_source_event_id"] == _joint["hound_event_id"]
+assert _signed_joint["consequence"]["hound_source_event_id"] == _joint["hound_event_id"]
+assert _signed_joint["consequence"]["physical_caution_present"] is True
+assert _next_survey_day["history"][-1]["field_decisions"]["wanderer"]["corroboration"] == _joint
+assert calling_record(_wanderer_field, "wanderer")["participation"]["field_corroborations"] == 1
+print("POST_RESTART_GDD_EDGE38_SIGNED_INDEPENDENT_ROUTE_CORROBORATION_GREEN")
+
 for _role, _kind in (("hound", "village.route_protected"),
                      ("wanderer", "village.route_passability_observed")):
     _signed = warning_ledger.get_event(_actions[_role]["event_id"])
@@ -1174,7 +1466,122 @@ for _role, _kind in (("hound", "village.route_protected"),
 assert calling_record(_hound_protect, "hound")["participation"]["field_surveys"] == 1
 assert calling_record(_wanderer_field, "wanderer")["participation"]["field_surveys"] == 1
 assert set(_next_survey_day["history"][-1]["field_decisions"]) == {"hound", "wanderer"}
+# GDD-EDGE-43: independent signed Detective custody survives real process restart.
+from world.route_trace_custody import normalize as _trace_normalize
+_trace = _trace_normalize(_cord.db.route_trace_custody)
+assert _trace is not None, "Signed Detective trace record missing after restart"
+_trace_detective = one("TraceDetectiveTester")
+assert active_calling(_trace_detective) == "detective"
+assert _trace["cord_id"] == _cord.id
+assert _trace["source_event_id"] == _cord.db.route_caution["event_id"]
+assert _trace["detective_mask_id"] == _trace_detective.id
+assert _trace["hound_mask_id"] == _hound_protect.id
+assert _trace["hound_account_id"] != _trace["detective_account_id"]
+assert AccountDB.objects.filter(id=_trace["hound_account_id"]).exists()
+assert AccountDB.objects.filter(id=_trace["detective_account_id"]).exists()
+assert _trace["observed_condition"] == "tied_caution"
+assert _trace["late_arrival"] is False
+for _kind, _eid, _account, _mask in (
+    ("village.route_protected", _trace["source_event_id"],
+     _trace["hound_account_id"], _hound_protect.id),
+    ("village.route_trace_preserved", _trace["event_id"],
+     _trace["detective_account_id"], _trace_detective.id),
+):
+    _signed = warning_ledger.get_event(_eid)
+    assert _signed and _signed["status"] == "complete"
+    assert _signed["kind"] == _kind
+    assert _signed["actor"]["account_id"] == _account
+    assert _signed["actor"]["mask_id"] == _mask
+_trace_signed = warning_ledger.get_event(_trace["event_id"])
+assert _trace_signed["payload"]["hound_source_event_id"] == _trace["source_event_id"]
+assert _trace_signed["consequence"]["cord_object_id"] == _cord.id
+assert _trace_signed["consequence"]["observed_condition"] == "tied_caution"
+assert calling_record(_trace_detective, "detective")["participation"][
+    "route_trace_preserved"] == 1
+from world.route_trace_custody import public_lines as _trace_lines
+assert "neither tracks nor a culprit" in _trace_lines(_trace)
+print("POST_RESTART_GDD_EDGE43_SIGNED_INDEPENDENT_TRACE_CUSTODY_GREEN")
+
 print("POST_RESTART_GDD_T07_SHARED_CORD_AND_DISTINCT_ACTIONS_GREEN")
+
+# EDGE-08: ordinary accounts, original Hound cord, consumed dispatch and
+# finite edible bowl must all survive a genuine server restart.
+from world import refuge_state as _refuge_rules
+_refuge_tavern = one("The Blood of the Vine")
+_refuge_hound = one("RefugeHoundTester")
+_refuge_rows = _refuge_rules.history(_refuge_tavern.db.route_refuge)
+assert _refuge_rows is not None and len(_refuge_rows) == 1
+_refuge_row = _refuge_rows[0]
+_refuge_dispatch = warning_ledger.get_event(_refuge_row["dispatch_event_id"])
+_refuge_source = warning_ledger.get_event(_refuge_row["source_protect_event_id"])
+_refuge_meal = warning_ledger.get_event(_refuge_row["event_id"])
+assert _refuge_source["id"] == _cord.db.route_caution["event_id"]
+assert _refuge_rules.protection_valid(
+    _refuge_source, _cord.db.route_caution, _cord.id)
+assert _refuge_dispatch["kind"] == "professional.hound_refuge_dispatch"
+assert _refuge_dispatch["status"] == "complete"
+assert _refuge_dispatch["actor"]["mask_id"] == _refuge_hound.id
+assert _refuge_dispatch["actor"]["account_id"] != _refuge_source["actor"]["account_id"]
+assert _refuge_dispatch["consequence"]["cord_id"] == _cord.id
+assert _refuge_dispatch["consequence"]["item_id"] == _refuge_row["item_id"]
+assert _refuge_meal["kind"] == "professional.innkeep_refuge_meal"
+assert _refuge_meal["status"] == "complete"
+assert _refuge_meal["actor"]["account_id"] != _refuge_dispatch["actor"]["account_id"]
+assert _refuge_meal["consequence"]["consumed_dispatch_id"] == _refuge_row["item_id"]
+assert _refuge_meal["consequence"]["bowl_id"] == _refuge_row["bowl_id"]
+assert not search.search_object("a signed treeline refuge dispatch")
+assert any(obj.id == _refuge_row["bowl_id"] for obj in _refuge_hound.contents)
+assert _refuge_rules.public_lines(_refuge_tavern.db.route_refuge).startswith(
+    "1 signed Hound arrival meal")
+print("POST_RESTART_GDD_EDGE08_SIGNED_FINITE_HOUND_REFUGE_GREEN")
+
+
+_notice = route_board["caution_notice"]
+assert _notice, "Independent Chronicler caution did not survive restart"
+assert _notice["mask"] == "SmokeTester"
+assert _notice["mask_id"] == smoke.id
+assert _notice["source_event_id"] == _actions["hound"]["event_id"]
+assert _notice["source_account_id"] == _actions["hound"]["account_id"]
+assert _notice["source_cord_id"] == _cord.id
+assert _notice["source_mask_id"] == _hound_protect.id
+assert _notice["account_id"] != _notice["source_account_id"]
+assert _notice["source_hour"] <= _notice["hour"]
+_publication = warning_ledger.get_event(_notice["event_id"])
+assert _publication["status"] == "complete"
+assert _publication["kind"] == "village.route_caution_published"
+assert _publication["actor"]["account_id"] == _notice["account_id"]
+assert _publication["actor"]["mask_id"] == smoke.id
+assert _publication["payload"]["source_event_id"] == _actions["hound"]["event_id"]
+assert _publication["consequence"]["square_room_id"] == one("Village Square").id
+assert _publication["consequence"]["publication_event_id"] == _notice["event_id"]
+assert _next_survey_day["history"][-1]["caution_notice"]["event_id"] == _notice["event_id"]
+assert _next_survey_day["caution_notice"] is None
+print("POST_RESTART_GDD_EDGE16_SIGNED_INDEPENDENT_CAUTION_GREEN")
+
+
+# GDD-EDGE-13: the map is a persistent editorial snapshot with two
+# independent real accounts and two completed, causally linked events.
+_map = route_board["advisory"]
+assert _map is not None, "Chronicler public map vanished after server restart"
+assert _map["version"] == 1 and _map["source_day"] == route_board["day"]
+assert _map["site"] == "red_cord"
+assert _map["mask"] == "SmokeTester"
+assert _map["source_mask"] == "WandererTester"
+assert _map["source_event_id"] == _actions["wanderer"]["event_id"]
+assert _map["source_account_id"] == _actions["wanderer"]["account_id"]
+assert _map["account_id"] != _map["source_account_id"]
+assert _map["observation"] == "unmarked", "A later warning rewrote the earlier map"
+_published = warning_ledger.get_event(_map["event_id"])
+assert _published["kind"] == "village.route_map_published"
+assert _published["status"] == "complete"
+assert _published["actor"]["account_id"] == _map["account_id"]
+assert _published["payload"]["source_event_id"] == _map["source_event_id"]
+assert _published["payload"]["source_account_id"] == _map["source_account_id"]
+assert _next_survey_day["history"][-1]["advisory"] == _map
+assert calling_record(smoke, "chronicler")["participation"]["route_advisories"] == 1
+assert any("not a current safety guarantee" in text
+           for text in _daily_survey.advisory_lines(route_board))
+print("POST_RESTART_GDD_EDGE13_SIGNED_INDEPENDENT_MAP_GREEN")
 
 from world.residents import (
     resident_state as _resident_state, relationship_for as _relationship_for
@@ -1214,9 +1621,43 @@ from world.market_standards import (
 _market_live = _market_work_state(one("Market Lane").db.market_standards)
 assert _market_live["review"] and _market_live["review"]["choice"] == "hold"
 assert _market_live["calibration"] and _market_live["attestation"]
+assert _market_live["audit"] and _market_live["audit"]["review_event_id"] == _market_live["review"]["event_id"]
+assert _market_live["audit"]["review_choice"] == "hold"
+assert _market_live["audit"]["mask_id"] == smoke.id
+assert _market_live["audit"]["account_id"] != _market_live["review"]["account_id"]
 assert _market_live["review"]["mask_id"] == merchant_tester.id
 assert _market_live["calibration"]["mask_id"] == smith_tester.id
 assert _market_live["attestation"]["mask_id"] == smoke.id
+from world.market_standards import verified_sources as _market_verified_sources
+assert _market_verified_sources(
+    _market_live, _market_live["day"], warning_ledger.get_event
+), "Signed Merchant and Smith receipts do not support the Chronicler attestation"
+# B10: re-read the real completed ledger after a genuine server stop/restart.
+# No synthetic receipt may turn an unverified signature into public fact.
+from world.market_standards import public_lines as _market_signed_public_lines
+_market_signed_text = " ".join(_market_signed_public_lines(
+    _market_live, _market_live["day"], warning_ledger.get_event,
+))
+assert "physically recalibrated" in _market_signed_text
+assert f"Merchant {merchant_tester.key}" in _market_signed_text
+assert f"Smith {smith_tester.key}" in _market_signed_text
+assert "attested both source events" in _market_signed_text
+
+def _market_missing_smith_source(event_id):
+    if event_id == _market_live["calibration"]["event_id"]:
+        return None
+    return warning_ledger.get_event(event_id)
+
+_market_hostile_text = " ".join(_market_signed_public_lines(
+    _market_live, _market_live["day"], _market_missing_smith_source,
+))
+assert "cannot be verified" in _market_hostile_text
+assert f"Smith {smith_tester.key} calibrated" not in _market_hostile_text
+assert "attested both source events" not in _market_hostile_text
+print("POST_RESTART_GDD_EDGE10_VERIFIED_PUBLIC_READBACK_GREEN")
+assert _market_live["attestation"]["review_event_id"] == _market_live["review"]["event_id"]
+assert _market_live["attestation"]["calibration_event_id"] == _market_live["calibration"]["event_id"]
+
 assert not _market_suspended(_market_live, _market_live["day"]), (
     "A Smith's completed physical correction left supplies blocked"
 )
@@ -1224,6 +1665,7 @@ for _record, _event_kind in (
     ("review", "village.market_hold"),
     ("calibration", "village.market_calibrate"),
     ("attestation", "village.market_attest"),
+    ("audit", "village.market_audit"),
 ):
     _event = warning_ledger.get_event(_market_live[_record]["event_id"])
     assert _event["kind"] == _event_kind
@@ -1232,6 +1674,15 @@ for _record, _event_kind in (
 assert calling_record(merchant_tester, "merchant")["participation"]["market_hold"] == 1
 assert calling_record(smith_tester, "smith")["participation"]["market_calibrate"] == 1
 assert calling_record(smoke, "chronicler")["participation"]["market_attest"] == 1
+assert calling_record(smoke, "chronicler")["participation"]["market_audit"] == 1
+from world.market_standards import verified_merchant_review as _verified_market_review
+assert _verified_market_review(
+    _market_live["review"], warning_ledger.get_event(_market_live["review"]["event_id"])
+)
+_market_audit_event = warning_ledger.get_event(_market_live["audit"]["event_id"])
+assert _market_audit_event["consequence"]["audit_source_event_id"] == _market_live["review"]["event_id"]
+assert _market_audit_event["actor"]["account_id"] != _market_live["review"]["account_id"]
+print("POST_RESTART_GDD_EDGE12_DISTINCT_SIGNED_MARKET_AUDIT_GREEN")
 from world.market_work import clock as _market_live_clock
 _market_now, _market_hour = _market_live_clock()
 _market_visible = one("Market Lane").get_display_desc(smoke).lower()
@@ -1250,6 +1701,49 @@ else:
         "A backwards clock incorrectly restored earlier market duties",
         _market_now, _market_live["day"], _market_visible,
     )
+# EDGE-22: exact signed Smith source, independent Detective and original scale
+# survive a real Evennia process stop/start. No guilt inference is recorded.
+from world import forensic_scale as _forensic_scale
+_detective = one("DetectiveTester")
+assert active_calling(_detective) == "detective"
+_scale = one("a crooked market scale")
+_forensic_history = _forensic_scale.normalize(_scale.db.forensic_inspections)
+assert len(_forensic_history) == 1, "Physical scale inquiry missing or duplicated"
+_forensic_row = _forensic_history[0]
+assert _forensic_row["scale_id"] == _scale.id
+assert _forensic_row["market_id"] == one("Market Lane").id
+assert _forensic_row["mask_id"] == _detective.id
+_detective_account = AccountDB.objects.get(id=_forensic_row["account_id"])
+_smith_account = AccountDB.objects.get(id=_forensic_row["smith_account_id"])
+assert _detective_account.key.casefold() == "qa_detective_inquiry"
+assert _smith_account.key.casefold() == "qa_smith_repair"
+assert _forensic_row["account_id"] == _detective_account.id
+assert _forensic_row["smith_account_id"] == _smith_account.id
+assert _forensic_row["account_id"] != _forensic_row["smith_account_id"]
+assert _forensic_row["source_event_id"] == _market_live["calibration"]["event_id"]
+assert _forensic_row["finding"] == _forensic_scale.FINDING
+_forensic_event = warning_ledger.get_event(_forensic_row["event_id"])
+_smith_event = warning_ledger.get_event(_forensic_row["source_event_id"])
+assert _forensic_event["kind"] == _forensic_scale.INQUIRY_KIND
+assert _forensic_event["status"] == "complete"
+assert _forensic_event["actor"]["account_id"] == _detective_account.id
+assert _forensic_event["payload"]["scale_object_id"] == _scale.id
+assert _forensic_event["consequence"]["smith_source_event_id"] == _smith_event["id"]
+assert _smith_event["kind"] == _forensic_scale.SOURCE_KIND
+assert _smith_event["status"] == "complete"
+assert _smith_event["actor"]["account_id"] == _smith_account.id
+assert calling_record(_detective, "detective")["participation"]["market_forensic_inspections"] == 1
+_rejected, _accepted, _reason = _forensic_scale.inspect(
+    _scale.db.forensic_inspections,
+    calibration=_market_live["calibration"], source_event=_smith_event,
+    account_id=_detective_account.id, mask_id=_detective.id,
+    mask=_detective.key, day=_forensic_row["day"], hour=_forensic_row["hour"],
+    event_id=_forensic_row["event_id"] + 10000,
+    scale_id=_scale.id, market_id=one("Market Lane").id,
+)
+assert not _accepted and "already" in _reason
+print("POST_RESTART_GDD_EDGE22_SIGNED_INDEPENDENT_SCALE_CUSTODY_GREEN")
+
 from world.mystic_circles import normalize as _guild_studies
 from world.resident_data import RESIDENT_BY_ID, projection_for
 _churchyard = one("St. Lazarus Churchyard")
@@ -1268,10 +1762,8 @@ assert _mystic_event["status"] == "complete"
 assert _mystic_event["payload"]["observation_quality"] == "firsthand"
 assert _mystic_event["actor"]["mask_id"] == _mystic_mask.id
 assert _mystic_event["consequence"]["observed_grave_id"] > 0
-# GDD T-11: two independently logged-in players observed the same physical
-# anomaly, while a third ordinary account learned nothing firsthand from
-# the public study or from being created after the event. All three records
-# are checked after a real Evennia server process restart.
+# T-11: real server restart must preserve two independent physical witnesses.
+# A third absent authenticated character cannot inherit either record.
 _first_witness = dict(_mystic_mask.db.mystic_grave_witness or {})
 _second_witness = dict(smoke.db.mystic_grave_witness or {})
 assert _first_witness and _second_witness, "Two firsthand observers missing"
@@ -1287,8 +1779,8 @@ assert _first_witness["grave_id"] == _second_witness["grave_id"] == (
 assert not healer_tester.db.mystic_grave_witness, (
     "An absent Healer acquired another account's firsthand grave witness"
 )
-# A disconnected Evennia character has no active .account puppet link.
-# Resolve durable ownership through AccountDB's character relation instead.
+# After disconnect .account no longer points to the player. Use durable
+# AccountDB character ownership rather than assuming an active puppet.
 _healer_owner = next(
     (account for account in AccountDB.objects.all()
      if any(char.id == healer_tester.id for char in account.characters.all())),
@@ -1318,8 +1810,17 @@ assert active_calling(_stage_performer) == "performer"
 assert _stage["performance"] is not None, "The performance vanished after restart"
 assert _stage["performance"]["mask_id"] == _stage_performer.id
 assert _stage["performance"]["tune"] == "ballad"
-assert len(_stage["witnesses"]) == 1
-assert _stage["witnesses"][0]["mask"] == "InnkeepTester"
+# EDGE-41: rejected late Hound warning must not fabricate a warning,
+# cancellation, adaptation, or mutate the already witnessed show.
+assert _stage["safety_warning"] is None
+assert _stage["safety_decision"] is None
+assert _stage["performance"]["safety_mode"] == "normal"
+assert not any(e.get("kind") in {"village.stage_warned", "village.stage_adapted"}
+               and e.get("status") == "complete"
+               for e in warning_ledger.db.events or [])
+print("POST_RESTART_GDD_EDGE41_LATE_WARNING_REJECTION_PERSISTED_GREEN")
+assert len(_stage["witnesses"]) == 2
+assert {w["mask"] for w in _stage["witnesses"]} == {"InnkeepTester", "SmokeTester"}
 # GDD T-06: HealerTester left the room before the show, arrived afterward,
 # and was refused a firsthand witness record by the ordinary stage command.
 # That refusal must not be lost on a real game-server process restart.
@@ -1338,8 +1839,172 @@ for _action, _entry in (
     assert _event["kind"] == "village.stage_" + _action
     assert _event["status"] == "complete"
 assert "PerformerTester" in _stage_lines(_stage, _stage["day"])
+# EDGE-40: the separate Detective's limited inquiry survives an actual
+# Evennia server stop/start, with both source and consequence independently
+# checked in the canonical ledger. It cannot retroactively create an audience.
+_detective = one("StageDetectiveTester")
+assert active_calling(_detective) == "detective"
+# A character's transient .account may be None after the telnet sessions
+# disconnect. Resolve the durable AccountDB identities instead of treating
+# a live puppet connection as a post-restart source of truth.
+_stage_detective_account_id = AccountDB.objects.get(
+    username__iexact="qa_detective_stage").id
+_stage_performer_account_id = AccountDB.objects.get(
+    username__iexact="qa_performer_stage").id
+assert _stage_detective_account_id != _stage_performer_account_id
+assert len(_stage["inquiries"]) == 1, "The stage inquiry vanished or duplicated"
+_inquiry = _stage["inquiries"][0]
+assert _inquiry["mask_id"] == _detective.id
+assert _inquiry["account_id"] == _stage_detective_account_id
+assert _inquiry["account_id"] != _stage_performer_account_id
+assert _inquiry["source_event_id"] == _stage["performance"]["event_id"]
+_stage_witness_ids = sorted(row["event_id"] for row in _stage["witnesses"])
+assert len(_stage_witness_ids) == 2, "Main's two real stage witnesses must remain signed"
+assert _inquiry["witness_event_ids"] == _stage_witness_ids
+assert len({row["account_id"] for row in _stage["witnesses"]}) == 2
+for _witness_row in _stage["witnesses"]:
+    _witness_event = warning_ledger.get_event(_witness_row["event_id"])
+    assert _witness_event["kind"] == "village.stage_witness"
+    assert _witness_event["status"] == "complete"
+    assert _witness_event["actor"]["account_id"] == _witness_row["account_id"]
+    assert _witness_event["consequence"]["performance_event_id"] == _inquiry["source_event_id"]
+assert _inquiry["firsthand_witness"] is False
+assert not any(w["account_id"] == _stage_detective_account_id
+               for w in _stage["witnesses"])
+assert _inquiry["stage_object_id"] == one("a modest performance platform").id
+_source = warning_ledger.get_event(_inquiry["source_event_id"])
+_signed_inquiry = warning_ledger.get_event(_inquiry["event_id"])
+assert _source["status"] == "complete"
+assert _source["kind"] == "village.stage_perform"
+assert _source["actor"]["account_id"] == _stage_performer_account_id
+assert _signed_inquiry["status"] == "complete"
+assert _signed_inquiry["kind"] == "village.stage_investigated"
+assert _signed_inquiry["actor"]["account_id"] == _stage_detective_account_id
+assert _signed_inquiry["payload"]["source_performance_event_id"] == _source["id"]
+assert _signed_inquiry["payload"]["verified_witness_event_ids"] == _inquiry["witness_event_ids"]
+assert _signed_inquiry["consequence"]["conclusion"] == "signed_show_not_alibi"
+assert _signed_inquiry["consequence"]["stage_object_id"] == _inquiry["stage_object_id"]
+assert calling_record(_detective, "detective")["participation"]["stage_investigations"] == 1
+assert "not proof of an alibi" in _stage_lines(_stage, _stage["day"])
+print("POST_RESTART_GDD_EDGE40_SIGNED_INDEPENDENT_STAGE_INQUIRY_GREEN")
 print("POST_RESTART_SIGNED_TAVERN_PERFORMANCE_GREEN")
+
+# EDGE-07: original physical Tavern register and two independent accounts.
+from world.lodging_state import normalize as _lodging_norm, source_is_valid as _lodging_source
+_lodging_register = one("register")
+_lodging_detective = one("LodgingDetectiveTester")
+assert _lodging_register.location == _stage_tavern
+assert _lodging_register.typeclass_path == "typeclasses.objects.Register"
+assert active_calling(innkeep_tester) == "innkeep"
+assert active_calling(_lodging_detective) == "detective"
+_lodging_rows = _lodging_norm(_lodging_register.db.lodging_inquiry)["records"]
+assert len(_lodging_rows) == 1
+_lodging_row = _lodging_rows[0]
+_lodging_inquiry = _lodging_row["inquiry"]
+assert _lodging_inquiry
+assert _lodging_row["mask_id"] == innkeep_tester.id
+assert _lodging_inquiry["mask_id"] == _lodging_detective.id
+assert _lodging_row["account_id"] != _lodging_inquiry["account_id"]
+assert _lodging_row["register_id"] == _lodging_register.id
+assert _lodging_inquiry["source_event_id"] == _lodging_row["event_id"]
+_lodging_source_event = warning_ledger.get_event(_lodging_row["event_id"])
+assert _lodging_source(
+    _lodging_source_event, _lodging_row, warning_ledger.get_event
+)
+# Original Room Six note must have been physically found by the Innkeep.
+# The public disclosure remains redacted, with no claim about its author.
+_lodging_note = next(
+    (obj for obj in innkeep_tester.contents
+     if obj.typeclass_path == "typeclasses.objects.MysteryNote"
+     and obj.id == _lodging_source_event["payload"]["note_id"]), None
+)
+assert _lodging_note is not None
+assert _lodging_note.db.owner_character_id == innkeep_tester.id
+_lodging_note_event = warning_ledger.get_event(
+    _lodging_source_event["payload"]["source_event_id"]
+)
+from world.lodging_state import found_note_valid as _lodging_note_valid
+assert _lodging_note_valid(
+    _lodging_note_event, account_id=_lodging_row["account_id"],
+    mask_id=innkeep_tester.id, note_id=_lodging_note.id,
+    door_id=_lodging_note.db.door_id, hall_id=_lodging_note.db.hall_id
+)
+assert _lodging_note_event["id"] < _lodging_source_event["id"]
+assert _lodging_source_event["consequence"]["note_id"] == _lodging_note.id
+_lodging_inquiry_event = warning_ledger.get_event(_lodging_inquiry["event_id"])
+assert _lodging_inquiry_event["kind"] == "village.lodging_inquiry"
+assert _lodging_inquiry_event["status"] == "complete"
+assert _lodging_inquiry_event["actor"]["mask_id"] == _lodging_detective.id
+assert _lodging_inquiry_event["payload"]["source_event_id"] == _lodging_row["event_id"]
+assert _lodging_inquiry_event["consequence"]["finding"] == "qualified_register_observation"
+assert calling_record(innkeep_tester, "innkeep")["participation"]["lodging_disclose"] == 1
+assert calling_record(_lodging_detective, "detective")["participation"]["lodging_inquire"] == 1
+print("POST_RESTART_GDD_EDGE07_SIGNED_INDEPENDENT_REGISTER_INQUIRY_GREEN")
+
 print("POST_RESTART_GDD_T06_LATE_NONWITNESS_GREEN")
+
+# GDD-EDGE-14: real stop/start must preserve the separate Chronicler review,
+# its signed source acts, and the Performer's attributable contest.
+_stage_review = _stage["performance"]["reviews"][0]
+_stage_chronicler = one("SmokeTester")
+assert active_calling(_stage_chronicler) == "chronicler"
+assert _stage_review["mask_id"] == _stage_chronicler.id
+assert _stage_review["verdict"] == "praise"
+assert _stage_review["contest_event_id"] is not None
+_stage_witness = next(w for w in _stage["witnesses"] if w["mask"] == "SmokeTester")
+from world.stage_state import verify_review_sources as _verify_review_sources, verify_review_event as _verify_review_event
+assert _verify_review_sources(
+    _stage["performance"], _stage_witness, {
+        "performance": warning_ledger.get_event(_stage["performance"]["event_id"]),
+        "rehearsal": warning_ledger.get_event(_stage["performance"]["rehearsal_event_id"]),
+        "witness": warning_ledger.get_event(_stage_witness["event_id"]),
+    }, day=_stage["day"],
+), "The Chronicler review lacks authentic performance and witness sources"
+assert _verify_review_event(
+    _stage_review, warning_ledger.get_event(_stage_review["event_id"]), _stage["performance"]
+), "The review ledger event does not bind its sources"
+_stage_contest = warning_ledger.get_event(_stage_review["contest_event_id"])
+assert _stage_contest["kind"] == "village.stage_contest"
+assert _stage_contest["status"] == "complete"
+assert _stage_contest["actor"]["account_id"] == _stage["performance"]["account_id"]
+assert _stage_contest["payload"]["review_event_id"] == _stage_review["event_id"]
+assert _stage_contest["consequence"]["review_event_id"] == _stage_review["event_id"]
+assert "contested by the Performer" in _stage_lines(_stage, _stage["day"])
+from world.stage_state import archive_lines as _stage_archive
+assert "attributed praise review" in _stage_archive(_stage, _stage["day"])
+assert "Performer contested" in _stage_archive(_stage, _stage["day"])
+print("POST_RESTART_GDD_EDGE14_SIGNED_REVIEW_CONTEST_GREEN")
+
+# GDD-EDGE-06: the Innkeep's real cooked bowl, independent performer,
+# signed witness and exact public service survive an Evennia process restart.
+_service = _stage["service"]
+assert _service is not None, "The joined food service vanished on restart"
+assert _service["account_id"] != _stage["performance"]["account_id"]
+assert _service["performance_event_id"] == _stage["performance"]["event_id"]
+assert _service["witness_event_id"] == _stage["witnesses"][0]["event_id"]
+assert _service["witness_count"] == 1
+assert _service["cook_event_id"] == _service_batch["cook_event_id"]
+_cater_event = warning_ledger.get_event(_service["event_id"])
+assert _cater_event["status"] == "complete"
+assert _cater_event["kind"] == "village.stage_cater"
+assert _cater_event["actor"]["account_id"] == _service["account_id"]
+assert _cater_event["consequence"]["bowl_id"] == _service["bowl_id"]
+assert _cater_event["consequence"]["performance_event_id"] == _service["performance_event_id"]
+_cooked_event = warning_ledger.get_event(_service["cook_event_id"])
+assert _cooked_event["kind"] == "professional.innkeep_soup_cooked"
+assert _cooked_event["status"] == "complete"
+assert _cooked_event["consequence"]["bowl_id"] == _service["bowl_id"]
+_served_bowls = [
+    obj for obj in _stage_tavern.contents
+    if getattr(obj.db, "stage_service", None)
+    and obj.id == _service["bowl_id"]
+]
+assert len(_served_bowls) == 1, "The original edible bowl was lost or duplicated"
+assert _served_bowls[0].db.servings == 1
+assert _served_bowls[0].db.stage_service["event_id"] == _service["event_id"]
+assert calling_record(one("InnkeepTester"), "innkeep")["participation"]["stage_catering"] == 1
+assert "provided one real cooked soup bowl" in _stage_lines(_stage, _stage["day"])
+print("POST_RESTART_GDD_EDGE06_REAL_SIGNED_CATERING_GREEN")
 # Physical St. Lazarus clinic, signed Healer work and consumed linen persist.
 from world.clinic_state import normalize as _clinic_norm, public_lines as _clinic_lines
 _church = one("St. Lazarus Church")
@@ -1349,7 +2014,7 @@ assert _clinic["treatment"] is not None, "Clinical treatment lost on restart"
 assert _clinic["assessment"]["mask"] == "HealerTester"
 assert _clinic["treatment"]["mask"] == "HealerTester"
 assert _clinic["treatment"]["method"] == "compress"
-assert _clinic["linen"] == 1
+assert _clinic["linen"] == 3
 assert _clinic["treatment"]["assessment_event_id"] == _clinic["assessment"]["event_id"]
 assert calling_record(healer_tester, "healer")["participation"]["clinic_assess"] == 1
 assert calling_record(healer_tester, "healer")["participation"]["clinic_prepare"] == 1
@@ -1395,15 +2060,150 @@ from world.clinic_state import refresh as _clinic_refresh
 _assert_tomorrow_clinic = _clinic_refresh(_clinic, _clinic["day"] + 1)
 assert _assert_tomorrow_clinic["records_permission"] is None
 assert len([o for o in _church.contents if o.key == "a clinic treatment cot"]) == 1
+# EDGE-25: independently check both signed actors, consumed parcel and
+# authoritative cabinet stock after the real Evennia process boundary.
+from world import clinic_supply as _clinic_supply
+_supply = _clinic["supply"]
+assert _supply and _supply["day"] == _clinic["day"]
+assert _supply["merchant_account_id"] != _supply["healer_account_id"]
+assert _supply["healer_account_id"] == _clinic["assessment"]["account_id"]
+assert _supply["merchant_account_id"] == warning_ledger.get_event(
+    _supply["source_event_id"])["actor"]["account_id"]
+_merchant_event = warning_ledger.get_event(_supply["source_event_id"])
+_healer_event = warning_ledger.get_event(_supply["event_id"])
+assert _merchant_event["status"] == _healer_event["status"] == "complete"
+assert _merchant_event["kind"] == "professional.merchant_clinic_supply"
+assert _healer_event["kind"] == "village.clinic_supply_received"
+assert _merchant_event["actor"]["mask_id"] == merchant_tester.id
+assert _healer_event["actor"]["mask_id"] == healer_tester.id
+assert _healer_event["actor"]["account_id"] != _merchant_event["actor"]["account_id"]
+assert _healer_event["payload"]["source_merchant_event_id"] == _merchant_event["id"]
+assert _healer_event["consequence"]["source_merchant_event_id"] == _merchant_event["id"]
+assert _healer_event["consequence"]["consumed_parcel_id"] == _supply["parcel_id"]
+assert _merchant_event["consequence"]["parcel_id"] == _supply["parcel_id"]
+assert _healer_event["consequence"]["linen_after"] == 3
+_market = one("Market Lane")
+assert _clinic_supply.stock(_market.db.clinic_linen_stock, _clinic["day"])["remaining"] == 0
+assert not [o for o in list(_church.contents) + list(merchant_tester.contents)
+            + list(healer_tester.contents) if o.key == "a sealed clinic linen parcel"]
+assert calling_record(merchant_tester, "merchant")["participation"]["clinic_supplies_procured"] == 1
+assert calling_record(healer_tester, "healer")["participation"]["clinic_supplies_received"] == 1
+assert _assert_tomorrow_clinic["supply"] is None
+assert _assert_tomorrow_clinic["linen"] == 2
+print("POST_RESTART_GDD_EDGE25_SIGNED_DISTINCT_CLINIC_SUPPLY_GREEN")
 print("POST_RESTART_PHYSICAL_CLINIC_CARE_GREEN")
 print("POST_RESTART_GDD_T08_PRIVATE_CLINIC_PERMISSION_GREEN")
+
+# EDGE-28: original cot, independently authenticated Detective and source
+# Healer assessment retain the same verified timeline after a real restart.
+from world import clinic_inquiry_state as _clinic_inquiry
+_cot = one("a clinic treatment cot")
+_detective_clinic = one("DetectiveClinicTester")
+assert active_calling(_detective_clinic) == "detective"
+_inquiry_records = _clinic_inquiry.normalize(_cot.db.clinic_inquiry)["records"]
+assert len(_inquiry_records) == 1, _inquiry_records
+_inquiry = _inquiry_records[0]
+assert _inquiry["mask_id"] == _detective_clinic.id
+assert _inquiry["source_mask_id"] == healer_tester.id
+assert _inquiry["account_id"] != _inquiry["source_account_id"]
+assert _inquiry["cot_id"] == _cot.id and _inquiry["room_id"] == _church.id
+assert _inquiry["source_event_id"] == _clinic["assessment"]["event_id"]
+assert _inquiry["interpretation"] == "possible_exposure"
+assert _inquiry["alternative"] == "unrelated_illness"
+from world.object_properties import is_hidden_mechanical_property as _is_hidden_property
+_case_items = [o for o in list(_church.contents) + list(_detective_clinic.contents)
+               if o.id == _inquiry["case_item_id"]]
+assert len(_case_items) == 1 and _case_items[0].key == "a cluster of mushrooms"
+assert _is_hidden_property(_case_items[0], "toxin")
+assert _clinic_inquiry.signed_inquiry(_inquiry, warning_ledger.get_event)
+_source = warning_ledger.get_event(_inquiry["source_event_id"])
+assert _clinic_inquiry.source_valid(_source, _clinic["assessment"], _church.id)
+_inquiry_event = warning_ledger.get_event(_inquiry["event_id"])
+assert _inquiry_event["kind"] == "village.clinic_inquiry"
+assert _inquiry_event["status"] == "complete"
+assert _inquiry_event["actor"]["mask_id"] == _detective_clinic.id
+assert _inquiry_event["actor"]["account_id"] == _inquiry["account_id"]
+assert _inquiry_event["payload"]["source_healer_event_id"] == _source["id"]
+assert _inquiry_event["payload"]["case_item_id"] == _inquiry["case_item_id"]
+assert _inquiry_event["payload"]["interpretation"] == "possible_exposure"
+assert _inquiry_event["payload"]["alternative"] == "unrelated_illness"
+assert _inquiry_event["consequence"]["case_item_id"] == _inquiry["case_item_id"]
+assert _inquiry_event["consequence"]["causal_status"] == "unproven"
+assert _inquiry_event["consequence"]["cot_id"] == _cot.id
+assert calling_record(_detective_clinic, "detective")["participation"]["clinic_inquiry"] == 1
+_public_inquiry = _clinic_inquiry.public_lines(
+    _cot.db.clinic_inquiry, _clinic["day"],
+    event_lookup=warning_ledger.get_event, cot_id=_cot.id
+).lower()
+assert "procedural clinic inquiry" in _public_inquiry
+assert "competing interpretations" in _public_inquiry
+assert "neither causal explanation is proven" in _public_inquiry
+assert "cold" not in _public_inquiry and "healertester" not in _public_inquiry
+# A missing or forged canonical event cannot be promoted by persisted cot data.
+_unverified_inquiry = _clinic_inquiry.public_lines(
+    _cot.db.clinic_inquiry, _clinic["day"],
+    event_lookup=lambda _event_id: None, cot_id=_cot.id
+).lower()
+assert "requires signed source inspection" in _unverified_inquiry
+print("POST_RESTART_GDD_EDGE28_INDEPENDENT_SIGNED_CLINIC_INQUIRY_GREEN")
+
+
+
+
+
+# EDGE-27: the original cot persists independent Healer invitation and
+# Performer music, with source-verified ledger events after an actual restart.
+from world import clinic_comfort_edge27 as _clinic_music
+_music_cot = one("a clinic treatment cot")
+_music_state = _clinic_music.normalize(_music_cot.db.clinic_comfort)
+_music_invitation = _music_state["invitation"]
+_music_offer = _music_state["music"]
+assert _music_invitation is not None and _music_offer is not None
+# The signed acceptance must match the anonymous visitor's independent
+# authored daily choice, not merely the treating Healer's request.
+assert _music_invitation["visitor_choice"] == "accepts"
+assert _clinic_music.clinic_state.music_preference(_music_state["day"]) == "accepts"
+assert _clinic_music.clinic_state.music_preference(_music_state["day"] + 1) == "declines"
+assert _music_invitation["cot_id"] == _music_cot.id
+assert _music_invitation["room_id"] == _church.id
+assert _music_invitation["source_event_id"] == _clinic["treatment"]["event_id"]
+assert _music_invitation["account_id"] == _clinic["treatment"]["account_id"]
+assert _music_invitation["mask_id"] == healer_tester.id
+assert _music_offer["source_event_id"] == _music_invitation["event_id"]
+assert _music_offer["account_id"] != _music_invitation["account_id"]
+assert _music_offer["mask_id"] == one("PerformerTester").id
+assert _music_offer["cot_id"] == _music_cot.id
+assert _clinic_music.treatment_valid(
+    _clinic["treatment"],
+    warning_ledger.get_event(_clinic["treatment"]["event_id"]),
+    _church.id,
+)
+assert _clinic_music.invitation_valid(
+    _music_invitation,
+    warning_ledger.get_event(_music_invitation["event_id"]),
+)
+_music_event = warning_ledger.get_event(_music_offer["event_id"])
+assert _music_event["kind"] == "village.clinic_music_offered"
+assert _music_event["status"] == "complete"
+assert _music_event["actor"]["account_id"] == _music_offer["account_id"]
+assert _music_event["consequence"]["source_event_id"] == _music_invitation["event_id"]
+assert _music_event["consequence"]["cot_id"] == _music_cot.id
+_invitation_event = warning_ledger.get_event(_music_invitation["event_id"])
+assert _invitation_event["payload"]["visitor_choice"] == "accepts"
+assert _invitation_event["consequence"]["visitor_choice"] == "accepts"
+assert "cold" not in _clinic_music.public_lines(_music_state, _music_state["day"]).lower()
+assert _clinic_music.refresh(_music_state, _music_state["day"] + 1)["music"] is None
+print("POST_RESTART_GDD_EDGE27_SIGNED_CONSENTED_CLINIC_MUSIC_GREEN")
+
 
 
 # Physical courier parcel is consumed only by real Riverside delivery.
 from world.courier_state import manifest as _ferry_manifest
 _ferry = _ferry_manifest(one("Riverside Path").db.ferry_manifest)
-assert len(_ferry["receipts"]) == 1, "Real ferry delivery vanished after restart"
+assert len(_ferry["receipts"]) == 2, "Solo mail or Merchant freight vanished after restart"
 _ferry_receipt = _ferry["receipts"][0]
+_freight_receipt = _ferry["receipts"][1]
+assert "freight" not in _ferry_receipt, "Solo mail was rewritten as a freight contract"
 _wanderer = one("WandererTester")
 assert active_calling(_wanderer) == "wanderer"
 assert _ferry_receipt["mask"] == "WandererTester"
@@ -1414,7 +2214,7 @@ assert _ferry_receipt["account_id"] == warning_ledger.get_event(
     _ferry_receipt["delivery_event_id"]
 )["actor"]["account_id"]
 assert calling_record(_wanderer, "wanderer")["participation"]["courier_collections"] == 1
-assert calling_record(_wanderer, "wanderer")["participation"]["courier_deliveries"] == 1
+assert calling_record(_wanderer, "wanderer")["participation"]["courier_deliveries"] == 2
 assert not [x for x in _wanderer.contents if x.db.ferry_parcel], (
     "An already delivered post parcel remains in the carrier's inventory"
 )
@@ -1427,6 +2227,41 @@ for _kind, _eid in (
     assert _event["kind"] == _kind
 print("POST_RESTART_PHYSICAL_FERRY_POST_GREEN")
 
+# GDD-EDGE-31: a second physical parcel was consigned by MerchantTester,
+# accepted and delivered by a distinct WandererTester account, and consumed.
+# Check all three independently completed canonical events, not names alone.
+_freight = _freight_receipt.get("freight")
+assert _freight, "Merchant freight lost its signed custody chain"
+assert _freight_receipt["mask"] == "WandererTester"
+assert _freight_receipt["account_id"] == _freight["wanderer_account_id"]
+assert _freight["merchant_account_id"] != _freight["wanderer_account_id"]
+assert _freight_receipt["source_event_id"] == _freight["consignment_event_id"]
+_consignment = warning_ledger.get_event(_freight["consignment_event_id"])
+_acceptance = warning_ledger.get_event(_freight["accept_event_id"])
+_delivery = warning_ledger.get_event(_freight_receipt["delivery_event_id"])
+assert _consignment["kind"] == "village.freight_consigned"
+assert _acceptance["kind"] == "village.freight_accepted"
+assert _delivery["kind"] == "village.ferry_post_delivered"
+assert all(x["status"] == "complete" for x in (_consignment, _acceptance, _delivery))
+assert _consignment["actor"]["account_id"] == _freight["merchant_account_id"]
+assert _consignment["actor"]["mask_id"] == merchant_tester.id
+assert _acceptance["actor"]["account_id"] == _freight["wanderer_account_id"]
+assert _acceptance["actor"]["mask_id"] == _wanderer.id
+assert _delivery["actor"]["account_id"] == _freight["wanderer_account_id"]
+assert _delivery["payload"]["freight_accept_event_id"] == _acceptance["id"]
+assert _acceptance["payload"]["source_event_id"] == _consignment["id"]
+assert _acceptance["consequence"]["parcel_id"] == _freight_receipt["parcel_id"]
+assert _consignment["consequence"]["parcel_id"] == _freight_receipt["parcel_id"]
+assert _delivery["consequence"]["parcel_id"] == _freight_receipt["parcel_id"]
+assert not any(
+    getattr(o.db, "ferry_parcel", None) and
+    o.db.ferry_parcel.get("source_event_id") == _consignment["id"]
+    for o in one("Market Lane").contents + _wanderer.contents
+), "Delivered freight still exists in the Market or Wanderer inventory"
+assert calling_record(merchant_tester, "merchant")["participation"]["freight_consignments"] == 1
+assert calling_record(_wanderer, "wanderer")["participation"]["freight_acceptances"] == 1
+print("POST_RESTART_GDD_EDGE31_SIGNED_DISTINCT_FREIGHT_GREEN")
+
 # Smith workshop production and Merchant physical custody are durable:
 # the consumed item is absent and the Market board still records both
 # separately authenticated world events after the true stop/start.
@@ -1434,10 +2269,25 @@ from world import workshop_state as _workshop_rules
 _workroom = one("The Market Workshop")
 _public_market = one("Market Lane")
 _work_docket = _workshop_rules.normalize(_workroom.db.repair_docket)
-assert _work_docket["offcuts"] == 1, "Workshop forged stock was replenished on restart"
-assert len(_work_docket["crafts"]) == 1
+assert _work_docket["offcuts"] == 0, "Two signed physical Workshop fittings must consume both offcuts"
+assert len(_work_docket["crafts"]) == 2
+assert {row["mask"] for row in _work_docket["crafts"]} == {"SmithTester", "StageSmithTester"}
 assert _work_docket["installation"] is not None
-_repair_craft = _work_docket["crafts"][0]
+_repair_craft = next(row for row in _work_docket["crafts"] if row["mask"] == "SmithTester")
+_stage_craft = next(row for row in _work_docket["crafts"] if row["mask"] == "StageSmithTester")
+# Cross-check the two physical day-one crafts against the immutable signed ledger.
+_edge02_day_one_forges = [
+    event for event in warning_ledger.db.events
+    if event.get("kind") == "village.market_hinge_forged"
+    and event.get("status") == "complete"
+    and event.get("payload", {}).get("day") == 1
+]
+assert len(_edge02_day_one_forges) == _workshop_rules.DAILY_OFFCUTS
+assert {row["event_id"] for row in _work_docket["crafts"]} == {
+    event["id"] for event in _edge02_day_one_forges
+}, "Physical day-one crafts diverge from signed source events"
+assert _stage_craft["item_id"] != _repair_craft["item_id"]
+assert _stage_craft["event_id"] != _repair_craft["event_id"]
 _repair_install = _work_docket["installation"]
 assert _repair_craft["mask"] == "SmithTester"
 assert _repair_install["mask"] == "MerchantTester"
@@ -1462,15 +2312,79 @@ assert calling_record(one("MerchantTester"), "merchant")["participation"][
     "market_hinges_installed"
 ] == 1
 assert "MerchantTester" in one("a market fittings board").get_display_desc()
-assert "1 of 2 iron offcuts" in one("a public smithing bench").get_display_desc()
+# The physical repair remains signed on its original day. The public bench,
+# however, reports stock for the *current* village day, which can advance
+# during the real authenticated gameplay and restart sequence.
+_workshop_live_day = int(ScriptDB.objects.get(db_key="village_time").db.day or 1)
+assert _workshop_live_day >= _work_docket["day"]
+_workshop_visible = _workshop_rules.refresh(_work_docket, _workshop_live_day)
+assert _workshop_visible["offcuts"] == (
+    0 if _workshop_live_day == _work_docket["day"]
+    else _workshop_rules.DAILY_OFFCUTS
+)
+assert (
+    f"Village day {_workshop_live_day}: "
+    f"{_workshop_visible['offcuts']} of {_workshop_rules.DAILY_OFFCUTS} iron offcuts"
+) in one("a public smithing bench").get_display_desc()
 assert _public_market in [e.destination for e in _workroom.exits]
 _next_repair = _workshop_rules.refresh(_work_docket, _work_docket["day"] + 1)
 assert _next_repair["offcuts"] == _workshop_rules.DAILY_OFFCUTS
 assert _next_repair["installation"] is None
+assert len(_next_repair["history"][-1]["crafts"]) == 2
 assert _next_repair["history"][-1]["installation"]["mask"] == "MerchantTester"
 print("POST_RESTART_TWO_ACCOUNT_MARKET_WORKSHOP_GREEN")
 
 
+
+# GDD-EDGE-33: the real Merchant hold, separate Detective examination and
+# attributable Merchant rebuttal survive an actual Evennia process restart.
+from world.market_inquiry_state import normalize as _inquiry_normalize
+_market_cases = _inquiry_normalize(one("Market Lane").db.market_inquiries)
+assert len(_market_cases) == 1, "Market inquiry was lost or duplicated"
+_market_case = _market_cases[0]
+_detective = one("DetectiveTester")
+# Evennia may normalize account db_key casing. The signed actor IDs are
+# durable across unpuppeting and are verified against actual AccountDB rows.
+_merchant_account_id = _market_case["source_account_id"]
+_detective_account_id = _market_case["detective_account_id"]
+assert type(_merchant_account_id) is int and type(_detective_account_id) is int
+assert AccountDB.objects.filter(id=_merchant_account_id).exists()
+assert AccountDB.objects.filter(id=_detective_account_id).exists()
+assert active_calling(_detective) == "detective"
+assert _market_case["source_event_id"] == _market_live["review"]["event_id"]
+assert _market_case["source_account_id"] == _merchant_account_id
+assert _market_case["source_mask_id"] == merchant_tester.id
+assert _market_case["detective_account_id"] == _detective_account_id
+assert _market_case["detective_mask_id"] == _detective.id
+assert _market_case["source_account_id"] != _market_case["detective_account_id"]
+assert _market_case["scale_id"] == one("a crooked market scale").id
+for _kind, _eid, _actor in (
+    ("village.market_hold", _market_case["source_event_id"], merchant_tester),
+    ("village.market_inquiry_opened", _market_case["case_event_id"], _detective),
+    ("village.market_inquiry_rebutted", _market_case["rebuttal_event_id"],
+     merchant_tester),
+):
+    _e = warning_ledger.get_event(_eid)
+    assert _e and _e["status"] == "complete" and _e["kind"] == _kind
+    assert _e["actor"]["account_id"] == (
+        _merchant_account_id if _actor.id == merchant_tester.id
+        else _detective_account_id
+    )
+    assert _e["actor"]["mask_id"] == _actor.id
+assert warning_ledger.get_event(_market_case["case_event_id"])["payload"][
+    "source_event_id"] == _market_case["source_event_id"]
+assert warning_ledger.get_event(_market_case["rebuttal_event_id"])[
+    "consequence"]["case_event_id"] == _market_case["case_event_id"]
+assert calling_record(_detective, "detective")["participation"][
+    "market_inquiry_investigate"] == 1
+assert calling_record(merchant_tester, "merchant")["participation"][
+    "market_inquiry_rebut"] == 1
+from world.market_inquiry_state import public_lines as _inquiry_lines
+assert "remains contested" in _inquiry_lines(
+    _market_cases, event_lookup=warning_ledger.get_event,
+    room_id=one("Market Lane").id,
+)
+print("POST_RESTART_GDD_EDGE33_SIGNED_INDEPENDENT_MARKET_INQUIRY_GREEN")
 
 print("POST_RESTART_MARKET_CALLINGS_ASSERTIONS_GREEN")
 
@@ -1499,6 +2413,18 @@ assert "canvas cover" in _bridge_line(_bridge_public)
 assert "canvas cover" in _bridge.get_display_desc(smoke), (
     "Other visitors cannot see the settled physical world response"
 )
+from world.bridge_work import public_line as _verified_bridge_line
+_bridge_verified = _verified_bridge_line(_bridge)
+assert "canvas cover" in _bridge_verified, (
+    "Completed bridge response disappeared from verified production readback"
+)
+assert "cannot be verified" not in _bridge_verified, (
+    "Legitimate completed bridge source failed original ledger validation"
+)
+assert "cannot be verified" not in _bridge.get_display_desc(smoke), (
+    "Room look must not render an unsupported saved bridge signature"
+)
+print("POST_RESTART_B13_VERIFIED_BRIDGE_PUBLIC_READBACK_GREEN")
 from world.bridge_materials import normalize as _market_material_stock
 _market = one("Market Lane")
 _material_tables = [obj for obj in _market.contents
@@ -1532,7 +2458,243 @@ assert not search.search_object(
 ), "The consumed kit still exists as a free object"
 print("POST_RESTART_PHYSICAL_BRIDGE_MATERIALS_GREEN")
 
+# B13 negative control: the restarted real bridge and finite Market Lane
+# table must refuse corrupted saved Attributes through the production
+# collection entrypoint, not merely through a pure status renderer. The
+# disposable test world is restored before subsequent source assertions.
+import copy as _bridge_copy
+from types import SimpleNamespace as _BridgeMask
+from world.bridge_work import collect as _bridge_collect
+_saved_bridge_record = _bridge_copy.deepcopy(dict(_bridge.db.bridge_inquiry))
+_saved_market_stock = _bridge_copy.deepcopy(
+    dict(_material_tables[0].db.bridge_material_stock)
+)
+_bridge_market_mask = _BridgeMask(
+    account=_bridge_owner, location=_market, contents=[]
+)
+try:
+    for _malformed in (7, True, {"resolution": {"choice": "preserve"}}):
+        _bridge.db.bridge_inquiry = _malformed
+        _refused, _reason = _bridge_collect(_bridge_market_mask, "preserve")
+        assert _refused is None and "source review" in _reason, (
+            "Corrupt restarted bridge state permitted kit collection"
+        )
+        assert _bridge.db.bridge_inquiry == _malformed, (
+            "Rejected corrupt record was overwritten"
+        )
+        assert dict(_material_tables[0].db.bridge_material_stock) == _saved_market_stock, (
+            "Rejected corrupt bridge record changed finite material stock"
+        )
+finally:
+    _bridge.db.bridge_inquiry = _saved_bridge_record
+assert "canvas cover" in _verified_bridge_line(_bridge), (
+    "Restoring the signed bridge record lost its real source"
+)
+print("POST_RESTART_B13_CORRUPT_COLLECTION_REFUSED_GREEN")
+
 print("POST_RESTART_BRIDGE_RESPONSE_GREEN")
 
 
 print("POST_RESTART_COMMONS_ASSERTIONS_GREEN")
+
+# EDGE-15: the same physical bridge case and both independently signed
+# professional actions survive a real Evennia process restart.
+from world.events import get_event_ledger as _edge15_ledger
+from world.bridge_case_state import case_lines as _edge15_case_lines
+_edge15_detective = one("BridgeCaseTester")
+# A character's session-bound .account may be None after logout/restart.
+# Use the persisted account-to-character ownership relation, as the existing
+# bridge assertions do, rather than relying on normalized account names.
+_edge15_detective_account = next(
+    (account for account in AccountDB.objects.all()
+     if any(char.id == _edge15_detective.id
+            for char in account.characters.all())),
+    None,
+)
+_edge15_chronicler_account = _bridge_owner
+assert _edge15_detective_account is not None, "Detective owner not found after restart"
+assert _edge15_chronicler_account is not None, "Chronicler owner not found after restart"
+_edge15_bridge = get_public_mystery(BRIDGE_PLAQUE_ID)
+_edge15_exams = list(_edge15_bridge.get("case_examinations") or [])
+_edge15_bulletins = list(_edge15_bridge.get("case_bulletins") or [])
+assert _edge15_exams and _edge15_bulletins, "Case actions did not persist"
+_edge15_exam = _edge15_exams[-1]
+_edge15_bulletin = _edge15_bulletins[-1]
+assert _edge15_exam["account_id"] == _edge15_detective_account.id
+assert _edge15_exam["mask_id"] == _edge15_detective.id
+assert _edge15_bulletin["account_id"] == _edge15_chronicler_account.id
+assert _edge15_bulletin["mask_id"] == smoke.id
+assert _edge15_exam["account_id"] != _edge15_bulletin["account_id"]
+assert _edge15_bulletin["source_event_id"] == _edge15_exam["event_id"]
+assert _edge15_bulletin["observation_event_id"] == _edge15_exam["observation_event_id"]
+_edge15_ledger_obj = _edge15_ledger()
+_edge15_signed_exam = _edge15_ledger_obj.get_event(_edge15_exam["event_id"])
+_edge15_signed_bulletin = _edge15_ledger_obj.get_event(_edge15_bulletin["event_id"])
+_edge15_signed_observation = _edge15_ledger_obj.get_event(
+    _edge15_exam["observation_event_id"]
+)
+assert _edge15_signed_exam["kind"] == "village.bridge_plaque_examined"
+assert _edge15_signed_exam["status"] == "complete"
+assert _edge15_signed_exam["actor"]["account_id"] == _edge15_detective_account.id
+assert _edge15_signed_exam["payload"]["professional_calling"] == "detective"
+assert _edge15_signed_exam["consequence"]["finding"] == "physical_marks_only"
+assert _edge15_signed_bulletin["kind"] == "village.bridge_case_bulletin"
+assert _edge15_signed_bulletin["status"] == "complete"
+assert _edge15_signed_bulletin["actor"]["account_id"] == _edge15_chronicler_account.id
+assert _edge15_signed_bulletin["payload"]["source_event_id"] == _edge15_exam["event_id"]
+assert _edge15_signed_bulletin["consequence"]["status"] == "attributed_evidence_only"
+assert _edge15_signed_observation["kind"] == "public_mystery.bridge_plaque.observed"
+assert _edge15_signed_observation["status"] == "complete"
+# The Chronicler inspected the plaque first; the Detective came later.
+# Both must own distinct completed physical observation events after restart.
+_edge15_witness_rows = [
+    row for row in _edge15_bridge.get("observations") or []
+    if any(w.get("account_id") == _edge15_detective_account.id
+           and w.get("mask_id") == _edge15_detective.id
+           and w.get("source_event_id") == _edge15_exam["observation_event_id"]
+           for w in row.get("witnesses") or [])
+]
+assert len(_edge15_witness_rows) == 1, "Detective's own signed witness link missing"
+_edge15_witness_row = _edge15_witness_rows[0]
+assert _edge15_witness_row["source_event_id"] != _edge15_exam["observation_event_id"], (
+    "Detective reused the first visitor's signed observation"
+)
+_edge15_original_observation = _edge15_ledger_obj.get_event(
+    _edge15_witness_row["source_event_id"]
+)
+assert _edge15_original_observation["status"] == "complete"
+assert _edge15_original_observation["kind"] == "public_mystery.bridge_plaque.observed"
+assert _edge15_original_observation["actor"]["account_id"] == _edge15_chronicler_account.id
+assert _edge15_original_observation["actor"]["mask_id"] == smoke.id
+assert _edge15_signed_observation["actor"]["account_id"] == _edge15_detective_account.id
+assert _edge15_signed_observation["actor"]["mask_id"] == _edge15_detective.id
+assert _edge15_signed_observation["payload"]["day"] == _edge15_witness_row["day"]
+assert _edge15_signed_observation["payload"]["hour"] == _edge15_witness_row["hour"]
+assert _edge15_signed_observation["payload"]["pattern"] == _edge15_witness_row["pattern"]
+assert _edge15_signed_observation["payload"]["weather"] == _edge15_witness_row["weather"]
+print("POST_RESTART_GDD_EDGE15_SECOND_WITNESS_ACTOR_BOUND_GREEN")
+_edge15_readback = " ".join(_edge15_case_lines(
+    _edge15_bridge, _edge15_bulletin["day"],
+    get_event=_edge15_ledger_obj.get_event,
+))
+assert f"examination event {_edge15_exam['event_id']}" in _edge15_readback
+assert f"bulletin event {_edge15_bulletin['event_id']}" in _edge15_readback
+assert "do not identify a culprit" in _edge15_readback
+# Exercise the actual public command adapter against a tampered, disposable
+# in-memory projection. Do not alter the persisted registry or canonical ledger.
+import copy as _edge15_copy
+from unittest.mock import patch as _edge15_patch
+from world import public_mysteries as _edge15_public
+for _edge15_field, _edge15_bad in (
+    ("event_id", 99999999), ("source_event_id", 99999998),
+    ("account_id", _edge15_detective_account.id),
+):
+    _edge15_forged = _edge15_copy.deepcopy(_edge15_bridge)
+    _edge15_forged["case_bulletins"][-1][_edge15_field] = _edge15_bad
+    with _edge15_patch.object(_edge15_public, "get_public_mystery",
+                              return_value=_edge15_forged):
+        _edge15_text = " ".join(_edge15_public.mystery_lines(
+            stable_id=BRIDGE_PLAQUE_ID))
+    assert f"bulletin event {_edge15_bulletin['event_id']}" not in _edge15_text
+    assert "unverified" in _edge15_text
+print("POST_RESTART_GDD_EDGE15_FORGED_PUBLIC_READBACK_SUPPRESSED_GREEN")
+print("POST_RESTART_GDD_EDGE15_DISTINCT_SIGNED_BRIDGE_CASE_GREEN")
+
+
+# B08 EDGE-20/23: actual original physical objects and three completed
+# source events remain verified after a genuine server stop and restart.
+from world import route_fitting_work as _b08_work, route_fittings as _b08_rules
+_b08_table = _b08_work._table()
+assert _b08_table is not None
+_b08_day, _b08_hour = _b08_work._clock()
+for _b08_kind in _b08_rules.KINDS:
+    _b08_room, _b08_target = _b08_work._target(_b08_kind)
+    assert _b08_room is not None and _b08_target is not None
+    assert _b08_work._verified_target(
+        _b08_kind, _b08_room, _b08_target, _b08_table, _b08_day,
+        _b08_hour
+    ), f"EDGE-20/23 signed physical {_b08_kind} fitting lost across restart"
+    _b08_saved = _b08_target.db.route_fitting_install
+    assert _b08_saved["smith_account_id"] != _b08_saved["source_account_id"]
+    assert _b08_work._ledger(_b08_saved["install_event_id"])["status"] == "complete"
+    assert _b08_work._ledger(_b08_saved["source_event_id"])["status"] == "complete"
+    assert _b08_work._ledger(_b08_saved["forge_event_id"])["status"] == "complete"
+    _b08_display = _b08_room.get_display_desc()
+    assert f"{_b08_kind}: physically fitted" in _b08_display
+    # A forged source on a disposable copy must not appear as signed.
+    _b08_forged = dict(_b08_saved, source_event_id=99999999)
+    assert not _b08_rules.verified_install(
+        _b08_forged, _b08_work._ledger, kind=_b08_kind,
+        target_id=_b08_target.id, room_id=_b08_room.id,
+        table_id=_b08_table.id, day=_b08_day, hour=_b08_hour)
+    # B18: completed physical installation cannot appear before its hour.
+    if _b08_saved["hour"] > 0:
+        assert not _b08_work._verified_target(
+            _b08_kind, _b08_room, _b08_target, _b08_table,
+            _b08_saved["day"], _b08_saved["hour"] - 1)
+assert _b08_rules.verified_test(
+    _b08_work._target("cord")[1].db.route_fitting_install,
+    _b08_work._target("cord")[1].db.route_fitting_test,
+    _b08_work._ledger,
+    cord_id=_b08_work._target("cord")[1].id,
+    room_id=_b08_work._target("cord")[0].id,
+    table_id=_b08_table.id, day=_b08_day, hour=_b08_hour)
+_b18_cord = _b08_work._target("cord")[1]
+_b18_test = _b08_work._ledger(_b18_cord.db.route_fitting_test["event_id"])
+_b18_test_day = _b18_test["payload"]["day"]
+_b18_test_hour = _b18_test["payload"]["hour"]
+if _b18_test_hour > 0:
+    assert not _b08_rules.verified_test(
+        _b18_cord.db.route_fitting_install,
+        _b18_cord.db.route_fitting_test, _b08_work._ledger,
+        cord_id=_b18_cord.id, room_id=_b08_work._target("cord")[0].id,
+        table_id=_b08_table.id, day=_b18_test_day,
+        hour=_b18_test_hour - 1)
+print("POST_RESTART_B18_FUTURE_HOUR_PUBLIC_ROUTE_REFUSED_GREEN")
+# B15: use a real persisted, unconsumed Smith fitting and its completed
+# ledger receipt after server restart. Rewinding the query clock by one
+# hour cannot promote a future-hour forge into a valid carried fitting.
+_b15_smith = one("KitchenSmithTester")
+_b15_items = [
+    item for item in _b15_smith.contents
+    if item.db.route_fitting_kind == "span"
+]
+assert len(_b15_items) == 1, "Missing the independent Smith's physical fitting"
+_b15_item = _b15_items[0]
+_b15_receipt = _b08_work._ledger(_b15_item.db.route_fitting_forge_event)
+assert _b15_receipt["status"] == "complete"
+_b15_forge_day = _b15_receipt["payload"]["day"]
+_b15_forge_hour = _b15_receipt["payload"]["hour"]
+assert _b15_forge_hour > 0, "Expected same-day forge after hour zero"
+assert _b15_item in _b08_work._carried(
+    _b15_smith, "span", _b08_table.id, _b15_forge_day, _b15_forge_hour)
+_b15_item_id = _b15_item.id
+_b15_original_span = _b08_work._target("span")[1].db.route_fitting_install
+_b15_original_stock = _b08_table.db.route_fitting_stock
+assert not _b08_work._carried(
+    _b15_smith, "span", _b08_table.id,
+    _b15_forge_day, _b15_forge_hour - 1), (
+    "B15: a future-hour completed forge was accepted after clock rewind")
+assert _b15_item.id == _b15_item_id and _b15_item.location == _b15_smith
+assert _b08_work._target("span")[1].db.route_fitting_install == _b15_original_span
+assert _b08_table.db.route_fitting_stock == _b15_original_stock
+# The Evennia shell runs after the telnet clients disconnect. The mask's
+# transient .account is therefore not an authenticated session. Verify its
+# durable owner and the original signed forge actor without manufacturing a
+# live account or claiming that an offline install call tested authentication.
+_b15_smith_account_id = AccountDB.objects.get(
+    username__iexact="qa_smith_kitchen").id
+assert _b15_smith.account is None, (
+    "B16: expected the ordinary Smith's telnet session to be disconnected")
+assert _b15_receipt["actor"]["account_id"] == _b15_smith_account_id
+assert _b15_receipt["actor"]["mask_id"] == _b15_smith.id
+assert _b15_receipt["consequence"]["item_id"] == _b15_item_id
+assert _b15_receipt["payload"]["table_id"] == _b08_table.id
+assert _b15_item.db.route_fitting_forge_event == _b15_receipt["id"]
+assert _b15_item.id == _b15_item_id and _b15_item.location == _b15_smith
+assert _b08_work._target("span")[1].db.route_fitting_install == _b15_original_span
+assert _b08_table.db.route_fitting_stock == _b15_original_stock
+print("POST_RESTART_B15_FUTURE_HOUR_FORGE_REFUSED_GREEN")
+
+print("POST_RESTART_GDD_EDGE20_VERIFIED_PHYSICAL_SPAN_GREEN")
+print("POST_RESTART_GDD_EDGE23_VERIFIED_TESTED_CORD_GREEN")

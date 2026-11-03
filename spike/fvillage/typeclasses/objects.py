@@ -138,20 +138,23 @@ class DiscoveryScenery(DefaultObject):
                     "what cut the cord or remove any unseen danger."
                 )
         if ident == "market_scale" and self.location:
-            from world.market_standards import normalize, public_lines
-            from world.market_work import clock
-            day, _hour = clock()
-            current = normalize(self.location.db.market_standards)
-            if current["day"] == day and current["calibration"]:
+            from world.market_work import state_lines
+            status = state_lines()
+            # Even the visual description must not claim that a scale was
+            # physically corrected based on a forged persisted docket.
+            # The canonical renderer only publishes this condition when the
+            # underlying completed event and signed source are verified.
+            if "The market scale has been physically recalibrated today." in status:
                 detail = (
                     "The brass pans now settle evenly after a Smith's "
                     "adjustment of the stone shim. The old chalk slate "
                     "still shows two disputed prices for the same weight; "
                     "the correction did not erase that older disagreement."
                 )
-            detail += "\n" + "\n".join(public_lines(
-                self.location.db.market_standards, day
-            ))
+            # Use the same canonical ledger-checked public readback as trade.
+            # Calling public_lines without event_lookup falsely suppresses
+            # legitimate signed work during an ordinary object look.
+            detail += "\n" + status
         return detail
 
 
@@ -231,6 +234,17 @@ class Register(DefaultObject):
         super().at_object_creation()
         self.db.desc = REGISTER_DESC
         self.aliases.add(["guest book", "guestbook", "book"])
+
+    def get_display_desc(self, looker=None, **kwargs):
+        # This advertises an ordinary player action, not private guest facts.
+        return (self.db.desc or "") + (
+            "\n\nProfessional inquiry: an Innkeep may look here and use "
+            "'lodging disclose' for a redacted entry. A different Detective "
+            "may look here and use 'lodging inquire'. The Innkeep must first "
+            "personally find and carry the original unclaimed note from the "
+            "Room Six door. Neither action reveals "
+            "a guest identity or proves who wrote the entry."
+        )
 
     def at_desc(self, looker=None):
         desc = self.db.desc or ""
@@ -855,7 +869,13 @@ class ClinicCot(DefaultObject):
         self.locks.add("get:false()")
 
     def get_display_desc(self, looker=None, **kwargs):
-        from world.clinic_work import status
+        from world.clinic_work import status, _clock
+        if (looker is not None and getattr(looker, "account", None)
+                and looker.location == self.location):
+            day, _hour = _clock()
+            looker.db.clinic_cot_seen = {
+                "day": day, "cot_id": self.id, "room_id": self.location.id,
+            }
         return (
             "A real cot shelters the day's visiting patient in the "
             "Church dispensary. The patient is visible, but confidential "

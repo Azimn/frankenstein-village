@@ -364,7 +364,9 @@ assert sum(item["action"] == "respecialized" for item in mentor_history) >= 2
 import copy
 from collections import Counter
 
-from commands.village_cmds import _consume, _fare_depleted, _pay_for_fare
+from commands.village_cmds import (
+    _consume, _fare_depleted, _pay_for_fare, _preferred_well_growth_pickup,
+)
 from world.object_properties import (
     configure_mechanical_properties,
     effective_mechanical_properties,
@@ -385,7 +387,16 @@ stew = one("a bowl of stew")
 ale = one("a tankard of ale")
 wine = one("a cup of wine")
 water = one("a cup of water")
-mushrooms = one("a cluster of mushrooms")
+# A migrated village may retain an unregistered legacy cluster alongside
+# actual well growth. QA must inspect the canonical physical specimen, not
+# reject legitimate coexistence or mistake a copied name for signed origin.
+mushrooms = _preferred_well_growth_pickup(
+    exact_objects("a cluster of mushrooms"), one("Village Square")
+)
+assert mushrooms is not None, (
+    "no registered well-grown mushroom available; legacy same-name objects "
+    "must not be treated as canonical growth"
+)
 
 assert mechanical_properties(bread) == {"uses": 6, "worth": 4}
 assert mechanical_properties(cheese) == {"uses": 5, "worth": 6}
@@ -568,6 +579,14 @@ wrong_target, wrong_target_error = submit_healer_finding(
 )
 assert wrong_target is None
 assert "well" in wrong_target_error.lower()
+
+# A test-only Healer mask has no authenticated account. It may assess
+# privately but cannot mint an attributable public-health source.
+anonymous_finding, anonymous_error = submit_healer_finding(
+    healer_assessor, mushrooms,
+)
+assert anonymous_finding is None
+assert "logged-in healer account" in anonymous_error.lower()
 
 premature_record, premature_record_error = publish_public_warning(
     nonhealer_assessor,
