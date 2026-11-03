@@ -30,34 +30,63 @@ class Client:
         self.sock.settimeout(0.15)
         self.transcript = []
 
-    def read_quiet(self, max_wait: float = 2.5, quiet: float = 0.35) -> str:
-        deadline = time.monotonic() + max_wait
-        last_data = time.monotonic()
+    def read_quiet(
+        self, max_wait: float = 2.5, quiet: float = 0.35,
+        *, expected: tuple[str, ...] | None = None,
+    ) -> str:
+        """Wait for the actual command reply, not an unsolicited message.
+
+        With an expected response, preserve the original bounded deadline.
+        Never retry a command, including a consequential one.
+        """
+        started = time.monotonic()
+        deadline = started + max_wait
+        last_data = started
+        first_data = None
         chunks = []
+        expected_lower = tuple(part.lower() for part in (expected or ()))
         while time.monotonic() < deadline:
             try:
                 chunk = self.sock.recv(65536)
                 if not chunk:
                     break
+                if first_data is None:
+                    first_data = time.monotonic()
                 chunks.append(chunk)
                 last_data = time.monotonic()
             except socket.timeout:
-                # ANSI-only or telnet negotiation bytes are not a reply.
-                # Keep waiting for printable output without resending a
-                # potentially consequential command.
-                if (chunks and time.monotonic() - last_data >= quiet
-                        and clean(b"".join(chunks)).strip()):
+                if not chunks or time.monotonic() - last_data < quiet:
+                    continue
+                printable = clean(b"".join(chunks)).strip().lower()
+                if not printable:
+                    continue
+                if not expected_lower or any(part in printable for part in expected_lower):
                     break
         out = clean(b"".join(chunks))
+        if expected_lower:
+            matched = any(part in out.lower() for part in expected_lower)
+            # Nonsecret timing and byte counts diagnose B17 reply framing.
+            print(
+                "TELNET_REPLY_DIAG "
+                f"matched={matched} elapsed_ms={int((time.monotonic()-started)*1000)} "
+                f"first_byte_ms={int((first_data-started)*1000) if first_data else -1} "
+                f"last_byte_ms={int((last_data-started)*1000) if chunks else -1} "
+                f"raw_bytes={sum(map(len, chunks))}"
+            )
         if out:
             self.transcript.append(out)
             print(out)
         return out
 
-    def command(self, line: str, *, wait: float = 2.5) -> str:
-        print(f"\n> {line}")
+    def command(
+        self, line: str, *, wait: float = 2.5,
+        expected: tuple[str, ...] | None = None,
+    ) -> str:
+        # Keep ephemeral test credentials out of CI command transcripts.
+        shown = "connect [credentials redacted]" if line.lower().startswith("connect ") else line
+        print(f"\n> {shown}")
         self.sock.sendall(line.encode("utf-8") + b"\n")
-        return self.read_quiet(max_wait=wait)
+        return self.read_quiet(max_wait=wait, expected=expected)
 
     def sync_login_screen(self) -> str:
         """Wait for Evennia's connection screen before sending credentials."""
@@ -2119,7 +2148,7 @@ def main() -> int:
         require(out, "blood of the vine")
         out = c.command("roll dice vs MerchantTester")
         require(out, "merchanttester", "dice")
-        out = merchant.command("roll dice decline")
+        out = merchant.command("roll dice decline", expected=("pushes the cup back", "another night"))
         require(out, "pushes the cup back", "another night")
 
         # An existing wrestling invite must not be silently overwritten.
@@ -2264,7 +2293,7 @@ def main() -> int:
         require(out, "lamp shop")
         out = c.command("south")
         require(out, "market lane")
-        out = c.command("look market scale")
+        out = c.command("look market scale", expected=("two prices",))
         require_all(out, "brass pans", "two prices")
         out = c.command("trade")
         require_all(out, "Market Lane", "crooked", "trade calibrate")
@@ -2287,7 +2316,7 @@ def main() -> int:
         require_all(out, "trade honor", "trade hold")
         out = merchant.command("trade hold")
         require(out, "First inspect the actual crooked market scale")
-        out = merchant.command("look market scale")
+        out = merchant.command("look market scale", expected=("two prices",))
         require(out, "two prices")
         out = merchant.command("trade hold")
         require_all(out, "signed", "temporarily on hold")
@@ -2319,7 +2348,7 @@ def main() -> int:
         require(detective.command("trade investigate"), "First inspect")
         require(merchant.command("trade investigate"), "active Detective Calling")
         require(detective.command("trade hold"), "active Merchant Calling")
-        require(detective.command("look market scale"), "two prices")
+        require(detective.command("look market scale", expected=("two prices",)), "two prices")
         out = detective.command("trade investigate")
         require_all(out, "Market action signed", "independently examined",
                     "not a finding of fraud")
@@ -2352,7 +2381,7 @@ def main() -> int:
             require(out, expected)
         out = smith.command("trade honor")
         require(out, "Merchant Calling")
-        out = smith.command("look market scale")
+        out = smith.command("look market scale", expected=("two prices",))
         require(out, "two prices")
         out = smith.command("trade calibrate")
         require_all(out, "signed", "physically recalibrated")
