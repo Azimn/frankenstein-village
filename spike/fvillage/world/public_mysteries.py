@@ -358,13 +358,62 @@ def observe_bridge(player, *, day=None, hour=None, weather=None):
                      if obs.get("key") == key), None)
     if existing is not None:
         result = observations[existing]
-        if not any(item.get("mask_id") == witness["mask_id"]
-                   for item in result.get("witnesses") or []):
-            result["witnesses"].append(witness)
-            mystery["observations"] = observations
-            _save(mystery)
-            _metric(witness_links=1)
-        return copy.deepcopy(result)
+        if any(item.get("mask_id") == witness["mask_id"]
+               and item.get("account_id") == witness["account_id"]
+               for item in result.get("witnesses") or []):
+            return copy.deepcopy(result)
+
+        # A second firsthand witness needs their OWN signed source. Sharing
+        # the first visitor's event ID would falsely attribute their eyes
+        # and account to the later Detective.
+        from world.events import publish_world_event
+
+        def consequence(event):
+            from django.db import transaction
+            with transaction.atomic():
+                if (getattr(player, "location", None) is None
+                        or player.location.key != "The Old Stone Bridge"
+                        or not getattr(player, "has_account", False)
+                        or _player_ref(player) != witness
+                        # Legacy synthetic, accountless world-assertion witnesses
+                        # can inspect explicit test weather/time. Real account
+                        # witnesses must match the canonical live clock/weather.
+                        or (witness["account_id"] is not None
+                            and (_clock() != (int(day), int(hour))
+                                 or _weather() != weather))):
+                    raise ValueError("The second witness left the physical source.")
+                fresh = get_public_mystery(BRIDGE_PLAQUE_ID)
+                rows = copy.deepcopy(list(fresh.get("observations") or []))
+                match = next((row for row in rows if row.get("key") == key), None)
+                if (match is None or match.get("source_event_id") != result.get("source_event_id")
+                        or match.get("pattern") != state["pattern"]
+                        or any(item.get("account_id") == witness["account_id"]
+                                   and item.get("mask_id") == witness["mask_id"]
+                                   for item in match.get("witnesses") or [])):
+                    raise ValueError("The bridge observation changed before witness signing.")
+                match.setdefault("witnesses", []).append(
+                    dict(witness, source_event_id=event["id"])
+                )
+                fresh["observations"] = rows
+                _save(fresh)
+                _metric(witness_links=1)
+                return {"source_event_id":event["id"], "pattern":state["pattern"]}
+
+        publish_world_event(
+            "public_mystery.bridge_plaque.observed",
+            actor=player,
+            payload={
+                "public_mystery_id":BRIDGE_PLAQUE_ID,
+                "day":int(day), "hour":int(hour), "weather":weather,
+                "pattern":state["pattern"], "publicity":"private",
+                "harbinger":False, "chronicle_eligible":False,
+            },
+            consequence=consequence,
+        )
+        fresh = get_public_mystery(BRIDGE_PLAQUE_ID)
+        return copy.deepcopy(next(
+            row for row in fresh["observations"] if row.get("key") == key
+        ))
 
     from world.events import publish_world_event
     event = publish_world_event(
@@ -380,7 +429,7 @@ def observe_bridge(player, *, day=None, hour=None, weather=None):
     record = {
         "key": key, "day": int(day), "hour": int(hour), "weather": weather,
         "detail": state["detail"], "pattern": state["pattern"],
-        "witnesses": [witness], "source_event_id": event["id"],
+        "witnesses": [dict(witness, source_event_id=event["id"])], "source_event_id": event["id"],
     }
     observations.append(record)
     mystery["observations"] = observations[-MAX_OBSERVATIONS:]
@@ -524,6 +573,197 @@ def resolve_subject(token):
     return None
 
 
+def examine_bridge_case(player):
+    """Detective signs firsthand marks, never an invented culprit."""
+    from world.callings import active_calling
+    from world.events import get_event_ledger, publish_world_event
+    from world.bridge_case_state import examine
+
+    if not getattr(player, "has_account", False) or active_calling(player) != "detective":
+        return None, "Only an active Detective may sign a case examination."
+    if getattr(getattr(player, "location", None), "key", None) != "The Old Stone Bridge":
+        return None, "Examine the original plaque on the Old Stone Bridge."
+    day, hour = _clock()
+    mystery = get_public_mystery(BRIDGE_PLAQUE_ID)
+    if not mystery:
+        return None, "The bridge case registry is unavailable."
+    actor = _player_ref(player)
+    observations = [
+        row for row in mystery.get("observations") or []
+        if type(row.get("day")) is int and row["day"] == day
+        and any(w.get("account_id") == actor["account_id"]
+                and w.get("mask_id") == actor["mask_id"]
+                for w in row.get("witnesses") or [])
+    ]
+    if not observations:
+        return None, "Look at the physical plaque today before filing a case examination."
+    # Bind the Detective to their own signed observation, not the first
+    # witness's shared row event. Legacy unsigned secondary witnesses fail
+    # actor verification rather than being grandfathered into evidence.
+    observation = copy.deepcopy(dict(observations[-1]))
+    witnesses = [dict(w) for w in observation.get("witnesses") or []]
+    own = next((w for w in witnesses
+                if w.get("account_id") == actor["account_id"]
+                and w.get("mask_id") == actor["mask_id"]), None)
+    if own is None:
+        return None, "The Detective has no firsthand bridge witness."
+    observation_id = own.get("source_event_id", observation.get("source_event_id"))
+    original_id = observation.get("source_event_id")
+    if (type(observation_id) is not int or observation_id < 1
+            or type(original_id) is not int or original_id < 1):
+        return None, "The physical observation has no valid signed event ID."
+
+    ledger = get_event_ledger()
+    signed_observation = ledger.get_event(observation_id)
+    original = ledger.get_event(original_id)
+
+    def valid_source(event, expected):
+        if not event or event.get("status") != "complete":
+            return False
+        payload, signed_actor = event.get("payload") or {}, event.get("actor") or {}
+        return (
+            event.get("kind") == "public_mystery.bridge_plaque.observed"
+            and type(event.get("id")) is int
+            and type(expected.get("source_event_id")) is int
+            and event["id"] == expected["source_event_id"]
+            and type(signed_actor.get("account_id")) is int
+            and type(signed_actor.get("mask_id")) is int
+            and signed_actor["account_id"] == expected.get("account_id")
+            and signed_actor["mask_id"] == expected.get("mask_id")
+            and signed_actor.get("mask") == expected.get("mask")
+            and payload.get("public_mystery_id") == BRIDGE_PLAQUE_ID
+            and type(payload.get("day")) is int and payload["day"] == day
+            and type(payload.get("hour")) is int
+            and payload["hour"] == observation.get("hour")
+            and payload.get("weather") == observation.get("weather")
+            and payload.get("pattern") == observation.get("pattern")
+        )
+
+    first = next((w for w in witnesses
+                  if w.get("source_event_id", original_id) == original_id), None)
+    if (first is None
+            or not valid_source(original, dict(first, source_event_id=original_id))
+            or not valid_source(signed_observation,
+                                dict(own, source_event_id=observation_id))):
+        return None, "The physical observation lacks a matching completed actor-bound source."
+    observation["source_event_id"] = observation_id
+    observation["witnesses"] = [own]
+    _, ok, error = examine(
+        mystery, day=day, hour=hour, account_id=actor["account_id"],
+        mask_id=actor["mask_id"], mask=actor["mask"],
+        event_id=observation_id + 1, observation=observation,
+    )
+    if not ok:
+        return None, error
+
+    def consequence(event):
+        updated, valid, reason = examine(
+            mystery, day=day, hour=hour, account_id=actor["account_id"],
+            mask_id=actor["mask_id"], mask=actor["mask"], event_id=event["id"],
+            observation=observation,
+        )
+        if not valid:
+            raise ValueError(reason)
+        _save(updated)
+        return {
+            "case_exam_event_id": event["id"],
+            "observation_event_id": observation["source_event_id"],
+            "pattern": observation["pattern"], "finding": "physical_marks_only",
+        }
+
+    event = publish_world_event(
+        "village.bridge_plaque_examined", actor=player,
+        payload={
+            "day": day, "hour": hour, "location": "The Old Stone Bridge",
+            "professional_calling": "detective",
+            "observation_event_id": observation["source_event_id"],
+            "chronicle_eligible": False, "harbinger": False,
+        },
+        consequence=consequence,
+    )
+    return event, None
+
+
+def publish_bridge_case(player):
+    """Independent Chronicler publishes an attributed, non-omniscient bulletin."""
+    from world.callings import active_calling
+    from world.events import get_event_ledger, publish_world_event
+    from world.bridge_case_state import publish
+
+    if not getattr(player, "has_account", False) or active_calling(player) != "chronicler":
+        return None, "Only an active Chronicler may publish a case bulletin."
+    if getattr(getattr(player, "location", None), "key", None) != "Village Square":
+        return None, "Publish the case bulletin from Village Square."
+    day, hour = _clock()
+    mystery = get_public_mystery(BRIDGE_PLAQUE_ID)
+    if not mystery:
+        return None, "The bridge case registry is unavailable."
+    exams = [x for x in mystery.get("case_examinations") or [] if x.get("day") == day]
+    if len(exams) != 1:
+        return None, "A signed Detective examination is required today."
+    exam_id = exams[0].get("event_id")
+    observation_id = exams[0].get("observation_event_id")
+    if (type(exam_id) is not int or exam_id < 1
+            or type(observation_id) is not int or observation_id < 1):
+        return None, "The examination lacks valid signed source IDs."
+    source = get_event_ledger().get_event(exam_id)
+    actor = _player_ref(player)
+    _, ok, error = publish(
+        mystery, day=day, hour=hour, account_id=actor["account_id"],
+        mask_id=actor["mask_id"], mask=actor["mask"],
+        event_id=max(exam_id, observation_id) + 1, source=source,
+    )
+    if not ok:
+        return None, error
+
+    def consequence(event):
+        updated, valid, reason = publish(
+            mystery, day=day, hour=hour, account_id=actor["account_id"],
+            mask_id=actor["mask_id"], mask=actor["mask"], event_id=event["id"],
+            source=source,
+        )
+        if not valid:
+            raise ValueError(reason)
+        _save(updated)
+        return {
+            "case_bulletin_event_id": event["id"],
+            "source_event_id": exams[0]["event_id"],
+            "observation_event_id": exams[0]["observation_event_id"],
+            "status": "attributed_evidence_only",
+        }
+
+    event = publish_world_event(
+        "village.bridge_case_bulletin", actor=player,
+        payload={
+            "day": day, "hour": hour, "location": "Village Square",
+            "professional_calling": "chronicler",
+            "source_event_id": exams[0]["event_id"],
+            "chronicle_eligible": False, "harbinger": False,
+        },
+        consequence=consequence,
+    )
+    return event, None
+
+
+def resolve_subject(token):
+    token = str(token or "").strip().lower()
+    if token in {
+        "manor",
+        "lights",
+        "manor lights",
+        "manor-lights",
+        "hilltop manor",
+        "why are the manor lights returning",
+    }:
+        return MANOR_LIGHTS_ID
+    if token in {
+        "bridge", "bridge plaque", "missing plaque", "old stone bridge",
+        "missing bridge plaque", "inscription",
+    }:
+        return BRIDGE_PLAQUE_ID
+    return None
+
+
 def mystery_lines(player=None, stable_id=MANOR_LIGHTS_ID):
     mystery = get_public_mystery(stable_id)
     if not mystery:
@@ -577,5 +817,11 @@ def mystery_lines(player=None, stable_id=MANOR_LIGHTS_ID):
     else:
         lines.append("No public theory has been submitted yet.")
 
+    if stable_id == BRIDGE_PLAQUE_ID:
+        from world.bridge_case_state import case_lines
+        from world.events import get_event_ledger
+        # Public readback must verify canonical events, not trust mutable registry IDs.
+        lines.extend(case_lines(mystery, _clock()[0],
+                                get_event=get_event_ledger().get_event))
     lines.append(definition["unresolved_note"])
     return lines

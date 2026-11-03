@@ -8,6 +8,7 @@ a supernatural explanation.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping
 
 MAX_DISCOVERIES = 16
 
@@ -98,17 +99,26 @@ def capture(looker, physical, ident):
     # physical inspections are also stamped for today's renewable civic work.
     # An old first visit is never sufficient evidence of a NEW day's patrol.
     latest = dict(getattr(looker.db, "landmark_latest_view", None) or {})
-    observed = {"day": day, "hour": hour}
+    latest[ident] = {"day": day, "hour": hour}
     if ident == "red_cord":
-        # Preserve the exact physical warning that was visible on inspection.
-        # A later Hound may tend the same cord before this player signs a
-        # Wanderer report. Day/hour alone cannot distinguish that change.
-        marker = getattr(physical.db, "route_caution", None)
-        event_id = marker.get("event_id") if hasattr(marker, "get") else None
-        observed["caution_event_id"] = (
-            event_id if type(event_id) is int and event_id > 0 else 0
-        )
-    latest[ident] = observed
+        # A prior look in the same hour cannot attest a later Hound marker.
+        marker = getattr(getattr(physical, "db", None), "route_caution", None)
+        if (isinstance(marker, Mapping)
+                and type(marker.get("event_id")) is int
+                and marker["event_id"] > 0
+                and type(marker.get("day")) is int
+                and marker["day"] == day):
+            latest[ident]["route_caution_event_id"] = marker["event_id"]
+            latest[ident]["route_caution_cord_id"] = getattr(physical, "id", None)
+        # Bind a later firsthand look to the actual installed repair.
+        # Earlier hazard inspection must not authorize a postrepair test.
+        fitting = getattr(getattr(physical, "db", None),
+                          "route_fitting_install", None)
+        if (isinstance(fitting, Mapping)
+                and type(fitting.get("install_event_id")) is int
+                and fitting["install_event_id"] > 0):
+            latest[ident]["route_fitting_install_event_id"] = fitting["install_event_id"]
+            latest[ident]["route_fitting_cord_id"] = getattr(physical, "id", None)
     looker.db.landmark_latest_view = {
         key: value for key, value in latest.items() if key in LANDMARKS
     }
@@ -118,6 +128,27 @@ def capture(looker, physical, ident):
     if changed:
         looker.db.landmark_discoveries = copy.deepcopy(rows)
     return changed
+
+
+def observed_caution(raw, *, day, hour, source_event_id, cord_id):
+    """Require this mask's physical look at this signed original cord."""
+    if not isinstance(raw, Mapping):
+        return False
+    seen = raw.get("red_cord")
+    return bool(
+        isinstance(seen, Mapping)
+        and all(type(value) is int for value in (
+            day, hour, source_event_id, cord_id,
+            seen.get("day"), seen.get("hour"),
+            seen.get("route_caution_event_id"),
+            seen.get("route_caution_cord_id")))
+        and day >= 1 and 0 <= hour <= 23
+        and 0 <= seen["hour"] <= hour
+        and seen["day"] == day
+        and source_event_id > 0 and cord_id > 0
+        and seen["route_caution_event_id"] == source_event_id
+        and seen["route_caution_cord_id"] == cord_id
+    )
 
 
 def journal_lines(raw):

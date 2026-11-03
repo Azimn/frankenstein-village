@@ -60,7 +60,14 @@ def normalize(raw):
                 "day": day, "hour": hour, "event_id": event,
             }
     checks = []
-    for item in list(source.get("checks") or [])[-MAX_CHECKS * 2:]:
+    # Persisted Attributes can be corrupted or imported from older saves.
+    # An invalid container must not crash ordinary room look or authorize
+    # fictional upkeep; the ledger verifier separately marks it untrusted.
+    try:
+        saved_checks = list(source.get("checks") or [])
+    except (TypeError, ValueError):
+        saved_checks = []
+    for item in saved_checks[-MAX_CHECKS * 2:]:
         if not hasattr(item, "get"):
             continue
         aid = _positive_int(item.get("account_id"))

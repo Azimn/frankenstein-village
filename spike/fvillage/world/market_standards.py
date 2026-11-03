@@ -8,6 +8,7 @@ what actually happened. Old decisions persist. Days do not auto-generate jobs.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping
 
 MAX_HISTORY = 28
 CHOICES = frozenset({"honor", "hold"})
@@ -17,7 +18,7 @@ ROLES = {"review": "merchant", "calibrate": "smith", "attest": "chronicler"}
 def fresh(day=0):
     return {
         "day": day, "review": None, "calibration": None,
-        "release": None, "attestation": None, "history": [],
+        "release": None, "attestation": None, "audit": None, "history": [],
     }
 
 
@@ -46,7 +47,7 @@ def normalize(raw):
     except (ValueError, TypeError, OverflowError):
         d = 0
     result = fresh(d)
-    for name in ("review", "calibration", "release", "attestation"):
+    for name in ("review", "calibration", "release", "attestation", "audit"):
         row = raw.get(name)
         if not hasattr(row, "get"):
             continue
@@ -57,9 +58,27 @@ def normalize(raw):
         if not signed or signed["day"] != d:
             continue
         if name == "review":
-            if row.get("choice") not in CHOICES:
+            choice = row.get("choice")
+            # A corrupt persisted list/dict is not a valid Merchant decision.
+            # Test the type before set membership to keep trade playable.
+            if not isinstance(choice, str) or choice not in CHOICES:
                 continue
-            signed["choice"] = row["choice"]
+            signed["choice"] = choice
+        if name == "audit":
+            source_id = row.get("review_event_id")
+            if type(source_id) is not int or source_id < 1:
+                continue
+            review_choice = row.get("review_choice")
+            if not isinstance(review_choice, str) or review_choice not in CHOICES:
+                continue
+            review = result["review"]
+            if (not review or source_id != review["event_id"]
+                    or row["review_choice"] != review["choice"]
+                    or signed["account_id"] == review["account_id"]
+                    or signed["hour"] < review["hour"]):
+                continue
+            signed["review_event_id"] = source_id
+            signed["review_choice"] = row["review_choice"]
         if name == "attestation":
             try:
                 review_id = int(row.get("review_event_id"))
@@ -69,6 +88,17 @@ def normalize(raw):
             if (review_id < 1 or calibration_id < 1
                     or isinstance(row.get("review_event_id"), bool)
                     or isinstance(row.get("calibration_event_id"), bool)):
+                continue
+            # A corrupted persisted publication cannot claim unrelated source
+            # events, even if its row looks signed. Ledger checks at creation
+            # additionally prove that these events really occurred.
+            if (not result["review"] or not result["calibration"]
+                    or review_id != result["review"]["event_id"]
+                    or calibration_id != result["calibration"]["event_id"]
+                    or len({review_id, calibration_id, signed["event_id"]}) != 3
+                    or len({result["review"]["account_id"],
+                            result["calibration"]["account_id"],
+                            signed["account_id"]}) != 3):
                 continue
             signed["review_event_id"] = review_id
             signed["calibration_event_id"] = calibration_id
@@ -94,9 +124,9 @@ def refresh(raw, day):
     if day <= state["day"]:
         return state
     if state["day"] >= 1 and any(state[k] for k in
-                                 ("review", "calibration", "release", "attestation")):
+                                 ("review", "calibration", "release", "attestation", "audit")):
         old = {k: copy.deepcopy(state[k]) for k in
-               ("review", "calibration", "release", "attestation")}
+               ("review", "calibration", "release", "attestation", "audit")}
         old["day"] = state["day"]
         old["unresolved_hold"] = suspended(state, state["day"])
         state["history"].append(old)
@@ -113,6 +143,48 @@ def suspended(raw, day):
         and state["review"] and state["review"]["choice"] == "hold"
         and not state["calibration"]
         and not state["release"]
+    )
+
+
+def verified_merchant_review(review, source):
+    """Check the canonical completed Merchant decision, not a copied receipt."""
+    if not isinstance(review, Mapping) or not isinstance(source, Mapping):
+        return False
+    actor, payload, result = (
+        source.get("actor"), source.get("payload"), source.get("consequence")
+    )
+    if not all(isinstance(row, Mapping) for row in (actor, payload, result)):
+        return False
+    choice = review.get("choice")
+    if not isinstance(choice, str) or choice not in CHOICES:
+        return False
+    if type(source.get("id")) is not int or source["id"] < 1:
+        return False
+    if source.get("status") != "complete" or source.get("kind") != "village.market_" + choice:
+        return False
+    if type(review.get("event_id")) is not int or source["id"] != review["event_id"]:
+        return False
+    if any(type(review.get(k)) is not int or review[k] < 1 for k in
+           ("account_id", "mask_id", "day")):
+        return False
+    if type(review.get("hour")) is not int or not 0 <= review["hour"] < 24:
+        return False
+    if any(type(actor.get(k)) is not int or actor[k] != review[k] for k in
+           ("account_id", "mask_id")):
+        return False
+    if actor.get("mask") != review.get("mask"):
+        return False
+    return (
+        payload.get("action") == choice
+        and payload.get("professional_calling") == "merchant"
+        and payload.get("location") == "Market Lane"
+        and type(payload.get("day")) is int
+        and payload["day"] == review["day"]
+        and type(payload.get("hour")) is int
+        and payload["hour"] == review["hour"]
+        and result.get("action") == choice
+        and type(result.get("review_event_id")) is int
+        and result["review_event_id"] == source["id"]
     )
 
 
@@ -139,11 +211,30 @@ def apply(raw, action, *, day, hour, account_id, mask_id, mask, event_id):
         if not suspended(state, day):
             return state, False, "There is no active market hold to release."
         state["release"] = signed
+    elif action == "audit":
+        review = state["review"]
+        if not review:
+            return state, False, "A completed Merchant decision is needed before an independent audit."
+        if state["audit"]:
+            return state, False, "The Merchant decision has already been audited today."
+        if signed["account_id"] == review["account_id"]:
+            return state, False, "A separate account must audit the Merchant decision."
+        if signed["hour"] < review["hour"]:
+            return state, False, "The audit cannot precede the Merchant decision."
+        signed["review_event_id"] = review["event_id"]
+        signed["review_choice"] = review["choice"]
+        state["audit"] = signed
     elif action == "attest":
         if not state["review"] or not state["calibration"]:
             return state, False, (
                 "A documented Merchant decision and Smith calibration "
                 "are both needed for an attestation."
+            )
+        if len({state["review"]["account_id"],
+                state["calibration"]["account_id"], signed["account_id"]}) != 3:
+            return state, False, (
+                "Independent Merchant, Smith and Chronicler accounts are "
+                "required to attest the market record."
             )
         if state["attestation"]:
             return state, False, "The Chronicler has already attested today's record."
@@ -155,13 +246,240 @@ def apply(raw, action, *, day, hour, account_id, mask_id, mask, event_id):
     return state, True, None
 
 
-def public_lines(raw, day):
+def verified_sources(raw, day, event_lookup):
+    """Check both actual signed ledger receipts before Chronicler attestation.
+
+    A docket row alone is not proof that the event occurred. This read-only
+    check uses the existing canonical ledger, not a second event store.
+    """
     state = refresh(raw, day)
+    if state["day"] != day or not state["review"] or not state["calibration"]:
+        return False
+    if state["review"]["account_id"] == state["calibration"]["account_id"]:
+        return False
+    sources = (
+        ("review", "merchant", frozenset({"hold", "honor"})),
+        ("calibration", "smith", frozenset({"calibrate"})),
+    )
+    seen = set()
+    for field, role, actions in sources:
+        row = state[field]
+        event_id = row["event_id"]
+        if event_id in seen:
+            return False
+        seen.add(event_id)
+        try:
+            event = event_lookup(event_id)
+        except Exception:
+            return False
+        if not hasattr(event, "get"):
+            return False
+        actor = event.get("actor")
+        payload = event.get("payload")
+        consequence = event.get("consequence")
+        if not all(hasattr(part, "get") for part in (actor, payload, consequence)):
+            return False
+        action = payload.get("action")
+        if (not isinstance(action, str) or action not in actions
+                or event.get("id") != event_id
+                or event.get("kind") != "village.market_" + action
+                or event.get("status") != "complete"
+                or actor.get("account_id") != row["account_id"]
+                or actor.get("mask_id") != row["mask_id"]
+                or actor.get("mask") != row["mask"]
+                or payload.get("day") != row["day"]
+                or payload.get("hour") != row["hour"]
+                or payload.get("location") != "Market Lane"
+                or payload.get("professional_calling") != role
+                or consequence.get("action") != action):
+            return False
+        if field == "review" and row["choice"] != action:
+            return False
+        # Completed world events must prove the physical market consequence,
+        # not merely repeat the action name. Event IDs are monotonic: a source
+        # can only cite the other professional's receipt if it already existed
+        # when this particular event was committed.
+        expected_held = field == "review" and action == "hold"
+        if (type(consequence.get("market_distribution_held")) is not bool
+                or consequence["market_distribution_held"] is not expected_held):
+            return False
+        for source_key, source_row in (
+                ("review_event_id", state["review"]),
+                ("calibration_event_id", state["calibration"])):
+            if source_key not in consequence:
+                return False
+            expected_id = (
+                source_row["event_id"]
+                if source_row and source_row["event_id"] <= event_id else None
+            )
+            actual_id = consequence[source_key]
+            if expected_id is None:
+                if actual_id is not None:
+                    return False
+            elif type(actual_id) is not int or actual_id != expected_id:
+                return False
+    return True
+
+
+def _signed_public_event(row, action, role, state, event_lookup):
+    """Recheck one persisted market decision against its completed world event.
+
+    This is read-only. Docket rows alone cannot establish public history, and
+    the existing world ledger remains the sole event authority.
+    """
+    if not isinstance(row, Mapping) or not callable(event_lookup):
+        return False
+    event_id = row.get("event_id")
+    if type(event_id) is not int or event_id < 1:
+        return False
+    try:
+        event = event_lookup(event_id)
+    except Exception:
+        return False
+    # Evennia's persistent Attribute containers can be SaverDict-style
+    # wrappers rather than collections.abc.Mapping instances. The existing
+    # canonical verified_sources verifier already accepts read-only get()
+    # containers; do not reject genuine completed events after persistence.
+    # All signed fields and physical consequences are still checked below.
+    if not hasattr(event, "get"):
+        return False
+    actor, payload, consequence = (
+        event.get("actor"), event.get("payload"), event.get("consequence")
+    )
+    if not all(hasattr(part, "get") for part in (actor, payload, consequence)):
+        return False
+    if any(type(row.get(key)) is not int for key in
+           ("account_id", "mask_id", "event_id", "day", "hour")):
+        return False
+    if not (row["account_id"] > 0 and row["mask_id"] > 0
+            and row["day"] > 0 and 0 <= row["hour"] < 24):
+        return False
+    if (type(event.get("id")) is not int or event["id"] != event_id
+            or event.get("kind") != "village.market_" + action
+            or event.get("status") != "complete"
+            or type(actor.get("account_id")) is not int
+            or actor["account_id"] != row["account_id"]
+            or type(actor.get("mask_id")) is not int
+            or actor["mask_id"] != row["mask_id"]
+            or actor.get("mask") != row.get("mask")
+            or payload.get("action") != action
+            or payload.get("professional_calling") != role
+            or payload.get("location") != "Market Lane"
+            or type(payload.get("day")) is not int
+            or payload["day"] != row["day"]
+            or type(payload.get("hour")) is not int
+            or payload["hour"] != row["hour"]
+            or consequence.get("action") != action):
+        return False
+    # Source links and finite holds describe the state at event commit time.
+    review = state.get("review")
+    calibration = state.get("calibration")
+    release = state.get("release")
+    expected_held = bool(
+        review and review.get("choice") == "hold"
+        and review["event_id"] <= event_id
+        and not (calibration and calibration["event_id"] <= event_id)
+        and not (release and release["event_id"] <= event_id)
+    )
+    if (type(consequence.get("market_distribution_held")) is not bool
+            or consequence["market_distribution_held"] is not expected_held):
+        return False
+    for link, source in (
+            ("review_event_id", review), ("calibration_event_id", calibration)):
+        if link not in consequence:
+            return False
+        expected = (
+            source["event_id"]
+            if source and source["event_id"] <= event_id else None
+        )
+        actual = consequence[link]
+        if expected is None:
+            if actual is not None:
+                return False
+        elif type(actual) is not int or actual != expected:
+            return False
+    return True
+
+
+def _verified_public_day(raw, event_lookup):
+    """Return only ledger-backed signatures, without changing saved history."""
+    state = normalize(raw)
+    safe = fresh(state["day"])
+    review = state["review"]
+    calibration = state["calibration"]
+    if review and _signed_public_event(
+            review, review["choice"], "merchant", state, event_lookup):
+        safe["review"] = review
+    if calibration and _signed_public_event(
+            calibration, "calibrate", "smith", state, event_lookup):
+        safe["calibration"] = calibration
+
+    release = state["release"]
+    if (release and safe["review"] and safe["review"]["choice"] == "hold"
+            and release["event_id"] > safe["review"]["event_id"]
+            and _signed_public_event(
+                release, "release", "merchant", state, event_lookup)):
+        safe["release"] = release
+
+    audit = state["audit"]
+    if (audit and safe["review"]
+            and audit["review_event_id"] == safe["review"]["event_id"]
+            and audit["review_choice"] == safe["review"]["choice"]
+            and audit["account_id"] != safe["review"]["account_id"]
+            and audit["event_id"] > safe["review"]["event_id"]
+            and audit["hour"] >= safe["review"]["hour"]
+            and _signed_public_event(
+                audit, "audit", "chronicler", state, event_lookup)):
+        safe["audit"] = audit
+
+    attestation = state["attestation"]
+    if (attestation and safe["review"] and safe["calibration"]
+            and len({safe["review"]["account_id"],
+                     safe["calibration"]["account_id"],
+                     attestation["account_id"]}) == 3
+            and attestation["event_id"] > max(
+                safe["review"]["event_id"], safe["calibration"]["event_id"])
+            and verified_sources(state, state["day"], event_lookup)
+            and _signed_public_event(
+                attestation, "attest", "chronicler", state, event_lookup)):
+        safe["attestation"] = attestation
+    return safe
+
+
+def public_lines(raw, day, event_lookup=None):
+    """Read-only public projection; unsupported signatures never become facts."""
+    original = refresh(raw, day)
+    state = _verified_public_day(original, event_lookup)
+    state["history"] = [
+        _verified_public_day(prior, event_lookup)
+        for prior in original["history"]
+    ]
+    unverified_current = any(
+        original[name] and not state[name]
+        for name in ("review", "calibration", "release", "audit", "attestation")
+    )
     lines = ["|wMarket Lane: standards and trades|n"]
     if state["day"] > int(day):
         lines.append("A later village record is already held; the clock cannot be rewound.")
         return lines
-    if suspended(state, day):
+    if unverified_current:
+        lines.append(
+            "Some saved market signatures cannot be verified against completed "
+            "world events. Unsupported public claims are withheld; the finite "
+            "material table and existing hold rules remain authoritative."
+        )
+    # A missing/forged Chronicler publication must not erase an independently
+    # verified Merchant decision or physical Smith calibration. Conversely,
+    # an unverified *core* market action cannot be used to infer the public
+    # scale condition from a partially filtered docket. The actual supply
+    # gate continues to use the original authoritative state.
+    core_unverified = any(
+        original[name] and not state[name]
+        for name in ("review", "calibration", "release")
+    )
+    if core_unverified:
+        pass  # The warning above is the only defensible scale status.
+    elif suspended(state, day):
         lines.append(
             "Distribution of civic construction kits is temporarily on hold. "
             "The Merchant challenged the crooked scale's disputed weights. "
@@ -200,24 +518,77 @@ def public_lines(raw, day):
             f"Merchant {row['mask']} released the hold "
             f"(event {row['event_id']})."
         )
+    if state["audit"]:
+        row = state["audit"]
+        lines.append(
+            f"Chronicler {row['mask']} independently audited Merchant "
+            f"{row['review_choice']} (source event {row['review_event_id']}, "
+            f"audit event {row['event_id']})."
+        )
     if state["attestation"]:
         row = state["attestation"]
         lines.append(
             f"Chronicler {row['mask']} attested both source events "
-            f"(event {row['event_id']})."
+            f"(event {row['event_id']}; Merchant source "
+            f"{row['review_event_id']}, Smith source "
+            f"{row['calibration_event_id']})."
         )
-    if state["history"]:
-        recent = state["history"][-1]
-        lines.append(
-            f"Prior recorded day {recent['day']}: "
-            + ("unresolved market hold at day's end"
-               if recent.get("unresolved_hold") else "record preserved")
-            + "."
-        )
+    # A returning visitor can read actual public decisions rather than a
+    # generic "record preserved" notice. Revalidate each archived signature
+    # before displaying it; stale or malformed rows are not eyewitness proof.
+    # Only the three latest valid days are shown, with the full bounded archive
+    # retained in the existing market docket.
+    shown = 0
+    for archived in reversed(state["history"]):
+        prior = normalize(archived)
+        if prior["day"] < 1 or prior["day"] >= int(day):
+            continue
+        parts = []
+        if prior["review"]:
+            decision = prior["review"]
+            parts.append(
+                f"Merchant {decision['mask']} chose {decision['choice']} "
+                f"(event {decision['event_id']})"
+            )
+        if prior["calibration"]:
+            calibration = prior["calibration"]
+            parts.append(
+                f"Smith {calibration['mask']} calibrated the scale "
+                f"(event {calibration['event_id']})"
+            )
+        if (prior["release"] and prior["review"]
+                and prior["review"]["choice"] == "hold"):
+            release = prior["release"]
+            parts.append(
+                f"Merchant {release['mask']} released the hold "
+                f"(event {release['event_id']})"
+            )
+        if prior["audit"]:
+            audit = prior["audit"]
+            parts.append(
+                f"Chronicler {audit['mask']} independently audited Merchant "
+                f"{audit['review_choice']} (event {audit['event_id']})"
+            )
+        if prior["attestation"]:
+            attestation = prior["attestation"]
+            parts.append(
+                f"Chronicler {attestation['mask']} attested sources "
+                f"{attestation['review_event_id']} and "
+                f"{attestation['calibration_event_id']} "
+                f"(event {attestation['event_id']})"
+            )
+        if not parts:
+            continue
+        if suspended(prior, prior["day"]):
+            parts.append("hold unresolved at day's end")
+        lines.append(f"Prior day {prior['day']}: " + "; ".join(parts) + ".")
+        shown += 1
+        if shown == 3:
+            break
     lines.append(
         "At Market Lane, examine the physical market scale today. "
         "Merchants: |wtrade honor|n, |wtrade hold|n or |wtrade release|n. "
-        "Smiths: |wtrade calibrate|n. Chroniclers: |wtrade attest|n "
+        "Smiths: |wtrade calibrate|n. Chroniclers: |wtrade audit|n after a Merchant decision, or |wtrade attest|n "
         "after both sources exist. Use |wtrade|n to review the evidence."
     )
     return lines
@@ -236,7 +607,7 @@ def personal_agenda(raw, day, mask_id):
 
     own = {
         name: bool(state[name] and state[name]["mask_id"] == mask_id)
-        for name in ("review", "calibration", "release", "attestation")
+        for name in ("review", "calibration", "release", "attestation", "audit")
     }
     lines = []
     if own["review"]:
@@ -277,6 +648,11 @@ def personal_agenda(raw, day, mask_id):
             "Market Lane: your Merchant release of the hold is recorded; "
             "the public material table is open again."
         )
+    if own["audit"]:
+        lines.append(
+            "Market Lane: your independent Chronicler audit of the "
+            "Merchant decision is on the public record today."
+        )
     if own["attestation"]:
         lines.append(
             "Market Lane: your Chronicler attestation of both source events "
@@ -287,12 +663,17 @@ def personal_agenda(raw, day, mask_id):
 
     # Only yesterday's personal work belongs in a returning player's agenda.
     # Prior-day decisions are history, never an actionable current-day hold.
-    for old in reversed(state["history"]):
-        if old.get("day") != day - 1:
+    for archived in reversed(state["history"]):
+        # Persisted historical rows may contain malformed nested receipts.
+        # Revalidate each signature before attributing yesterday's work to
+        # this character; a corrupt receipt must neither crash the agenda nor
+        # claim the player completed an action they did not sign.
+        prior = normalize(archived)
+        if prior["day"] != day - 1:
             continue
         if any(
-            old.get(name) and old[name].get("mask_id") == mask_id
-            for name in ("review", "calibration", "release", "attestation")
+            prior[name] and prior[name]["mask_id"] == mask_id
+            for name in ("review", "calibration", "release", "attestation", "audit")
         ):
             return [
                 "Market Lane: your previous day's standards work is archived. "

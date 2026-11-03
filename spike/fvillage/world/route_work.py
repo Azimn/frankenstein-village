@@ -5,7 +5,7 @@ teleports, grants a quest reward, or publishes a claim as objective truth.
 """
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from django.db import transaction
 from evennia.scripts.models import ScriptDB
@@ -14,7 +14,7 @@ from evennia.utils import search
 from world import route_surveys
 from world.callings import active_calling, record_participation
 from world.discoveries import LANDMARKS, normalize as known_landmarks
-from world.events import publish_world_event
+from world.events import get_event_ledger, publish_world_event
 
 SQUARE = "Village Square"
 SCOUT_ROLES = frozenset({"wanderer", "hound", "detective"})
@@ -36,43 +36,6 @@ def _day_hour():
         )
     except ScriptDB.DoesNotExist:
         return 1, 21
-
-
-def _inspected_today(mask, site, day):
-    """Require a valid same-day physical inspection, even for old/corrupt saves."""
-    views = getattr(mask.db, "landmark_latest_view", None)
-    if not isinstance(views, Mapping):
-        return False
-    recent = views.get(site)
-    if not isinstance(recent, Mapping):
-        return False
-    recorded_day = recent.get("day")
-    if isinstance(recorded_day, bool):
-        return False
-    try:
-        return int(recorded_day or 0) == day
-    except (ValueError, TypeError, OverflowError):
-        return False
-
-
-def _cord_condition_matches_inspection(mask, cord):
-    """Reject a stale firsthand cord observation after another Hound acts.
-
-    A same-day inspection is necessary but not sufficient: the warning can
-    change during that day, or even in the same village hour. Old saved
-    inspections without a physical version require a fresh look.
-    """
-    views = getattr(mask.db, "landmark_latest_view", None)
-    recent = views.get("red_cord") if isinstance(views, Mapping) else None
-    if not isinstance(recent, Mapping):
-        return False
-    observed = recent.get("caution_event_id")
-    if type(observed) is not int or observed < 0:
-        return False
-    marker = getattr(cord.db, "route_caution", None)
-    current = marker.get("event_id") if isinstance(marker, Mapping) else None
-    current = current if type(current) is int and current > 0 else 0
-    return observed == current
 
 
 def status_lines():
@@ -99,13 +62,79 @@ def status_lines():
                 f"* {spec['room']}: not yet inspected. Find "
                 f"{spec['key']} and examine it."
             )
-    lines.extend(route_surveys.field_lines(state))
+    ledger = get_event_ledger()
+    # A normalized board claim alone is not a completed route recheck. The
+    # current physical cord and all three original ledger events must agree.
+    public_field_state = state
+    entries = state["field_decisions"]
+    joint = (entries.get("wanderer") or {}).get("corroboration")
+    if joint:
+        cord = next((
+            obj for obj in search.search_object(LANDMARKS["red_cord"]["key"])
+            if getattr(getattr(obj, "location", None), "key", None)
+            == LANDMARKS["red_cord"]["room"]
+            and getattr(obj.db, "landmark_id", None) == "red_cord"
+        ), None)
+        hound = entries.get("hound") or {}
+        wanderer = entries.get("wanderer") or {}
+        signed = bool(cord) and route_surveys.verify_signed_corroboration(
+            state, ledger.get_event(joint["event_id"]),
+            ledger.get_event(hound.get("event_id")),
+            ledger.get_event(wanderer.get("event_id")),
+            day=day, hour=_hour, cord_id=cord.id, square_id=square.id,
+            marker=_caution_marker(getattr(cord.db, "route_caution", None)),
+        )
+        if not signed:
+            public_entries = dict(entries)
+            public_wanderer = dict(wanderer)
+            public_wanderer.pop("corroboration", None)
+            public_entries["wanderer"] = public_wanderer
+            public_field_state = dict(state, field_decisions=public_entries)
+            lines.append("The stored route corroboration is unverified; no signed recheck is displayed.")
+    # A mutable Square projection cannot authenticate a caution notice.
+    if state.get("caution_notice") and not _verified_notice(square, state, day):
+        public_field_state = dict(public_field_state, caution_notice=None)
+        lines.append("The stored Chronicler caution is unverified; no signed notice is displayed.")
+    # A forged Square attribution cannot be displayed as signed Hound work.
+    if entries.get("hound") and not _signed_hound_source(square, day, _hour):
+        public_entries = dict(public_field_state["field_decisions"])
+        public_entries.pop("hound", None)
+        if "wanderer" in public_entries:
+            independent = dict(public_entries["wanderer"])
+            independent.pop("corroboration", None)
+            public_entries["wanderer"] = independent
+        public_field_state = dict(public_field_state, field_decisions=public_entries,
+                                  caution_notice=None)
+        lines.append("The stored Hound attribution is unverified; no signed Hound warning is displayed.")
+    lines.extend(route_surveys.field_lines(public_field_state))
+    # Persisted advisory text is not proof that a Chronicler event completed.
+    public_state = state
+    item = state.get("advisory")
+    if item and not route_surveys.verified_advisory_publication(
+        state, ledger.get_event(item["event_id"]), square_id=square.id,
+    ):
+        public_state = dict(state, advisory=None)
+        lines.append("The stored route map edition is unverified; no signed edition is displayed.")
+    lines.extend(route_surveys.advisory_lines(public_state))
     lines.append(
         "At the Northern Treeline, an active Hound can examine the actual "
-        "frayed red cord and use |wsurvey protect|n to tie or tend a visible warning. "
+        "frayed red cord and use |wsurvey protect|n to tie a visible warning. "
         "An active Wanderer can independently use |wsurvey passability|n "
         "there to record whether the warning was present when inspected. "
-        "Neither action proves why the cord was damaged."
+        "After both signed actions, the original Wanderer may examine the "
+        "cord again and use |wsurvey corroborate|n for an independent check. "
+        "Neither action proves why the cord was damaged. "
+        "An independent Detective can examine the tied cord and use "
+        "|wsurvey preserve|n to record qualified trace custody, or "
+        "|wsurvey custody|n to inspect that physical record."
+    )
+    lines.append("Chroniclers: examine the physical cord after a signed Hound protection, return to the Square, and use |wsurvey caution|n to publish a qualified, source-linked notice.")
+    lines.append(
+        "At Riverside Path, a Wanderer can examine the original river gauge "
+        "and use |wsurvey gauge|n to sign firsthand flood-mark evidence. "
+        "A separate Detective can examine that gauge and use |wsurvey compare|n "
+        "for a qualified signed case note. |wsurvey evidence|n checks the "
+        "completed ledger, not a flood forecast or solved mystery."
     )
     if route_surveys.complete(state):
         lines.append(
@@ -122,54 +151,107 @@ def status_lines():
         "about the survey (|wask <resident> about survey|n); they may "
         "recognize the person who signed a real inspection."
     )
-    lines.append("Use |wsurvey history|n for the latest signed days, or |wsurvey history <day>|n for an older retained record.")
-    # Use the same validated public projection as survey history. Old or
-    # malformed persisted archive rows must not crash the daily board or
-    # let a stale "completed" flag misrepresent signed checkpoint counts.
-    previous = route_surveys.history_records(state, day, limit=1)
-    if previous:
-        prior = previous[0]
+    lines.append("Use |wsurvey history|n for earlier signed route days or |wsurvey history <day>|n for a retained day.")
+    if state["history"]:
+        prior = state["history"][-1]
         lines.append(
             f"Previous surveyed day {prior['day']}: "
             + ("complete" if prior["completed"] else "unfinished")
             + f" ({len(prior['reports'])} of {len(route_surveys.SITES)})."
         )
+        archived = prior.get("advisory")
+        if archived:
+            historical = {
+                "day": prior["day"], "reports": prior.get("reports") or {},
+                "field_decisions": prior.get("field_decisions") or {},
+                "advisory": archived, "history": [],
+            }
+            signed = route_surveys.verified_advisory_publication(
+                historical, ledger.get_event(archived.get("event_id")),
+                square_id=square.id,
+            ) if hasattr(archived, "get") else False
+            lines.append(
+                "The prior day's signed route map is archived, not a live forecast."
+                if signed else "The prior day's stored map is unverified, not a signed edition."
+            )
     return "\n".join(lines)
 
 
+def _verified_history_report(site, record, event, day):
+    """Never display a stored archive attribution as signed without its event."""
+    if not isinstance(record, Mapping) or not isinstance(event, Mapping):
+        return False
+    actor, payload, effect = event.get("actor"), event.get("payload"), event.get("consequence")
+    if not all(isinstance(v, Mapping) for v in (actor, payload, effect)):
+        return False
+    hour = payload.get("hour")
+    return (
+        type(record.get("event_id")) is int and type(record.get("account_id")) is int
+        and event.get("id") == record["event_id"]
+        and event.get("status") == "complete" and event.get("kind") == "village.route_inspected"
+        and actor.get("account_id") == record["account_id"]
+        and actor.get("mask") == record.get("mask")
+        and type(actor.get("mask_id")) is int and actor["mask_id"] > 0
+        and payload.get("site") == site and payload.get("day") == day
+        and payload.get("location") == LANDMARKS[site]["room"]
+        and type(hour) is int and 0 <= hour <= 23
+        and effect.get("site") == site and effect.get("day") == day
+    )
+
+
 def history_lines(day_filter=None):
-    """Show bounded, source-attributed public route history without writing it."""
+    """Project saved, source-checked earlier-day observations without writes."""
     square = _square()
     if square is None:
         return "The route report is unavailable; the Square is missing."
     day, _hour = _day_hour()
-    previous = route_surveys.history_records(
-        square.db.daily_route_survey, day, limit=5, selected_day=day_filter
-    )
+    rows = route_surveys.history_records(square.db.daily_route_survey, day,
+                                         selected_day=day_filter)
     lines = ["|wSigned village route history|n"]
-    if not previous:
+    if not rows:
         if day_filter is None:
             lines.append("No earlier village day has an archived route record yet.")
         else:
-            lines.append(
-                f"No signed route archive is retained for village day {day_filter}. "
-                "The Square preserves at most 30 previous recorded days."
-            )
+            lines.append(f"No signed route archive is retained for village day {day_filter}.")
         return "\n".join(lines)
-    for row in previous:
+    ledger = get_event_ledger()
+    spec = LANDMARKS["red_cord"]
+    room = next((r for r in search.search_object(spec["room"])
+                 if r.key == spec["room"] and r.location is None), None)
+    cord = next((o for o in room.contents
+                 if o.key == spec["key"]
+                 and getattr(o.db, "landmark_id", None) == "red_cord"), None) if room else None
+    for row in rows:
+        verified = {}
+        for site, receipt in row["reports"].items():
+            if _verified_history_report(site, receipt, ledger.get_event(receipt["event_id"]), row["day"]):
+                verified[site] = receipt
         lines.append(
             f"Village day {row['day']}: "
-            + ("complete" if row["completed"] else "unfinished")
-            + f" ({len(row['reports'])} of {len(route_surveys.SITES)} checkpoints)."
+            f"{'complete' if len(verified) == len(route_surveys.SITES) else 'unfinished'} "
+            f"({len(verified)} of {len(route_surveys.SITES)} verified checkpoints)."
         )
         for site in route_surveys.SITES:
-            report = row["reports"].get(site)
-            if report:
+            receipt = verified.get(site)
+            if receipt:
                 lines.append(
-                    f"  {LANDMARKS[site]['room']}: {report['mask']} "
-                    f"(signed event {report['event_id']})."
+                    f"  {LANDMARKS[site]['room']}: {receipt['mask']} "
+                    f"(signed event {receipt['event_id']})."
                 )
-        lines.extend("  " + line for line in route_surveys.field_lines(row))
+        if len(verified) != len(row["reports"]):
+            lines.append("  Unverified historical checkpoint attributions were withheld.")
+        signed_fields = {}
+        if cord is not None:
+            for role, receipt in row["field_decisions"].items():
+                event = ledger.get_event(receipt["event_id"])
+                if route_surveys.verify_signed_field_source(
+                    event, receipt, role, row["day"], 23, cord.id, square.id
+                ):
+                    signed_fields[role] = receipt
+        field_state = {"day": row["day"], "reports": {}, "field_decisions": signed_fields}
+        lines.extend("  " + item for item in route_surveys.field_lines(field_state))
+        if len(signed_fields) != len(row["field_decisions"]):
+            lines.append("  Unverified historical field attributions were withheld.")
     lines.append(
         "These are dated observations and signed actions, not proof of "
         "what caused a hazard or whether the route is safe today."
@@ -200,12 +282,15 @@ def report(mask):
     if clue is None:
         return None, "The landmark is not available for a physical inspection."
     day, hour = _day_hour()
-    account_id = mask.account.id
     witnessed = any(
         row["id"] == site
         for row in known_landmarks(mask.db.landmark_discoveries)
     )
-    inspected_today = _inspected_today(mask, site, day)
+    try:
+        recent = dict(mask.db.landmark_latest_view or {}).get(site) or {}
+        inspected_today = int(recent.get("day") or 0) == day
+    except (ValueError, TypeError, OverflowError):
+        inspected_today = False
     if not witnessed or not inspected_today:
         return None, (
             f"First examine {LANDMARKS[site]['key']} here today. "
@@ -219,29 +304,31 @@ def report(mask):
         return None, "A later village day is already recorded."
     if site in existing["reports"]:
         return None, "Today's report for this landmark is already signed."
+    original_account_id = mask.account.id
 
     def consequence(event):
         with transaction.atomic():
-            if mask.location != room or clue.location != room:
-                raise RuntimeError("The observer left the actual landmark.")
-            # A report must belong to the hour and day actually witnessed.
-            # Field actions already enforce this boundary; civic reports must
-            # not sign a stale day if the village clock advances mid-command.
-            now_day, now_hour = _day_hour()
-            if (now_day, now_hour) != (day, hour):
-                raise RuntimeError("Village time advanced before this route report.")
-            if not getattr(mask, "account", None) or mask.account.id != account_id:
-                raise RuntimeError("The reporting account changed before signing.")
-            # The first-hand inspection and permission must still exist when
-            # the canonical event commits, not only when the command starts.
-            if (not clue.access(mask, "view", default=True)
-                    or not _inspected_today(mask, site, day)
-                    or not any(row["id"] == site for row in known_landmarks(
-                        mask.db.landmark_discoveries))):
-                raise RuntimeError("Examine the physical landmark here again before reporting.")
+            account = getattr(mask, "account", None)
+            if (mask.location != room or clue.location != room
+                    or account is None or account.id != original_account_id):
+                raise RuntimeError("The observer changed account or left the actual landmark.")
+            if (getattr(clue.db, "landmark_id", None) != site
+                    or not clue.access(mask, "view", default=True)):
+                raise RuntimeError("The physical inspected landmark changed.")
+            if _day_hour() != (day, hour):
+                raise RuntimeError("Village time advanced before the report.")
+            current_known = any(row["id"] == site for row in
+                                known_landmarks(mask.db.landmark_discoveries))
+            try:
+                current_latest = dict(mask.db.landmark_latest_view or {}).get(site) or {}
+                current_inspected = int(current_latest.get("day") or 0) == day
+            except (TypeError, ValueError, OverflowError):
+                current_inspected = False
+            if not current_known or not current_inspected:
+                raise RuntimeError("The firsthand physical inspection changed.")
             changed, accepted, error = route_surveys.report(
                 square.db.daily_route_survey, day, site,
-                account_id, mask.key, event["id"],
+                mask.account.id, mask.key, event["id"],
             )
             if not accepted:
                 raise RuntimeError(error)
@@ -260,27 +347,69 @@ def report(mask):
                 "count": len(changed["reports"]),
             }
 
-    try:
-        event = publish_world_event(
-            "village.route_inspected",
-            actor=mask,
-            payload={
-                "site": site, "day": day, "hour": hour,
-                "location": room.key,
-                "harbinger": False, "chronicle_eligible": False,
-            },
-            consequence=consequence,
-        )
-    except RuntimeError as error:
-        # The canonical ledger records the rejected consequence. Show a
-        # recoverable command response instead of a player-facing traceback.
-        return None, str(error)
+    event = publish_world_event(
+        "village.route_inspected",
+        actor=mask,
+        payload={
+            "site": site, "day": day, "hour": hour,
+            "location": room.key,
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
     current = route_surveys.refresh(square.db.daily_route_survey, day)
     return {
         "event_id": event["id"], "site": site,
         "count": len(current["reports"]),
         "completed": route_surveys.complete(current),
     }, None
+
+def _caution_marker(raw):
+    """Read a persisted physical marker without coercing corrupt values.
+
+    None is an unmarked cord. Other non-mappings are not empty evidence and
+    must never be silently replaced with an unmarked state.
+    """
+    if raw is None:
+        return {}
+    return dict(raw) if isinstance(raw, Mapping) else None
+
+
+def _signed_prior_caution(cord, square, marker, day):
+    """Verify a completed earlier Hound event before re-tying this same cord."""
+    if not isinstance(marker, Mapping):
+        return False
+    prior_day = marker.get("day")
+    event_id = marker.get("event_id")
+    account_id = marker.get("account_id")
+    if (any(type(v) is not int or v < 1 for v in
+            (prior_day, event_id, account_id)) or prior_day >= day):
+        return False
+    signed = get_event_ledger().get_event(event_id)
+    if (not isinstance(signed, Mapping) or signed.get("kind") != "village.route_protected"
+            or signed.get("status") != "complete"):
+        return False
+    actor = signed.get("actor")
+    payload = signed.get("payload")
+    effect = signed.get("consequence")
+    if not all(isinstance(value, Mapping) for value in (actor, payload, effect)):
+        return False
+    return (
+        actor.get("account_id") == account_id
+        and type(actor.get("mask_id")) is int and actor["mask_id"] > 0
+        and payload.get("day") == prior_day
+        and payload.get("site") == "red_cord"
+        and payload.get("role") == "hound"
+        and payload.get("action") == "protect"
+        and payload.get("location") == LANDMARKS["red_cord"]["room"]
+        and effect.get("cord_object_id") == cord.id
+        and effect.get("square_room_id") == square.id
+        and effect.get("day") == prior_day
+        and effect.get("role") == "hound"
+        and effect.get("action") == "protect"
+        and effect.get("caution_marked") is True
+    )
+
 
 def field_action(mask, action):
     """Professionally distinct decisions using the existing physical cord.
@@ -291,10 +420,10 @@ def field_action(mask, action):
     """
     if not getattr(mask, "account", None):
         return None, "Use an ordinary logged-in player mask."
-    account_id = mask.account.id
     role = active_calling(mask)
     if (role, action) not in {
-        ("hound", "protect"), ("wanderer", "passability")
+        ("hound", "protect"), ("wanderer", "passability"),
+        ("wanderer", "corroborate")
     }:
         return None, "Only a Hound can protect a route and a Wanderer can assess passability."
     site = "red_cord"
@@ -313,69 +442,92 @@ def field_action(mask, action):
         return None, "The physical red cord is unavailable."
     day, hour = _day_hour()
     observed = any(e["id"] == site for e in known_landmarks(mask.db.landmark_discoveries))
-    today = _inspected_today(mask, site, day)
+    try:
+        recent = dict(mask.db.landmark_latest_view or {}).get(site) or {}
+        today = int(recent.get("day") or 0) == day
+    except (ValueError, TypeError, OverflowError):
+        today = False
     if not observed or not today:
         return None, "Examine the physical red cord here today first."
     square = _square()
     if square is None:
         return None, "The Square's existing public route board is missing."
-    marked = bool(getattr(cord.db, "route_caution", None))
+    if action == "corroborate":
+        return _corroborate(mask, room, cord, square, day, hour)
+    marker = _caution_marker(getattr(cord.db, "route_caution", None))
+    if marker is None:
+        return None, "The physical cord warning record is malformed; ask a keeper to inspect it."
+    marked = bool(marker)
+    if (role == "hound" and marked and marker.get("day") != day
+            and not _signed_prior_caution(cord, square, marker, day)):
+        return None, "The older cord warning has no valid signed source or is already current."
+    prior_event_id = marker.get("event_id") if role == "hound" and marked else None
+    original_account_id = mask.account.id
     current, allowed, why = route_surveys.field_decision(
         square.db.daily_route_survey, day, site, role, action,
-        marked, account_id, mask.key, 1,
+        marked, mask.account.id, mask.key, 1,
+        caution_day=marker.get("day") if role == "hound" else None,
     )
     if not allowed:
         return None, why
-    # Preserve the useful already-signed message on a duplicate action.
-    # For a new action, stale same-hour evidence must be reexamined.
-    if not _cord_condition_matches_inspection(mask, cord):
-        return None, (
-            "The cord's warning has changed since your inspection. "
-            "Examine the physical red cord again before reporting."
-        )
-
-    # The consequence decides whether the real cord was already marked.
-    # Do not report the earlier preview as a signed physical observation.
-    outcome = {"renewed": False}
 
     def consequence(event):
         with transaction.atomic():
+            account = getattr(mask, "account", None)
+            if (account is None or account.id != original_account_id
+                    or active_calling(mask) != role):
+                raise RuntimeError("The professional changed account or Calling.")
             if mask.location != room or cord.location != room:
                 raise RuntimeError("The real observer or cord moved away.")
+            if (getattr(cord.db, "landmark_id", None) != site
+                    or not cord.access(mask, "view", default=True)):
+                raise RuntimeError("The inspected physical cord changed.")
+            current_known = any(row["id"] == site for row in
+                                known_landmarks(mask.db.landmark_discoveries))
+            try:
+                current_latest = dict(mask.db.landmark_latest_view or {}).get(site) or {}
+                current_inspected = int(current_latest.get("day") or 0) == day
+            except (TypeError, ValueError, OverflowError):
+                current_inspected = False
+            if not current_known or not current_inspected:
+                raise RuntimeError("The professional's physical inspection changed.")
             now_day, now_hour = _day_hour()
             if (now_day, now_hour) != (day, hour):
                 raise RuntimeError("Village time advanced before this route action.")
-            # The role, firsthand inspection, and access may change between
-            # the initial command checks and the signed consequence.
-            if (not getattr(mask, "account", None)
-                    or mask.account.id != account_id):
-                raise RuntimeError("The acting account changed before signing.")
-            if active_calling(mask) != role:
-                raise RuntimeError("Your active Calling changed before the route action.")
-            if (not _inspected_today(mask, site, day)
-                    or not any(e["id"] == site for e in known_landmarks(
-                        mask.db.landmark_discoveries))):
-                raise RuntimeError("Examine the physical red cord again before acting.")
-            if not cord.access(mask, "view", default=True):
-                raise RuntimeError("The physical red cord is no longer available.")
-            if not _cord_condition_matches_inspection(mask, cord):
-                raise RuntimeError(
-                    "The physical cord warning changed. Examine it again before signing."
-                )
-            now_marked = bool(getattr(cord.db, "route_caution", None))
+            now_marker = _caution_marker(getattr(cord.db, "route_caution", None))
+            if now_marker is None:
+                raise RuntimeError("The physical cord warning record became malformed.")
+            now_marked = bool(now_marker)
+            if action == "protect":
+                if (now_marker.get("event_id") if now_marker else None) != prior_event_id:
+                    raise RuntimeError("The original cord marker changed during this action.")
+                if now_marked and not _signed_prior_caution(cord, square, now_marker, day):
+                    raise RuntimeError("The previous cord marker is not a completed signed event.")
             updated, valid, reason = route_surveys.field_decision(
                 square.db.daily_route_survey, day, site, role, action,
-                now_marked, account_id, mask.key, event["id"],
+                now_marked, mask.account.id, mask.key, event["id"],
+                caution_day=now_marker.get("day") if role == "hound" else None,
             )
             if not valid:
                 raise RuntimeError(reason)
             if action == "protect":
-                # Tend the ORIGINAL cord on a later day, or tie it for the
-                # first time. No repair, consumed object or invented material.
-                outcome["renewed"] = now_marked
+                # Re-tighten the same cord; preserve bounded historical markers.
+                if now_marker:
+                    raw_history = cord.db.route_caution_history
+                    if raw_history is None:
+                        history = []
+                    elif (isinstance(raw_history, Sequence)
+                          and not isinstance(raw_history, (str, bytes, bytearray))
+                          and all(isinstance(item, Mapping) for item in raw_history)):
+                        history = list(raw_history)
+                    else:
+                        raise RuntimeError("The physical cord caution history is malformed.")
+                    history.append(now_marker)
+                    cord.db.route_caution_history = history[-30:]
                 cord.db.route_caution = {
-                    "event_id": event["id"], "account_id": account_id,
+                    "event_id": event["id"], "account_id": mask.account.id,
                     "mask": mask.key, "day": day,
+                    "prior_caution_event_id": prior_event_id,
                 }
             square.db.daily_route_survey = updated
             record_participation(mask, "field_surveys", calling=role)
@@ -383,25 +535,561 @@ def field_action(mask, action):
                 "cord_object_id": cord.id, "square_room_id": square.id,
                 "site": site, "day": day, "role": role, "action": action,
                 "caution_marked": bool(cord.db.route_caution),
+                "prior_caution_event_id": prior_event_id if action == "protect" else None,
                 "interpretation": (
                     updated["field_decisions"].get("wanderer") or {}
                 ).get("observation"),
             }
 
+    event = publish_world_event(
+        "village.route_protected" if role == "hound"
+        else "village.route_passability_observed",
+        actor=mask,
+        payload={"site": site, "day": day, "hour": hour,
+                 "role": role, "action": action, "location": room.key,
+                 "prior_caution_event_id": prior_event_id,
+                 "harbinger": False, "chronicle_eligible": False},
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "role": role, "action": action}, None
+
+
+def publish_advisory(mask):
+    """Chronicler publishes a dated map from an independent Wanderer source.
+
+    Publication changes the same public Square route record, not physical
+    road conditions. The source event must exist and be complete in the
+    canonical ledger; role labels or unverified prose cannot forge a map.
+    """
+    if not getattr(mask, "account", None):
+        return None, "An ordinary logged-in player mask is required."
+    if active_calling(mask) != "chronicler":
+        return None, "Only an active Chronicler may edit a route map."
+    square = _square()
+    if square is None:
+        return None, "The Square's public route board is missing."
+    if mask.location != square or not square.tags.has("ic", category="side"):
+        return None, "Visit the Village Square to publish at the public route board."
+    day, hour = _day_hour()
+    state = route_surveys.refresh(square.db.daily_route_survey, day)
+    if state["day"] > day:
+        return None, "A later village day is already recorded."
+    source = state["field_decisions"].get("wanderer")
+    if not source:
+        return None, "A Wanderer's signed firsthand route observation is required."
+
+    def valid_source():
+        event = get_event_ledger().get_event(source["event_id"])
+        if not event or event.get("status") != "complete":
+            return False
+        if event.get("kind") != "village.route_passability_observed":
+            return False
+        payload, actor = event.get("payload") or {}, event.get("actor") or {}
+        return (payload.get("site") == "red_cord"
+                and payload.get("day") == day
+                and actor.get("account_id") == source["account_id"])
+
+    if not valid_source():
+        return None, "The Wanderer's canonical signed source could not be verified."
+    # This preflight does not allocate a ledger event. ID 1 is not a
+    # safe placeholder: the first legitimate Wanderer event may itself
+    # be event 1, and a publication must have a distinct event ID.
+    preview_event_id = source["event_id"] + 1
+    _candidate, allowed, reason = route_surveys.publish_advisory(
+        state, day, mask.account.id, mask.key,
+        preview_event_id, source["event_id"],
+    )
+    if not allowed:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            now_day, now_hour = _day_hour()
+            if ((now_day, now_hour) != (day, hour) or mask.location != square
+                    or active_calling(mask) != "chronicler"):
+                raise RuntimeError("The publisher moved, changed Calling, or the village clock advanced.")
+            if not valid_source():
+                raise RuntimeError("The original Wanderer source is no longer valid.")
+            changed, accepted, error = route_surveys.publish_advisory(
+                square.db.daily_route_survey, day, mask.account.id,
+                mask.key, event["id"], source["event_id"],
+            )
+            if not accepted:
+                raise RuntimeError(error)
+            square.db.daily_route_survey = changed
+            record_participation(mask, "route_advisories", calling="chronicler")
+            return {
+                "day": day, "version": 1, "square_room_id": square.id,
+                "source_event_id": source["event_id"],
+                "source_account_id": source["account_id"],
+                "observation": source["observation"],
+            }
+
+    event = publish_world_event(
+        "village.route_map_published",
+        actor=mask,
+        payload={
+            "site": "red_cord", "day": day, "hour": hour,
+            "version": 1, "source_event_id": source["event_id"],
+            "source_account_id": source["account_id"],
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "source_event_id": source["event_id"],
+            "version": 1, "day": day}, None
+
+
+def _corroboration_sources(square, cord, day, hour):
+    """Validate both completed events and the same actual marked object."""
+    state = route_surveys.refresh(square.db.daily_route_survey, day)
+    entries = state["field_decisions"]
+    hound, wanderer = entries.get("hound"), entries.get("wanderer")
+    if not hound or not wanderer:
+        return None, "Both independent professional field records are required."
+    marker = _caution_marker(getattr(cord.db, "route_caution", None))
+    if marker is None:
+        return None, "The physical cord warning record is malformed."
+    if not route_surveys.verify_caution_marker(marker, hound, day):
+        return None, "The current physical warning has no matching Hound source today."
+    if hound["account_id"] == wanderer["account_id"]:
+        return None, "Two separate ordinary accounts must contribute."
+    ledger = get_event_ledger()
+    for role, entry in (("hound", hound), ("wanderer", wanderer)):
+        signed = ledger.get_event(entry["event_id"])
+        if not route_surveys.verify_signed_field_source(
+            signed, entry, role, day, hour, cord.id, square.id
+        ):
+            return None, "A completed independent field source could not be verified."
+    return state, None
+
+
+def _corroborate(mask, room, cord, square, day, hour):
+    """A later firsthand Wanderer check, bound to signed Hound protection."""
+    state, problem = _corroboration_sources(square, cord, day, hour)
+    if problem:
+        return None, problem
+    hound = state["field_decisions"]["hound"]
+    proposed, ok, reason = route_surveys.corroborate(
+        state, day, "red_cord", hound["event_id"],
+        mask.account.id, mask.key,
+        max(hound["event_id"], state["field_decisions"]["wanderer"]["event_id"]) + 1,
+    )
+    if not ok:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            if mask.location != room or cord.location != room:
+                raise RuntimeError("The firsthand observer left the physical cord.")
+            if active_calling(mask) != "wanderer":
+                raise RuntimeError("The observer is no longer a Wanderer.")
+            if _day_hour() != (day, hour):
+                raise RuntimeError("Village time changed during corroboration.")
+            recent = dict(mask.db.landmark_latest_view or {}).get("red_cord") or {}
+            if int(recent.get("day") or 0) != day:
+                raise RuntimeError("The Wanderer did not inspect the cord today.")
+            latest, source_error = _corroboration_sources(square, cord, day, hour)
+            if source_error:
+                raise RuntimeError(source_error)
+            hound_entry = latest["field_decisions"]["hound"]
+            updated, valid, failure = route_surveys.corroborate(
+                latest, day, "red_cord", hound_entry["event_id"],
+                mask.account.id, mask.key, event["id"],
+            )
+            if not valid:
+                raise RuntimeError(failure)
+            square.db.daily_route_survey = updated
+            record_participation(mask, "field_corroborations", calling="wanderer")
+            return {
+                "site": "red_cord", "day": day,
+                "role": "wanderer", "action": "corroborate",
+                "cord_object_id": cord.id, "square_room_id": square.id,
+                "hound_source_event_id": hound_entry["event_id"],
+                "wanderer_source_event_id": latest["field_decisions"]["wanderer"]["event_id"],
+                "physical_caution_present": True,
+            }
+
+    event = publish_world_event(
+        "village.route_caution_corroborated", actor=mask,
+        payload={
+            "site": "red_cord", "day": day, "hour": hour,
+            "role": "wanderer", "action": "corroborate",
+            "location": room.key, "cord_object_id": cord.id,
+            "hound_source_event_id": hound["event_id"],
+            "wanderer_source_event_id": state["field_decisions"]["wanderer"]["event_id"],
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "hound_source_event_id": hound["event_id"]}, None
+
+
+def _signed_hound_source(square, day, hour):
+    """Return only a current, physical, completed Hound source."""
+    state = route_surveys.refresh(square.db.daily_route_survey, day)
+    if state["day"] != day:
+        return None
+    source = state["field_decisions"].get("hound")
+    if not isinstance(source, Mapping):
+        return None
+    spec = LANDMARKS["red_cord"]
+    rooms = [room for room in search.search_object(spec["room"])
+             if room.key == spec["room"] and room.location is None]
+    if len(rooms) != 1:
+        return None
+    cord = next((obj for obj in rooms[0].contents
+                 if obj.key == spec["key"]
+                 and getattr(obj.db, "landmark_id", None) == "red_cord"), None)
+    if cord is None:
+        return None
+    marker = getattr(cord.db, "route_caution", None)
+    if not isinstance(marker, Mapping):
+        return None
+    source_id = source.get("event_id")
+    account_id = source.get("account_id")
+    if (marker.get("event_id") != source_id
+            or marker.get("account_id") != account_id
+            or marker.get("day") != day):
+        return None
+    signed = get_event_ledger().get_event(source_id)
+    if (not isinstance(signed, Mapping)
+            or signed.get("id") != source_id
+            or signed.get("status") != "complete"
+            or signed.get("kind") != "village.route_protected"):
+        return None
+    actor, payload, effect = (
+        signed.get("actor"), signed.get("payload"), signed.get("consequence"))
+    if not all(isinstance(item, Mapping) for item in (actor, payload, effect)):
+        return None
+    source_hour = payload.get("hour")
+    # Public attribution is a signed fact, not an editable Square label.
+    # Compare the historical name captured by the event, not the mask's
+    # potentially renamed current key.
+    if (not isinstance(actor.get("mask"), str)
+            or source.get("mask") != actor["mask"][:70]):
+        return None
+    if (not isinstance(source_hour, int) or isinstance(source_hour, bool)
+            or not 0 <= source_hour <= hour <= 23
+            or actor.get("account_id") != account_id
+            or not route_surveys._positive(actor.get("mask_id"))
+            or payload.get("day") != day
+            or payload.get("site") != "red_cord"
+            or payload.get("role") != "hound"
+            or payload.get("action") != "protect"
+            or payload.get("location") != spec["room"]
+            or effect.get("cord_object_id") != cord.id
+            or effect.get("square_room_id") != square.id
+            or effect.get("site") != "red_cord"
+            or effect.get("day") != day
+            or effect.get("role") != "hound"
+            or effect.get("action") != "protect"
+            or effect.get("caution_marked") is not True):
+        return None
+    return {
+        "source_event_id": source_id,
+        "source_account_id": account_id,
+        "source_mask_id": actor["mask_id"],
+        "source_cord_id": cord.id,
+        "source_hour": source_hour,
+    }
+
+
+def _verified_notice(square, state, day):
+    notice = state.get("caution_notice")
+    if not notice:
+        return False
+    source = _signed_hound_source(square, day, 23)
+    if not source or any(notice.get(k) != v for k, v in source.items()):
+        return False
+    signed = get_event_ledger().get_event(notice["event_id"])
+    if (not isinstance(signed, Mapping)
+            or signed.get("id") != notice["event_id"]
+            or signed.get("status") != "complete"
+            or signed.get("kind") != "village.route_caution_published"):
+        return False
+    actor, payload, effect = (
+        signed.get("actor"), signed.get("payload"), signed.get("consequence"))
+    if not all(isinstance(v, Mapping) for v in (actor, payload, effect)):
+        return False
+    return (
+        actor.get("account_id") == notice["account_id"]
+        and actor.get("mask_id") == notice["mask_id"]
+        and isinstance(actor.get("mask"), str)
+        and actor["mask"][:70] == notice["mask"]
+        and payload.get("day") == day
+        and payload.get("hour") == notice["hour"]
+        and payload.get("source_event_id") == notice["source_event_id"]
+        and effect.get("square_room_id") == square.id
+        and effect.get("source_event_id") == notice["source_event_id"]
+        and effect.get("publication_event_id") == notice["event_id"]
+    )
+
+
+def _chronicler_inspected_source(mask, day, source):
+    """Require a physical look at this particular signed Hound marker.
+
+    Whole-hour timestamps cannot order two actions within an hour.
+    The private inspection stamp must identify the source event actually
+    present on the original cord when the Chronicler looked.
+    """
+    db = getattr(mask, "db", None)
+    if db is None:
+        return False
+    if not any(row["id"] == "red_cord" for row in
+               known_landmarks(getattr(db, "landmark_discoveries", None))):
+        return False
     try:
-        event = publish_world_event(
-            "village.route_protected" if role == "hound"
-            else "village.route_passability_observed",
-            actor=mask,
-            payload={"site": site, "day": day, "hour": hour,
-                     "role": role, "action": action, "location": room.key,
-                     "harbinger": False, "chronicle_eligible": False},
-            consequence=consequence,
+        latest = dict(getattr(db, "landmark_latest_view", None) or {}).get("red_cord")
+    except (TypeError, ValueError, AttributeError):
+        return False
+    if not isinstance(latest, Mapping):
+        return False
+    observed_day, observed_hour = latest.get("day"), latest.get("hour")
+    return (type(observed_day) is int and observed_day == day
+            and type(observed_hour) is int
+            and source["source_hour"] <= observed_hour <= 23
+            and type(latest.get("route_caution_event_id")) is int
+            and latest["route_caution_event_id"] == source["source_event_id"]
+            and type(latest.get("route_caution_cord_id")) is int
+            and latest["route_caution_cord_id"] == source["source_cord_id"])
+
+
+def publish_caution(mask):
+    """Chronicler publishes a bounded public warning after a Hound's act."""
+    account = getattr(mask, "account", None)
+    if account is None or active_calling(mask) != "chronicler":
+        return None, "An authenticated Chronicler is required."
+    square = _square()
+    if square is None or mask.location != square:
+        return None, "Visit the Village Square route board."
+    day, hour = _day_hour()
+    source = _signed_hound_source(square, day, hour)
+    if not source:
+        return None, "A completed Hound protection of the real cord is required today."
+    if not _chronicler_inspected_source(mask, day, source):
+        return None, ("Examine the real red cord at Northern Treeline today "
+                      "and return to the Square before publishing.")
+    original_account = account.id
+    base = {"day": day, "hour": hour, "account_id": original_account,
+            "mask_id": mask.id, "mask": mask.key, **source}
+    _state, accepted, reason = route_surveys.publish_caution(
+        square.db.daily_route_survey, event_id=source["source_event_id"] + 1, **base)
+    if not accepted:
+        return None, reason
+
+    def consequence(event):
+        with transaction.atomic():
+            current_account = getattr(mask, "account", None)
+            if (mask.location != square or current_account is None
+                    or current_account.id != original_account
+                    or active_calling(mask) != "chronicler"):
+                raise RuntimeError("The Chronicler changed account, Calling or location.")
+            try:
+                connected = bool(current_account.sessions.all())
+            except (AttributeError, TypeError):
+                connected = False
+            if not connected:
+                raise RuntimeError("The Chronicler disconnected before publication.")
+            if _day_hour() != (day, hour):
+                raise RuntimeError("Village time changed before publication.")
+            if not _chronicler_inspected_source(mask, day, source):
+                raise RuntimeError("The Chronicler's firsthand cord inspection changed.")
+            if _signed_hound_source(square, day, hour) != source:
+                raise RuntimeError("The physical Hound source changed.")
+            updated, ok, why = route_surveys.publish_caution(
+                square.db.daily_route_survey, event_id=event["id"], **base)
+            if not ok:
+                raise RuntimeError(why)
+            square.db.daily_route_survey = updated
+            return {"square_room_id": square.id, "day": day, "hour": hour,
+                    "source_event_id": source["source_event_id"],
+                    "publication_event_id": event["id"]}
+    event = publish_world_event(
+        "village.route_caution_published", actor=mask,
+        payload={"day": day, "hour": hour,
+                 "source_event_id": source["source_event_id"],
+                 "harbinger": False, "chronicle_eligible": False},
+        consequence=consequence,
+    )
+    record_participation(mask, "route_caution_publication", calling="chronicler")
+    return {"event_id": event["id"], "source_event_id": source["source_event_id"]}, None
+
+
+def _river_context(mask):
+    """Return the original river gauge after a current firsthand examination."""
+    from world.discoveries import LANDMARKS, normalize as discoveries
+    if not getattr(mask, "account", None):
+        return None, None, None, "A logged-in player mask is required."
+    site = "river_gauge"
+    room = getattr(mask, "location", None)
+    if (room is None or room.key != LANDMARKS[site]["room"]
+            or not room.tags.has("ic", category="side")):
+        return None, None, None, "Travel to Riverside Path and inspect the gauge."
+    gauges = [
+        obj for obj in room.contents
+        if obj.key == LANDMARKS[site]["key"]
+        and getattr(obj.db, "landmark_id", None) == site
+        and obj.access(mask, "view", default=True)
+    ]
+    if len(gauges) != 1:
+        return None, None, None, "The original river gauge cannot be uniquely verified."
+    gauge = gauges[0]
+    day, hour = _day_hour()
+    try:
+        recent = dict(mask.db.landmark_latest_view or {}).get(site) or {}
+        seen = int(recent.get("day") or 0) == day
+    except (TypeError, ValueError, OverflowError):
+        seen = False
+    if not seen or not any(row["id"] == site for row in discoveries(mask.db.landmark_discoveries)):
+        return None, None, None, "Examine the actual river gauge here today first."
+    return room, gauge, (day, hour), None
+
+
+def river_status(mask):
+    """Read only public source-limited evidence at the existing gauge."""
+    from world import river_evidence
+    room = getattr(mask, "location", None)
+    if room is None or room.key != "Riverside Path":
+        return "Visit the original river gauge on Riverside Path."
+    gauges = [
+        obj for obj in room.contents
+        if obj.key == "a river gauge"
+        and getattr(obj.db, "landmark_id", None) == "river_gauge"
+    ]
+    if len(gauges) != 1:
+        return "The original river gauge cannot be uniquely verified."
+    gauge = gauges[0]
+    day, _hour = _day_hour()
+    state = river_evidence.normalize(gauge.db.river_evidence)
+    witness, review = state["witness"], state["review"]
+    from world.events import get_event_ledger
+    ledger = get_event_ledger()
+    witness_event = (ledger.get_event(witness["event_id"]) if witness else None)
+    review_event = (ledger.get_event(review["event_id"]) if review else None)
+    return "\n".join(river_evidence.verified_public_lines(
+        state, day, gauge_id=gauge.id, room_id=room.id,
+        witness_event=witness_event, review_event=review_event,
+    ))
+
+
+def _verified_river_source(gauge, room, witness):
+    """Check completed canonical source, not just mutable object attributes."""
+    from world.events import get_event_ledger
+    if not witness:
+        return False
+    event = get_event_ledger().get_event(witness["event_id"])
+    if (not isinstance(event, Mapping)
+            or event.get("kind") != "village.river_gauge_witnessed"
+            or event.get("status") != "complete"
+            or type(event.get("id")) is not int
+            or event["id"] != witness["event_id"]):
+        return False
+    actor, payload, consequence = (
+        event.get("actor"), event.get("payload"), event.get("consequence"))
+    if not all(isinstance(part, Mapping)
+               for part in (actor, payload, consequence)):
+        return False
+    return (
+        type(actor.get("account_id")) is int
+        and actor["account_id"] == witness["account_id"]
+        and type(actor.get("mask_id")) is int
+        and actor["mask_id"] == witness["mask_id"]
+        and actor.get("mask") == witness["mask"]
+        and payload.get("calling") == "wanderer"
+        and type(payload.get("day")) is int
+        and payload["day"] == witness["day"]
+        and type(payload.get("hour")) is int
+        and payload["hour"] == witness["hour"]
+        and type(payload.get("object_id")) is int
+        and payload["object_id"] == gauge.id == witness["object_id"]
+        and type(payload.get("room_id")) is int
+        and payload["room_id"] == room.id
+        and payload.get("location") == "Riverside Path"
+        and type(consequence.get("gauge_object_id")) is int
+        and consequence["gauge_object_id"] == gauge.id
+        and type(consequence.get("witness_event_id")) is int
+        and consequence["witness_event_id"] == witness["event_id"]
+        and type(consequence.get("account_id")) is int
+        and consequence["account_id"] == witness["account_id"]
+    )
+
+
+def river_action(mask, action):
+    """EDGE-37: Wanderer observes; independent Detective preserves comparison."""
+    from world import river_evidence
+    if action not in {"gauge", "compare"}:
+        return None, "Use survey gauge (Wanderer) or survey compare (Detective)."
+    role = "wanderer" if action == "gauge" else "detective"
+    if active_calling(mask) != role:
+        return None, f"An active {role.title()} must sign this action."
+    room, gauge, stamp, error = _river_context(mask)
+    if error:
+        return None, error
+    day, hour = stamp
+    raw = gauge.db.river_evidence
+    source = river_evidence.normalize(raw)["witness"]
+    if action == "compare" and not _verified_river_source(gauge, room, source):
+        return None, "The signed, completed Wanderer source cannot be verified."
+    # Preview checks feasibility only; it does not reserve a ledger ID.
+    # If the first genuine Wanderer event is ID 1, the Detective preview
+    # must not reuse that signed source and reject otherwise valid gameplay.
+    preview_id = source["event_id"] + 1 if action == "compare" else 1
+    kwargs = dict(day=day, hour=hour, account_id=mask.account.id,
+                  mask_id=mask.id, mask=mask.key, event_id=preview_id,
+                  object_id=gauge.id)
+    if action == "gauge":
+        _candidate, ok, why = river_evidence.witness(raw, **kwargs)
+    else:
+        _candidate, ok, why = river_evidence.compare(
+            raw, source_event_id=source["event_id"], **kwargs
         )
-    except RuntimeError as error:
-        # A competing player or advancing village clock can invalidate the
-        # physical action after preflight. The ledger records the rejection;
-        # give the player a recoverable message, never a server traceback.
-        return None, str(error)
-    return {"event_id": event["id"], "role": role, "action": action,
-            "renewed": outcome["renewed"]}, None
+    if not ok:
+        return None, why
+
+    def consequence(event):
+        with transaction.atomic():
+            current_room, current_gauge, current_stamp, issue = _river_context(mask)
+            if (issue or current_room != room or current_gauge != gauge
+                    or current_stamp != stamp or active_calling(mask) != role):
+                raise RuntimeError("The physical witness, Calling or village time changed.")
+            actual = gauge.db.river_evidence
+            fields = dict(kwargs, event_id=event["id"])
+            if action == "gauge":
+                changed, accepted, reason = river_evidence.witness(actual, **fields)
+            else:
+                actual_source = river_evidence.normalize(actual)["witness"]
+                if not _verified_river_source(gauge, room, actual_source):
+                    raise RuntimeError("The completed Wanderer source changed.")
+                changed, accepted, reason = river_evidence.compare(
+                    actual, source_event_id=actual_source["event_id"], **fields
+                )
+            if not accepted:
+                raise RuntimeError(reason)
+            gauge.db.river_evidence = changed
+            record_participation(mask, "river_gauge_witnesses" if action == "gauge"
+                                 else "river_evidence_comparisons", calling=role)
+            return {
+                "gauge_object_id": gauge.id, "room_id": room.id,
+                "witness_event_id": (event["id"] if action == "gauge"
+                                     else changed["witness"]["event_id"]),
+                "account_id": mask.account.id,
+                "review_event_id": (event["id"] if action == "compare" else None),
+                "source_event_id": (changed["review"]["source_event_id"]
+                                    if changed["review"] else None),
+            }
+
+    event = publish_world_event(
+        "village.river_gauge_witnessed" if action == "gauge"
+        else "village.river_evidence_compared",
+        actor=mask,
+        payload={
+            "day": day, "hour": hour, "calling": role,
+            "object_id": gauge.id, "room_id": room.id, "location": room.key,
+            "source_event_id": source["event_id"] if action == "compare" else None,
+            "harbinger": False, "chronicle_eligible": False,
+        },
+        consequence=consequence,
+    )
+    return {"event_id": event["id"], "action": action,
+            "lines": river_status(mask)}, None

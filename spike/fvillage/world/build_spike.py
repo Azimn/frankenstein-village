@@ -171,6 +171,7 @@ for _room_obj, _line in (
     (lamp_shop, "South, the cobbles widen into Market Lane."),
     (tavern, "East, a damp path follows the river toward the old bridge."),
     (market_lane, "East, a public repair workshop opens off the market stalls."),
+    (market_lane, "Merchants can procure sealed clinic linen here with clinic procure."),
 ):
     if _line not in str(_room_obj.db.desc or ""):
         _room_obj.db.desc = (str(_room_obj.db.desc or "").rstrip() + " " + _line)
@@ -1181,7 +1182,8 @@ stage_platform = get_or_create_scenery(
     "polished by years of boots. This is a place for actual musicians, "
     "not a promise of automatic applause. Try stage to read the public "
     "record, stage rehearse ballad or reel, stage perform, or stage witness "
-    "when somebody really plays.",
+    "when somebody really plays. Detectives can inspect the platform and "
+    "use stage investigate after a signed show, without declaring an alibi.",
     aliases=["stage", "platform", "tavern stage"],
 )
 stage_platform.locks.add("get:false()")
