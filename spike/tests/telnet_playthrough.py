@@ -336,6 +336,21 @@ def main() -> int:
         require_all(out, "active calling: mystic", "mystic grave studies 1")
         out = c.command("mystic")
         require_all(out, "mystictester", "signed measured study")
+        # T-11: public study knowledge is not a firsthand physical witness.
+        # The separate ordinary Chronicler must visit the original grave,
+        # while an absent third account must not acquire the observation.
+        remote = c.command("look grave marker")
+        if "older engraved date advances" in remote.lower():
+            raise AssertionError("Distant account saw physical grave event")
+        require(c.command("west"), "st. lazarus church")
+        require(c.command("west"), "churchyard")
+        second_observation = c.command("look grave marker")
+        require_all(second_observation, "older engraved date advances",
+                    "groove itself changes shape", "original cutting slowly returns")
+        require(c.command("mystic study measure"), "only an active mystic")
+        require(c.command("east"), "st. lazarus church")
+        require(c.command("east"), "village square")
+        print("TELNET_GDD_T11_SECOND_PHYSICAL_OBSERVER_GREEN")
         print("TELNET_MYSTIC_GUILD_AND_GOTHIC_OBSERVATION_GREEN")
 
         out = c.command("next")
@@ -2262,7 +2277,11 @@ def main() -> int:
         require_all(out, "1 of 4", "smithtester", "not yet inspected")
 
         out = c.command("journal discoveries")
-        require(out, "not personally inspected")
+        # The actual T-11 grave visit is personal. Smith's river inspection
+        # must still not become this Chronicler's firsthand field note.
+        require(out, "weathered grave marker")
+        if "river gauge" in out.lower():
+            raise AssertionError("Another account's river survey leaked into this journal")
         out = c.command("west")
         require(out, "village square")
         out = c.command("west")
