@@ -75,6 +75,56 @@ class RouteHistoryTests(unittest.TestCase):
         for value in (-1, True, "1", 0):
             self.assertEqual(route.history_records(raw, 2, selected_day=value), [])
 
+    def test_event_source_guard_rejects_forged_attribution(self):
+        # Test the actual production pure verifier without an Evennia import.
+        import ast
+        from collections.abc import Mapping
+        source = (Path(__file__).resolve().parents[2]
+                  / "spike/fvillage/world/route_work.py")
+        module = ast.parse(source.read_text(encoding="utf-8"))
+        function = next(node for node in module.body
+                        if isinstance(node, ast.FunctionDef)
+                        and node.name == "_verified_history_report")
+        scope = {"Mapping": Mapping, "LANDMARKS": {
+            "river_gauge": {"room": "Riverside Path"},
+        }}
+        exec(compile(ast.Module(body=[function], type_ignores=[]),
+                     str(source), "exec"), scope)
+        guard = scope["_verified_history_report"]
+        record = {"account_id": 7, "mask": "Witness", "event_id": 19}
+        event = {
+            "id": 19, "status": "complete", "kind": "village.route_inspected",
+            "actor": {"account_id": 7, "mask_id": 38, "mask": "Witness"},
+            "payload": {"site": "river_gauge", "day": 1, "hour": 21,
+                        "location": "Riverside Path"},
+            "consequence": {"site": "river_gauge", "day": 1},
+        }
+        self.assertTrue(guard("river_gauge", record, event, 1))
+        for category, field, wrong in (
+            ("event", "status", "failed"),
+            ("event", "kind", "village.route_protected"),
+            ("event", "id", 20),
+            ("actor", "account_id", 8),
+            ("actor", "mask", "Impostor"),
+            ("actor", "mask_id", True),
+            ("payload", "day", 2),
+            ("payload", "hour", 24),
+            ("payload", "location", "Village Square"),
+            ("consequence", "site", "grave_marker"),
+        ):
+            with self.subTest(category=category, field=field):
+                altered = copy.deepcopy(event)
+                altered[field] = wrong if category == "event" else altered.get(field)
+                if category != "event":
+                    altered[category][field] = wrong
+                self.assertFalse(
+                    guard("river_gauge", record, altered, 1),
+                    "A forged or failed world-event source was shown as signed",
+                )
+        self.assertFalse(guard("river_gauge", dict(record, event_id=True), event, 1))
+        self.assertFalse(guard("river_gauge", record, None, 1))
+
+
 
 if __name__ == "__main__":
     unittest.main()
