@@ -186,8 +186,14 @@ def _verified_history_report(site, record, event, day):
         return False
     hour = payload.get("hour")
     return (
-        type(record.get("event_id")) is int and type(record.get("account_id")) is int
-        and event.get("id") == record["event_id"]
+        type(record.get("event_id")) is int and record["event_id"] > 0
+        and type(record.get("account_id")) is int and record["account_id"] > 0
+        and type(event.get("id")) is int and event["id"] > 0
+        and type(actor.get("account_id")) is int and actor["account_id"] > 0
+        and type(payload.get("day")) is int and payload["day"] > 0
+        and type(effect.get("day")) is int and effect["day"] > 0
+        and type(day) is int and day > 0
+        and event["id"] == record["event_id"]
         and event.get("status") == "complete" and event.get("kind") == "village.route_inspected"
         and actor.get("account_id") == record["account_id"]
         and actor.get("mask") == record.get("mask")
