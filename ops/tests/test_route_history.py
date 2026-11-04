@@ -121,6 +121,31 @@ class RouteHistoryTests(unittest.TestCase):
                     guard("river_gauge", record, altered, 1),
                     "A forged or failed world-event source was shown as signed",
                 )
+        # Ledger-side bools must never authenticate numeric identities or days.
+        for category, field in (
+            ("event", "id"),
+            ("actor", "account_id"),
+            ("payload", "day"),
+            ("consequence", "day"),
+        ):
+            with self.subTest(ledger_bool=(category, field)):
+                altered = copy.deepcopy(event)
+                if category == "event":
+                    altered[field] = True if field == "id" else False
+                    saved = dict(record, event_id=1)
+                    altered["id"] = True
+                else:
+                    altered[category][field] = True if field == "day" else False
+                    saved = dict(record)
+                    if category == "actor":
+                        saved["account_id"] = 0
+                self.assertFalse(
+                    guard("river_gauge", saved, altered, 1),
+                    "Boolean ledger fields must not authenticate signed history",
+                )
+        # Positive ID checks are independent of Python bool/int equality.
+        self.assertFalse(guard("river_gauge", dict(record, event_id=0), dict(event, id=0), 1))
+        self.assertFalse(guard("river_gauge", record, event, True))
         self.assertFalse(guard("river_gauge", dict(record, event_id=True), event, 1))
         self.assertFalse(guard("river_gauge", record, None, 1))
 
