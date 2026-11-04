@@ -135,10 +135,8 @@ class RouteHistoryTests(unittest.TestCase):
                     saved = dict(record, event_id=1)
                     altered["id"] = True
                 else:
-                    altered[category][field] = True if field == "day" else False
-                    saved = dict(record)
-                    if category == "actor":
-                        saved["account_id"] = 0
+                    altered[category][field] = True
+                    saved = dict(record, account_id=1) if category == "actor" else dict(record)
                 self.assertFalse(
                     guard("river_gauge", saved, altered, 1),
                     "Boolean ledger fields must not authenticate signed history",
