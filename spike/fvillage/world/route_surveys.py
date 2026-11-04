@@ -169,6 +169,78 @@ def refresh(raw, day):
     return state
 
 
+def history_records(raw, day, *, limit=5, selected_day=None):
+    """Public, read-only snapshots of previous village days, newest first.
+
+    A day transition can be viewed before the next report is signed. Archive
+    rows are normalized through the same public report and field-decision
+    validators, so unrelated private keys and malformed receipts never leak.
+    The stored record is not mutated and no new canonical state is created.
+    """
+    if type(day) is not int or day < 1 or type(limit) is not int or not 1 <= limit <= 10:
+        return []
+    state = refresh(raw, day)
+    # Exact-day lookups may inspect the whole retained archive, but never
+    # private keys, dates at/after the current day, or malformed day values.
+    if selected_day is not None and (
+        type(selected_day) is not int or selected_day < 1
+    ):
+        return []
+    try:
+        count = max(0, min(10, int(limit)))
+    except (TypeError, ValueError, OverflowError):
+        count = 0
+    if count == 0:
+        return []
+    rows = []
+    for raw_row in state["history"][-MAX_HISTORY:]:
+        if not isinstance(raw_row, Mapping):
+            continue
+        try:
+            old_day = int(raw_row.get("day"))
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if (isinstance(raw_row.get("day"), bool)
+                or old_day < 1 or old_day >= state["day"]):
+            continue
+        reports = raw_row.get("reports")
+        decisions = raw_row.get("field_decisions")
+        safe_reports = {
+            site: entry for site, entry in (reports.items() if isinstance(reports, Mapping) else ())
+            if site in SITES and isinstance(entry, Mapping)
+            and type(entry.get("account_id")) is int and entry["account_id"] > 0
+            and type(entry.get("event_id")) is int and entry["event_id"] > 0
+        }
+        safe_decisions = {
+            role: entry for role, entry in (decisions.items() if isinstance(decisions, Mapping) else ())
+            if role in {"hound", "wanderer"} and isinstance(entry, Mapping)
+            and type(entry.get("account_id")) is int and entry["account_id"] > 0
+            and type(entry.get("event_id")) is int and entry["event_id"] > 0
+        }
+        clean = normalize({
+            "day": old_day,
+            "reports": safe_reports,
+            "field_decisions": safe_decisions,
+        })
+        rows.append({
+            "day": old_day,
+            "completed": len(clean["reports"]) == len(SITES),
+            "reports": clean["reports"],
+            "field_decisions": clean["field_decisions"],
+        })
+    if selected_day is not None:
+        matches = [row for row in rows if row["day"] == selected_day]
+        return matches if len(matches) == 1 else []
+    unique = {}
+    duplicate_days = set()
+    for row in rows:
+        if row["day"] in unique:
+            duplicate_days.add(row["day"])
+        unique[row["day"]] = row
+    for duplicate in duplicate_days:
+        unique.pop(duplicate, None)
+    return [unique[d] for d in sorted(unique, reverse=True)[:count]]
+
 def report(raw, day, ident, account_id, mask, event_id):
     state = refresh(raw, day)
     if day < state["day"]:

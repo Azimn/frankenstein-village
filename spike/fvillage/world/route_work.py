@@ -151,6 +151,7 @@ def status_lines():
         "about the survey (|wask <resident> about survey|n); they may "
         "recognize the person who signed a real inspection."
     )
+    lines.append("Use |wsurvey history|n for earlier signed route days or |wsurvey history <day>|n for a retained day.")
     if state["history"]:
         prior = state["history"][-1]
         lines.append(
@@ -173,6 +174,94 @@ def status_lines():
                 "The prior day's signed route map is archived, not a live forecast."
                 if signed else "The prior day's stored map is unverified, not a signed edition."
             )
+    return "\n".join(lines)
+
+
+def _verified_history_report(site, record, event, day):
+    """Never display a stored archive attribution as signed without its event."""
+    if not isinstance(record, Mapping) or not isinstance(event, Mapping):
+        return False
+    actor, payload, effect = event.get("actor"), event.get("payload"), event.get("consequence")
+    if not all(isinstance(v, Mapping) for v in (actor, payload, effect)):
+        return False
+    hour = payload.get("hour")
+    return (
+        type(record.get("event_id")) is int and record["event_id"] > 0
+        and type(record.get("account_id")) is int and record["account_id"] > 0
+        and type(event.get("id")) is int and event["id"] > 0
+        and type(actor.get("account_id")) is int and actor["account_id"] > 0
+        and type(payload.get("day")) is int and payload["day"] > 0
+        and type(effect.get("day")) is int and effect["day"] > 0
+        and type(day) is int and day > 0
+        and event["id"] == record["event_id"]
+        and event.get("status") == "complete" and event.get("kind") == "village.route_inspected"
+        and actor.get("account_id") == record["account_id"]
+        and actor.get("mask") == record.get("mask")
+        and type(actor.get("mask_id")) is int and actor["mask_id"] > 0
+        and payload.get("site") == site and payload.get("day") == day
+        and payload.get("location") == LANDMARKS[site]["room"]
+        and type(hour) is int and 0 <= hour <= 23
+        and effect.get("site") == site and effect.get("day") == day
+    )
+
+
+def history_lines(day_filter=None):
+    """Project saved, source-checked earlier-day observations without writes."""
+    square = _square()
+    if square is None:
+        return "The route report is unavailable; the Square is missing."
+    day, _hour = _day_hour()
+    rows = route_surveys.history_records(square.db.daily_route_survey, day,
+                                         selected_day=day_filter)
+    lines = ["|wSigned village route history|n"]
+    if not rows:
+        if day_filter is None:
+            lines.append("No earlier village day has an archived route record yet.")
+        else:
+            lines.append(f"No signed route archive is retained for village day {day_filter}.")
+        return "\n".join(lines)
+    ledger = get_event_ledger()
+    spec = LANDMARKS["red_cord"]
+    room = next((r for r in search.search_object(spec["room"])
+                 if r.key == spec["room"] and r.location is None), None)
+    cord = next((o for o in room.contents
+                 if o.key == spec["key"]
+                 and getattr(o.db, "landmark_id", None) == "red_cord"), None) if room else None
+    for row in rows:
+        verified = {}
+        for site, receipt in row["reports"].items():
+            if _verified_history_report(site, receipt, ledger.get_event(receipt["event_id"]), row["day"]):
+                verified[site] = receipt
+        lines.append(
+            f"Village day {row['day']}: "
+            f"{'complete' if len(verified) == len(route_surveys.SITES) else 'unfinished'} "
+            f"({len(verified)} of {len(route_surveys.SITES)} verified checkpoints)."
+        )
+        for site in route_surveys.SITES:
+            receipt = verified.get(site)
+            if receipt:
+                lines.append(
+                    f"  {LANDMARKS[site]['room']}: {receipt['mask']} "
+                    f"(signed event {receipt['event_id']})."
+                )
+        if len(verified) != len(row["reports"]):
+            lines.append("  Unverified historical checkpoint attributions were withheld.")
+        signed_fields = {}
+        if cord is not None:
+            for role, receipt in row["field_decisions"].items():
+                event = ledger.get_event(receipt["event_id"])
+                if route_surveys.verify_signed_field_source(
+                    event, receipt, role, row["day"], 23, cord.id, square.id
+                ):
+                    signed_fields[role] = receipt
+        field_state = {"day": row["day"], "reports": {}, "field_decisions": signed_fields}
+        lines.extend("  " + item for item in route_surveys.field_lines(field_state))
+        if len(signed_fields) != len(row["field_decisions"]):
+            lines.append("  Unverified historical field attributions were withheld.")
+    lines.append(
+        "These are dated observations and signed actions, not proof of "
+        "what caused a hazard or whether the route is safe today."
+    )
     return "\n".join(lines)
 
 

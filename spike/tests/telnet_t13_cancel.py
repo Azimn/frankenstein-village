@@ -26,6 +26,21 @@ def main():
                            "SmithTester", "Village Square")
         carrier = connect(args.host, args.port, "qa_merchant_repair", password,
                           "MerchantTester", "The Blood of the Vine")
+        # Both real players read the same original signed archive after restart.
+        recent = supplier.command("survey history")
+        require_all(recent, "signed village route history", "village day 1",
+                    "wanderertester", "houndtester", "unmarked cord",
+                    "not proof of what caused a hazard")
+        dated = carrier.command("survey history 1")
+        require_all(dated, "village day 1", "wanderertester",
+                    "houndtester", "unmarked cord")
+        require_all(supplier.command("survey history 999"),
+                    "no signed route archive", "village day 999")
+        require(supplier.command("survey history tomorrow"),
+                "survey history <positive village day>")
+        require_all(supplier.command("survey"),
+                    "previous surveyed day 1", "use survey history")
+        print("TELNET_POST_RESTART_SIGNED_ROUTE_HISTORY_GREEN")
         out = supplier.command("commission")
         require_all(out, "village commission", "open")
         out = supplier.command("hearth gather")
