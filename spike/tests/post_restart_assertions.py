@@ -1762,6 +1762,35 @@ assert _mystic_event["status"] == "complete"
 assert _mystic_event["payload"]["observation_quality"] == "firsthand"
 assert _mystic_event["actor"]["mask_id"] == _mystic_mask.id
 assert _mystic_event["consequence"]["observed_grave_id"] > 0
+# T-11: real server restart must preserve two independent physical witnesses.
+# A third absent authenticated character cannot inherit either record.
+_first_witness = dict(_mystic_mask.db.mystic_grave_witness or {})
+_second_witness = dict(smoke.db.mystic_grave_witness or {})
+assert _first_witness and _second_witness, "Two firsthand observers missing"
+assert _first_witness["account_id"] != _second_witness["account_id"]
+assert _first_witness["mask_id"] == _mystic_mask.id
+assert _second_witness["mask_id"] == smoke.id
+assert _first_witness["day"] == _second_witness["day"] == _signed_study["day"]
+assert _first_witness["hour"] in (21, 22)
+assert _second_witness["hour"] in (21, 22)
+assert _first_witness["grave_id"] == _second_witness["grave_id"] == (
+    _mystic_event["consequence"]["observed_grave_id"]
+)
+assert not healer_tester.db.mystic_grave_witness, (
+    "An absent Healer acquired another account's firsthand grave witness"
+)
+# After disconnect .account no longer points to the player. Use durable
+# AccountDB character ownership rather than assuming an active puppet.
+_healer_owner = next(
+    (account for account in AccountDB.objects.all()
+     if any(char.id == healer_tester.id for char in account.characters.all())),
+    None,
+)
+assert _healer_owner is not None, "Third observer's durable account is missing"
+assert _healer_owner.id not in (
+    _first_witness["account_id"], _second_witness["account_id"]
+)
+print("POST_RESTART_GDD_T11_TWO_WITNESSES_ONE_ABSENT_GREEN")
 for _resident_id in ("beatrice_harcourt", "mirela_dobre"):
     _resident = RESIDENT_BY_ID[_resident_id]
     assert _resident["faction"] == "Guild of Mystics"
