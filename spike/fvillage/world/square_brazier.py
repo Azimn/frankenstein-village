@@ -83,7 +83,9 @@ def _verified_gather(bundle):
     payload = dict(source.get("payload") or {})
     consequence = dict(source.get("consequence") or {})
     return (
-        source.get("id") == source_id
+        type(source.get("id")) is int
+        and source["id"] > 0
+        and source["id"] == source_id
         and source.get("kind") == "civic.hearth_firewood_gathered"
         and source.get("status") == "complete"
         and type(actor.get("mask_id")) is int
@@ -91,10 +93,14 @@ def _verified_gather(bundle):
         and type(actor.get("account_id")) is int
         and actor["account_id"] > 0
         and payload.get("resource") == FIREWOOD_KEY
-        and payload.get("day") == source_day
+        and type(payload.get("day")) is int
+        and payload["day"] > 0
+        and payload["day"] == source_day
         and type(payload.get("hour")) is int
         and 0 <= payload["hour"] <= 23
-        and consequence.get("bundle_id") == bundle.id
+        and type(consequence.get("bundle_id")) is int
+        and consequence["bundle_id"] > 0
+        and consequence["bundle_id"] == bundle.id
         and type(consequence.get("woodpile_object_id")) is int
         and consequence["woodpile_object_id"] > 0
     )
