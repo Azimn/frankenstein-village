@@ -8,6 +8,8 @@ class CmdSurvey(Command):
     Usage:
         survey
         survey report
+        survey history          (recent recorded days)
+        survey history <day>    (a particular retained day)
         survey protect       (Hound, Northern Treeline)
         survey passability   (Wanderer, Northern Treeline)
         survey dispatch      (Hound, inspected signed original cord)
@@ -40,6 +42,17 @@ class CmdSurvey(Command):
         verb = (self.args or "").strip().lower()
         if verb in {"", "status", "help"}:
             caller.msg(route_work.status_lines())
+            return
+        if verb == "history":
+            caller.msg(route_work.history_lines())
+            return
+        if verb.startswith("history "):
+            text = verb[len("history "):].strip()
+            if (not text.isascii() or not text.isdecimal()
+                    or len(text) > 12 or int(text) < 1):
+                caller.msg("Use: survey history | survey history <positive village day>")
+                return
+            caller.msg(route_work.history_lines(day_filter=int(text)))
             return
         if verb == "dispatch":
             from world import refuge_work
@@ -174,4 +187,4 @@ class CmdSurvey(Command):
                 exclude=[caller],
             )
             return
-        caller.msg("Use: survey | survey report | survey protect | survey passability | survey publish | survey corroborate | survey caution | survey preserve | survey custody | survey gauge | survey compare | survey evidence | survey dispatch")
+        caller.msg("Use: survey | survey history [day] | survey report | survey protect | survey passability | survey publish | survey corroborate | survey caution | survey preserve | survey custody | survey gauge | survey compare | survey evidence | survey dispatch")
