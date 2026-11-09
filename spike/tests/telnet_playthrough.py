@@ -2464,6 +2464,15 @@ def main() -> int:
         )
         out = merchant.command("workshop install")
         require(out, "carry an actual forged market hinge")
+        # EDGE-02 prep: capture the workshop docket's own day while the
+        # market installation is today's news, so the later kitchen-Smith
+        # read can be checked against the day the work actually happened,
+        # whether or not the village clock rolls over in between.
+        out = merchant.command("workshop")
+        require(out, "MerchantTester installed a real replacement market hinge")
+        workshop_day_match = re.search(r"Village day (\d+):", out)
+        assert workshop_day_match, out
+        workshop_day = int(workshop_day_match.group(1))
         out = c.command("look market fittings board")
         require_all(out, "MerchantTester", "signed", "forged source")
         out = smith.command("agent")
@@ -2509,8 +2518,30 @@ def main() -> int:
             require(out, expected)
         require(smith_kitchen.command("soup repair"),
                 "physically at The Blood of the Vine")
-        require_all(smith_kitchen.command("workshop"),
-                    "Village day 1", "iron offcuts")
+        # Clock-rollover tolerance (harness fix, 2026-11-08): the original
+        # check demanded the literal "Village day 1", assuming the whole
+        # playthrough finishes before midnight. The workshop docket is
+        # day-keyed: a new day archives the previous day's crafts and
+        # installation into its recorded history and replenishes the two
+        # iron offcuts (world/workshop_state.refresh). Check the docket
+        # against the captured workshop_day either way, so the test keeps
+        # proving finite-stock conservation and that the signed market
+        # installation persists — on the same day in today's lines, or
+        # after rollover in the recorded previous day.
+        out = smith_kitchen.command("workshop")
+        docket_day_match = re.search(r"Village day (\d+):", out)
+        assert docket_day_match, out
+        docket_day = int(docket_day_match.group(1))
+        if docket_day == workshop_day:
+            require_all(out, f"Village day {workshop_day}",
+                        "1 of 2 iron offcuts remain",
+                        "MerchantTester installed a real replacement "
+                        "market hinge")
+        else:
+            assert docket_day > workshop_day, (workshop_day, docket_day, out)
+            require_all(out, "2 of 2 iron offcuts remain",
+                        f"Previous recorded day {workshop_day}: "
+                        "repaired by MerchantTester.")
         print("TELNET_GDD_EDGE02_DAY_ONE_SIGNED_RESTRICTION_GREEN")
 
         for actor in (merchant, smith):
