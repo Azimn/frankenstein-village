@@ -224,6 +224,36 @@ class SquareBrazierRuntimeTests(unittest.TestCase):
         self.assertIn("gathering", error)
         self.assertFalse(self.bundle.deleted)
 
+    def test_boolean_and_malformed_ledger_provenance_preserve_fuel(self):
+        baseline = self.source
+        cases = (
+            ("boolean event ID", "id", True),
+            ("zero event ID", "id", 0),
+            ("string event ID", "id", str(self.bundle.db.gather_event_id)),
+            ("boolean day", "payload.day", True),
+            ("zero day", "payload.day", 0),
+            ("string day", "payload.day", "1"),
+            ("boolean bundle ID", "consequence.bundle_id", True),
+            ("zero bundle ID", "consequence.bundle_id", 0),
+            ("string bundle ID", "consequence.bundle_id", str(self.bundle.id)),
+        )
+        for label, field, value in cases:
+            with self.subTest(label=label):
+                self.source = {
+                    **baseline,
+                    "payload": dict(baseline["payload"]),
+                    "consequence": dict(baseline["consequence"]),
+                }
+                if "." in field:
+                    section, key = field.split(".")
+                    self.source[section][key] = value
+                else:
+                    self.source[field] = value
+                self.assertFalse(self.ns["_verified_gather"](self.bundle))
+                self.assertFalse(self.bundle.deleted)
+                self.assertIsNone(self.brazier.db.square_brazier)
+        self.source = baseline
+
     def test_source_revoked_between_preview_and_commit_preserves_bundle(self):
         self.before_consequence = lambda: self.source.update(
             status="consequence_failed"
