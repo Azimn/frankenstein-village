@@ -254,6 +254,20 @@ class SquareBrazierRuntimeTests(unittest.TestCase):
                 self.assertIsNone(self.brazier.db.square_brazier)
         self.source = baseline
 
+    def test_malformed_ledger_sections_fail_closed_without_crashing(self):
+        baseline = self.source
+        for section in ("actor", "payload", "consequence"):
+            for invalid in (True, 1, "invalid", ["not", "a", "mapping"]):
+                with self.subTest(section=section, invalid=repr(invalid)):
+                    self.source = {**baseline, section: invalid}
+                    result, error = self.act("light")
+                    self.assertIsNone(result)
+                    self.assertIn("completed matching Square gathering", error)
+                    self.assertFalse(self.bundle.deleted)
+                    self.assertIsNone(self.brazier.db.square_brazier)
+                    self.assertFalse(self.events)
+        self.source = baseline
+
     def test_source_revoked_between_preview_and_commit_preserves_bundle(self):
         self.before_consequence = lambda: self.source.update(
             status="consequence_failed"
