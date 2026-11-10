@@ -143,35 +143,33 @@ def verified_install(saved, get_event, *, kind, target_id, room_id,
                   ("actor", "payload", "consequence"))
     fa, fp, fc = (record(forge.get(k)) for k in
                   ("actor", "payload", "consequence"))
-    # Event-side IDs and days must be real positive integers, never bool/float.
+    # All original ledger-side numeric references must be exact positive ints.
     if not (
         positive(ia.get("account_id"))
-        and         positive(sa.get("account_id"))
-        and         positive(fa.get("account_id"))
-        and         positive(fp.get("table_id"))
-        and         positive(fc.get("item_id"))
-        and         positive(fc.get("table_id"))
-        and         positive(ip.get("day"))
-        and         positive(ip.get("target_id"))
-        and         positive(ip.get("target_room_id"))
-        and         positive(ip.get("source_event_id"))
-        and         positive(ip.get("forge_event_id"))
-        and         positive(ip.get("item_id"))
-        and         positive(ic.get("target_id"))
-        and         positive(ic.get("target_room_id"))
-        and         positive(ic.get("source_event_id"))
-        and         positive(ic.get("forge_event_id"))
-        and         positive(ic.get("consumed_item_id"))
-        and         positive(sp.get("day"))
-        and         positive(sp.get("object_id"))
-        and         positive(sp.get("room_id"))
-        and         positive(sc.get("cord_object_id"))
-        and         positive(sc.get("gauge_object_id"))
-        and         positive(sc.get("room_id"))
-        and         positive(sc.get("square_room_id"))
-        and         positive(sc.get("account_id"))
-        and         positive(sc.get("witness_event_id"))
+        and positive(sa.get("account_id"))
+        and positive(fa.get("account_id"))
+        and positive(fp.get("table_id"))
+        and positive(fc.get("item_id"))
+        and positive(fc.get("table_id"))
+        and positive(ip.get("day"))
+        and positive(ip.get("target_id"))
+        and positive(ip.get("target_room_id"))
+        and positive(ip.get("source_event_id"))
+        and positive(ip.get("forge_event_id"))
+        and positive(ip.get("item_id"))
+        and positive(ic.get("target_id"))
+        and positive(ic.get("target_room_id"))
+        and positive(ic.get("source_event_id"))
+        and positive(ic.get("forge_event_id"))
+        and positive(ic.get("consumed_item_id"))
+        and positive(sp.get("day"))
     ):
+        return False
+    source_ids = (("object_id", "room_id"),
+                  ("gauge_object_id", "room_id", "account_id", "witness_event_id")) if kind == "span" else ((), ("cord_object_id", "square_room_id"))
+    if any(not positive(sp.get(key)) for key in source_ids[0]):
+        return False
+    if any(not positive(sc.get(key)) for key in source_ids[1]):
         return False
     d, h = saved["day"], saved["hour"]
     if not (
