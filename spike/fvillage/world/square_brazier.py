@@ -79,9 +79,12 @@ def _verified_gather(bundle):
         return False
     if not isinstance(source, dict):
         return False
-    actor = dict(source.get("actor") or {})
-    payload = dict(source.get("payload") or {})
-    consequence = dict(source.get("consequence") or {})
+    # A corrupted ledger record must fail closed, not crash the player command.
+    actor = source.get("actor")
+    payload = source.get("payload")
+    consequence = source.get("consequence")
+    if not all(isinstance(part, dict) for part in (actor, payload, consequence)):
+        return False
     return (
         type(source.get("id")) is int
         and source["id"] > 0
