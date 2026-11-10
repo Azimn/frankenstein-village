@@ -276,6 +276,11 @@ def verified_test(saved, test, get_event, *, cord_id, room_id, table_id, day, ho
     actor, payload, effect = (record(event.get(k))
                               for k in ("actor", "payload", "consequence"))
     return bool(event and positive(actor.get("account_id"))
+                and positive(payload.get("target_id"))
+                and positive(payload.get("target_room_id"))
+                and positive(payload.get("install_event_id"))
+                and positive(effect.get("target_id"))
+                and positive(effect.get("install_event_id"))
                 and actor.get("account_id") != saved["smith_account_id"]
                 and positive(actor.get("mask_id"))
                 and payload.get("calling") == "hound"
