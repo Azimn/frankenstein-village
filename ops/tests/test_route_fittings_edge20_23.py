@@ -316,6 +316,42 @@ class RouteFittingProofTests(unittest.TestCase):
             target[key] = value
             self.assertFalse(f.verified_test(state, row, changed.get, **kwargs))
 
+    def test_rf01_hound_test_event_ids_reject_bool_float_string(self):
+        state, events = fixture("cord")
+        events[40] = {
+            "id": 40, "status": "complete",
+            "kind": "village.route_fitting_tested",
+            "actor": {"account_id": 8, "mask_id": 80, "mask": "Hound"},
+            "payload": {
+                "calling": "hound", "kind": "cord",
+                "location": "The Northern Treeline",
+                "day": 4, "hour": 15, "target_id": 401,
+                "target_room_id": 402, "install_event_id": 30,
+            },
+            "consequence": {
+                "tested": True, "target_id": 401, "install_event_id": 30,
+            },
+        }
+        row = {"event_id": 40, "install_event_id": 30}
+        kwargs = dict(cord_id=401, room_id=402, table_id=900, day=4, hour=15)
+        self.assertTrue(f.verified_test(state, row, events.get, **kwargs))
+        for section, key in (
+            ("payload", "target_id"),
+            ("payload", "target_room_id"),
+            ("payload", "install_event_id"),
+            ("consequence", "target_id"),
+            ("consequence", "install_event_id"),
+        ):
+            original = events[40][section][key]
+            for malformed in (True, float(original), str(original)):
+                with self.subTest(section=section, field=key, malformed=repr(malformed)):
+                    changed = copy.deepcopy(events)
+                    changed[40][section][key] = malformed
+                    self.assertFalse(f.verified_test(state, row, changed.get, **kwargs))
+        restored = json.loads(json.dumps(events))
+        restored = {int(key): value for key, value in restored.items()}
+        self.assertTrue(f.verified_test(state, row, restored.get, **kwargs))
+
     def test_b18_future_hour_install_public_readback_fails_closed(self):
         """Completed receipts must not claim a future same-day physical repair."""
         for kind in f.KINDS:
