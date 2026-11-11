@@ -160,6 +160,17 @@ class SurveyTests(unittest.TestCase):
         self.assertFalse(accepted)
         self.assertEqual(repeated["advisory"]["event_id"], 13)
 
+    def test_history_rejects_coerced_calendar_days(self):
+        valid = {"day": 2, "reports": {"grave_marker": {
+            "account_id": 7, "event_id": 11, "mask": "Surveyor"}}}
+        for invalid in (True, 2.0, "2", False, None, -1):
+            with self.subTest(invalid=invalid):
+                state = {"day": 3, "history": [{**valid, "day": invalid}]}
+                self.assertEqual(r.history_records(state, 3), [])
+                self.assertEqual(r.history_records(state, 3, selected_day=2), [])
+        state = {"day": 3, "history": [valid]}
+        self.assertEqual([row["day"] for row in r.history_records(state, 3)], [2])
+
     def test_history_is_bounded_and_does_not_mutate_previous_snapshots(self):
         state = r.fresh()
         for day in range(1, 90):
