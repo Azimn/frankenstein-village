@@ -21,12 +21,12 @@ def load_pure_parser():
                     and any(isinstance(t, ast.Name) and t.id == "PLAYABLE_RUMOR_IDS"
                             for t in node.targets))
     module = ast.fix_missing_locations(ast.Module(body=[selected, *nodes], type_ignores=[]))
-    namespace = {
-        "re": re,
-        "RUMOR_FILE": CORPUS,
-        "_SEED_RE": re.compile(r"^\\*\\*(\\d+)\\.\\*\\*\\s*(.+)$", re.M),
-        "_VARIANT_RE": re.compile(r"\\([a-z]\\)\\s*(.*?)(?=;\\s*\\([a-z]\\)|$)"),
-    }
+    namespace = {"re": re, "RUMOR_FILE": CORPUS}
+    regex_nodes = [node for node in tree.body if isinstance(node, ast.Assign)
+                   and any(isinstance(target, ast.Name) and target.id in
+                           {"_SEED_RE", "_VARIANT_RE"} for target in node.targets)]
+    exec(compile(ast.fix_missing_locations(ast.Module(body=regex_nodes, type_ignores=[])),
+                 str(SOURCE), "exec"), namespace)
     exec(compile(module, str(SOURCE), "exec"), namespace)
     return namespace
 
