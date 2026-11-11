@@ -161,7 +161,7 @@ class SurveyTests(unittest.TestCase):
         self.assertEqual(repeated["advisory"]["event_id"], 13)
 
     def test_history_rejects_coerced_calendar_days(self):
-        valid = {"day": 2, "reports": {"grave_marker": {
+        valid = {"day": 2, "completed": False, "reports": {"grave_marker": {
             "account_id": 7, "event_id": 11, "mask": "Surveyor"}}}
         for invalid in (True, 2.0, "2", False, None, -1):
             with self.subTest(invalid=invalid):
