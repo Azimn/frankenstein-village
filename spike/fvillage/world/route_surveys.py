@@ -249,11 +249,10 @@ def report(raw, day, ident, account_id, mask, event_id):
         return state, False, "That location is not on today's inspection route."
     if ident in state["reports"]:
         return state, False, "Today's report for this landmark is already signed."
-    try:
-        account_id, event_id = int(account_id), int(event_id)
-    except (ValueError, TypeError, OverflowError):
-        return state, False, "A signed account and canonical event are required."
-    if account_id < 1 or event_id < 1:
+    # Preserve original account and event types. bool is a subclass of int,
+    # and coercion would silently turn forged True/1.0/"1" into signed IDs.
+    if (type(account_id) is not int or account_id < 1
+            or type(event_id) is not int or event_id < 1):
         return state, False, "A signed account and canonical event are required."
     state["reports"][ident] = {
         "account_id": account_id, "mask": str(mask)[:70], "event_id": event_id,
