@@ -29,12 +29,10 @@ def normalize(raw):
     for ident, entry in (raw_reports.items() if isinstance(raw_reports, Mapping) else ()):
         if ident not in SITES or not hasattr(entry, "get"):
             continue
-        try:
-            account = int(entry["account_id"])
-            event = int(entry["event_id"])
-        except (ValueError, TypeError, KeyError, OverflowError):
-            continue
-        if account < 1 or event < 1:
+        account = entry.get("account_id")
+        event = entry.get("event_id")
+        if (type(account) is not int or account < 1
+                or type(event) is not int or event < 1):
             continue
         reports[ident] = {
             "account_id": account, "mask": str(entry.get("mask") or "")[:70],
@@ -45,13 +43,9 @@ def normalize(raw):
     for role, entry in (raw_decisions.items() if isinstance(raw_decisions, Mapping) else ()):
         if role not in {"hound", "wanderer"} or not hasattr(entry, "get"):
             continue
-        try:
-            account, event = int(entry["account_id"]), int(entry["event_id"])
-        except (ValueError, TypeError, KeyError, OverflowError):
-            continue
-        if (isinstance(entry.get("account_id"), bool)
-                or isinstance(entry.get("event_id"), bool)
-                or account < 1 or event < 1):
+        account, event = entry.get("account_id"), entry.get("event_id")
+        if (type(account) is not int or account < 1
+                or type(event) is not int or event < 1):
             continue
         action = "protect" if role == "hound" else "passability"
         observation = entry.get("observation")
@@ -282,14 +276,9 @@ def field_decision(raw, day, site, role, action, caution_marked,
         return state, False, "That professional field action is not available here."
     if not isinstance(caution_marked, bool):
         return state, False, "The physical cord condition could not be verified."
-    for val in (account_id, event_id):
-        if isinstance(val, bool):
-            return state, False, "A signed ordinary account and event are required."
-        try:
-            if int(val) < 1:
-                return state, False, "A signed ordinary account and event are required."
-        except (TypeError, ValueError, OverflowError):
-            return state, False, "A signed ordinary account and event are required."
+    if (type(account_id) is not int or account_id < 1
+            or type(event_id) is not int or event_id < 1):
+        return state, False, "A signed ordinary account and event are required."
     if role in state["field_decisions"]:
         return state, False, "That professional field action is already signed today."
     if role == "hound" and caution_marked:
@@ -298,8 +287,8 @@ def field_decision(raw, day, site, role, action, caution_marked,
             return state, False, "The frayed cord is already tied as a visible caution marker."
     entry = {
         "site": site, "action": action,
-        "account_id": int(account_id), "mask": str(mask)[:70],
-        "event_id": int(event_id),
+        "account_id": account_id, "mask": str(mask)[:70],
+        "event_id": event_id,
     }
     if role == "hound":
         entry["retied_previous_day"] = caution_marked
