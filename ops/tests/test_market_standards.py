@@ -16,12 +16,70 @@ def sign(state, action, *, day=1, actor=5, event=10):
     )
 
 
+
+def completed_market_events(state):
+    """Construct signed ledger fixtures; public claims need actual receipts."""
+    actions = {
+        "review": lambda row: row["choice"],
+        "calibration": lambda row: "calibrate",
+        "release": lambda row: "release",
+        "audit": lambda row: "audit",
+        "attestation": lambda row: "attest",
+    }
+    roles = {
+        "review": "merchant", "calibration": "smith",
+        "release": "merchant", "audit": "chronicler",
+        "attestation": "chronicler",
+    }
+    events = {}
+    for field, action_for in actions.items():
+        row = state[field]
+        if not row:
+            continue
+        eid = row["event_id"]
+        review = state["review"]
+        calibration = state["calibration"]
+        release = state["release"]
+        held = bool(
+            review and review["choice"] == "hold"
+            and review["event_id"] <= eid
+            and not (calibration and calibration["event_id"] <= eid)
+            and not (release and release["event_id"] <= eid)
+        )
+        action = action_for(row)
+        events[eid] = {
+            "id": eid, "kind": "village.market_" + action,
+            "status": "complete",
+            "actor": {
+                "account_id": row["account_id"],
+                "mask_id": row["mask_id"], "mask": row["mask"],
+            },
+            "payload": {
+                "action": action, "day": row["day"], "hour": row["hour"],
+                "location": "Market Lane",
+                "professional_calling": roles[field],
+            },
+            "consequence": {
+                "action": action, "market_distribution_held": held,
+                "review_event_id": (
+                    review["event_id"]
+                    if review and review["event_id"] <= eid else None
+                ),
+                "calibration_event_id": (
+                    calibration["event_id"]
+                    if calibration and calibration["event_id"] <= eid else None
+                ),
+            },
+        }
+    return events
+
+
 class MarketStandardsTests(unittest.TestCase):
     def test_merchant_hold_physically_blocks_until_smith_calibrates(self):
         held, ok, error = sign(None, "hold")
         self.assertTrue(ok, error)
         self.assertTrue(market.suspended(held, 1))
-        self.assertIn("temporarily on hold", "\n".join(market.public_lines(held, 1)))
+        self.assertIn("temporarily on hold", "\n".join(market.public_lines(held, 1, completed_market_events(held).get)))
         unchanged, ok, error = sign(held, "honor", actor=8, event=11)
         self.assertFalse(ok)
         self.assertEqual(unchanged, held)
@@ -34,7 +92,7 @@ class MarketStandardsTests(unittest.TestCase):
         self.assertTrue(ok, error)
         self.assertEqual(witnessed["attestation"]["review_event_id"], 10)
         self.assertEqual(witnessed["attestation"]["calibration_event_id"], 12)
-        self.assertIn("attested", "\n".join(market.public_lines(witnessed, 1)))
+        self.assertIn("attested", "\n".join(market.public_lines(witnessed, 1, completed_market_events(witnessed).get)))
 
     def test_honor_keeps_stock_available_and_attestation_requires_two_sources(self):
         state, ok, error = sign(None, "honor")
@@ -44,9 +102,9 @@ class MarketStandardsTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("both", error)
         self.assertEqual(failed, state)
-        calibrated, ok, error = sign(state, "calibrate", event=20)
+        calibrated, ok, error = sign(state, "calibrate", actor=9, event=20)
         self.assertTrue(ok, error)
-        result, ok, error = sign(calibrated, "attest", event=21)
+        result, ok, error = sign(calibrated, "attest", actor=11, event=21)
         self.assertTrue(ok, error)
         again, ok, error = sign(result, "attest", event=22)
         self.assertFalse(ok)
@@ -139,6 +197,100 @@ class MarketStandardsTests(unittest.TestCase):
         self.assertTrue(ok, error)
         self.assertIn("decision to honor the disputed prices",
                       " ".join(market.personal_agenda(honored, 1, 105)))
+
+    def test_t16_return_agenda_rejects_corrupt_historical_receipts(self):
+        # A stale Evennia archive can retain a malformed nested decision.
+        # The returning-player command must not crash or invent past work.
+        import copy
+
+        held, ok, error = sign(None, "hold", actor=5, event=10)
+        self.assertTrue(ok, error)
+        day_two = market.refresh(held, 2)
+        archive = day_two["history"][0]
+        valid_receipt = copy.deepcopy(archive["review"])
+
+        for invalid in ("broken receipt", {"mask_id": 105}, [105], True):
+            with self.subTest(invalid=invalid):
+                archive["review"] = invalid
+                snapshot = copy.deepcopy(day_two)
+                self.assertEqual(market.personal_agenda(day_two, 2, 105), [])
+                self.assertEqual(day_two, snapshot, "Agenda mutated persisted history")
+
+        # An invalid receipt for another profession must also be ignored.
+        archive["review"] = None
+        archive["calibration"] = {"mask_id": 105, "day": 1}
+        self.assertEqual(market.personal_agenda(day_two, 2, 105), [])
+
+        # The original valid signature still provides a truthful return cue.
+        archive["calibration"] = None
+        archive["review"] = valid_receipt
+        snapshot = copy.deepcopy(day_two)
+        self.assertIn(
+            "previous day's standards work is archived",
+            " ".join(market.personal_agenda(day_two, 2, 105)),
+        )
+        self.assertEqual(market.personal_agenda(day_two, 2, 999), [])
+        self.assertEqual(day_two, snapshot)
+
+    def test_independent_chronicler_audit_survives_edge33_inquiry_branch(self):
+        import json
+
+        held, ok, error = sign(None, "hold", actor=5, event=10)
+        self.assertTrue(ok, error)
+        self.assertTrue(market.suspended(held, 1))
+
+        refused, ok, error = sign(held, "audit", actor=5, event=11)
+        self.assertFalse(ok)
+        self.assertIn("separate account", error)
+        self.assertEqual(refused, held)
+
+        audited, ok, error = sign(held, "audit", actor=11, event=12)
+        self.assertTrue(ok, error)
+        self.assertEqual(audited["audit"]["review_event_id"], 10)
+        self.assertEqual(audited["audit"]["review_choice"], "hold")
+        self.assertIn("independently audited Merchant",
+                      " ".join(market.public_lines(audited, 1, completed_market_events(audited).get)))
+        self.assertIn("independent Chronicler audit",
+                      " ".join(market.personal_agenda(audited, 1, 111)))
+
+        duplicate, ok, error = sign(audited, "audit", actor=12, event=13)
+        self.assertFalse(ok)
+        self.assertIn("already been audited", error)
+        self.assertEqual(duplicate, audited)
+
+        restored = market.refresh(json.loads(json.dumps(audited)), 1)
+        self.assertEqual(restored["audit"]["review_event_id"], 10)
+        self.assertEqual(restored["audit"]["event_id"], 12)
+        next_day = market.refresh(restored, 2)
+        self.assertEqual(next_day["history"][-1]["audit"]["event_id"], 12)
+        self.assertIsNone(next_day["audit"])
+        self.assertTrue(market.suspended(held, 1),
+                        "Audit must not silently release held physical stock")
+
+    def test_corrupt_audit_choice_is_not_a_signed_public_claim(self):
+        import copy
+
+        held, ok, error = sign(None, "hold", actor=5, event=10)
+        self.assertTrue(ok, error)
+        audited, ok, error = sign(held, "audit", actor=11, event=12)
+        self.assertTrue(ok, error)
+        self.assertIn("independently audited Merchant",
+                      " ".join(market.public_lines(audited, 1, completed_market_events(audited).get)))
+        for malformed in (["hold"], {"choice": "hold"}, True):
+            with self.subTest(malformed=malformed):
+                broken = copy.deepcopy(audited)
+                broken["audit"]["review_choice"] = malformed
+                self.assertIsNone(market.normalize(broken)["audit"])
+                self.assertNotIn("independently audited Merchant",
+                                 " ".join(market.public_lines(broken, 1, completed_market_events(audited).get)))
+                self.assertEqual(broken["audit"]["review_choice"], malformed)
+
+    def test_merchant_review_verifier_fails_closed_on_nonstring_choice(self):
+        for malformed in (["hold"], {"choice": "hold"}, True):
+            with self.subTest(malformed=malformed):
+                self.assertFalse(market.verified_merchant_review(
+                    {"choice": malformed}, {"status": "complete"}
+                ))
 
     def test_bad_actor_does_not_create_public_event_record(self):
         state, ok, error = market.apply(

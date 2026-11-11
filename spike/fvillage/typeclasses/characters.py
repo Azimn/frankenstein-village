@@ -154,7 +154,19 @@ class SpikeCharacter(Character):
     """
 
     def at_post_puppet(self, **kwargs):
+        # Recover an unplaced returning mask into its own private OOC room.
+        # The public front door remains the only route into the village.
+        recovered = False
+        if self.location is None and self.account is not None:
+            from typeclasses.accounts import ensure_private_room
+            room = ensure_private_room(self.account)
+            recovered = bool(self.move_to(room, quiet=True, move_type="recovery"))
         super().at_post_puppet(**kwargs)
+        if recovered:
+            self.msg(
+                "Your mask had no saved room. You returned to your private "
+                "room at the Inn Between; use the front door to enter again."
+            )
         if self.db.new_arrival:
             self.db.new_arrival = False
             self.msg(

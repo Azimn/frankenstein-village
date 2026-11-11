@@ -130,11 +130,15 @@ def payload_for(mask):
             result["commands"]["physical_bridge_supplies"] = (
                 "bridgework collect preserve | bridgework collect display"
             )
+            result["commands"]["smith_route_fitting"] = "bridgefit forge span | bridgefit forge cord"
         if room and room.key == "The Market Workshop":
             result["commands"]["smithing_bench"] = "workshop"
             result["commands"]["forge_market_hinge"] = "workshop forge"
         if room and room.key == "The Old Stone Bridge":
             result["commands"]["bridge_investigation"] = "bridgework"
+            result["commands"]["physical_inspection_span"] = "bridgefit"
+        if room and room.key == "The Northern Treeline":
+            result["commands"]["physical_red_cord_repair"] = "bridgefit"
         if room and room.key == "The Lamp Shop":
             result["commands"]["shop"] = "look"
     return result
