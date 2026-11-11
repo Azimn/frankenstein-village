@@ -131,6 +131,35 @@ class SurveyTests(unittest.TestCase):
                 with self.subTest(field=field, invalid=invalid):
                     self.assertIsNone(normalized({**valid, field: invalid}))
 
+    def test_live_chronicler_publication_rejects_coerced_signed_ids(self):
+        state, ok, error = r.field_decision(
+            None, 2, "red_cord", "wanderer", "passability", False,
+            8, "Wanderer", 12,
+        )
+        self.assertTrue(ok, error)
+        valid = {"account_id": 9, "event_id": 13, "source_event_id": 12}
+        for field in valid:
+            for invalid in (True, False, 1.0, "1", None, 0, -1):
+                with self.subTest(field=field, invalid=invalid):
+                    ids = {**valid, field: invalid}
+                    result, accepted, message = r.publish_advisory(
+                        state, 2, ids["account_id"], "Chronicler",
+                        ids["event_id"], ids["source_event_id"],
+                    )
+                    self.assertFalse(accepted)
+                    self.assertIsNone(result["advisory"])
+                    self.assertIn("identifiers", message)
+        published, accepted, message = r.publish_advisory(
+            state, 2, 9, "Chronicler", 13, 12,
+        )
+        self.assertTrue(accepted, message)
+        self.assertEqual(published["advisory"]["source_event_id"], 12)
+        repeated, accepted, message = r.publish_advisory(
+            published, 2, 10, "Another", 14, 12,
+        )
+        self.assertFalse(accepted)
+        self.assertEqual(repeated["advisory"]["event_id"], 13)
+
     def test_history_is_bounded_and_does_not_mutate_previous_snapshots(self):
         state = r.fresh()
         for day in range(1, 90):
