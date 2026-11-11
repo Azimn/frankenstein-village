@@ -38,6 +38,9 @@ def main():
         require_all(before, "a moment inside your character's body", "shivering")
         require(smith.command("brazier feed"), "cold; light it before feeding")
 
+        # Gather through the ordinary player command; never assume fixture fuel.
+        if "bundle of firewood" not in smith.command("inventory").lower():
+            require(smith.command("hearth gather"), "real bundle")
         light = smith.command("brazier light")
         require_all(light, "real bundle of firewood",
                     "6 village hour(s)", "signed world event")
