@@ -181,12 +181,10 @@ def history_records(raw, day, *, limit=5, selected_day=None):
     for raw_row in state["history"][-MAX_HISTORY:]:
         if not isinstance(raw_row, Mapping):
             continue
-        try:
-            old_day = int(raw_row.get("day"))
-        except (TypeError, ValueError, OverflowError):
-            continue
-        if (isinstance(raw_row.get("day"), bool)
-                or old_day < 1 or old_day >= state["day"]):
+        # Historical day identifiers are signed calendar coordinates, not
+        # values that can be coerced from floats or numeric strings.
+        old_day = raw_row.get("day")
+        if type(old_day) is not int or old_day < 1 or old_day >= state["day"]:
             continue
         reports = raw_row.get("reports")
         decisions = raw_row.get("field_decisions")
