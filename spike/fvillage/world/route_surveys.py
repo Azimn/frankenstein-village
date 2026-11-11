@@ -512,14 +512,11 @@ def publish_advisory(raw, day, account_id, mask, event_id, source_event_id):
         return state, False, "A Wanderer's signed firsthand route observation is required."
     if state["advisory"] is not None:
         return state, False, "Today's sourced map advisory is already published."
-    try:
-        values = (account_id, event_id, source_event_id)
-        if any(isinstance(value, bool) for value in values):
-            raise ValueError("Boolean identifiers are not accounts or events")
-        account_id, event_id, source_event_id = (int(value) for value in values)
-    except (TypeError, ValueError, OverflowError):
-        return state, False, "Signed account and event identifiers are required."
-    if min(account_id, event_id, source_event_id) < 1 or event_id == source_event_id:
+    # Canonical ledger identifiers must already be exact positive integers.
+    # Coercion would allow 1.0 and "1" to impersonate signed sources.
+    if (any(type(value) is not int or value < 1
+            for value in (account_id, event_id, source_event_id))
+            or event_id == source_event_id):
         return state, False, "Signed account and event identifiers are required."
     if source["account_id"] == account_id:
         return state, False, "An independent Chronicler account must edit this field report."
