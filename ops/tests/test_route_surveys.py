@@ -58,6 +58,43 @@ class SurveyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             r.refresh(None, 0)
 
+    def test_persisted_survey_receipts_reject_coerced_identifiers(self):
+        for field in ("account_id", "event_id"):
+            for invalid in (True, 1.0, "1", False, -1, None):
+                with self.subTest(field=field, invalid=invalid):
+                    record = {"account_id": 7, "event_id": 11, "mask": "Surveyor"}
+                    record[field] = invalid
+                    raw = {"day": 2, "reports": {"grave_marker": record}}
+                    self.assertEqual(r.normalize(raw)["reports"], {})
+        valid = {"day": 2, "reports": {
+            "grave_marker": {"account_id": 7, "event_id": 11, "mask": "Surveyor"}
+        }}
+        self.assertEqual(r.normalize(valid)["reports"]["grave_marker"]["event_id"], 11)
+
+    def test_field_decision_requires_exact_signed_identifiers(self):
+        for field in ("account_id", "event_id"):
+            for invalid in (True, 1.0, "1", False, -1, None):
+                with self.subTest(field=field, invalid=invalid):
+                    ids = {"account_id": 7, "event_id": 11}
+                    ids[field] = invalid
+                    state, ok, error = r.field_decision(
+                        None, 2, "red_cord", "hound", "protect", False,
+                        ids["account_id"], "Hound", ids["event_id"],
+                    )
+                    self.assertFalse(ok)
+                    self.assertEqual(state["field_decisions"], {})
+                    self.assertTrue(error)
+                    persisted = {"day": 2, "field_decisions": {
+                        "hound": {"site": "red_cord", "action": "protect",
+                                  "mask": "Hound", **ids}
+                    }}
+                    self.assertEqual(r.normalize(persisted)["field_decisions"], {})
+        state, ok, error = r.field_decision(
+            None, 2, "red_cord", "hound", "protect", False, 7, "Hound", 11,
+        )
+        self.assertTrue(ok, error)
+        self.assertEqual(state["field_decisions"]["hound"]["event_id"], 11)
+
     def test_history_is_bounded_and_does_not_mutate_previous_snapshots(self):
         state = r.fresh()
         for day in range(1, 90):
