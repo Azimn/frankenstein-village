@@ -50,6 +50,33 @@ bundles = [
 ]
 assert len(bundles) == 1, bundles
 assert isinstance(bundles[0].db.gather_event_id, int)
+# Fail at the source boundary with an inspectable receipt mismatch, before
+# the authenticated playthrough. Never manufacture or rewrite signed evidence.
+from world import square_brazier
+bundle = bundles[0]
+source = ScriptDB.objects.get(db_key="world_event_ledger").get_event(
+    bundle.db.gather_event_id
+)
+if not square_brazier._verified_gather(bundle):
+    actor = source.get("actor") if isinstance(source, dict) else None
+    payload = source.get("payload") if isinstance(source, dict) else None
+    consequence = source.get("consequence") if isinstance(source, dict) else None
+    def typed(part):
+        return {
+            key: (repr(value), type(value).__name__)
+            for key, value in (part.items() if isinstance(part, dict) else [])
+        }
+    raise AssertionError({
+        "error": "Physical T13 bundle fails canonical gathering provenance",
+        "bundle_id": bundle.id,
+        "source_day": bundle.db.source_day,
+        "gather_event_id": bundle.db.gather_event_id,
+        "source_fields": typed(source),
+        "actor_fields": typed(actor),
+        "payload_fields": typed(payload),
+        "consequence_fields": typed(consequence),
+        "canonical_verified": False,
+    })
 assert not (brazier.db.square_brazier or {}).get("history")
 smith.db.qa_brazier_bundle_id = bundles[0].id
 smith.db.warmth = 0.25
