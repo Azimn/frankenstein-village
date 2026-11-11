@@ -611,7 +611,10 @@ def main() -> int:
                     cwd=checkout, env=env, timeout=140,
                 )
             finally:
-                run([evennia, "stop"], cwd=game, env=env, timeout=60)
+                stop_evennia_after_phase(
+                    evennia, game=game, env=env,
+                    phase_failed=sys.exc_info()[0] is not None,
+                )
             # Verify an actual full Evennia process restart, not just a
             # serialized in-memory object. The public fire, source records,
             # and reduced inventory must all persist.
