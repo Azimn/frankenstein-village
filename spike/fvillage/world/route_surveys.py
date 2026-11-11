@@ -65,15 +65,11 @@ def normalize(raw):
     raw_wanderer = raw_decisions.get("wanderer") or {} if isinstance(raw_decisions, Mapping) else {}
     joint = raw_wanderer.get("corroboration") if hasattr(raw_wanderer, "get") else None
     if (hasattr(joint, "get") and "hound" in decisions and "wanderer" in decisions):
-        try:
-            joint_id = int(joint["event_id"])
-            source_id = int(joint["hound_event_id"])
-            joint_account = int(joint["account_id"])
-        except (KeyError, TypeError, ValueError, OverflowError):
-            pass
-        else:
-            if (not any(isinstance(joint.get(k), bool) for k in
-                        ("event_id", "hound_event_id", "account_id"))
+        joint_id = joint.get("event_id")
+        source_id = joint.get("hound_event_id")
+        joint_account = joint.get("account_id")
+        if (all(type(value) is int and value > 0 for value in
+                (joint_id, source_id, joint_account))
                     and joint_id > 0
                     and source_id == decisions["hound"]["event_id"]
                     and joint_account == decisions["wanderer"]["account_id"]
@@ -90,19 +86,14 @@ def normalize(raw):
     advisory = None
     item = value.get("advisory")
     if hasattr(item, "get"):
-        try:
-            publisher = int(item["account_id"])
-            event_id = int(item["event_id"])
-            source_account = int(item["source_account_id"])
-            source_event = int(item["source_event_id"])
-            source_day = int(item["source_day"])
-            version = int(item["version"])
-        except (TypeError, ValueError, KeyError, OverflowError):
-            pass
-        else:
-            if (all(not isinstance(item.get(k), bool) for k in (
-                    "account_id", "event_id", "source_account_id",
-                    "source_event_id", "source_day", "version"))
+        publisher = item.get("account_id")
+        event_id = item.get("event_id")
+        source_account = item.get("source_account_id")
+        source_event = item.get("source_event_id")
+        source_day = item.get("source_day")
+        version = item.get("version")
+        if (all(type(value) is int for value in
+                (publisher, event_id, source_account, source_event, source_day, version))
                     and min(publisher, event_id, source_account, source_event) > 0
                     and publisher != source_account and source_day == day
                     and event_id != source_event and version == 1
