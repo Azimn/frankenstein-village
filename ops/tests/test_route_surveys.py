@@ -95,6 +95,42 @@ class SurveyTests(unittest.TestCase):
         self.assertTrue(ok, error)
         self.assertEqual(state["field_decisions"]["hound"]["event_id"], 11)
 
+    def test_persisted_corroboration_rejects_coerced_identifiers(self):
+        hound = {"account_id": 7, "event_id": 11, "mask": "Hound",
+                 "action": "protect", "retied_previous_day": False}
+        wanderer = {"account_id": 8, "event_id": 12, "mask": "Wanderer",
+                    "action": "passability", "observation": "marked_caution"}
+        valid_joint = {"event_id": 13, "hound_event_id": 11,
+                       "account_id": 8, "observation": "marked_caution"}
+        def normalized(joint):
+            return r.normalize({"day": 2, "field_decisions": {
+                "hound": hound,
+                "wanderer": {**wanderer, "corroboration": joint},
+            }})["field_decisions"]["wanderer"]
+        self.assertEqual(normalized(valid_joint)["corroboration"]["event_id"], 13)
+        for field in ("event_id", "hound_event_id", "account_id"):
+            for invalid in (True, 1.0, "1", False, -1, None):
+                with self.subTest(field=field, invalid=invalid):
+                    self.assertNotIn("corroboration",
+                        normalized({**valid_joint, field: invalid}))
+
+    def test_persisted_editorial_advisory_rejects_coerced_identifiers(self):
+        wanderer = {"account_id": 8, "event_id": 12, "mask": "Wanderer",
+                    "action": "passability", "observation": "marked_caution"}
+        valid = {"account_id": 9, "event_id": 13, "source_account_id": 8,
+                 "source_event_id": 12, "source_day": 2, "version": 1,
+                 "observation": "marked_caution", "mask": "Chronicler"}
+        def normalized(advisory):
+            return r.normalize({"day": 2,
+                "field_decisions": {"wanderer": wanderer},
+                "advisory": advisory})["advisory"]
+        self.assertEqual(normalized(valid)["event_id"], 13)
+        for field in ("account_id", "event_id", "source_account_id",
+                      "source_event_id", "source_day", "version"):
+            for invalid in (True, 1.0, str(valid[field]), False, None):
+                with self.subTest(field=field, invalid=invalid):
+                    self.assertIsNone(normalized({**valid, field: invalid}))
+
     def test_history_is_bounded_and_does_not_mutate_previous_snapshots(self):
         state = r.fresh()
         for day in range(1, 90):
