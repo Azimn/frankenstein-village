@@ -98,12 +98,12 @@ def verified_forge(item, get_event, *, kind, table_id, day, hour):
         and payload.get("calling") == "smith"
         and payload.get("kind") == kind
         and payload.get("location") == "Market Lane"
-        and payload.get("day") == item["forge_day"]
+        and positive(payload.get("day")) and payload["day"] == item["forge_day"]
         and hour_valid(payload.get("hour"))
         and (item["forge_day"], payload["hour"]) <= (day, hour)
-        and payload.get("table_id") == table_id
-        and result.get("item_id") == item["item_id"]
-        and result.get("table_id") == table_id
+        and positive(payload.get("table_id")) and payload["table_id"] == table_id
+        and positive(result.get("item_id")) and result["item_id"] == item["item_id"]
+        and positive(result.get("table_id")) and result["table_id"] == table_id
         and result.get("kind") == kind
         and type(result.get("remaining")) is int
         and 0 <= result["remaining"] < DAILY
@@ -143,6 +143,34 @@ def verified_install(saved, get_event, *, kind, target_id, room_id,
                   ("actor", "payload", "consequence"))
     fa, fp, fc = (record(forge.get(k)) for k in
                   ("actor", "payload", "consequence"))
+    # All original ledger-side numeric references must be exact positive ints.
+    if not (
+        positive(ia.get("account_id"))
+        and positive(sa.get("account_id"))
+        and positive(fa.get("account_id"))
+        and positive(fp.get("table_id"))
+        and positive(fc.get("item_id"))
+        and positive(fc.get("table_id"))
+        and positive(ip.get("day"))
+        and positive(ip.get("target_id"))
+        and positive(ip.get("target_room_id"))
+        and positive(ip.get("source_event_id"))
+        and positive(ip.get("forge_event_id"))
+        and positive(ip.get("item_id"))
+        and positive(ic.get("target_id"))
+        and positive(ic.get("target_room_id"))
+        and positive(ic.get("source_event_id"))
+        and positive(ic.get("forge_event_id"))
+        and positive(ic.get("consumed_item_id"))
+        and positive(sp.get("day"))
+    ):
+        return False
+    source_ids = (("object_id", "room_id"),
+                  ("gauge_object_id", "room_id", "account_id", "witness_event_id")) if kind == "span" else ((), ("cord_object_id", "square_room_id"))
+    if any(not positive(sp.get(key)) for key in source_ids[0]):
+        return False
+    if any(not positive(sc.get(key)) for key in source_ids[1]):
+        return False
     d, h = saved["day"], saved["hour"]
     if not (
         ia.get("account_id") == saved["smith_account_id"]
@@ -248,6 +276,11 @@ def verified_test(saved, test, get_event, *, cord_id, room_id, table_id, day, ho
     actor, payload, effect = (record(event.get(k))
                               for k in ("actor", "payload", "consequence"))
     return bool(event and positive(actor.get("account_id"))
+                and positive(payload.get("target_id"))
+                and positive(payload.get("target_room_id"))
+                and positive(payload.get("install_event_id"))
+                and positive(effect.get("target_id"))
+                and positive(effect.get("install_event_id"))
                 and actor.get("account_id") != saved["smith_account_id"]
                 and positive(actor.get("mask_id"))
                 and payload.get("calling") == "hound"

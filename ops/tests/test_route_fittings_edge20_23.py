@@ -135,6 +135,54 @@ class RouteFittingProofTests(unittest.TestCase):
                     changed = dict(state, **{field: value})
                     self.assertFalse(verify(changed, events))
 
+    def test_rf01_signed_ledger_numeric_provenance_rejects_bool_float_string(self):
+        common = (
+            (10, "actor", "account_id"),
+            (20, "actor", "account_id"),
+            (20, "payload", "table_id"),
+            (20, "consequence", "item_id"),
+            (20, "consequence", "table_id"),
+            (30, "actor", "account_id"),
+            (30, "payload", "day"),
+            (30, "payload", "target_id"),
+            (30, "payload", "target_room_id"),
+            (30, "payload", "source_event_id"),
+            (30, "payload", "forge_event_id"),
+            (30, "payload", "item_id"),
+            (30, "consequence", "target_id"),
+            (30, "consequence", "target_room_id"),
+            (30, "consequence", "source_event_id"),
+            (30, "consequence", "forge_event_id"),
+            (30, "consequence", "consumed_item_id"),
+            (10, "payload", "day"),
+        )
+        route_specific = {
+            "span": ((10, "payload", "object_id"),
+                     (10, "payload", "room_id"),
+                     (10, "consequence", "gauge_object_id"),
+                     (10, "consequence", "room_id"),
+                     (10, "consequence", "account_id"),
+                     (10, "consequence", "witness_event_id")),
+            "cord": ((10, "consequence", "cord_object_id"),
+                     (10, "consequence", "square_room_id")),
+        }
+        for kind in f.KINDS:
+            state, events = fixture(kind)
+            self.assertTrue(verify(state, events))
+            for event_id, section, key in common + route_specific[kind]:
+                original = events[event_id][section][key]
+                for forged_value in (True, float(original), str(original)):
+                    with self.subTest(kind=kind, event=event_id,
+                                      field=key, forged=repr(forged_value)):
+                        forged = copy.deepcopy(events)
+                        forged[event_id][section][key] = forged_value
+                        self.assertFalse(verify(state, forged))
+            restored = json.loads(json.dumps(state))
+            ledger = {int(k): v for k, v in
+                      json.loads(json.dumps(events)).items()}
+            self.assertTrue(verify(restored, ledger))
+            self.assertFalse(verify(restored, {20: ledger[20], 30: ledger[30]}))
+
     def test_original_sources_and_forge_must_precede_installed_event_id(self):
         for kind in f.KINDS:
             state, events = fixture(kind)
@@ -267,6 +315,42 @@ class RouteFittingProofTests(unittest.TestCase):
             target = changed[event_id] if group is None else changed[event_id][group]
             target[key] = value
             self.assertFalse(f.verified_test(state, row, changed.get, **kwargs))
+
+    def test_rf01_hound_test_event_ids_reject_bool_float_string(self):
+        state, events = fixture("cord")
+        events[40] = {
+            "id": 40, "status": "complete",
+            "kind": "village.route_fitting_tested",
+            "actor": {"account_id": 8, "mask_id": 80, "mask": "Hound"},
+            "payload": {
+                "calling": "hound", "kind": "cord",
+                "location": "The Northern Treeline",
+                "day": 4, "hour": 15, "target_id": 401,
+                "target_room_id": 402, "install_event_id": 30,
+            },
+            "consequence": {
+                "tested": True, "target_id": 401, "install_event_id": 30,
+            },
+        }
+        row = {"event_id": 40, "install_event_id": 30}
+        kwargs = dict(cord_id=401, room_id=402, table_id=900, day=4, hour=15)
+        self.assertTrue(f.verified_test(state, row, events.get, **kwargs))
+        for section, key in (
+            ("payload", "target_id"),
+            ("payload", "target_room_id"),
+            ("payload", "install_event_id"),
+            ("consequence", "target_id"),
+            ("consequence", "install_event_id"),
+        ):
+            original = events[40][section][key]
+            for malformed in (True, float(original), str(original)):
+                with self.subTest(section=section, field=key, malformed=repr(malformed)):
+                    changed = copy.deepcopy(events)
+                    changed[40][section][key] = malformed
+                    self.assertFalse(f.verified_test(state, row, changed.get, **kwargs))
+        restored = json.loads(json.dumps(events))
+        restored = {int(key): value for key, value in restored.items()}
+        self.assertTrue(f.verified_test(state, row, restored.get, **kwargs))
 
     def test_b18_future_hour_install_public_readback_fails_closed(self):
         """Completed receipts must not claim a future same-day physical repair."""
