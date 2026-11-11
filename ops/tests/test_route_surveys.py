@@ -47,6 +47,9 @@ class SurveyTests(unittest.TestCase):
         for ident, account, event in [
             ("forbidden", 1, 3), ("grave_marker", 0, 1),
             ("grave_marker", 1, -1), ("grave_marker", "x", 5),
+            ("grave_marker", True, 5), ("grave_marker", 1, True),
+            ("grave_marker", 1.0, 5), ("grave_marker", 1, 5.0),
+            ("grave_marker", "1", 5), ("grave_marker", 1, "5"),
         ]:
             state, ok, err = r.report(None, 1, ident, account, "A", event)
             self.assertFalse(ok)
