@@ -133,7 +133,7 @@ assert "last michaelmas" in register_desc and "crossed out" in register_desc, (
 
 playable = load_rumor_seeds()
 ids = {int(num) for num, _body in playable}
-assert ids == set(PLAYABLE_RUMOR_IDS) == {151, 201, 236}, ids
+assert ids == set(PLAYABLE_RUMOR_IDS) == {2, 3, 4, 151, 201, 236}, ids
 assert len(load_rumor_seeds(playable_only=False)) == 250, "canon rumor corpus changed"
 
 from types import SimpleNamespace
