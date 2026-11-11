@@ -20,7 +20,7 @@ from evennia.utils import search
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RUMOR_FILE = REPO_ROOT / "files" / "rumor-seeds-v0.1.md"
 REGISTRY_KEY = "rumor_registry"
-PLAYABLE_RUMOR_IDS = frozenset({151, 201, 236})
+PLAYABLE_RUMOR_IDS = frozenset({2, 3, 4, 151, 201, 236})
 
 _SEED_RE = re.compile(r"^\*\*(\d+)\.\*\*\s*(.+)$", re.M)
 _VARIANT_RE = re.compile(r"\([a-z]\)\s*(.*?)(?=;\s*\([a-z]\)|$)")
