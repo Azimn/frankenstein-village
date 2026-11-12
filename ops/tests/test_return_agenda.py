@@ -3,10 +3,21 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "spike" / "fvillage"))
-from world.return_agenda import clean_note, summary, reentry_lines, lamp_repair_work_lines
+from world.return_agenda import clean_note, summary, reentry_lines, lamp_repair_work_lines, safe_village_day
 
 
 class ReturnAgendaTests(unittest.TestCase):
+    def test_agenda_rejects_corrupt_clock_without_fabricating_a_day(self):
+        # The persisted clock is untrusted; bool, float, string and negative
+        # values must not become signed village-day coordinates.
+        for value in (True, False, 3.0, "3", None, -1, 0, [], {}):
+            with self.subTest(value=value):
+                self.assertIsNone(safe_village_day(value))
+        self.assertEqual(safe_village_day(3), 3)
+        self.assertEqual(safe_village_day(1), 1)
+        self.assertIsNone(safe_village_day(2**63))
+        self.assertIsNone(safe_village_day("uninitialized"))
+
     def test_note_is_single_line_sanitized_bounded(self):
         self.assertEqual(clean_note("Finish chapter\n|rthen sleep\x1b"), "Finish chapter rthen sleep")
         self.assertIsNone(clean_note(" " * 10))
