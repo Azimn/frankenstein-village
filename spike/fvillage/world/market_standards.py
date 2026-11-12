@@ -42,9 +42,15 @@ def _signed(account_id, mask_id, mask, event_id, day, hour):
 def normalize(raw):
     if not hasattr(raw, "get"):
         return fresh()
-    try:
-        d = max(0, int(raw.get("day") or 0))
-    except (ValueError, TypeError, OverflowError):
+    # A persisted clock is an authority boundary: bool/float/coerced text
+    # cannot authenticate an old signed Merchant hold as today's decision.
+    value = raw.get("day")
+    if type(value) is int:
+        d = max(0, value)
+    elif (type(value) is str and 0 < len(value) <= 18
+          and value.isascii() and value.isdecimal()):
+        d = int(value)
+    else:
         d = 0
     result = fresh(d)
     for name in ("review", "calibration", "release", "attestation", "audit"):
