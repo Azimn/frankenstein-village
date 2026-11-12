@@ -84,6 +84,32 @@ def signed_events(row, *, source=None, dispatch=None):
 
 
 class RefugeRules(unittest.TestCase):
+
+    def test_corrupt_history_row_fails_closed_without_spending_pantry(self):
+        class BrokenRow:
+            def get(self, key, default=None):
+                return {"event_id": 43, "dispatch_event_id": 42,
+                        "hound_account_id": 101, "innkeep_account_id": 102,
+                        "item_id": 401}.get(key, default)
+
+            def __iter__(self):
+                raise ValueError("persisted mapping cannot be materialized")
+
+        self.assertIsNone(r.history({"history": UserList([BrokenRow()])}))
+        state, food, allowed, reason = serve(
+            raw={"history": UserList([BrokenRow()])})
+        self.assertIsNone(state)
+        self.assertFalse(allowed)
+        self.assertIn("malformed", reason)
+        self.assertEqual(food, soup_state.pantry(None, 3))
+
+    def test_valid_saver_backed_history_is_preserved(self):
+        row = {"event_id": 43, "dispatch_event_id": 42,
+               "hound_account_id": 101, "innkeep_account_id": 102,
+               "item_id": 401}
+        self.assertEqual(r.history(UserDict(
+            {"history": UserList([UserDict(row)])})), [row])
+
     def test_real_two_account_arrival_spends_finite_food(self):
         history, food, ok, reason = serve()
         self.assertTrue(ok, reason)
