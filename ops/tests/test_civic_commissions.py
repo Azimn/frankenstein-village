@@ -94,6 +94,32 @@ class CivicCommissionTests(unittest.TestCase):
             self.assertLessEqual(len(state["history"]), 32)
         self.assertEqual(state["history"][-1]["id"], "civic-250")
 
+    def test_corrupt_persisted_day_cannot_relabel_a_signed_pledge(self):
+        # Invalid clock coordinates must not turn yesterday's real pledge
+        # into an apparently valid current-day delivery or expiry receipt.
+        state, accepted, error = stage(refresh(None, 3), day=3)
+        self.assertTrue(accepted, error)
+        for invalid in (True, False, 3.0, "3", None, -1):
+            with self.subTest(day=invalid):
+                stored = json.loads(json.dumps(state))
+                stored["day"] = invalid
+                repaired = refresh(stored, 4)
+                self.assertEqual(repaired["day"], 4)
+                self.assertEqual(repaired["commission"]["status"], "open")
+                self.assertIsNone(repaired["commission"]["bundle_id"])
+                self.assertFalse(any(
+                    row.get("id") == "civic-3" and row.get("status") == "expired"
+                    for row in repaired["history"]
+                ))
+                rejected, accepted, _ = complete(repaired, day=4)
+                self.assertFalse(accepted)
+                self.assertEqual(rejected, repaired)
+        # Valid signed state still expires normally, preserving conservation.
+        valid = refresh(json.loads(json.dumps(state)), 4)
+        self.assertEqual(valid["history"][-1]["id"], "civic-3")
+        self.assertEqual(valid["history"][-1]["status"], "expired")
+        self.assertEqual(valid["history"][-1]["bundle_id"], 450)
+
     def test_no_day_zero_or_backwards_refill(self):
         with self.assertRaises(ValueError):
             refresh(None, 0)
