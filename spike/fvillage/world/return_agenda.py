@@ -12,6 +12,17 @@ from collections.abc import Mapping
 MAX_NOTE = 200
 
 
+def safe_village_day(value):
+    """Accept only a canonical positive integer day from persisted world time.
+
+    Never turn booleans, numeric strings or floats into fabricated dates.
+    Unknown clock state is displayed as unavailable, not day one.
+    """
+    if type(value) is not int or not (1 <= value < 2**63):
+        return None
+    return value
+
+
 def clean_note(value):
     text = str(value or "").replace("|", " ")
     text = "".join(ch if ch.isprintable() else " " for ch in text)
@@ -97,9 +108,12 @@ def lamp_repair_work_lines(case, mask_id):
 
 
 def summary(*, note, followed, day, location, work_lines=None):
+    valid_day = safe_village_day(day)
+    clock_label = (f"Village day {valid_day}" if valid_day is not None
+                   else "Village day unavailable (clock needs repair)")
     lines = [
         "|wYour next visit|n",
-        f"Village day {int(day)}. Currently at {str(location)[:90]}.",
+        f"{clock_label}. Currently at {str(location)[:90]}.",
         "Your private reminder: " + (clean_note(note) or "none yet."),
     ]
     if work_lines:
