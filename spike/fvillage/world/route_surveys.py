@@ -28,6 +28,15 @@ def normalize(raw):
     # Malformed persisted coordinates cannot become valid signed days.
     # Retain the empty day-zero sentinel so existing uninitialized saves load.
     day = stored_day if type(stored_day) is int and stored_day >= 0 else 0
+    # A missing or corrupt day cannot authenticate day-scoped signed work.
+    # Keep the archive for separate validation, but discard current-day
+    # receipts instead of silently reassigning them to day zero.
+    if day == 0:
+        value["reports"] = {}
+        value["field_decisions"] = {}
+        value["advisory"] = None
+        value["caution_notice"] = None
+        value["caution_publication_event_id"] = None
     reports = {}
     raw_reports = value.get("reports")
     for ident, entry in (raw_reports.items() if isinstance(raw_reports, Mapping) else ()):
