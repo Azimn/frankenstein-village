@@ -501,5 +501,48 @@ class CivicCommissionTests(unittest.TestCase):
         self.assertEqual(refresh(pledged, 2), original)
 
 
+
+class CommissionClockConsequenceBoundaryTests(unittest.TestCase):
+    """Guard against signing a stale daily action after preview/clock rollover."""
+
+    def test_pledge_and_cancel_recheck_live_day_inside_transaction(self):
+        import ast
+        from pathlib import Path
+
+        root = Path(__file__).resolve().parents[2]
+        source = (root / "spike/fvillage/world/civic_work.py").read_text()
+        tree = ast.parse(source)
+        for name in ("pledge", "cancel"):
+            with self.subTest(action=name):
+                action = next(
+                    node for node in tree.body
+                    if isinstance(node, ast.FunctionDef) and node.name == name
+                )
+                consequence = next(
+                    node for node in action.body
+                    if isinstance(node, ast.FunctionDef) and node.name == "consequence"
+                )
+                atomic = next(
+                    node for node in consequence.body if isinstance(node, ast.With)
+                )
+                # The guard must precede the state transition inside the same
+                # transaction, not merely run during the command preview.
+                guard = atomic.body[0]
+                self.assertIsInstance(guard, ast.If)
+                self.assertIn("_clock()[0] != day", ast.unparse(guard.test))
+                self.assertTrue(any(
+                    isinstance(n, ast.Raise) for n in ast.walk(guard)
+                ))
+                transition = next(
+                    node for node in ast.walk(atomic)
+                    if isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == name
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "civic_commissions"
+                )
+                self.assertLess(guard.lineno, transition.lineno)
+
+
 if __name__ == "__main__":
     unittest.main()
