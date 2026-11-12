@@ -90,6 +90,7 @@ def collect(mask):
     if any(obj.db.ferry_parcel for obj in mask.contents):
         return None, "You already carry a post parcel. Deliver or hand it over."
     day, hour = _clock()
+    collector_account_id, collector_mask_id = mask.account.id, mask.id
     candidate, ok = courier_state.issue(market.db.ferry_post_stock, day)
     if not ok:
         return None, "The postal bag has no more parcels for this village day."
@@ -100,6 +101,15 @@ def collect(mask):
                 market.db.ferry_post_stock, day)
             if not allowed or mask.location != market:
                 raise RuntimeError("The market parcel is no longer available.")
+            if (not getattr(mask, "account", None)
+                    or mask.account.id != collector_account_id
+                    or mask.id != collector_mask_id
+                    or active_calling(mask) != "wanderer"):
+                raise RuntimeError("The collecting Wanderer lost account or Calling authority.")
+            if _clock() != (day, hour):
+                raise RuntimeError("Village time advanced before collection.")
+            if any(obj.db.ferry_parcel for obj in mask.contents):
+                raise RuntimeError("The courier already carries a post parcel.")
             parcel = create_object(
                 "typeclasses.objects.Object", key=PARCEL,
                 location=mask, aliases=["mail parcel", "ferry parcel"],
