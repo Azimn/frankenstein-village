@@ -828,18 +828,9 @@ def main() -> int:
         require_all(out, "ask Bram about work")
         require(out, "care")
 
-        # The public board samples from six canonical roots. One view is not
-        # guaranteed to contain the three legacy investigation witnesses.
-        # Gather public handles across bounded ordinary-player reads (up to 96), while
-        # retaining all three provenance and refusal assertions below.
-        rumor_views = []
-        for _ in range(96):
-            rumor_views.append(c.command("rumors"))
-            sampled = "\n".join(rumor_views).lower()
-            if ("confessional" in sampled and "well steams" in sampled
-                    and "arrivals register" in sampled):
-                break
-        out = "\n".join(rumor_views)
+        # All activated canonical accounts must be discoverable on the first
+        # ordinary Tavern visit, even when only three are featured in rotation.
+        out = c.command("rumors")
         require(out, "confessional")
         require(out, "well steams")
         require(out, "arrivals register", "register")
