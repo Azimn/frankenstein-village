@@ -160,6 +160,26 @@ class SurveyTests(unittest.TestCase):
         self.assertFalse(accepted)
         self.assertEqual(repeated["advisory"]["event_id"], 13)
 
+    def test_world_clock_day_rejects_coercion_and_preserves_zero_sentinel(self):
+        for invalid in (True, False, 2.0, "2", None, -1, float("inf")):
+            with self.subTest(invalid=invalid):
+                # A malformed persisted day must not be adopted as canonical.
+                self.assertEqual(r.normalize({"day": invalid})["day"], 0)
+                with self.assertRaises(ValueError):
+                    r.fresh(invalid)
+                with self.assertRaises(ValueError):
+                    r.refresh(None, invalid)
+        self.assertEqual(r.fresh()["day"], 0)
+        self.assertEqual(r.fresh(2)["day"], 2)
+        self.assertEqual(r.normalize({"day": 2})["day"], 2)
+        self.assertEqual(r.refresh(None, 2)["day"], 2)
+        self.assertEqual(r.normalize({"day": 0})["day"], 0)
+        # A bad persisted coordinate must not manufacture a previous-day
+        # archive entry during the first legitimate day transition.
+        recovered = r.refresh({"day": "2", "reports": {}}, 3)
+        self.assertEqual(recovered["day"], 3)
+        self.assertEqual(recovered["history"], [])
+
     def test_history_rejects_coerced_calendar_days(self):
         valid = {"day": 2, "completed": False, "reports": {"grave_marker": {
             "account_id": 7, "event_id": 11, "mask": "Surveyor"}}}
