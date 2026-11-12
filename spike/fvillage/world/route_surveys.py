@@ -15,26 +15,37 @@ MAX_HISTORY = 30
 
 
 def fresh(day=0):
-    return {"day": int(day), "reports": {}, "field_decisions": {}, "advisory": None, "caution_notice": None, "caution_publication_event_id": None, "history": []}
+    # Day zero is the only uninitialized sentinel. Never turn a bool,
+    # floating point value, or numeric string into a world-clock coordinate.
+    if type(day) is not int or day < 0:
+        raise ValueError("Village day must be a nonnegative integer")
+    return {"day": day, "reports": {}, "field_decisions": {}, "advisory": None, "caution_notice": None, "caution_publication_event_id": None, "history": []}
 
 
 def normalize(raw):
     value = copy.deepcopy(dict(raw)) if isinstance(raw, Mapping) else {}
-    try:
-        day = max(0, int(value.get("day") or 0))
-    except (TypeError, ValueError, OverflowError):
-        day = 0
+    stored_day = value.get("day", 0)
+    # Malformed persisted coordinates cannot become valid signed days.
+    # Retain the empty day-zero sentinel so existing uninitialized saves load.
+    day = stored_day if type(stored_day) is int and stored_day >= 0 else 0
+    # A missing or corrupt day cannot authenticate day-scoped signed work.
+    # Keep the archive for separate validation, but discard current-day
+    # receipts instead of silently reassigning them to day zero.
+    if day == 0:
+        value["reports"] = {}
+        value["field_decisions"] = {}
+        value["advisory"] = None
+        value["caution_notice"] = None
+        value["caution_publication_event_id"] = None
     reports = {}
     raw_reports = value.get("reports")
     for ident, entry in (raw_reports.items() if isinstance(raw_reports, Mapping) else ()):
         if ident not in SITES or not hasattr(entry, "get"):
             continue
-        try:
-            account = int(entry["account_id"])
-            event = int(entry["event_id"])
-        except (ValueError, TypeError, KeyError, OverflowError):
-            continue
-        if account < 1 or event < 1:
+        account = entry.get("account_id")
+        event = entry.get("event_id")
+        if (type(account) is not int or account < 1
+                or type(event) is not int or event < 1):
             continue
         reports[ident] = {
             "account_id": account, "mask": str(entry.get("mask") or "")[:70],
@@ -45,13 +56,9 @@ def normalize(raw):
     for role, entry in (raw_decisions.items() if isinstance(raw_decisions, Mapping) else ()):
         if role not in {"hound", "wanderer"} or not hasattr(entry, "get"):
             continue
-        try:
-            account, event = int(entry["account_id"]), int(entry["event_id"])
-        except (ValueError, TypeError, KeyError, OverflowError):
-            continue
-        if (isinstance(entry.get("account_id"), bool)
-                or isinstance(entry.get("event_id"), bool)
-                or account < 1 or event < 1):
+        account, event = entry.get("account_id"), entry.get("event_id")
+        if (type(account) is not int or account < 1
+                or type(event) is not int or event < 1):
             continue
         action = "protect" if role == "hound" else "passability"
         observation = entry.get("observation")
@@ -71,15 +78,11 @@ def normalize(raw):
     raw_wanderer = raw_decisions.get("wanderer") or {} if isinstance(raw_decisions, Mapping) else {}
     joint = raw_wanderer.get("corroboration") if hasattr(raw_wanderer, "get") else None
     if (hasattr(joint, "get") and "hound" in decisions and "wanderer" in decisions):
-        try:
-            joint_id = int(joint["event_id"])
-            source_id = int(joint["hound_event_id"])
-            joint_account = int(joint["account_id"])
-        except (KeyError, TypeError, ValueError, OverflowError):
-            pass
-        else:
-            if (not any(isinstance(joint.get(k), bool) for k in
-                        ("event_id", "hound_event_id", "account_id"))
+        joint_id = joint.get("event_id")
+        source_id = joint.get("hound_event_id")
+        joint_account = joint.get("account_id")
+        if (all(type(value) is int and value > 0 for value in
+                (joint_id, source_id, joint_account))
                     and joint_id > 0
                     and source_id == decisions["hound"]["event_id"]
                     and joint_account == decisions["wanderer"]["account_id"]
@@ -96,19 +99,14 @@ def normalize(raw):
     advisory = None
     item = value.get("advisory")
     if hasattr(item, "get"):
-        try:
-            publisher = int(item["account_id"])
-            event_id = int(item["event_id"])
-            source_account = int(item["source_account_id"])
-            source_event = int(item["source_event_id"])
-            source_day = int(item["source_day"])
-            version = int(item["version"])
-        except (TypeError, ValueError, KeyError, OverflowError):
-            pass
-        else:
-            if (all(not isinstance(item.get(k), bool) for k in (
-                    "account_id", "event_id", "source_account_id",
-                    "source_event_id", "source_day", "version"))
+        publisher = item.get("account_id")
+        event_id = item.get("event_id")
+        source_account = item.get("source_account_id")
+        source_event = item.get("source_event_id")
+        source_day = item.get("source_day")
+        version = item.get("version")
+        if (all(type(value) is int for value in
+                (publisher, event_id, source_account, source_event, source_day, version))
                     and min(publisher, event_id, source_account, source_event) > 0
                     and publisher != source_account and source_day == day
                     and event_id != source_event and version == 1
@@ -143,9 +141,8 @@ def normalize(raw):
 
 def refresh(raw, day):
     state = normalize(raw)
-    day = int(day)
-    if day < 1:
-        raise ValueError("Village day must be positive")
+    if type(day) is not int or day < 1:
+        raise ValueError("Village day must be a positive integer")
     if day <= state["day"]:
         return state
     if state["day"] > 0:
@@ -196,12 +193,10 @@ def history_records(raw, day, *, limit=5, selected_day=None):
     for raw_row in state["history"][-MAX_HISTORY:]:
         if not isinstance(raw_row, Mapping):
             continue
-        try:
-            old_day = int(raw_row.get("day"))
-        except (TypeError, ValueError, OverflowError):
-            continue
-        if (isinstance(raw_row.get("day"), bool)
-                or old_day < 1 or old_day >= state["day"]):
+        # Historical day identifiers are signed calendar coordinates, not
+        # values that can be coerced from floats or numeric strings.
+        old_day = raw_row.get("day")
+        if type(old_day) is not int or old_day < 1 or old_day >= state["day"]:
             continue
         reports = raw_row.get("reports")
         decisions = raw_row.get("field_decisions")
@@ -249,11 +244,10 @@ def report(raw, day, ident, account_id, mask, event_id):
         return state, False, "That location is not on today's inspection route."
     if ident in state["reports"]:
         return state, False, "Today's report for this landmark is already signed."
-    try:
-        account_id, event_id = int(account_id), int(event_id)
-    except (ValueError, TypeError, OverflowError):
-        return state, False, "A signed account and canonical event are required."
-    if account_id < 1 or event_id < 1:
+    # Preserve original account and event types. bool is a subclass of int,
+    # and coercion would silently turn forged True/1.0/"1" into signed IDs.
+    if (type(account_id) is not int or account_id < 1
+            or type(event_id) is not int or event_id < 1):
         return state, False, "A signed account and canonical event are required."
     state["reports"][ident] = {
         "account_id": account_id, "mask": str(mask)[:70], "event_id": event_id,
@@ -283,14 +277,9 @@ def field_decision(raw, day, site, role, action, caution_marked,
         return state, False, "That professional field action is not available here."
     if not isinstance(caution_marked, bool):
         return state, False, "The physical cord condition could not be verified."
-    for val in (account_id, event_id):
-        if isinstance(val, bool):
-            return state, False, "A signed ordinary account and event are required."
-        try:
-            if int(val) < 1:
-                return state, False, "A signed ordinary account and event are required."
-        except (TypeError, ValueError, OverflowError):
-            return state, False, "A signed ordinary account and event are required."
+    if (type(account_id) is not int or account_id < 1
+            or type(event_id) is not int or event_id < 1):
+        return state, False, "A signed ordinary account and event are required."
     if role in state["field_decisions"]:
         return state, False, "That professional field action is already signed today."
     if role == "hound" and caution_marked:
@@ -299,8 +288,8 @@ def field_decision(raw, day, site, role, action, caution_marked,
             return state, False, "The frayed cord is already tied as a visible caution marker."
     entry = {
         "site": site, "action": action,
-        "account_id": int(account_id), "mask": str(mask)[:70],
-        "event_id": int(event_id),
+        "account_id": account_id, "mask": str(mask)[:70],
+        "event_id": event_id,
     }
     if role == "hound":
         entry["retied_previous_day"] = caution_marked
@@ -533,14 +522,11 @@ def publish_advisory(raw, day, account_id, mask, event_id, source_event_id):
         return state, False, "A Wanderer's signed firsthand route observation is required."
     if state["advisory"] is not None:
         return state, False, "Today's sourced map advisory is already published."
-    try:
-        values = (account_id, event_id, source_event_id)
-        if any(isinstance(value, bool) for value in values):
-            raise ValueError("Boolean identifiers are not accounts or events")
-        account_id, event_id, source_event_id = (int(value) for value in values)
-    except (TypeError, ValueError, OverflowError):
-        return state, False, "Signed account and event identifiers are required."
-    if min(account_id, event_id, source_event_id) < 1 or event_id == source_event_id:
+    # Canonical ledger identifiers must already be exact positive integers.
+    # Coercion would allow 1.0 and "1" to impersonate signed sources.
+    if (any(type(value) is not int or value < 1
+            for value in (account_id, event_id, source_event_id))
+            or event_id == source_event_id):
         return state, False, "Signed account and event identifiers are required."
     if source["account_id"] == account_id:
         return state, False, "An independent Chronicler account must edit this field report."
