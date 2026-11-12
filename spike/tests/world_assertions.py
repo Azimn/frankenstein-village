@@ -133,7 +133,7 @@ assert "last michaelmas" in register_desc and "crossed out" in register_desc, (
 
 playable = load_rumor_seeds()
 ids = {int(num) for num, _body in playable}
-assert ids == set(PLAYABLE_RUMOR_IDS) == {151, 201, 236}, ids
+assert ids == set(PLAYABLE_RUMOR_IDS) == {2, 3, 4, 151, 201, 236}, ids
 assert len(load_rumor_seeds(playable_only=False)) == 250, "canon rumor corpus changed"
 
 from types import SimpleNamespace
@@ -3532,15 +3532,15 @@ advance_population(
 )
 
 # Rumors are structured belief objects with immutable roots and append-only
-# transmission provenance. The three live canon hooks seed real NPC beliefs.
+# transmission provenance. The six live canon hooks seed real NPC beliefs.
 rumor_registry = ScriptDB.objects.get(db_key="rumor_registry")
 canon_roots = [
     dict(rumor)
     for rumor in (rumor_registry.db.rumors or [])
     if rumor.get("canonical_seed_id") is not None
 ]
-assert {r["canonical_seed_id"] for r in canon_roots} == {151, 201, 236}
-assert len(canon_roots) == 3, "rebuild duplicated canonical rumor roots"
+assert {r["canonical_seed_id"] for r in canon_roots} == {2, 3, 4, 151, 201, 236}
+assert len(canon_roots) == 6, "rebuild duplicated canonical rumor roots"
 for root in canon_roots:
     assert root.get("source_actor"), root
     assert root.get("source_type") == "canon_teller", root

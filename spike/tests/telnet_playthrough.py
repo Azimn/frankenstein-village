@@ -828,6 +828,8 @@ def main() -> int:
         require_all(out, "ask Bram about work")
         require(out, "care")
 
+        # All activated canonical accounts must be discoverable on the first
+        # ordinary Tavern visit, even when only three are featured in rotation.
         out = c.command("rumors")
         require(out, "confessional")
         require(out, "well steams")

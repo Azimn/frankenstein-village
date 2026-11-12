@@ -1489,11 +1489,21 @@ class CmdRumors(Command):
         if names:
             trail = " -> ".join(names + [self.caller.key])
         else:
-            trail = root.get("source_actor") or "unknown"
+            # Corpus attribution is a written claim, not a witnessed speaker.
+            # Do not present the seed's named teller as a verified live link.
+            trail = "no witnessed speaker recorded"
+        attribution = (
+            f"Archive attributes this account to "
+            f"{root.get('source_actor') or 'an unnamed source'}; "
+            f"the attribution has not been witnessed in play. "
+            if root.get("canonical_seed_id") is not None
+            else ""
+        )
 
         self.caller.msg(
             f"|wR{rumor_id}|n: {belief['claim']}\n"
             f"You heard it from {belief.get('heard_from') or 'someone'}. "
+            f"{attribution}"
             f"Your reconstructable telling trail is {trail}. "
             f"You are {band} of it. "
             f"Retell it with: retell <person> R{rumor_id}"
@@ -1567,6 +1577,19 @@ class CmdRumors(Command):
             hear_public(self.caller, root["id"], loc)
             shown.add(root["id"])
             body = re.sub(r"\*([^*]+?)\*", r"\1", body)
+            self.caller.msg(f"\n|w[R{root['id']}]|n {body}")
+
+        # Featured talk rotates, but every activated canonical account must
+        # remain discoverable to an ordinary visitor without waiting for the
+        # server clock. Hearing an unfeatured account uses the same signed
+        # registry transmission and persistent mask belief as featured talk.
+        for num, _body in seeds:
+            root = root_by_seed.get(int(num))
+            if not root or root["id"] in shown:
+                continue
+            hear_public(self.caller, root["id"], loc)
+            shown.add(root["id"])
+            body = re.sub(r"\*([^*]+?)\*", r"\1", root["claim"])
             self.caller.msg(f"\n|w[R{root['id']}]|n {body}")
 
         for root in public_dynamic_rumors(loc)[-5:]:
