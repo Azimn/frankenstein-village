@@ -238,7 +238,12 @@ def history(raw):
             "event_id", "dispatch_event_id", "hound_account_id",
             "innkeep_account_id", "item_id")):
             return None
-        result.append(dict(row))
+        # Saver-backed mappings may expose valid keys but fail conversion.
+        # A damaged receipt cannot authorize another finite refuge meal.
+        try:
+            result.append(dict(row))
+        except (TypeError, ValueError):
+            return None
     return result
 
 
