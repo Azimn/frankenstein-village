@@ -32,6 +32,22 @@ class ClinicHistoryRecovery(unittest.TestCase):
         self.assertEqual(state["history"][-1]["day"], 49)
         self.assertIsInstance(state["history"][0], dict)
 
+    def test_mapping_like_broken_archive_row_is_skipped_without_losing_valid_history(self):
+        class BrokenRow:
+            def get(self, key, default=None):
+                return 3 if key == "day" else default
+
+            def __iter__(self):
+                raise ValueError("broken archive row")
+
+        valid = UserDict({"day": 2, "assessment": None})
+        raw = {"day": 4, "history": UserList([valid, BrokenRow(),
+                                                 {"day": 3, "treatment": None}])}
+        state = clinic_state.normalize(raw)
+        self.assertEqual([row["day"] for row in state["history"]], [2, 3])
+        self.assertIn("St. Lazarus", clinic_state.public_lines(raw, 4))
+        self.assertEqual(len(raw["history"]), 3)
+
     def test_rollover_after_corrupt_archive_keeps_current_care_and_finite_linen(self):
         raw = {"day": 3, "condition": "fever", "linen": 1,
                "history": "malformed",
