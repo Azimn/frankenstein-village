@@ -19,6 +19,12 @@ def normalize(raw):
     state.setdefault("commission", None)
     state.setdefault("history", [])
     state["history"] = list(state["history"])[-MAX_HISTORY:]
+    # A corrupted stored clock must not redate an existing signed pledge.
+    # The physical bundle remains with its actual owner; only the unsafe
+    # current-day order is discarded. Historical terminal rows are retained.
+    if type(state["day"]) is not int or state["day"] < 0:
+        state["day"] = 0
+        state["commission"] = None
     return state
 
 

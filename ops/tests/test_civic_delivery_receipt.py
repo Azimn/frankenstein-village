@@ -94,5 +94,51 @@ class CivicDeliveryReceiptTests(unittest.TestCase):
         self.assertEqual(len(tavern.db.civic_commission["history"]), 1)
 
 
+    def test_day_rollover_during_signed_delivery_refuses_stale_bundle(self):
+        source_path = ROOT / "spike" / "fvillage" / "world" / "civic_work.py"
+        parsed = ast.parse(source_path.read_text(encoding="utf-8"))
+        function = next(node for node in parsed.body
+                        if isinstance(node, ast.FunctionDef) and node.name == "deliver")
+        namespace = {}
+        exec(compile(ast.fix_missing_locations(
+            ast.Module(body=[function], type_ignores=[])), str(source_path), "exec"),
+            namespace)
+
+        state = civic_commissions.refresh(None, 1)
+        state, accepted, reason = civic_commissions.pledge(
+            state, 1, 101, "Supplier", bundle_id=450, event_id=10)
+        self.assertTrue(accepted, reason)
+        mask = SimpleNamespace(account=SimpleNamespace(id=202), key="Carrier")
+        bundle = FakeBundle(mask)
+        tavern = SimpleNamespace(db=SimpleNamespace(
+            civic_commission=state, civic_hearth={"reserve": 1}))
+        clock = {"day": 1}
+
+        def publish(kind, *, actor, payload, consequence):
+            self.assertEqual(payload["day"], 1)
+            # The village clock moves after preview, before event consequence.
+            clock["day"] = 2
+            return {"id": 11, "consequence": consequence({"id": 11})}
+
+        namespace.update({
+            "_guard": lambda actor, room: None,
+            "_tavern": lambda: tavern,
+            "_clock": lambda: (clock["day"], 21),
+            "_state": lambda obj, day: civic_commissions.refresh(
+                obj.db.civic_commission, day),
+            "_carried": lambda actor: [bundle],
+            "TAVERN_KEY": "The Blood of the Vine",
+            "hearth_state": hearth_state,
+            "civic_commissions": civic_commissions,
+            "transaction": SimpleNamespace(atomic=nullcontext),
+            "publish_world_event": publish,
+        })
+        with self.assertRaisesRegex(RuntimeError, "village day changed"):
+            namespace["deliver"](mask)
+        self.assertFalse(bundle.deleted)
+        self.assertEqual(tavern.db.civic_hearth["reserve"], 1)
+        self.assertEqual(tavern.db.civic_commission["commission"]["status"], "pledged")
+
+
 if __name__ == "__main__":
     unittest.main()

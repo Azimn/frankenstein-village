@@ -94,6 +94,32 @@ class CivicCommissionTests(unittest.TestCase):
             self.assertLessEqual(len(state["history"]), 32)
         self.assertEqual(state["history"][-1]["id"], "civic-250")
 
+    def test_corrupt_persisted_day_cannot_relabel_a_signed_pledge(self):
+        # Invalid clock coordinates must not turn yesterday's real pledge
+        # into an apparently valid current-day delivery or expiry receipt.
+        state, accepted, error = stage(refresh(None, 3), day=3)
+        self.assertTrue(accepted, error)
+        for invalid in (True, False, 3.0, "3", None, -1):
+            with self.subTest(day=invalid):
+                stored = json.loads(json.dumps(state))
+                stored["day"] = invalid
+                repaired = refresh(stored, 4)
+                self.assertEqual(repaired["day"], 4)
+                self.assertEqual(repaired["commission"]["status"], "open")
+                self.assertIsNone(repaired["commission"]["bundle_id"])
+                self.assertFalse(any(
+                    row.get("id") == "civic-3" and row.get("status") == "expired"
+                    for row in repaired["history"]
+                ))
+                rejected, accepted, _ = complete(repaired, day=4)
+                self.assertFalse(accepted)
+                self.assertEqual(rejected, repaired)
+        # Valid signed state still expires normally, preserving conservation.
+        valid = refresh(json.loads(json.dumps(state)), 4)
+        self.assertEqual(valid["history"][-1]["id"], "civic-3")
+        self.assertEqual(valid["history"][-1]["status"], "expired")
+        self.assertEqual(valid["history"][-1]["bundle_id"], 450)
+
     def test_no_day_zero_or_backwards_refill(self):
         with self.assertRaises(ValueError):
             refresh(None, 0)
@@ -473,6 +499,49 @@ class CivicCommissionTests(unittest.TestCase):
                     cancel(pledged, bad_day, 101, event_id=22)
                 self.assertEqual(pledged, original)
         self.assertEqual(refresh(pledged, 2), original)
+
+
+
+class CommissionClockConsequenceBoundaryTests(unittest.TestCase):
+    """Guard against signing a stale daily action after preview/clock rollover."""
+
+    def test_pledge_and_cancel_recheck_live_day_inside_transaction(self):
+        import ast
+        from pathlib import Path
+
+        root = Path(__file__).resolve().parents[2]
+        source = (root / "spike/fvillage/world/civic_work.py").read_text()
+        tree = ast.parse(source)
+        for name in ("pledge", "cancel"):
+            with self.subTest(action=name):
+                action = next(
+                    node for node in tree.body
+                    if isinstance(node, ast.FunctionDef) and node.name == name
+                )
+                consequence = next(
+                    node for node in action.body
+                    if isinstance(node, ast.FunctionDef) and node.name == "consequence"
+                )
+                atomic = next(
+                    node for node in consequence.body if isinstance(node, ast.With)
+                )
+                # The guard must precede the state transition inside the same
+                # transaction, not merely run during the command preview.
+                guard = atomic.body[0]
+                self.assertIsInstance(guard, ast.If)
+                self.assertIn("_clock()[0] != day", ast.unparse(guard.test))
+                self.assertTrue(any(
+                    isinstance(n, ast.Raise) for n in ast.walk(guard)
+                ))
+                transition = next(
+                    node for node in ast.walk(atomic)
+                    if isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == name
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "civic_commissions"
+                )
+                self.assertLess(guard.lineno, transition.lineno)
 
 
 if __name__ == "__main__":
