@@ -198,6 +198,10 @@ def deliver(mask):
         return None, "The Tavern rack is full. Wait until an Innkeep tends the fire."
     def consequence(event):
         with transaction.atomic():
+            # A village-day rollover invalidates the preview. Do not spend a
+            # real bundle or attribute yesterday's pledge to today's work.
+            if _clock()[0] != day:
+                raise RuntimeError("The village day changed before commission delivery.")
             if bundle.location != mask or bundle.db.civic_firewood is not True:
                 raise RuntimeError("The pledged firewood was moved before delivery.")
             changed, success, reason = civic_commissions.finish(
