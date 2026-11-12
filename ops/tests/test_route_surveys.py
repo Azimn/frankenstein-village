@@ -180,6 +180,35 @@ class SurveyTests(unittest.TestCase):
         self.assertEqual(recovered["day"], 3)
         self.assertEqual(recovered["history"], [])
 
+    def test_corrupt_day_cannot_relabel_signed_current_day_work(self):
+        original = {
+            "day": "2",
+            "reports": {"grave_marker": {
+                "account_id": 7, "event_id": 11, "mask": "Surveyor"}},
+            "field_decisions": {"hound": {
+                "account_id": 8, "event_id": 12, "mask": "Hound",
+                "action": "protect", "retied_previous_day": False}},
+            "advisory": {"account_id": 9, "event_id": 13},
+            "caution_publication_event_id": 14,
+        }
+        for invalid in ("2", True, 2.0, None, -1, 0):
+            with self.subTest(day=invalid):
+                raw = {**original, "day": invalid}
+                clean = r.normalize(raw)
+                self.assertEqual(clean["day"], 0)
+                self.assertEqual(clean["reports"], {})
+                self.assertEqual(clean["field_decisions"], {})
+                self.assertIsNone(clean["advisory"])
+                self.assertIsNone(clean["caution_notice"])
+                self.assertIsNone(clean["caution_publication_event_id"])
+                recovered = r.refresh(raw, 3)
+                self.assertEqual(recovered["history"], [])
+                self.assertEqual(recovered["reports"], {})
+                self.assertEqual(recovered["field_decisions"], {})
+        valid = r.normalize({**original, "day": 2})
+        self.assertIn("grave_marker", valid["reports"])
+        self.assertIn("hound", valid["field_decisions"])
+
     def test_history_rejects_coerced_calendar_days(self):
         valid = {"day": 2, "completed": False, "reports": {"grave_marker": {
             "account_id": 7, "event_id": 11, "mask": "Surveyor"}}}
