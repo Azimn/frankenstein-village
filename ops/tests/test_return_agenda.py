@@ -18,6 +18,16 @@ class ReturnAgendaTests(unittest.TestCase):
         self.assertIsNone(safe_village_day(2**63))
         self.assertIsNone(safe_village_day("uninitialized"))
 
+    def test_invalid_clock_still_displays_private_note_and_public_discovery(self):
+        rendered = summary(
+            note="Return to the clinic", followed=[], day=None,
+            location="St. Lazarus Church",
+        )
+        self.assertIn("Village day unavailable (clock needs repair)", rendered)
+        self.assertIn("Return to the clinic", rendered)
+        self.assertIn("commons follow", rendered)
+        self.assertNotIn("Village day 1.", rendered)
+
     def test_note_is_single_line_sanitized_bounded(self):
         self.assertEqual(clean_note("Finish chapter\n|rthen sleep\x1b"), "Finish chapter rthen sleep")
         self.assertIsNone(clean_note(" " * 10))
