@@ -82,5 +82,39 @@ class CanonRumorActivationTests(unittest.TestCase):
             self.assertEqual(root["family"], f"canon:{root['canonical_seed_id']}")
 
 
+    def test_archival_attribution_never_fabricates_a_witness(self):
+        """A canon seed teller is metadata, not a live transmission speaker."""
+        command_source = (ROOT / "spike/fvillage/commands/village_cmds.py").read_text(encoding="utf-8")
+        tree = ast.parse(command_source)
+        command = next(node for node in tree.body if isinstance(node, ast.ClassDef)
+                       and node.name == "CmdRumors")
+        detail = next(node for node in command.body if isinstance(node, ast.FunctionDef)
+                      and node.name == "_detail")
+        class Registry:
+            def belief_for(self, actor, rumor_id):
+                return {"claim": "The well has changed", "transmission_id": 17,
+                        "confidence": 0.52, "heard_from": "The Blood of the Vine"}
+            def get_rumor(self, rumor_id):
+                return {"canonical_seed_id": 2, "source_actor": "Marta"}
+            def provenance(self, transmission_id):
+                return [{"speaker": None}]
+        class Caller:
+            key = "Reader"
+            messages = []
+            def msg(self, value):
+                self.messages.append(value)
+        caller = Caller()
+        namespace = {"_parse_rumor_id": lambda value: 2,
+                     "get_rumor_registry": lambda: Registry()}
+        exec(compile(ast.fix_missing_locations(ast.Module(body=[detail], type_ignores=[])),
+                     str(ROOT / "spike/fvillage/commands/village_cmds.py"), "exec"), namespace)
+        namespace["_detail"](type("Cmd", (), {"caller": caller})(), "R2")
+        output = caller.messages[-1]
+        self.assertIn("Archive attributes this account to Marta", output)
+        self.assertIn("attribution has not been witnessed in play", output)
+        self.assertIn("no witnessed speaker recorded", output)
+        self.assertNotIn("telling trail is Marta", output)
+
+
 if __name__ == "__main__":
     unittest.main()
