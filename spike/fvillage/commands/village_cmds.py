@@ -1489,11 +1489,21 @@ class CmdRumors(Command):
         if names:
             trail = " -> ".join(names + [self.caller.key])
         else:
-            trail = root.get("source_actor") or "unknown"
+            # Corpus attribution is a written claim, not a witnessed speaker.
+            # Do not present the seed's named teller as a verified live link.
+            trail = "no witnessed speaker recorded"
+        attribution = (
+            f"Archive attributes this account to "
+            f"{root.get('source_actor') or 'an unnamed source'}; "
+            f"the attribution has not been witnessed in play. "
+            if root.get("canonical_seed_id") is not None
+            else ""
+        )
 
         self.caller.msg(
             f"|wR{rumor_id}|n: {belief['claim']}\n"
             f"You heard it from {belief.get('heard_from') or 'someone'}. "
+            f"{attribution}"
             f"Your reconstructable telling trail is {trail}. "
             f"You are {band} of it. "
             f"Retell it with: retell <person> R{rumor_id}"
