@@ -150,6 +150,8 @@ def pledge(mask):
     bundle = bundles[0]
     def consequence(event):
         with transaction.atomic():
+            if _clock()[0] != day:
+                raise RuntimeError("The village day changed before the commission action.")
             if bundle.location != mask or bundle.db.civic_firewood is not True:
                 raise RuntimeError("The pledged bundle is no longer in the mask's hands.")
             changed, success, reason = civic_commissions.pledge(
@@ -261,6 +263,8 @@ def cancel(mask):
 
     def consequence(event):
         with transaction.atomic():
+            if _clock()[0] != day:
+                raise RuntimeError("The village day changed before the commission action.")
             # Recheck the live state, never the earlier command preview.
             changed, accepted, reason = civic_commissions.cancel(
                 tavern.db.civic_commission, day, account.id,
