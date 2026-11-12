@@ -43,6 +43,7 @@ class BridgeCollectBoundaryTests(unittest.TestCase):
         self.published = []
         self.created = []
         self.inject_before_consequence = None
+        self.clock = (2, 19)
         source = (ROOT / "spike/fvillage/world/bridge_work.py").read_text(
             encoding="utf-8"
         )
@@ -57,7 +58,7 @@ class BridgeCollectBoundaryTests(unittest.TestCase):
             "_bridge": lambda: self.bridge,
             "_carried": lambda mask: [],
             "_ledger_get": lambda event_id: None,
-            "_clock": lambda: (2, 19),
+            "_clock": lambda: self.clock,
             "bridge_choices": bridge_choices,
             "bridge_materials": bridge_materials,
             "bridge_provenance": bridge_provenance,
@@ -120,6 +121,33 @@ class BridgeCollectBoundaryTests(unittest.TestCase):
                 self.assertEqual(self.created, [])
                 self.assertEqual(self.bridge.db.bridge_inquiry, raw)
                 self.published.clear()
+
+    def test_clock_rollover_during_signed_collection_refuses_stale_kit(self):
+        self.bridge.db.bridge_inquiry = None
+        self.clock = (2, 19)
+        self.table.db.bridge_material_stock = {
+            "day": 2, "remaining": {"preserve": 2, "display": 2}
+        }
+        original_publish = self._publish
+
+        def advance_before_consequence(kind, *, actor, payload, consequence):
+            self.clock = (3, 0)
+            return original_publish(kind, actor=actor, payload=payload,
+                                    consequence=consequence)
+
+        # The event publisher invokes the real production consequence body.
+        self.collect.__globals__["publish_world_event"] = advance_before_consequence
+        with self.assertRaisesRegex(RuntimeError, "village clock changed"):
+            self._collect()
+        self.assertEqual(self.created, [])
+        self.assertEqual(self.table.db.bridge_material_stock["remaining"]["preserve"], 2)
+
+    def test_same_clock_collection_remains_playable(self):
+        self.clock = (2, 19)
+        result, error = self._collect()
+        self.assertIsNone(error)
+        self.assertEqual(result["remaining"], 1)
+        self.assertEqual(self.created[-1].db.bridge_material_source_day, 2)
 
     def test_unsettled_original_record_preserves_finite_solo_collection(self):
         for raw in (None, {"resolution": None, "checks": []}):

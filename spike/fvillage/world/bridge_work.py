@@ -207,6 +207,8 @@ def collect(mask, choice):
 
     def consequence(event):
         with transaction.atomic():
+            if _clock() != (day, hour):
+                raise RuntimeError("The village clock changed before kit collection.")
             if mask.location != room or table.location != room:
                 raise RuntimeError("The supplier or traveler moved.")
             if not _collection_open(bridge):
