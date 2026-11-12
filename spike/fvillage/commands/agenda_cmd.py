@@ -49,9 +49,9 @@ class CmdAgenda(Command):
 
         try:
             clock = ScriptDB.objects.get(db_key="village_time")
-            day = int(clock.db.day or 1)
+            day = return_agenda.safe_village_day(clock.db.day)
         except ScriptDB.DoesNotExist:
-            day = 1
+            day = None
         public = commons.current()
         followed = commons_follow.summaries(mask.db.commons_following, public)
         mask.msg(return_agenda.summary(
