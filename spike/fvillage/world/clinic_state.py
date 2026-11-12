@@ -93,10 +93,32 @@ def normalize(raw):
             and permission.get("day") == day
             and hour_value(permission.get("hour")) is not None):
         state["records_permission"] = copy.deepcopy(dict(permission))
-    state["history"] = [
-        copy.deepcopy(dict(row)) for row in list(raw.get("history") or [])[-MAX_HISTORY * 2:]
-        if hasattr(row, "get") and ident(row.get("day"))
-    ][-MAX_HISTORY:]
+    # The archive is a persisted Evennia saver sequence. A malformed value
+    # must not crash ordinary clinic status or expose invented prior cases.
+    # Preserve valid rows and reject a corrupt container without modifying it.
+    archive = raw.get("history")
+    if archive is None:
+        rows = []
+    elif isinstance(archive, (str, bytes, dict)) or not hasattr(archive, "__iter__"):
+        rows = []
+    else:
+        try:
+            rows = list(archive)[-MAX_HISTORY * 2:]
+        except (TypeError, ValueError):
+            rows = []
+    history = []
+    for row in rows:
+        if not hasattr(row, "get"):
+            continue
+        try:
+            # A saver-backed mapping can expose get() but fail dict conversion.
+            # Discard only that row, not the remaining genuine signed history.
+            entry = dict(row)
+        except (TypeError, ValueError):
+            continue
+        if ident(entry.get("day")):
+            history.append(copy.deepcopy(entry))
+    state["history"] = history[-MAX_HISTORY:]
     return state
 
 
