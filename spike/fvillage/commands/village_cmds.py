@@ -1569,6 +1569,19 @@ class CmdRumors(Command):
             body = re.sub(r"\*([^*]+?)\*", r"\1", body)
             self.caller.msg(f"\n|w[R{root['id']}]|n {body}")
 
+        # Featured talk rotates, but every activated canonical account must
+        # remain discoverable to an ordinary visitor without waiting for the
+        # server clock. Hearing an unfeatured account uses the same signed
+        # registry transmission and persistent mask belief as featured talk.
+        for num, _body in seeds:
+            root = root_by_seed.get(int(num))
+            if not root or root["id"] in shown:
+                continue
+            hear_public(self.caller, root["id"], loc)
+            shown.add(root["id"])
+            body = re.sub(r"\\*([^*]+?)\\*", r"\\1", root["claim"])
+            self.caller.msg(f"\\n|w[R{root['id']}]|n {body}")
+
         for root in public_dynamic_rumors(loc)[-5:]:
             if root["id"] in shown or root.get("canonical_seed_id") is not None:
                 continue
