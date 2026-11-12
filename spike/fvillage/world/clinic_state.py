@@ -106,10 +106,19 @@ def normalize(raw):
             rows = list(archive)[-MAX_HISTORY * 2:]
         except (TypeError, ValueError):
             rows = []
-    state["history"] = [
-        copy.deepcopy(dict(row)) for row in rows
-        if hasattr(row, "get") and ident(row.get("day"))
-    ][-MAX_HISTORY:]
+    history = []
+    for row in rows:
+        if not hasattr(row, "get"):
+            continue
+        try:
+            # A saver-backed mapping can expose get() but fail dict conversion.
+            # Discard only that row, not the remaining genuine signed history.
+            entry = dict(row)
+        except (TypeError, ValueError):
+            continue
+        if ident(entry.get("day")):
+            history.append(copy.deepcopy(entry))
+    state["history"] = history[-MAX_HISTORY:]
     return state
 
 
