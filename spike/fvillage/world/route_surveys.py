@@ -15,15 +15,19 @@ MAX_HISTORY = 30
 
 
 def fresh(day=0):
-    return {"day": int(day), "reports": {}, "field_decisions": {}, "advisory": None, "caution_notice": None, "caution_publication_event_id": None, "history": []}
+    # Day zero is the only uninitialized sentinel. Never turn a bool,
+    # floating point value, or numeric string into a world-clock coordinate.
+    if type(day) is not int or day < 0:
+        raise ValueError("Village day must be a nonnegative integer")
+    return {"day": day, "reports": {}, "field_decisions": {}, "advisory": None, "caution_notice": None, "caution_publication_event_id": None, "history": []}
 
 
 def normalize(raw):
     value = copy.deepcopy(dict(raw)) if isinstance(raw, Mapping) else {}
-    try:
-        day = max(0, int(value.get("day") or 0))
-    except (TypeError, ValueError, OverflowError):
-        day = 0
+    stored_day = value.get("day", 0)
+    # Malformed persisted coordinates cannot become valid signed days.
+    # Retain the empty day-zero sentinel so existing uninitialized saves load.
+    day = stored_day if type(stored_day) is int and stored_day >= 0 else 0
     reports = {}
     raw_reports = value.get("reports")
     for ident, entry in (raw_reports.items() if isinstance(raw_reports, Mapping) else ()):
@@ -128,9 +132,8 @@ def normalize(raw):
 
 def refresh(raw, day):
     state = normalize(raw)
-    day = int(day)
-    if day < 1:
-        raise ValueError("Village day must be positive")
+    if type(day) is not int or day < 1:
+        raise ValueError("Village day must be a positive integer")
     if day <= state["day"]:
         return state
     if state["day"] > 0:
