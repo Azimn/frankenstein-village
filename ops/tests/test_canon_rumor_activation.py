@@ -106,6 +106,12 @@ class CanonRumorActivationTests(unittest.TestCase):
         caller = Caller()
         namespace = {"_parse_rumor_id": lambda value: 2,
                      "get_rumor_registry": lambda: Registry()}
+        # Execute the production method with its registry dependency injected.
+        # The pure regression runner intentionally does not install Evennia.
+        # Strip only the import statement, not any provenance logic.
+        detail.body = [node for node in detail.body
+                       if not (isinstance(node, ast.ImportFrom)
+                               and node.module == "world.rumors")]
         exec(compile(ast.fix_missing_locations(ast.Module(body=[detail], type_ignores=[])),
                      str(ROOT / "spike/fvillage/commands/village_cmds.py"), "exec"), namespace)
         namespace["_detail"](type("Cmd", (), {"caller": caller})(), "R2")
