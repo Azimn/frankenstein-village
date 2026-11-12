@@ -1579,8 +1579,8 @@ class CmdRumors(Command):
                 continue
             hear_public(self.caller, root["id"], loc)
             shown.add(root["id"])
-            body = re.sub(r"\\*([^*]+?)\\*", r"\\1", root["claim"])
-            self.caller.msg(f"\\n|w[R{root['id']}]|n {body}")
+            body = re.sub(r"\*([^*]+?)\*", r"\1", root["claim"])
+            self.caller.msg(f"\n|w[R{root['id']}]|n {body}")
 
         for root in public_dynamic_rumors(loc)[-5:]:
             if root["id"] in shown or root.get("canonical_seed_id") is not None:
