@@ -133,12 +133,12 @@ class TestEvenniaReplayCleanup(unittest.TestCase):
             )
         stop.assert_called_once()
 
-    def test_all_nine_actual_restart_phases_preserve_original_failure(self):
+    def test_all_ten_actual_restart_phases_preserve_original_failure(self):
         # Verify the current main runner, not a removed candidate-only replay.
-        # All nine real finally blocks must retain the player exception.
+        # All ten real finally blocks must retain the player exception.
         source = RUNNER.read_text(encoding="utf-8")
-        self.assertEqual(source.count("stop_evennia_after_phase("), 10)
-        self.assertEqual(source.count("phase_failed=sys.exc_info()[0] is not None"), 9)
+        self.assertEqual(source.count("stop_evennia_after_phase("), 11)
+        self.assertEqual(source.count("phase_failed=sys.exc_info()[0] is not None"), 10)
         self.assertNotIn('finally:\n                run([evennia, "stop"]', source)
 
     def test_pre_restart_failure_and_stop_failure_keep_player_exception(self):

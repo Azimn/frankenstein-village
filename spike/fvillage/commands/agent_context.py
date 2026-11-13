@@ -113,6 +113,7 @@ def payload_for(mask):
         if room and room.key == "Village Square":
             result["commands"]["public_commons"] = "commons"
             result["commands"]["firewood"] = "hearth gather"
+            result["commands"]["shared_square_warmth"] = "brazier"
         if room and room.key == "St. Lazarus Church":
             result["commands"]["confessional"] = "confess"
             result["commands"]["clinic_care"] = "clinic"

@@ -56,6 +56,9 @@ class SpikeRoom(DefaultRoom):
         weather = self.db.weather_sense
         if weather:
             desc = f"{desc} {weather}"
+        if self.key == "Village Square":
+            from world.square_brazier import public_line
+            desc = f"{desc}\n{public_line()}"
         overlays = dict(self.db.scheduled_overlays or {})
         for _key in sorted(overlays):
             line = overlays[_key]
