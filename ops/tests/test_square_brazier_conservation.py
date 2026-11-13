@@ -5,6 +5,7 @@ calls mocked. Interleaving tests do NOT establish truly simultaneous SQL
 transactions. Real-client and restart tests live in spike/tests.
 """
 import ast
+from collections import UserDict
 from contextlib import nullcontext
 from pathlib import Path
 import sys
@@ -97,6 +98,7 @@ class SquareBrazierRuntimeTests(unittest.TestCase):
             return event
 
         self.ns.update({
+            "Mapping": __import__("collections.abc", fromlist=["Mapping"]).Mapping,
             "_guard": lambda player: (
                 (self.square, None) if player.location is self.square
                 else (None, "Not in Village Square.")
@@ -253,6 +255,37 @@ class SquareBrazierRuntimeTests(unittest.TestCase):
                 self.assertFalse(self.bundle.deleted)
                 self.assertIsNone(self.brazier.db.square_brazier)
         self.source = baseline
+
+    def test_persisted_mapping_receipt_preserves_real_fuel_authority(self):
+        # Evennia Attribute storage restores ledger sections as SaverDict-like
+        # Mapping objects, not necessarily builtin dict instances.
+        self.source = UserDict({
+            **self.source,
+            "actor": UserDict(self.source["actor"]),
+            "payload": UserDict(self.source["payload"]),
+            "consequence": UserDict(self.source["consequence"]),
+        })
+        result, error = self.act("light")
+        self.assertIsNone(error)
+        self.assertEqual(result["bundle_id"], self.bundle.id)
+        self.assertTrue(self.bundle.deleted)
+        self.assertEqual(len(self.events), 1)
+
+    def test_forged_persisted_mapping_refuses_without_spending_fuel(self):
+        self.source = UserDict({
+            **self.source,
+            "actor": UserDict(self.source["actor"]),
+            "payload": UserDict(self.source["payload"]),
+            "consequence": UserDict({
+                **self.source["consequence"], "bundle_id": True,
+            }),
+        })
+        result, error = self.act("light")
+        self.assertIsNone(result)
+        self.assertIn("completed matching Square gathering", error)
+        self.assertFalse(self.bundle.deleted)
+        self.assertEqual(self.events, [])
+        self.assertIsNone(self.brazier.db.square_brazier)
 
     def test_malformed_ledger_sections_fail_closed_without_crashing(self):
         baseline = self.source
