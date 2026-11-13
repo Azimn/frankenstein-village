@@ -6,6 +6,8 @@ A signed world event ties each consumed bundle to a visible contribution.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from django.db import transaction
 from evennia.scripts.models import ScriptDB
 from evennia.utils import search
@@ -77,13 +79,13 @@ def _verified_gather(bundle):
         ).get_event(source_id)
     except ScriptDB.DoesNotExist:
         return False
-    if not isinstance(source, dict):
+    if not isinstance(source, Mapping):
         return False
     # A corrupted ledger record must fail closed, not crash the player command.
     actor = source.get("actor")
     payload = source.get("payload")
     consequence = source.get("consequence")
-    if not all(isinstance(part, dict) for part in (actor, payload, consequence)):
+    if not all(isinstance(part, Mapping) for part in (actor, payload, consequence)):
         return False
     return (
         type(source.get("id")) is int
