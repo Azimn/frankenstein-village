@@ -38,11 +38,19 @@
       ],
       "deliver": "21-family section 15 inventory and all 10 Calling / 45 edge evidence cards, with source file + command + room + owner + canonical transition + restart/UX proof.",
       "proof": "Live discoverability not inferred from manuscript counts; all unknown states explicitly unverified.",
-      "status": "planned",
+      "status": "ready_for_review",
       "verified_evidence": [],
       "source_sections": [
         "19",
         "21"
+      ],
+      "audit_register": "ops/gdd_g01_evidence_register.py",
+      "next_dependency": "Exact-head clean-checkout CI and independent review of FV-G01, then explicit authorized merge and fresh main CI before status VERIFIED (2/14). FV-G02 still pending. No Calling edge is accepted by this index.",
+      "delivery_evidence": [
+        "source_index:ops/gdd_g01_evidence_register.py",
+        "proof_contract:ops/tests/test_game_completion_audit.py",
+        "historical_partial_ci:ops/GDD_G01_CI_OBSERVATIONS_2026-10-27.json",
+        "review_handoff:ops/FV_G01_PACKAGE_HANDOFF_2026-10-27.md"
       ]
     },
     {
